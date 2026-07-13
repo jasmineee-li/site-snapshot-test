@@ -2,7 +2,7 @@
 
 # WARP: Measuring and Mitigating Evaluation Awareness in Browser-Agent Safety Benchmarks
 
-**W**rapper-based, **A**daptive, **R**ealistic **P**ipeline for generating indirect-prompt-injection benchmarks for browser agents that frontier models don't read as evaluations.
+**W**rapper-based, **A**daptive, **R**ealistic **P**ipeline for generating indirect-prompt-injection benchmarks for browser agents that frontier models don't read as evaluations. Published @ ICML 2026 AI4GOOD, AIWILD.
 
 <p>
   Jasmine Li<sup>1,2*</sup>&nbsp;&nbsp;&nbsp;
@@ -29,8 +29,6 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](pyproject.toml)
 
 <img src="assets/warp-architecture.png" alt="The WARP pipeline: recon, benign-task generation, adversarial-twin seeding, admission, and scored rollout with the eval-awareness rewrite loop." width="820">
-
-Published @ ICML 2026 AI4GOOD, AIWILD workshops
 
 </div>
 
