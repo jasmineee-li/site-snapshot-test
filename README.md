@@ -5,9 +5,9 @@
 **W**rapper-based, **A**daptive, **R**ealistic **P**ipeline for generating indirect-prompt-injection benchmarks for browser agents that frontier models don't read as evaluations.
 
 <p>
-  Jasmine Li<sup>1,*</sup>&nbsp;&nbsp;&nbsp;
-  Ashton Chew<sup>1,*</sup>&nbsp;&nbsp;&nbsp;
-  Maxwell Lin<sup>2,</sup>&nbsp;&nbsp;&nbsp;
+  Jasmine Li<sup>1,2*</sup>&nbsp;&nbsp;&nbsp;
+  Ashton Chew<sup>1*</sup>&nbsp;&nbsp;&nbsp;
+  Maxwell Lin<sup>2</sup>&nbsp;&nbsp;&nbsp;
   Eliot Krzysztof Jones<sup>3</sup>&nbsp;&nbsp;&nbsp;
   Xiaohan Fu<sup>2</sup>&nbsp;&nbsp;&nbsp;
   Andy Zou<sup>2</sup>
