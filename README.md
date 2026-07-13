@@ -30,6 +30,8 @@
 
 <img src="assets/warp-architecture.png" alt="The WARP pipeline: recon, benign-task generation, adversarial-twin seeding, admission, and scored rollout with the eval-awareness rewrite loop." width="820">
 
+Published @ ICML 2026 AI4GOOD, AIWILD workshops
+
 </div>
 
 WARP generates indirect prompt injection (IPI) benchmarks for browser agents on WebArena Verified. It seeds each attack into a field a normal user could write, checks that the agent actually rendered it, and rewrites the payload when the agent reads the task as an evaluation.
