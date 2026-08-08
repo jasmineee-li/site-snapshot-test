@@ -42,6 +42,15 @@ optimize for evading safeguards.
 - If an instruction here caused a wrong turn or was missing during a real failure, propose the smallest `AGENTS.md`/`agent_docs/` fix after handling the task.
 - Do not generate or serve web applications from this repo.
 
+## Acceptance boundary
+
+Taskgen changes start in `packages/warp-taskgen/` from a fresh `main` worktree.
+Run `bash scripts/accept_taskgen.sh` from the repository root; it is also the
+single command used by CI. The wrapper delegates to this package's
+`scripts/verify_default.sh`, then builds and installs the wheel in isolation to
+smoke-test the installed CLI. Keep lint and test behavior in the existing
+verification scripts rather than duplicating it in the wrapper.
+
 <important if="you are changing tests, lint, CI hooks, or verification flow">
 - Default pytest runs with `--strict-markers` and excludes `integration`, `feasibility`, `preflight`, `live_l3`, and `crash_resume`; register any new marker in `pyproject.toml` and opt into excluded markers deliberately.
 - `.claude/hooks/ruff-autofix.sh` formats edited Python files; `.claude/hooks/stop-verify.sh` checks changed tracked Python files only.
