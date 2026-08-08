@@ -7,7 +7,7 @@ Use this before fresh-host setup, benchmark proxy work, selected-host runs such 
 Read `docs/handoffs/rigor-run-setup.md` for the full runbook. The short version:
 
 1. Prepare or validate the host config, for example `configs/benchmark_hosts/r5.yaml` or `configs/benchmark_hosts/r8a.yaml`.
-2. Sync code with `scripts/sync_to_r5.sh` or the selected-host equivalent.
+2. Sync code with `scripts/sync_to_host.sh` or the selected-host equivalent.
 3. Start long jobs with `scripts/remote_job_start.sh` and a job id.
 4. Monitor with `scripts/remote_job_status.sh` or `scripts/remote_job_tail.sh`.
 5. Stop only with `scripts/remote_job_stop.sh --job-id <id>`.
@@ -16,7 +16,7 @@ Avoid raw long-lived SSH pipes for runs. Never use broad `pkill -f` to stop jobs
 Do not sync a remote checkout while a registered job is still running. Common
 Phase 0 -> 1 -> 2 and Phase 4 commands start fresh Python processes between
 steps; syncing mid-chain can make one artifact use multiple code versions.
-`sync_to_r5.sh` blocks active remote jobs by default. Use
+`sync_to_host.sh` blocks active remote jobs by default. Use
 `--allow-active-jobs` only for deliberate maintenance after recording why mixed
 checkout provenance is acceptable.
 
@@ -57,6 +57,27 @@ fresh hosts with a non-printing token check such as:
 ssh ubuntu@<host> 'cd /home/ubuntu/browser-sim && uv run python -c "from modal.config import config; raise SystemExit(0 if config.get(\"token_id\") and config.get(\"token_secret\") else 1)"'
 ```
 
+r8a is the canonical scale/smoke host for current paper-facing work. Its
+canonical scale topology is 24 GitLab replicas plus 24 Reddit/Postmill
+replicas, generated from `scripts/scale_config.r8a-24x24.yml`; local ignored
+copies of `instances.scale.json`, `instances.smoke.json`, proxy maps, or
+generated compose files may be absent or stale. Its durable AWS identity is
+managed by a narrow CloudFormation control-plane stack:
+`infra/cloudformation/r8a-control-plane.yaml`. Use
+`scripts/deploy_r8a_control_plane.sh` for EIP association and operator SSH
+ingress, then run `scripts/audit_r8a_control_plane.sh` before starting or
+stopping the host. Do not hand-associate an Elastic IP or add ad hoc SSH ingress
+unless the stack is being repaired; otherwise drift detection loses value. The
+stack does not manage generated benchmark topology. After an EIP change or local
+cleanup of generated topology artifacts, rerun:
+
+```bash
+scripts/setup_phase4_on_host.sh \
+  --host-config configs/benchmark_hosts/r8a.yaml \
+  --instances instances.scale.json \
+  --scale-config scripts/scale_config.r8a-24x24.yml
+```
+
 Treat launch attempts and evidence runs as separate artifacts. If a remote job
 exits before it starts the measured phase, for example because auth, topology,
 or prerequisite artifacts are missing, keep its remote job registry for
@@ -66,16 +87,16 @@ precondition, materialize a fresh state directory from the verified Phase
 This keeps failed setup attempts from becoming part of the evidentiary run
 history and makes later summaries unambiguous.
 
-Canonical selected-host Phase 4 launch shape. Keep r5 as the example below;
-for r8a paper-facing AgentLab/process-pool runs, use
-`configs/benchmark_hosts/r8a.yaml` and the matching generated topology.
+Canonical selected-host Phase 4 launch shape. r8a is the example below because
+it is the current paper-facing scale/smoke host. For legacy r5 runs, swap in
+`configs/benchmark_hosts/r5.yaml` and the matching generated topology.
 
 ```bash
 RUN=logs/<phase4_run_name>
 SOURCE=logs/<verified_phase2_phase3_source>
 
 scripts/remote_job_start.sh \
-  --host-config configs/benchmark_hosts/r5.yaml \
+  --host-config configs/benchmark_hosts/r8a.yaml \
   --remote-dir /home/ubuntu/browser-sim \
   --name <short-job-name> \
   --state-dir "$RUN" \
@@ -265,7 +286,7 @@ falls back to the original URL if the host-local candidate fails. If enrichment
 falls back to static profile samples, treat any later source-data 404s as stale
 inventory evidence, not as a carrier-render verdict.
 
-On r5, also treat the benchmark source path as host-local. `sync_to_r5.sh`
+On r5, also treat the benchmark source path as host-local. `sync_to_host.sh`
 intentionally excludes repo-local `vendors/`, so
 `/home/ubuntu/browser-sim/vendors/webarena-verified` may be stale or incomplete.
 Use `/home/ubuntu/vendors/webarena-verified` in remote Phase 0/1/2 commands
@@ -315,6 +336,21 @@ Remote metadata and logs live under:
 Live hosts often contain the freshest Phase task artifacts under `logs/`.
 Before relying on checked-in task JSON, audit the host or run archive and follow
 `agent_docs/artifacts.md` for manifest, hash, and fixture-promotion rules.
+
+## Park Between Sweeps
+
+When no rigor sweep is running, stop the host with
+`scripts/host_park.sh --host-config configs/benchmark_hosts/<host>.yaml`
+to avoid idle compute billing. Resume with `scripts/host_resume.sh`
+(it sets `worldsim:sweep-in-progress=true` before starting so the
+auto-stop layers do not fire during the run). Operator workflow is
+documented in `docs/handoffs/rigor-run-setup.md` under "Park between
+sweeps". Clear the sweep tag after the sweep AND archive complete.
+
+The full three-layer lifecycle policy (operator scripts + EventBridge
+auto-stop + CloudWatch backstop + termination protection) is in
+`docs/infra/r8a-control-plane.md` under "Lifecycle policy". Read it
+before disabling any layer for a long sweep window.
 
 ## Fresh Host Gate
 
@@ -389,7 +425,7 @@ scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml -
 Use `--quiet` for agent sessions. It prints a one-line pass summary or full failure output.
 With `--host-config` and no explicit `--instances`, the wrapper now generates a
 temporary host-config-specific smoke instances file from `scripts/scale_config.yml`
-and the selected host config. This is intentional: `sync_to_r5.sh` excludes
+and the selected host config. This is intentional: `sync_to_host.sh` excludes
 generated topology artifacts, and host setup may regenerate `instances.smoke.json`
 with ports that differ from a stale laptop checkout. Pass `--instances` only
 when you intentionally want a specific public/proxy or scale topology file. On
@@ -408,7 +444,7 @@ bash scripts/run_integration_tests.sh \
     --quiet
 
 # Deliberate scale-topology check:
-bash scripts/generate_scale_r5.sh --host-config configs/benchmark_hosts/r5.yaml
+bash scripts/generate_scale.sh --host-config configs/benchmark_hosts/r8a.yaml
 bash scripts/run_integration_tests.sh \
     --host-config configs/benchmark_hosts/r5.yaml \
     --instances instances.scale.json \

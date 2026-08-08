@@ -28,7 +28,7 @@
 # holding stale config). The combination above approximates it.
 #
 # Usage:
-#   ./scripts/check_proxy_drift.sh --host-config configs/benchmark_hosts/r5.yaml \
+#   ./scripts/check_proxy_drift.sh --host-config configs/benchmark_hosts/r8a.yaml \
 #       --via-ssm --ssm-instance-id i-0abc... --insecure-http --topology legacy \
 #       --verify-runtime
 #

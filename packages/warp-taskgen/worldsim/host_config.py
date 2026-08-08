@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import re
 from pathlib import Path
 from typing import Literal
 
@@ -10,7 +11,9 @@ import yaml
 from pydantic import BaseModel, Field, model_validator
 
 _WIDE_BIND_HOSTS = frozenset({"0.0.0.0", "::"})
+_WORLD_OPEN_CIDRS = frozenset({"0.0.0.0/0", "::/0"})
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
+_INSTANCE_ID_PATTERN = re.compile(r"^i-[0-9a-f]{17}$")
 
 
 def _is_loopback_host(value: str) -> bool:
@@ -85,6 +88,14 @@ class BenchmarkHostConfig(BaseModel):
     )
     security_group_id: str | None = None
     region: str | None = None
+    instance_id: str | None = Field(
+        None,
+        description=(
+            "EC2 instance id (i-xxxxxxxxxxxxxxxxx). Required by lifecycle "
+            "tooling (host_park.sh, host_resume.sh, EventBridge auto-stop). "
+            "Optional for non-AWS-managed hosts."
+        ),
+    )
 
     @model_validator(mode="after")
     def _validate_contract(self) -> BenchmarkHostConfig:
@@ -130,9 +141,18 @@ class BenchmarkHostConfig(BaseModel):
             )
         for cidr in self.trusted_operator_cidrs:
             try:
-                ipaddress.ip_network(cidr, strict=False)
+                network = ipaddress.ip_network(cidr, strict=False)
             except ValueError as exc:
                 raise ValueError(f"trusted_operator_cidrs contains invalid CIDR {cidr!r}") from exc
+            if self.access_mode == "remote_direct_restricted" and str(network) in _WORLD_OPEN_CIDRS:
+                raise ValueError(
+                    "trusted_operator_cidrs must not include world-open CIDRs "
+                    "for remote_direct_restricted hosts"
+                )
+        if self.instance_id is not None:
+            self.instance_id = self.instance_id.strip()
+            if not _INSTANCE_ID_PATTERN.match(self.instance_id):
+                raise ValueError(f"instance_id {self.instance_id!r} must match i-<17 hex chars>")
         return self
 
 

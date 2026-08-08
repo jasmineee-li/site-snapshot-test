@@ -78,6 +78,21 @@ def test_deploy_proxy_requires_explicit_host_contract() -> None:
     assert "missing benchmark host" in completed.stderr
 
 
+def test_r8a_wrappers_use_r8a_host_config_and_control_plane_audit() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+
+    bootstrap = (repo_root / "scripts" / "bootstrap_r8a.sh").read_text()
+    proxy = (repo_root / "scripts" / "deploy_proxy_r8a.sh").read_text()
+
+    assert "configs/benchmark_hosts/r8a.yaml" in bootstrap
+    assert "scale_config.r8a-24x24.yml" in bootstrap
+    assert "audit_r8a_control_plane.sh" in bootstrap
+    assert "configs/benchmark_hosts/r5.yaml" not in bootstrap
+    assert "configs/benchmark_hosts/r8a.yaml" in proxy
+    assert "audit_r8a_control_plane.sh" in proxy
+    assert "configs/benchmark_hosts/r5.yaml" not in proxy
+
+
 def test_setup_phase4_on_host_fails_when_playwright_install_deps_fails(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     fakebin = tmp_path / "bin"
@@ -127,6 +142,82 @@ exit 0
 
     assert completed.returncode != 0
     assert completed.stderr
+
+
+def test_setup_phase4_on_host_rejects_r8a_with_r5_scale_config() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "setup_phase4_on_host.sh"),
+            "--host-config",
+            "configs/benchmark_hosts/r8a.yaml",
+            "--scale-config",
+            "scripts/scale_config.yml",
+            "--skip-gitlab-mint",
+        ],
+        cwd=repo_root,
+        env=_base_env(repo_root),
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "r8a setup requires scripts/scale_config.r8a-24x24.yml" in completed.stderr
+
+
+def test_setup_phase4_on_host_audits_r8a_before_regenerating_topology(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    audit = tmp_path / "audit-r8a"
+
+    _write_fake_executable(
+        fakebin / "uv",
+        """#!/bin/sh
+if [ "$1" = "run" ] && [ "$2" = "python" ] && [ "$3" = "-c" ]; then
+  printf 'r8a\\n'
+  exit 0
+fi
+if [ "$1" = "lock" ] && [ "$2" = "--check" ]; then
+  exit 0
+fi
+if [ "$1" = "sync" ] && [ "$2" = "--locked" ]; then
+  exit 0
+fi
+exit 0
+""",
+    )
+    _write_fake_executable(
+        audit,
+        """#!/bin/sh
+printf 'r8a audit failed\\n' >&2
+exit 42
+""",
+    )
+
+    env = _base_env(repo_root)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+    env["WORLDSIM_R8A_CONTROL_PLANE_AUDIT"] = str(audit)
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "setup_phase4_on_host.sh"),
+            "--host-config",
+            "configs/benchmark_hosts/r8a.yaml",
+            "--skip-gitlab-mint",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 42
+    assert "r8a audit failed" in completed.stderr
+    assert "step 1b: regen" not in completed.stderr
 
 
 def test_run_integration_tests_fails_fast_when_playwright_browser_missing(tmp_path: Path) -> None:

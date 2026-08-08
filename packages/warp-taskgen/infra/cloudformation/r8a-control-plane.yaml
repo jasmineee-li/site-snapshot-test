@@ -1,0 +1,466 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  WARP Taskgen canonical r8a benchmark host control plane. This stack owns the
+  stable Elastic IP association and operator SSH ingress for an existing EC2
+  instance; benchmark containers and generated topology remain script-managed.
+
+Parameters:
+  HostName:
+    Type: String
+    Default: r8a
+    AllowedPattern: "^[a-z0-9-]+$"
+    Description: Short benchmark host label used for tags and rule descriptions.
+
+  InstanceId:
+    Type: AWS::EC2::Instance::Id
+    Description: Existing benchmark EC2 instance to make canonical.
+
+  SecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Existing security group that should receive managed SSH ingress.
+
+  CreateElasticIp:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Create a new EIP unless importing an existing allocation.
+
+  ExistingAllocationId:
+    Type: String
+    Default: ""
+    Description: Existing EIP allocation ID to associate when CreateElasticIp=false.
+
+  OperatorSshCidr1:
+    Type: String
+    AllowedPattern: "^([0-9]{1,3}\\.){3}[0-9]{1,3}/(3[0-2]|[12]?[0-9])$"
+    ConstraintDescription: Must be an IPv4 CIDR such as 203.0.113.10/32.
+    Description: Primary operator IPv4 CIDR allowed to SSH.
+
+  OperatorSshCidr2:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^([0-9]{1,3}\\.){3}[0-9]{1,3}/(3[0-2]|[12]?[0-9])$"
+    ConstraintDescription: Must be blank or an IPv4 CIDR.
+    Description: Optional secondary operator IPv4 CIDR allowed to SSH.
+
+  OperatorSshCidr3:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^([0-9]{1,3}\\.){3}[0-9]{1,3}/(3[0-2]|[12]?[0-9])$"
+    ConstraintDescription: Must be blank or an IPv4 CIDR.
+    Description: Optional tertiary operator IPv4 CIDR allowed to SSH.
+
+  OperatorSshCidr4:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^([0-9]{1,3}\\.){3}[0-9]{1,3}/(3[0-2]|[12]?[0-9])$"
+    ConstraintDescription: Must be blank or an IPv4 CIDR.
+    Description: Optional fourth operator IPv4 CIDR allowed to SSH.
+
+  OperatorSshCidr5:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^([0-9]{1,3}\\.){3}[0-9]{1,3}/(3[0-2]|[12]?[0-9])$"
+    ConstraintDescription: Must be blank or an IPv4 CIDR.
+    Description: Optional fifth operator IPv4 CIDR allowed to SSH.
+
+  AutoStopEnabled:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >
+      Whether to deploy the EventBridge daily auto-stop Lambda. Set false to
+      tear down the auto-stop subsystem temporarily (e.g. during a multi-day
+      sweep window) without removing the rest of the control plane.
+
+  AutoStopCronUtc:
+    Type: String
+    Default: "cron(0 3 * * ? *)"
+    Description: >
+      EventBridge schedule expression (UTC). Default fires daily at 03:00 UTC.
+      Use cron(...) for fixed times or rate(...) for fixed intervals.
+
+  AutoStopSweepTagKey:
+    Type: String
+    Default: "worldsim:sweep-in-progress"
+    Description: >
+      Tag key the auto-stop Lambda checks. If the value equals
+      AutoStopSweepTagValue the stop is skipped (the runner is mid-sweep).
+
+  AutoStopSweepTagValue:
+    Type: String
+    Default: "true"
+    Description: Tag value indicating a sweep is in progress.
+
+  AutoStopNotificationEmail:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+    ConstraintDescription: Must be blank or a valid email address.
+    Description: >
+      Optional email to subscribe to the auto-stop SNS topic. Leave blank to
+      create the topic with no initial subscription; subscribe out-of-band.
+
+  IdleStopAlarmEnabled:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >
+      Whether to deploy the CloudWatch low-CPU backstop alarm (Layer 3). Set
+      false to disable the alarm for long sweep windows. The alarm fires only
+      after the tighter idle window so false-positives during real sweeps
+      are unlikely; it acts as a safety net if Layer 2 fails.
+
+  IdleStopCpuThresholdPct:
+    Type: Number
+    Default: 2
+    MinValue: 1
+    MaxValue: 100
+    Description: >
+      Average CPU% below which the backstop alarm starts counting toward
+      breaching. Default 2 (deliberately tight; Layer 3 is a backstop).
+
+  IdleStopEvaluationPeriods:
+    Type: Number
+    Default: 24
+    MinValue: 1
+    MaxValue: 288
+    Description: >
+      Number of consecutive 5-minute periods below threshold required for the
+      alarm to fire. Default 24 = 2 hours of fully-idle CPU.
+
+Conditions:
+  CreateNewElasticIp: !Equals [!Ref CreateElasticIp, "true"]
+  HasOperatorSshCidr2: !Not [!Equals [!Ref OperatorSshCidr2, ""]]
+  HasOperatorSshCidr3: !Not [!Equals [!Ref OperatorSshCidr3, ""]]
+  HasOperatorSshCidr4: !Not [!Equals [!Ref OperatorSshCidr4, ""]]
+  HasOperatorSshCidr5: !Not [!Equals [!Ref OperatorSshCidr5, ""]]
+  AutoStopEnabled: !Equals [!Ref AutoStopEnabled, "true"]
+  AutoStopEmailSubscribed: !And
+    - !Condition AutoStopEnabled
+    - !Not [!Equals [!Ref AutoStopNotificationEmail, ""]]
+  IdleStopAlarmEnabled: !Equals [!Ref IdleStopAlarmEnabled, "true"]
+
+Resources:
+  CanonicalElasticIp:
+    Type: AWS::EC2::EIP
+    Condition: CreateNewElasticIp
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "worldsim-${HostName}-canonical-eip"
+        - Key: Project
+          Value: warp-taskgen
+        - Key: Role
+          Value: canonical-benchmark-host
+        - Key: ManagedBy
+          Value: cloudformation
+
+  CanonicalElasticIpAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !If
+        - CreateNewElasticIp
+        - !GetAtt CanonicalElasticIp.AllocationId
+        - !Ref ExistingAllocationId
+      InstanceId: !Ref InstanceId
+
+  OperatorSshIngress1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SecurityGroupId
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref OperatorSshCidr1
+      Description: !Sub "worldsim-${HostName} operator SSH 1"
+
+  OperatorSshIngress2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasOperatorSshCidr2
+    Properties:
+      GroupId: !Ref SecurityGroupId
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref OperatorSshCidr2
+      Description: !Sub "worldsim-${HostName} operator SSH 2"
+
+  OperatorSshIngress3:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasOperatorSshCidr3
+    Properties:
+      GroupId: !Ref SecurityGroupId
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref OperatorSshCidr3
+      Description: !Sub "worldsim-${HostName} operator SSH 3"
+
+  OperatorSshIngress4:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasOperatorSshCidr4
+    Properties:
+      GroupId: !Ref SecurityGroupId
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref OperatorSshCidr4
+      Description: !Sub "worldsim-${HostName} operator SSH 4"
+
+  OperatorSshIngress5:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasOperatorSshCidr5
+    Properties:
+      GroupId: !Ref SecurityGroupId
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref OperatorSshCidr5
+      Description: !Sub "worldsim-${HostName} operator SSH 5"
+
+  # ----- Auto-stop subsystem (EventBridge daily -> Lambda -> SNS) -----
+  # Tag-gated: skips the stop when the sweep-in-progress tag is set, so live
+  # runs are not killed by the daily schedule. Skip events still produce SNS
+  # messages so operators see the gate working.
+
+  AutoStopSnsTopic:
+    Type: AWS::SNS::Topic
+    Condition: AutoStopEnabled
+    Properties:
+      TopicName: !Sub "worldsim-${HostName}-auto-stop"
+      DisplayName: !Sub "worldsim-${HostName} auto-stop"
+      Tags:
+        - Key: Project
+          Value: warp-taskgen
+        - Key: ManagedBy
+          Value: cloudformation
+
+  AutoStopSnsEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: AutoStopEmailSubscribed
+    Properties:
+      TopicArn: !Ref AutoStopSnsTopic
+      Protocol: email
+      Endpoint: !Ref AutoStopNotificationEmail
+
+  AutoStopLambdaDlq:
+    Type: AWS::SQS::Queue
+    Condition: AutoStopEnabled
+    Properties:
+      QueueName: !Sub "worldsim-${HostName}-auto-stop-dlq"
+      MessageRetentionPeriod: 1209600  # 14 days
+      Tags:
+        - Key: Project
+          Value: warp-taskgen
+        - Key: ManagedBy
+          Value: cloudformation
+
+  AutoStopLambdaRole:
+    Type: AWS::IAM::Role
+    Condition: AutoStopEnabled
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: AutoStopOps
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # describe-* APIs do not support resource-level permissions.
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                  - ec2:DescribeTags
+                Resource: "*"
+              # Stop is scoped to the target instance only.
+              - Effect: Allow
+                Action: ec2:StopInstances
+                Resource: !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${InstanceId}"
+              - Effect: Allow
+                Action: sns:Publish
+                Resource: !Ref AutoStopSnsTopic
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt AutoStopLambdaDlq.Arn
+
+  AutoStopLambda:
+    Type: AWS::Lambda::Function
+    Condition: AutoStopEnabled
+    Properties:
+      FunctionName: !Sub "worldsim-${HostName}-auto-stop"
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt AutoStopLambdaRole.Arn
+      Timeout: 30
+      Description: !Sub "Daily tag-gated stop for worldsim-${HostName}."
+      DeadLetterConfig:
+        TargetArn: !GetAtt AutoStopLambdaDlq.Arn
+      Environment:
+        Variables:
+          INSTANCE_ID: !Ref InstanceId
+          SWEEP_TAG_KEY: !Ref AutoStopSweepTagKey
+          SWEEP_TAG_VALUE: !Ref AutoStopSweepTagValue
+          SNS_TOPIC_ARN: !Ref AutoStopSnsTopic
+          HOST_NAME: !Ref HostName
+      Code:
+        ZipFile: |
+          """Tag-gated EC2 stopper for the worldsim daily auto-stop."""
+          import os
+          import boto3
+
+          ec2 = boto3.client("ec2")
+          sns = boto3.client("sns")
+
+          INSTANCE_ID = os.environ["INSTANCE_ID"]
+          SWEEP_TAG_KEY = os.environ["SWEEP_TAG_KEY"]
+          SWEEP_TAG_VALUE = os.environ["SWEEP_TAG_VALUE"]
+          TOPIC_ARN = os.environ["SNS_TOPIC_ARN"]
+          HOST_NAME = os.environ["HOST_NAME"]
+
+
+          def _describe():
+              r = ec2.describe_instances(InstanceIds=[INSTANCE_ID])
+              inst = r["Reservations"][0]["Instances"][0]
+              state = inst["State"]["Name"]
+              tags = {t["Key"]: t["Value"] for t in inst.get("Tags", [])}
+              return state, tags
+
+
+          def _publish(subject, body):
+              sns.publish(TopicArn=TOPIC_ARN, Subject=subject[:99], Message=body)
+
+
+          def handler(event, context):
+              state, tags = _describe()
+              tag_val = tags.get(SWEEP_TAG_KEY, "")
+              if state in ("stopped", "stopping"):
+                  _publish(
+                      f"[{HOST_NAME}] auto-stop skipped: already {state}",
+                      f"Instance {INSTANCE_ID} is already {state}; nothing to do.\n"
+                      f"Tag {SWEEP_TAG_KEY}={tag_val or '<unset>'}.",
+                  )
+                  return {"status": "skipped_already_stopped", "state": state}
+              if tag_val == SWEEP_TAG_VALUE:
+                  _publish(
+                      f"[{HOST_NAME}] auto-stop skipped: sweep in progress",
+                      f"Instance {INSTANCE_ID} has {SWEEP_TAG_KEY}={tag_val}; "
+                      f"sweep is in progress, not stopping.",
+                  )
+                  return {"status": "skipped_sweep_in_progress", "state": state}
+              ec2.stop_instances(InstanceIds=[INSTANCE_ID])
+              _publish(
+                  f"[{HOST_NAME}] auto-stopped",
+                  f"Instance {INSTANCE_ID} was running with no sweep tag; sent "
+                  f"stop-instances. Compute billing pauses; EBS and EIP continue.",
+              )
+              return {"status": "stopped", "state": "stopping"}
+
+  AutoStopSchedulerRole:
+    Type: AWS::IAM::Role
+    Condition: AutoStopEnabled
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeAutoStopLambda
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt AutoStopLambda.Arn
+
+  AutoStopSchedule:
+    Type: AWS::Scheduler::Schedule
+    Condition: AutoStopEnabled
+    Properties:
+      Name: !Sub "worldsim-${HostName}-auto-stop-daily"
+      Description: !Sub "Daily tag-gated stop for worldsim-${HostName}."
+      ScheduleExpression: !Ref AutoStopCronUtc
+      ScheduleExpressionTimezone: UTC
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      State: ENABLED
+      Target:
+        Arn: !GetAtt AutoStopLambda.Arn
+        RoleArn: !GetAtt AutoStopSchedulerRole.Arn
+
+  # ----- Layer 3: CloudWatch low-CPU backstop -----
+  # Native EC2 stop action (no Lambda needed; no tag check). The tight
+  # threshold + long evaluation window make false-positives during real sweeps
+  # unlikely. If Layer 2 fails or is disabled, this is the safety net.
+
+  IdleStopAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IdleStopAlarmEnabled
+    Properties:
+      AlarmName: !Sub "worldsim-${HostName}-idle-stop"
+      AlarmDescription: !Sub >
+        Backstop: stop worldsim-${HostName} after sustained low-CPU idle.
+        Native ec2:stop action. Tune via IdleStopCpuThresholdPct and
+        IdleStopEvaluationPeriods stack parameters.
+      Namespace: AWS/EC2
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref InstanceId
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: !Ref IdleStopEvaluationPeriods
+      DatapointsToAlarm: !Ref IdleStopEvaluationPeriods
+      Threshold: !Ref IdleStopCpuThresholdPct
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Sub "arn:aws:automate:${AWS::Region}:ec2:stop"
+
+Outputs:
+  HostName:
+    Description: Benchmark host label.
+    Value: !Ref HostName
+
+  InstanceId:
+    Description: EC2 instance associated with the canonical EIP.
+    Value: !Ref InstanceId
+
+  ElasticIp:
+    Description: Stable public IPv4 address for the canonical benchmark host.
+    Value: !If [CreateNewElasticIp, !Ref CanonicalElasticIp, ""]
+
+  AllocationId:
+    Description: EIP allocation ID used by this stack.
+    Value: !If [CreateNewElasticIp, !GetAtt CanonicalElasticIp.AllocationId, !Ref ExistingAllocationId]
+
+  SecurityGroupId:
+    Description: Security group receiving managed operator SSH ingress.
+    Value: !Ref SecurityGroupId
+
+  AutoStopLambdaName:
+    Description: Auto-stop Lambda function name (empty if subsystem disabled).
+    Value: !If [AutoStopEnabled, !Ref AutoStopLambda, ""]
+
+  AutoStopScheduleName:
+    Description: EventBridge daily auto-stop schedule name.
+    Value: !If [AutoStopEnabled, !Ref AutoStopSchedule, ""]
+
+  AutoStopSnsTopicArn:
+    Description: SNS topic ARN for auto-stop notifications (operator can subscribe).
+    Value: !If [AutoStopEnabled, !Ref AutoStopSnsTopic, ""]
+
+  IdleStopAlarmName:
+    Description: CloudWatch backstop alarm name (empty if disabled).
+    Value: !If [IdleStopAlarmEnabled, !Ref IdleStopAlarm, ""]

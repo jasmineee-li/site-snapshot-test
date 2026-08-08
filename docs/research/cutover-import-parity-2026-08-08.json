@@ -1,0 +1,1017 @@
+{
+  "format": "warp-cutover-import-parity-v1",
+  "date": "2026-08-08",
+  "issue": 37,
+  "parent_issue": 33,
+  "stage": "mechanical-authoring-import",
+  "mapping": {
+    "source": "authoring repository root",
+    "target": "packages/warp-taskgen/",
+    "rule": "source root paths map beneath target; acceptance files from #35/#36 preserved",
+    "sync_framework": "none"
+  },
+  "provenance": {
+    "source_tag": "cutover-2026-08-08-authoring-local-93c7b99a",
+    "source_commit": "93c7b99adbbdc4bd4306cde73a55170320370643",
+    "pre_main_tag": "cutover-2026-08-08-main-pre-9eeadebf",
+    "pre_main_commit": "9eeadebfdabc686744293584304d84cd918459a6",
+    "snapshot_tag": "cutover-2026-08-08-snapshot-ffe2c3e8",
+    "snapshot_commit": "ffe2c3e80974e9aab51d4281c7a6e8c0de1c8af9",
+    "baseline_inventory": "docs/research/cutover-baseline-inventory-2026-08-08.json",
+    "baseline_inventory_sha256": "9c242528d90d55a799f77b9c285d399b113ffef14dae536c0eb9d9601f88cfdc"
+  },
+  "counts": {
+    "source": 811,
+    "pre_main": 798,
+    "snapshot": 798,
+    "source_only": 19,
+    "source_only_imported": 12,
+    "source_only_deferred": 7,
+    "main_only": 6,
+    "r5_retirements": 6,
+    "both_changed": 36,
+    "both_imported_source": 26,
+    "both_preserved_main": 10,
+    "mode_changes": 0,
+    "rename_pairs": 4
+  },
+  "source_only_paths": [
+    {
+      "path": "docs/infra/r8a-control-plane.md",
+      "mode": "100644",
+      "blob": "1476b7ece215db548f053690ff4db12ae66631d5",
+      "decision": "excluded-deferred",
+      "reason": "source live control-plane/operator details; #38 supplies sanitized version"
+    },
+    {
+      "path": "docs/runs/smoke-test-archive-2026-05-08.md",
+      "mode": "100644",
+      "blob": "a3993891b32b64f0fd6bc9f3b38e66b6c06019cd",
+      "decision": "excluded-deferred",
+      "reason": "generated artifact with live instance state; #38 supplies sanitized version"
+    },
+    {
+      "path": "infra/cloudformation/r8a-control-plane.yaml",
+      "mode": "100644",
+      "blob": "a3fc20675d085e54a31904ce9560963a882639c4",
+      "decision": "imported-source"
+    },
+    {
+      "path": "scripts/archive_run_to_s3.sh",
+      "mode": "100755",
+      "blob": "edcb2f99c51c4fd257c569ed01bfabf3b6653c90",
+      "decision": "imported-source"
+    },
+    {
+      "path": "scripts/audit_r8a_control_plane.sh",
+      "mode": "100755",
+      "blob": "44fec9e996676406315f70778a0818aa4b28ea8c",
+      "decision": "imported-source"
+    },
+    {
+      "path": "scripts/bootstrap_r8a.sh",
+      "mode": "100755",
+      "blob": "8f54144495d839d78293141ab1933457f3a2526f",
+      "decision": "imported-source"
+    },
+    {
+      "path": "scripts/deploy_proxy_r8a.sh",
+      "mode": "100755",
+      "blob": "a0a3e1f826a01819b07dfe44ef905099f0cd2e97",
+      "decision": "imported-source"
+    },
+    {
+      "path": "scripts/deploy_r8a_control_plane.sh",
+      "mode": "100755",
+      "blob": "577aa0747e1b15b394fc8640d960da7efb3106ab",
+      "decision": "excluded-deferred",
+      "reason": "source embeds operator CIDR/live deployment assumptions; #38 supplies sanitized version"
+    },
+    {
+      "path": "scripts/enable_r8a_termination_protection.sh",
+      "mode": "100755",
+      "blob": "e962ddd2e9169501f4905cda540c94627f79d9cf",
+      "decision": "imported-source"
+    },
+    {
+      "path": "scripts/generate_scale.sh",
+      "mode": "100755",
+      "blob": "e44e8dec4d3c9b28e354066dcd45d4fb706ebe68",
+      "decision": "imported-source"
+    },
+    {
+      "path": "scripts/host_park.sh",
+      "mode": "100755",
+      "blob": "059cc60b8db4f650560d28a174a99e30e12a2967",
+      "decision": "imported-source"
+    },
+    {
+      "path": "scripts/host_resume.sh",
+      "mode": "100755",
+      "blob": "265d371056824148d7b30b8bfa82eda94ae53ab7",
+      "decision": "imported-source"
+    },
+    {
+      "path": "scripts/regen_archive_index.sh",
+      "mode": "100755",
+      "blob": "ada525ffc6c26e826f194c8d3442bdb726e024b3",
+      "decision": "excluded-deferred",
+      "reason": "source embeds live EIP/public IP/instance/security-group values; #38 supplies sanitized version"
+    },
+    {
+      "path": "scripts/sync_to_host.sh",
+      "mode": "100755",
+      "blob": "68e0b6ab0537b3f91b87522f3879b30601670897",
+      "decision": "imported-source"
+    },
+    {
+      "path": "scripts/sync_warp_taskgen_snapshot.sh",
+      "mode": "100755",
+      "blob": "ce285f75b805c9cc2a9493e1736cfdb2a0da3f8e",
+      "decision": "imported-source"
+    },
+    {
+      "path": "tests/phase_4/test_sweep_tag.py",
+      "mode": "100644",
+      "blob": "6e2a5231c29d869fa7db23ff8fc4cac3c0994d9a",
+      "decision": "excluded-deferred",
+      "reason": "source embeds live r8a endpoint/instance values; #38 supplies sanitized version"
+    },
+    {
+      "path": "tests/test_host_lifecycle_scripts.py",
+      "mode": "100644",
+      "blob": "c21c71eb9f56e745572005f3a6e3ef71b54bbf53",
+      "decision": "excluded-deferred",
+      "reason": "source embeds live host identifiers/addresses; #38 supplies sanitized version"
+    },
+    {
+      "path": "tests/test_r8a_control_plane_iac.py",
+      "mode": "100644",
+      "blob": "aa4480b062fa49717c02c6837da3124e51b3463d",
+      "decision": "excluded-deferred",
+      "reason": "source embeds live control-plane identifiers; #38 supplies sanitized version"
+    },
+    {
+      "path": "worldsim/phase_4/sweep_tag.py",
+      "mode": "100644",
+      "blob": "7c0891525d6368986268e075afbb6da6a89636c7",
+      "decision": "imported-source"
+    }
+  ],
+  "r5_retirements": [
+    {
+      "retired": {
+        "path": "configs/benchmark_hosts/r5.yaml",
+        "mode": "100644",
+        "blob": "8eb28e569d868160ebf69510cd376eb290b997e2"
+      },
+      "replacement": {
+        "path": "configs/benchmark_hosts/r8a.yaml",
+        "mode": "100644",
+        "blob": "70ccbcd7971ba67872e8980405de1a608e207852"
+      },
+      "decision": "replaced",
+      "replacement_decision": "excluded-deferred"
+    },
+    {
+      "retired": {
+        "path": "scripts/bootstrap_r5.sh",
+        "mode": "100755",
+        "blob": "2cfe6d09a64087842ba8d615303b3f4ef2ae85e8"
+      },
+      "replacement": {
+        "path": "scripts/bootstrap_r8a.sh",
+        "mode": "100755",
+        "blob": "8f54144495d839d78293141ab1933457f3a2526f"
+      },
+      "decision": "replaced",
+      "replacement_decision": "imported-source"
+    },
+    {
+      "retired": {
+        "path": "scripts/deploy_proxy_r5.sh",
+        "mode": "100755",
+        "blob": "e2c083b6d052a2c41ae08f99e5551153d5462aaf"
+      },
+      "replacement": {
+        "path": "scripts/deploy_proxy_r8a.sh",
+        "mode": "100755",
+        "blob": "a0a3e1f826a01819b07dfe44ef905099f0cd2e97"
+      },
+      "decision": "replaced",
+      "replacement_decision": "imported-source"
+    },
+    {
+      "retired": {
+        "path": "scripts/generate_scale_r5.sh",
+        "mode": "100755",
+        "blob": "087561af33ef8183c233e302d281d32a75b1bbfb"
+      },
+      "replacement": {
+        "path": "scripts/generate_scale.sh",
+        "mode": "100755",
+        "blob": "e44e8dec4d3c9b28e354066dcd45d4fb706ebe68"
+      },
+      "decision": "replaced",
+      "replacement_decision": "imported-source"
+    },
+    {
+      "retired": {
+        "path": "scripts/login_gitlab_r5.py",
+        "mode": "100644",
+        "blob": "77dfd6dd4b40f29547a79bf71f8a1846cd0a8521"
+      },
+      "replacement": null,
+      "decision": "retired-no-replacement"
+    },
+    {
+      "retired": {
+        "path": "scripts/sync_to_r5.sh",
+        "mode": "100755",
+        "blob": "94cebe21890a9d4902e1cf0bbe6c57e76da3b620"
+      },
+      "replacement": {
+        "path": "scripts/sync_to_host.sh",
+        "mode": "100755",
+        "blob": "68e0b6ab0537b3f91b87522f3879b30601670897"
+      },
+      "decision": "replaced",
+      "replacement_decision": "imported-source"
+    }
+  ],
+  "both_changed_paths": [
+    {
+      "path": ".claude/skills/phase-4-gates/SKILL.md",
+      "source": {
+        "path": ".claude/skills/phase-4-gates/SKILL.md",
+        "mode": "100644",
+        "blob": "4ff10520d643c3a054b8099dce37c67436cc479a"
+      },
+      "pre_main": {
+        "path": ".claude/skills/phase-4-gates/SKILL.md",
+        "mode": "100644",
+        "blob": "98b47949f9cd136fe6354a8e6928a346ffc1edd4"
+      },
+      "decision": "preserved-main-public",
+      "reason": "defer public-main reconciliation to #38"
+    },
+    {
+      "path": ".gitignore",
+      "source": {
+        "path": ".gitignore",
+        "mode": "100644",
+        "blob": "05d85c0af9e8f16cbf9f0cef06b28938223b84e0"
+      },
+      "pre_main": {
+        "path": ".gitignore",
+        "mode": "100644",
+        "blob": "6eee5e944266d07a6f569669efcee65592564bc2"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "README.md",
+      "source": {
+        "path": "README.md",
+        "mode": "100644",
+        "blob": "a89cc738a1e19e15be0a51655621adf11a1a68e2"
+      },
+      "pre_main": {
+        "path": "README.md",
+        "mode": "100644",
+        "blob": "02fcfb5b8ef037faee36d1ee56a8be1a64a427d4"
+      },
+      "decision": "preserved-main-public",
+      "reason": "defer public-main reconciliation to #38"
+    },
+    {
+      "path": "agent_docs/artifacts.md",
+      "source": {
+        "path": "agent_docs/artifacts.md",
+        "mode": "100644",
+        "blob": "d01250b87a482bcbc063423687bc28ef150c47ae"
+      },
+      "pre_main": {
+        "path": "agent_docs/artifacts.md",
+        "mode": "100644",
+        "blob": "2135a12b47fca3c1dafd474c14a05ef43a7bd93a"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "agent_docs/remote-runs.md",
+      "source": {
+        "path": "agent_docs/remote-runs.md",
+        "mode": "100644",
+        "blob": "9df20a959a2d5fa80e52b9868df57f0fdb7f1554"
+      },
+      "pre_main": {
+        "path": "agent_docs/remote-runs.md",
+        "mode": "100644",
+        "blob": "9e85786b7aa8e129429a11f1ba38f177a67a7c32"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "configs/benchmark_hosts/r8a.yaml",
+      "source": {
+        "path": "configs/benchmark_hosts/r8a.yaml",
+        "mode": "100644",
+        "blob": "70ccbcd7971ba67872e8980405de1a608e207852"
+      },
+      "pre_main": {
+        "path": "configs/benchmark_hosts/r8a.yaml",
+        "mode": "100644",
+        "blob": "34933d47871fc83f9c47f3f19308cc5d7bcd7ee5"
+      },
+      "decision": "preserved-main-hygiene",
+      "reason": "source live endpoint/instance/security-group values; #38 supplies sanitized version"
+    },
+    {
+      "path": "docs/archive/TODO-adversarial-rigor-mvp.md",
+      "source": {
+        "path": "docs/archive/TODO-adversarial-rigor-mvp.md",
+        "mode": "100644",
+        "blob": "733fbc8dfcd442b466914b52091ca46c9a6848de"
+      },
+      "pre_main": {
+        "path": "docs/archive/TODO-adversarial-rigor-mvp.md",
+        "mode": "100644",
+        "blob": "f21ccc3c84accf2a8558722c5b6592eee4d89532"
+      },
+      "decision": "preserved-main-public",
+      "reason": "defer public-main reconciliation to #38"
+    },
+    {
+      "path": "docs/handoffs/TODO-agentlab-harness-support.md",
+      "source": {
+        "path": "docs/handoffs/TODO-agentlab-harness-support.md",
+        "mode": "100644",
+        "blob": "8f6514e162c127b47b48622278b595ce62cc27bf"
+      },
+      "pre_main": {
+        "path": "docs/handoffs/TODO-agentlab-harness-support.md",
+        "mode": "100644",
+        "blob": "d29a77320f8aa77569ea94b2bd046f8c52171e13"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "docs/handoffs/codex-handoff-phase-4-judge-variant-api-cutover-REVIEW-PROMPT.md",
+      "source": {
+        "path": "docs/handoffs/codex-handoff-phase-4-judge-variant-api-cutover-REVIEW-PROMPT.md",
+        "mode": "100644",
+        "blob": "d6c53abbd5b34dd7b2e84d193e4e2cd2765e8031"
+      },
+      "pre_main": {
+        "path": "docs/handoffs/codex-handoff-phase-4-judge-variant-api-cutover-REVIEW-PROMPT.md",
+        "mode": "100644",
+        "blob": "ef5add12979129a7b136294fa4272f0565cc0441"
+      },
+      "decision": "preserved-main-public",
+      "reason": "defer public-main reconciliation to #38"
+    },
+    {
+      "path": "docs/handoffs/codex-handoff-snapshot-architecture-cutover.md",
+      "source": {
+        "path": "docs/handoffs/codex-handoff-snapshot-architecture-cutover.md",
+        "mode": "100644",
+        "blob": "9c6d06db9ad6e193d6a87361d8cb1fc5e21e21ae"
+      },
+      "pre_main": {
+        "path": "docs/handoffs/codex-handoff-snapshot-architecture-cutover.md",
+        "mode": "100644",
+        "blob": "35a48abc9e8ac08ce8e967ae04a5645e2991bd2a"
+      },
+      "decision": "preserved-main-public",
+      "reason": "defer public-main reconciliation to #38"
+    },
+    {
+      "path": "docs/handoffs/orchestrator-handoff-r5-migration.md",
+      "source": {
+        "path": "docs/handoffs/orchestrator-handoff-r5-migration.md",
+        "mode": "100644",
+        "blob": "845d388614f92b8732b494032c23f3392ae59bab"
+      },
+      "pre_main": {
+        "path": "docs/handoffs/orchestrator-handoff-r5-migration.md",
+        "mode": "100644",
+        "blob": "d3d46d2a26237891a314833a268cf9463bfeebb5"
+      },
+      "decision": "preserved-main-public",
+      "reason": "defer public-main reconciliation to #38"
+    },
+    {
+      "path": "docs/handoffs/rigor-run-setup.md",
+      "source": {
+        "path": "docs/handoffs/rigor-run-setup.md",
+        "mode": "100644",
+        "blob": "f5ac3f877c66c54de0e6bf1d5257488c01a28567"
+      },
+      "pre_main": {
+        "path": "docs/handoffs/rigor-run-setup.md",
+        "mode": "100644",
+        "blob": "38861b3d3ea07c7c8dfc57070d3f3c6881acd0c2"
+      },
+      "decision": "preserved-main-hygiene",
+      "reason": "source live host/operator details; #38 supplies sanitized version"
+    },
+    {
+      "path": "docs/warp-taskgen-technical-spec.md",
+      "source": {
+        "path": "docs/warp-taskgen-technical-spec.md",
+        "mode": "100644",
+        "blob": "a57aa1467733b721f72f21fa906a54908a89b3a8"
+      },
+      "pre_main": {
+        "path": "docs/warp-taskgen-technical-spec.md",
+        "mode": "100644",
+        "blob": "f320357208377124cd292b1a4de7c80fc38ce330"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "notes/warp-hf-dataset-analysis.html",
+      "source": {
+        "path": "notes/warp-hf-dataset-analysis.html",
+        "mode": "100644",
+        "blob": "9dafe291609e5475c0e8fceb488fcca68bbb7797"
+      },
+      "pre_main": {
+        "path": "notes/warp-hf-dataset-analysis.html",
+        "mode": "100644",
+        "blob": "075eaebc6020c9dec20a25de9f9378e49025dcc7"
+      },
+      "decision": "preserved-main-public",
+      "reason": "defer public-main reconciliation to #38"
+    },
+    {
+      "path": "scripts/bootstrap_ec2.sh",
+      "source": {
+        "path": "scripts/bootstrap_ec2.sh",
+        "mode": "100755",
+        "blob": "ffa78b308194b4310aa133695fe853d2fca2cb82"
+      },
+      "pre_main": {
+        "path": "scripts/bootstrap_ec2.sh",
+        "mode": "100755",
+        "blob": "7d58a30ce7dc8148c220ff6e5026d82afacac587"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "scripts/check_proxy_drift.sh",
+      "source": {
+        "path": "scripts/check_proxy_drift.sh",
+        "mode": "100755",
+        "blob": "514d7ece8236bd39440ce093295dce4b177f5b7c"
+      },
+      "pre_main": {
+        "path": "scripts/check_proxy_drift.sh",
+        "mode": "100755",
+        "blob": "cb7e01013cf59b68fe1bfffef8741d8c65e3acf8"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "scripts/configure_db_access.sh",
+      "source": {
+        "path": "scripts/configure_db_access.sh",
+        "mode": "100755",
+        "blob": "2020a4f183c5c1015e7cfc317884df284dd1be1f"
+      },
+      "pre_main": {
+        "path": "scripts/configure_db_access.sh",
+        "mode": "100755",
+        "blob": "569dab01f27bb08f1691d5eded11fc2aa12cc1c5"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "scripts/deploy_benchmark_proxy.sh",
+      "source": {
+        "path": "scripts/deploy_benchmark_proxy.sh",
+        "mode": "100755",
+        "blob": "fefa2de9d0c66ebf74d93c5e5562fd2725ae5c10"
+      },
+      "pre_main": {
+        "path": "scripts/deploy_benchmark_proxy.sh",
+        "mode": "100755",
+        "blob": "95483a18b561b1b512936b494c480a72fe27a3f9"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "scripts/generate_compose_scale.py",
+      "source": {
+        "path": "scripts/generate_compose_scale.py",
+        "mode": "100644",
+        "blob": "f83a5ea6e94ddcd88da8f328187dc789a17a350d"
+      },
+      "pre_main": {
+        "path": "scripts/generate_compose_scale.py",
+        "mode": "100644",
+        "blob": "0440198f839409f0bffb4356af78ba5a1186da08"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "scripts/lib/remote_jobs.sh",
+      "source": {
+        "path": "scripts/lib/remote_jobs.sh",
+        "mode": "100755",
+        "blob": "d098e3744d952837ee3b627e77cec6e28cc42d9b"
+      },
+      "pre_main": {
+        "path": "scripts/lib/remote_jobs.sh",
+        "mode": "100755",
+        "blob": "cc4eed98c3c135e3bc3d74b592a4d729cee49309"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "scripts/remote_job_start.sh",
+      "source": {
+        "path": "scripts/remote_job_start.sh",
+        "mode": "100755",
+        "blob": "18b2edd143cfb6cf0c87449419d652becccfe731"
+      },
+      "pre_main": {
+        "path": "scripts/remote_job_start.sh",
+        "mode": "100755",
+        "blob": "5676d02df8585c386f6dcf97822ca9554c580978"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "scripts/remote_job_status.sh",
+      "source": {
+        "path": "scripts/remote_job_status.sh",
+        "mode": "100755",
+        "blob": "2710028319393d8f5e8014c690bff23ae88f8a90"
+      },
+      "pre_main": {
+        "path": "scripts/remote_job_status.sh",
+        "mode": "100755",
+        "blob": "ea2b171ea5cf2f6dbc01fdc0fc146870fb412210"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "scripts/remote_trace_inspect.sh",
+      "source": {
+        "path": "scripts/remote_trace_inspect.sh",
+        "mode": "100755",
+        "blob": "971406f8db9c7e391410d92c9056e1e8128485f0"
+      },
+      "pre_main": {
+        "path": "scripts/remote_trace_inspect.sh",
+        "mode": "100755",
+        "blob": "27934d9ddb86c39e0a2396a44f6e3071e8af7aa6"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "scripts/run_integration_tests.sh",
+      "source": {
+        "path": "scripts/run_integration_tests.sh",
+        "mode": "100755",
+        "blob": "bda315e520cf89addba1489003b4a50d61953a86"
+      },
+      "pre_main": {
+        "path": "scripts/run_integration_tests.sh",
+        "mode": "100755",
+        "blob": "896686517095e2748df494098ef2fd3c59c8c1c7"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "scripts/run_phase_4_model_sweep.py",
+      "source": {
+        "path": "scripts/run_phase_4_model_sweep.py",
+        "mode": "100644",
+        "blob": "d9eba03d91bb3f57fe51153fb6f69dee6f44c2e2"
+      },
+      "pre_main": {
+        "path": "scripts/run_phase_4_model_sweep.py",
+        "mode": "100644",
+        "blob": "4137cd1205e31215aeb1f2196d7d9f5496dac385"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "scripts/setup_phase4_on_host.sh",
+      "source": {
+        "path": "scripts/setup_phase4_on_host.sh",
+        "mode": "100755",
+        "blob": "5a8893371bef18666362cb3e2826473eb1483d17"
+      },
+      "pre_main": {
+        "path": "scripts/setup_phase4_on_host.sh",
+        "mode": "100755",
+        "blob": "0541c695915a4f8d32737fe5f4fa597e30dbde6a"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "tests/integration/test_editor_read_surface_verification.py",
+      "source": {
+        "path": "tests/integration/test_editor_read_surface_verification.py",
+        "mode": "100644",
+        "blob": "75ce61cf34216a2faec96658fd4f137a6e53eb6c"
+      },
+      "pre_main": {
+        "path": "tests/integration/test_editor_read_surface_verification.py",
+        "mode": "100644",
+        "blob": "a2b43df2059fdc529b01a6f4fe6b9921831e7789"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "tests/integration/test_phase_2_target_resolver_live.py",
+      "source": {
+        "path": "tests/integration/test_phase_2_target_resolver_live.py",
+        "mode": "100644",
+        "blob": "28fd141865f0fdb59c5736692f5e6bcc4f1e92da"
+      },
+      "pre_main": {
+        "path": "tests/integration/test_phase_2_target_resolver_live.py",
+        "mode": "100644",
+        "blob": "c6e03913744aca60b961c2119dc6aee649a438cf"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "tests/preflight/test_phase_4_preflight.py",
+      "source": {
+        "path": "tests/preflight/test_phase_4_preflight.py",
+        "mode": "100644",
+        "blob": "3fbee55fd66c8f9f16c65459c43ebdb8236bbe38"
+      },
+      "pre_main": {
+        "path": "tests/preflight/test_phase_4_preflight.py",
+        "mode": "100644",
+        "blob": "3076798702100ba5b9be46e429a1d9c9a5ec777e"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "tests/test_generate_compose_scale.py",
+      "source": {
+        "path": "tests/test_generate_compose_scale.py",
+        "mode": "100644",
+        "blob": "825911404aad29aa98b4a2579d8d5942e0c19c96"
+      },
+      "pre_main": {
+        "path": "tests/test_generate_compose_scale.py",
+        "mode": "100644",
+        "blob": "461710c4f55d0cfe10f04ba36c54eadfd59012d7"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "tests/test_host_bootstrap_scripts.py",
+      "source": {
+        "path": "tests/test_host_bootstrap_scripts.py",
+        "mode": "100644",
+        "blob": "fef4789d3a8082fd8910d2c3ba1b1099d1798619"
+      },
+      "pre_main": {
+        "path": "tests/test_host_bootstrap_scripts.py",
+        "mode": "100644",
+        "blob": "a12987592b517e769bf3ea817fc7c597cb845234"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "tests/test_host_config.py",
+      "source": {
+        "path": "tests/test_host_config.py",
+        "mode": "100644",
+        "blob": "fa35f25bb1297d0f16550408ecd795bf71d03b2e"
+      },
+      "pre_main": {
+        "path": "tests/test_host_config.py",
+        "mode": "100644",
+        "blob": "31dc17cfc84e612c9ddea5019e441a997d9f0b4b"
+      },
+      "decision": "preserved-main-hygiene",
+      "reason": "source assertions include live r8a host values; #38 supplies sanitized version"
+    },
+    {
+      "path": "tests/test_remote_job_scripts.py",
+      "source": {
+        "path": "tests/test_remote_job_scripts.py",
+        "mode": "100644",
+        "blob": "e0b595793239080968e8ef1862c43357a60a974c"
+      },
+      "pre_main": {
+        "path": "tests/test_remote_job_scripts.py",
+        "mode": "100644",
+        "blob": "59500ea7b1745964857afc3bf8d7e586ebaa00ce"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "worldsim/cli/_impl.py",
+      "source": {
+        "path": "worldsim/cli/_impl.py",
+        "mode": "100644",
+        "blob": "bfce5b740ddd3cc62a99be96c3d1370af8c2d229"
+      },
+      "pre_main": {
+        "path": "worldsim/cli/_impl.py",
+        "mode": "100644",
+        "blob": "c9f7c75499a49423a42fbb97843e0b9f367a9c24"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "worldsim/host_config.py",
+      "source": {
+        "path": "worldsim/host_config.py",
+        "mode": "100644",
+        "blob": "07655bafdf62ecd38608a491e5d056a99f191021"
+      },
+      "pre_main": {
+        "path": "worldsim/host_config.py",
+        "mode": "100644",
+        "blob": "7868ecafd5624c562741f09b41ea70054fddfbdd"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    },
+    {
+      "path": "worldsim/phase_4/process_pool.py",
+      "source": {
+        "path": "worldsim/phase_4/process_pool.py",
+        "mode": "100644",
+        "blob": "ac93fb7f5d6a56da9a4000576b0e32c5d7aae4f7"
+      },
+      "pre_main": {
+        "path": "worldsim/phase_4/process_pool.py",
+        "mode": "100644",
+        "blob": "abda590c54fae4b896e96be77313e45a515fe216"
+      },
+      "decision": "imported-source",
+      "reason": "mechanical source import"
+    }
+  ],
+  "rename_pairs": [
+    {
+      "from": "scripts/bootstrap_r5.sh",
+      "to": "scripts/bootstrap_r8a.sh",
+      "similarity_percent": 59,
+      "from_entry": {
+        "path": "scripts/bootstrap_r5.sh",
+        "mode": "100755",
+        "blob": "2cfe6d09a64087842ba8d615303b3f4ef2ae85e8"
+      },
+      "to_entry": {
+        "path": "scripts/bootstrap_r8a.sh",
+        "mode": "100755",
+        "blob": "8f54144495d839d78293141ab1933457f3a2526f"
+      },
+      "to_decision": "imported-source"
+    },
+    {
+      "from": "scripts/deploy_proxy_r5.sh",
+      "to": "scripts/deploy_proxy_r8a.sh",
+      "similarity_percent": 62,
+      "from_entry": {
+        "path": "scripts/deploy_proxy_r5.sh",
+        "mode": "100755",
+        "blob": "e2c083b6d052a2c41ae08f99e5551153d5462aaf"
+      },
+      "to_entry": {
+        "path": "scripts/deploy_proxy_r8a.sh",
+        "mode": "100755",
+        "blob": "a0a3e1f826a01819b07dfe44ef905099f0cd2e97"
+      },
+      "to_decision": "imported-source"
+    },
+    {
+      "from": "scripts/generate_scale_r5.sh",
+      "to": "scripts/generate_scale.sh",
+      "similarity_percent": 97,
+      "from_entry": {
+        "path": "scripts/generate_scale_r5.sh",
+        "mode": "100755",
+        "blob": "087561af33ef8183c233e302d281d32a75b1bbfb"
+      },
+      "to_entry": {
+        "path": "scripts/generate_scale.sh",
+        "mode": "100755",
+        "blob": "e44e8dec4d3c9b28e354066dcd45d4fb706ebe68"
+      },
+      "to_decision": "imported-source"
+    },
+    {
+      "from": "scripts/sync_to_r5.sh",
+      "to": "scripts/sync_to_host.sh",
+      "similarity_percent": 99,
+      "from_entry": {
+        "path": "scripts/sync_to_r5.sh",
+        "mode": "100755",
+        "blob": "94cebe21890a9d4902e1cf0bbe6c57e76da3b620"
+      },
+      "to_entry": {
+        "path": "scripts/sync_to_host.sh",
+        "mode": "100755",
+        "blob": "68e0b6ab0537b3f91b87522f3879b30601670897"
+      },
+      "to_decision": "imported-source"
+    }
+  ],
+  "executable_modes": {
+    "source_100755_count": 46,
+    "source_100755_paths": [
+      ".claude/hooks/ruff-autofix.sh",
+      ".claude/hooks/stop-verify.sh",
+      "scripts/archive_run_to_s3.sh",
+      "scripts/audit_r8a_control_plane.sh",
+      "scripts/benchmark_host.sh",
+      "scripts/bootstrap_ec2.sh",
+      "scripts/bootstrap_r8a.sh",
+      "scripts/check_proxy_drift.sh",
+      "scripts/cleanup_webagent_test_resources.sh",
+      "scripts/configure_db_access.sh",
+      "scripts/deploy_benchmark_proxy.sh",
+      "scripts/deploy_proxy_r8a.sh",
+      "scripts/deploy_r8a_control_plane.sh",
+      "scripts/enable_r8a_termination_protection.sh",
+      "scripts/export_host_config_env.py",
+      "scripts/export_phase_4_artifacts.py",
+      "scripts/generate_scale.sh",
+      "scripts/host_park.sh",
+      "scripts/host_resume.sh",
+      "scripts/inspect_phase4_traces.py",
+      "scripts/lib/remote_jobs.sh",
+      "scripts/lib/run_silent.sh",
+      "scripts/nightly_feasibility_check.sh",
+      "scripts/patch_webarena_containers.sh",
+      "scripts/preflight_host_config.py",
+      "scripts/preflight_security_group.py",
+      "scripts/readiness_audit.py",
+      "scripts/regen_archive_index.sh",
+      "scripts/remote_env_push.sh",
+      "scripts/remote_job_list.sh",
+      "scripts/remote_job_start.sh",
+      "scripts/remote_job_status.sh",
+      "scripts/remote_job_stop.sh",
+      "scripts/remote_job_tail.sh",
+      "scripts/remote_trace_inspect.sh",
+      "scripts/run_integration_tests.sh",
+      "scripts/run_paper_pipeline.sh",
+      "scripts/setup_phase4_on_host.sh",
+      "scripts/ssh_r5.sh",
+      "scripts/sync_to_host.sh",
+      "scripts/sync_warp_taskgen_snapshot.sh",
+      "scripts/validate_phase_2_gates.py",
+      "scripts/verify_default.sh",
+      "scripts/verify_fast.sh",
+      "scripts/wa_envctrl_patcher.py",
+      "scripts/write_phase4_artifact_manifest.py"
+    ],
+    "mode_changes": [],
+    "note": "Rows carry source/pre-main modes; no mode changes detected."
+  },
+  "public_main_edit_paths": [
+    {
+      "path": ".claude/skills/phase-4-gates/SKILL.md",
+      "decision": "preserved-main-public",
+      "follow_up": "#38 three-way reconciliation"
+    },
+    {
+      "path": "README.md",
+      "decision": "preserved-main-public",
+      "follow_up": "#38 three-way reconciliation"
+    },
+    {
+      "path": "docs/archive/TODO-adversarial-rigor-mvp.md",
+      "decision": "preserved-main-public",
+      "follow_up": "#38 three-way reconciliation"
+    },
+    {
+      "path": "docs/handoffs/codex-handoff-phase-4-judge-variant-api-cutover-REVIEW-PROMPT.md",
+      "decision": "preserved-main-public",
+      "follow_up": "#38 three-way reconciliation"
+    },
+    {
+      "path": "docs/handoffs/codex-handoff-snapshot-architecture-cutover.md",
+      "decision": "preserved-main-public",
+      "follow_up": "#38 three-way reconciliation"
+    },
+    {
+      "path": "docs/handoffs/orchestrator-handoff-r5-migration.md",
+      "decision": "preserved-main-public",
+      "follow_up": "#38 three-way reconciliation"
+    },
+    {
+      "path": "notes/warp-hf-dataset-analysis.html",
+      "decision": "preserved-main-public",
+      "follow_up": "#38 three-way reconciliation"
+    }
+  ],
+  "frontier_preserved_paths": [
+    "CLAUDE.md",
+    "scripts/taskgen_acceptance_router.py",
+    "tests/test_taskgen_acceptance_router.py",
+    "docs/handoffs/cutover-r8a-checkpoint.md"
+  ],
+  "exclusions": {
+    "evaluation_awareness": {
+      "action": "excluded",
+      "source_path_count": 0,
+      "patterns": [
+        "*eval-awareness*",
+        "*transcript-purpose*",
+        "*vea*"
+      ]
+    },
+    "published_analysis_data_results_notes": {
+      "action": "preserved-or-excluded",
+      "source_path_count": 33,
+      "patterns": [
+        "analysis/",
+        "data/",
+        "results/",
+        "notes/"
+      ]
+    },
+    "generated_logs_runtime_configs": {
+      "action": "preserved-or-excluded",
+      "patterns": [
+        "logs/",
+        "pipeline_outputs/",
+        "instances.*.json",
+        "docker-compose*.yml",
+        "configs/runtime/"
+      ]
+    },
+    "credentials": {
+      "action": "excluded",
+      "patterns": [
+        ".env*",
+        "*token*",
+        "*credential*",
+        "*secret*"
+      ]
+    },
+    "vendors_dirty_worktrees": {
+      "action": "excluded",
+      "patterns": [
+        "vendors/",
+        ".codex-worktrees/",
+        ".git/worktrees/"
+      ]
+    },
+    "r8a_external_state": {
+      "action": "deferred-to-38",
+      "paths": [
+        "configs/benchmark_hosts/r8a.yaml",
+        "docs/handoffs/rigor-run-setup.md",
+        "docs/infra/r8a-control-plane.md",
+        "docs/runs/smoke-test-archive-2026-05-08.md",
+        "scripts/deploy_r8a_control_plane.sh",
+        "scripts/regen_archive_index.sh",
+        "tests/phase_4/test_sweep_tag.py",
+        "tests/test_host_config.py",
+        "tests/test_host_lifecycle_scripts.py",
+        "tests/test_r8a_control_plane_iac.py"
+      ],
+      "reason": "No live endpoints, instance/security-group IDs, EIP/public IP, operator CIDRs, or /Users paths enter this commit."
+    }
+  },
+  "validation_plan": {
+    "parity": "compare rows with baseline inventory blobs/modes",
+    "acceptance": "bash scripts/accept_taskgen.sh",
+    "focused": "package acceptance router plus host/script unit checks",
+    "live_integration": "not run; no external r8a stack in scope",
+    "baseline_failures": "record whether prior 24 failures disappear; unresolved failures follow up"
+  }
+}

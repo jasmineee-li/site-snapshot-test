@@ -102,9 +102,13 @@ selected via `--instances`:
   Historical full-benchmark configs may include more sites than current WASP
   scope.
 - `instances.scale.json`: generated high-parallelism GitLab/Reddit layout for
-  Phase 2c/Phase 4 worker fan-out on the current rigor host. It is regenerated
-  from `configs/benchmark_hosts/r5.yaml` + `scripts/scale_config.yml` rather
-  than hand-authored, and is gitignored in release/package hygiene.
+  Phase 2c/Phase 4 worker fan-out on the selected rigor host. It is regenerated
+  from a selected `configs/benchmark_hosts/*.yaml` plus the matching
+  `scripts/scale_config*.yml` rather than hand-authored, and is gitignored in
+  release/package hygiene. Current canonical r8a runs use
+  `configs/benchmark_hosts/r8a.yaml` +
+  `scripts/scale_config.r8a-24x24.yml`, which emits 24 GitLab replicas and 24
+  Reddit/Postmill replicas.
 - `instances.smoke.json`: generated GitLab/Reddit smoke topology for Phase 0c,
   Phase 0d, and small live checks.
 - `instances.*.local.json`: operator-local variants, gitignored when present.

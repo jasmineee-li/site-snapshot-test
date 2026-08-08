@@ -2,8 +2,9 @@
 # setup_phase4_on_host.sh — bring a fresh host from bootstrap-complete to
 # Phase-4-ready state. Idempotent: safe to rerun; exits 0 if already green.
 #
-# Prereq: ``bootstrap_r5.sh`` (or equivalent) has run and all benchmark
-# containers are up with env-ctrl responding.
+# Prereq: ``bootstrap_r8a.sh`` for canonical r8a runs, or the selected-host
+# equivalent, has run and all benchmark containers are up with env-ctrl
+# responding.
 #
 # The script codifies everything the operator had to do by hand on the
 # 2026-04-20 r5 setup. Run order matters: uv/venvs → playwright system
@@ -12,7 +13,7 @@
 #
 # Usage:
 #   scripts/setup_phase4_on_host.sh \
-#       --host-config configs/benchmark_hosts/r5.yaml \
+#       --host-config configs/benchmark_hosts/r8a.yaml \
 #       --instances instances.scale.json \
 #       --artifacts-source s3://benchmark-archives/worldsim-runs/<id>/
 #
@@ -28,7 +29,12 @@ HOST_CONFIG=""
 INSTANCES="${INSTANCES:-instances.scale.json}"
 ARTIFACTS_SOURCE=""
 BENCHMARK_ROOT="${WORLDSIM_BENCHMARK_ROOT:-/home/ubuntu/vendors/webarena-verified}"
-SCALE_CONFIG="${WORLDSIM_SCALE_CONFIG:-scripts/scale_config.yml}"
+SCALE_CONFIG="${WORLDSIM_SCALE_CONFIG:-}"
+R8A_CONTROL_PLANE_AUDIT="${WORLDSIM_R8A_CONTROL_PLANE_AUDIT:-$REPO_ROOT/scripts/audit_r8a_control_plane.sh}"
+SCALE_CONFIG_EXPLICIT=0
+if [[ -n "$SCALE_CONFIG" ]]; then
+    SCALE_CONFIG_EXPLICIT=1
+fi
 SKIP_PVPO_CONTAINER=1
 SKIP_MAGENTO_SYNC=0
 SKIP_GITLAB_MINT=0
@@ -40,7 +46,8 @@ setup_phase4_on_host.sh
 Options:
   --host-config <path>       benchmark host YAML (required)
   --instances <path>         instances.json (default: instances.scale.json)
-  --scale-config <path>      scale topology YAML for regeneration (default: scripts/scale_config.yml)
+  --scale-config <path>      scale topology YAML for regeneration (default: host-sensitive;
+                             r8a uses scripts/scale_config.r8a-24x24.yml)
   --artifacts-source <uri>   s3://, ssh://, or /local/path for phase_0c/2/3
   --benchmark-root <path>    WebArena Verified checkout (default: /home/ubuntu/vendors/webarena-verified)
   --skip-pvpo-container      deprecated no-op; page-surface-stable PVPO needs no Docker container
@@ -54,7 +61,7 @@ while (("$#")); do
     case "$1" in
         --host-config) HOST_CONFIG="$2"; shift 2 ;;
         --instances) INSTANCES="$2"; shift 2 ;;
-        --scale-config) SCALE_CONFIG="$2"; shift 2 ;;
+        --scale-config) SCALE_CONFIG="$2"; SCALE_CONFIG_EXPLICIT=1; shift 2 ;;
         --artifacts-source) ARTIFACTS_SOURCE="$2"; shift 2 ;;
         --benchmark-root) BENCHMARK_ROOT="$2"; shift 2 ;;
         --skip-pvpo-container) SKIP_PVPO_CONTAINER=1; shift ;;
@@ -81,10 +88,27 @@ if [[ -z "$HOST_CONFIG" ]]; then
 fi
 HOST_CONFIG_PATH="$(abs_path "$HOST_CONFIG")"
 INSTANCES_PATH="$(abs_path "$INSTANCES")"
-SCALE_CONFIG_PATH="$(abs_path "$SCALE_CONFIG")"
 if [[ "$SKIP_MAGENTO_SYNC" -eq 1 ]]; then
     substep "--skip-magento-sync is deprecated; Magento left WASP scope on 2026-04-21"
 fi
+
+HOST_NAME="$(uv run python -c '
+import sys, yaml, pathlib
+data = yaml.safe_load(pathlib.Path(sys.argv[1]).read_text())
+print(str(data.get("name") or "").strip())
+' "$HOST_CONFIG_PATH")"
+if [[ -z "$SCALE_CONFIG" ]]; then
+    case "$HOST_NAME" in
+        r8a) SCALE_CONFIG="scripts/scale_config.r8a-24x24.yml" ;;
+        *) SCALE_CONFIG="scripts/scale_config.yml" ;;
+    esac
+    substep "selected default scale config for host=$HOST_NAME: $SCALE_CONFIG"
+elif [[ "$HOST_NAME" == "r8a" && "$SCALE_CONFIG_EXPLICIT" -eq 1 && "$(basename "$SCALE_CONFIG")" != "scale_config.r8a-24x24.yml" ]]; then
+    echo "ERROR: r8a setup requires scripts/scale_config.r8a-24x24.yml for canonical 24x24 topology" >&2
+    echo "Pass --scale-config scripts/scale_config.r8a-24x24.yml or omit --scale-config to use the r8a default." >&2
+    exit 2
+fi
+SCALE_CONFIG_PATH="$(abs_path "$SCALE_CONFIG")"
 
 # ---------------------------------------------------------------------------
 # Step 1 — uv + deps + evaluator venv (issues #1, #2 fallback, #17)
@@ -111,6 +135,11 @@ uv sync --locked --extra dev
     uv sync --locked
 )
 
+if [[ "$HOST_NAME" == "r8a" ]]; then
+    log "step 1a: r8a control-plane audit"
+    "$R8A_CONTROL_PLANE_AUDIT" --host-config "$HOST_CONFIG_PATH"
+fi
+
 # Resolve orchestrator_host from the host config once (needed by step 5 to
 # mint storage_state against the same host site_url uses). Phase 0d cookies
 # are domain-scoped — minting against one host and reusing on another is
@@ -131,7 +160,7 @@ substep "orchestrator_host=${ORCHESTRATOR_HOST} (from $HOST_CONFIG)"
 # patching the 62 fields that got bandaided on 2026-04-21. Also keeps
 # advertise_host ↔ control_host in sync with the host's actual topology.
 log "step 1b: regen $INSTANCES"
-"$REPO_ROOT/scripts/generate_scale_r5.sh" \
+"$REPO_ROOT/scripts/generate_scale.sh" \
     --host-config "$HOST_CONFIG_PATH" \
     --scale-config "$SCALE_CONFIG_PATH" >/dev/null
 INSTANCES_PATH="$(abs_path "$INSTANCES")"

@@ -416,11 +416,11 @@ if isinstance(sync_stamp, dict):
         f"synced_at={sync_stamp.get('synced_at') or 'unknown'}"
     )
 if local_sha and sync_sha and local_sha != str(sync_sha):
-    print("warning: local_git and remote_sync_stamp differ; rerun sync_to_r5.sh before trusting this job")
+    print("warning: local_git and remote_sync_stamp differ; rerun sync_to_host.sh before trusting this job")
 elif local_sha and remote_sha and local_sha != remote_sha and not sync_sha:
     print("warning: local_git and remote_git differ; verify the intended code was synced before trusting this job")
 elif remote_sha and sync_sha and remote_sha != str(sync_sha):
-    print("note: remote_git differs from remote_sync_stamp because sync_to_r5.sh excludes .git; use remote_sync_stamp for deployed code provenance")
+    print("note: remote_git differs from remote_sync_stamp because sync_to_host.sh excludes .git; use remote_sync_stamp for deployed code provenance")
 
 if status == "running" and latest_log_mtime:
     quiet_for = int(time.time() - latest_log_mtime)
