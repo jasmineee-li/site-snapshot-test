@@ -1,0 +1,262 @@
+{
+  "baseline_inventory": {
+    "entry_counts": {
+      "authoring_source_local": 811,
+      "authoring_source_remote": 805,
+      "pre_cutover_main_package": 798,
+      "snapshot_baseline": 798
+    },
+    "format": "warp-cutover-baseline-inventory-v1",
+    "path": "docs/research/cutover-baseline-inventory-2026-08-08.json",
+    "sha256": "9c242528d90d55a799f77b9c285d399b113ffef14dae536c0eb9d9601f88cfdc",
+    "state_count": 4
+  },
+  "date": "2026-08-08",
+  "dirty_worktree_recovery": [
+    {
+      "artifact": "private-local-recovery/cutover-2026-08-08/branch-cutover-plan",
+      "branch": "codex/branch-cutover-plan",
+      "decision": "keep",
+      "deleted_source_path_count": 0,
+      "excluded_path_count": 0,
+      "head": "93c7b99adbbdc4bd4306cde73a55170320370643",
+      "kept_source_file_count": 1,
+      "status_counts": {
+        "staged": 0,
+        "unstaged": 0,
+        "untracked": 1
+      },
+      "worktree": "branch-cutover-plan"
+    },
+    {
+      "artifact": "private-local-recovery/cutover-2026-08-08/engineering-skills-setup",
+      "branch": "codex/engineering-skills-setup",
+      "decision": "keep",
+      "deleted_source_path_count": 0,
+      "excluded_path_count": 0,
+      "head": "9eeadebfdabc686744293584304d84cd918459a6",
+      "kept_source_file_count": 4,
+      "status_counts": {
+        "staged": 0,
+        "unstaged": 1,
+        "untracked": 3
+      },
+      "worktree": "engineering-skills-setup"
+    },
+    {
+      "artifact": "private-local-recovery/cutover-2026-08-08/feat-multi-benchmark",
+      "branch": "feat/multi-benchmark",
+      "decision": "keep",
+      "deleted_source_path_count": 15,
+      "excluded_path_count": 10,
+      "head": "d2c3809ddac437a1992087f7033aa00906412a01",
+      "kept_source_file_count": 46,
+      "status_counts": {
+        "staged": 71,
+        "unstaged": 0,
+        "untracked": 0
+      },
+      "worktree": "feat-multi-benchmark"
+    },
+    {
+      "artifact": "private-local-recovery/cutover-2026-08-08/multi-benchmark-rebased",
+      "branch": "multi-benchmark-rebased",
+      "decision": "keep",
+      "deleted_source_path_count": 0,
+      "excluded_path_count": 0,
+      "head": "78fe8938460b8510e0a3b2960411615b6da05e50",
+      "kept_source_file_count": 20,
+      "status_counts": {
+        "staged": 20,
+        "unstaged": 7,
+        "untracked": 0
+      },
+      "worktree": "multi-benchmark-rebased"
+    },
+    {
+      "artifact": "private-local-recovery/cutover-2026-08-08/structured-asr-parity",
+      "branch": "codex-structured-asr-parity",
+      "decision": "keep",
+      "deleted_source_path_count": 0,
+      "excluded_path_count": 0,
+      "head": "5d047dc5d3cd7d87ec5078bed974267ccd581347",
+      "kept_source_file_count": 18,
+      "status_counts": {
+        "staged": 0,
+        "unstaged": 18,
+        "untracked": 0
+      },
+      "worktree": "structured-asr-parity"
+    }
+  ],
+  "excluded_classes": [
+    "runtime-only files and generated host configuration",
+    "credentials and secret material",
+    "logs and vendor/external benchmark trees",
+    "local absolute paths"
+  ],
+  "fetch": {
+    "authoring_ref": "origin/feat/worldsim-v5",
+    "completed": true,
+    "local_authoring_commit": "93c7b99adbbdc4bd4306cde73a55170320370643",
+    "main_ref": "origin/main",
+    "snapshot_commit": "ffe2c3e80974e9aab51d4281c7a6e8c0de1c8af9"
+  },
+  "format": "warp-cutover-preservation-evidence-v1",
+  "issue": 34,
+  "local_recovery_root": "private-local-recovery/cutover-2026-08-08",
+  "parent_issue": 33,
+  "provenance_refs": [
+    {
+      "commit": "93c7b99adbbdc4bd4306cde73a55170320370643",
+      "name": "authoring_source_local",
+      "remote_ref": "refs/tags/cutover-2026-08-08-authoring-local-93c7b99a",
+      "role": "local authoring source including eight unpushed commits"
+    },
+    {
+      "commit": "9cbb0eaf3f44b0e50b72ad9af8b166e187099937",
+      "name": "authoring_source_remote",
+      "remote_ref": "refs/tags/cutover-2026-08-08-authoring-remote-9cbb0eaf",
+      "role": "fetched origin/feat/worldsim-v5 tip"
+    },
+    {
+      "commit": "ffe2c3e80974e9aab51d4281c7a6e8c0de1c8af9",
+      "name": "snapshot_baseline",
+      "remote_ref": "refs/tags/cutover-2026-08-08-snapshot-ffe2c3e8",
+      "role": "package snapshot/source baseline"
+    },
+    {
+      "commit": "9eeadebfdabc686744293584304d84cd918459a6",
+      "name": "pre_cutover_main",
+      "remote_ref": "refs/tags/cutover-2026-08-08-main-pre-9eeadebf",
+      "role": "fetched origin/main before canonical import"
+    }
+  ],
+  "ref_verification": {
+    "fresh_disposable_worktree_verified": true,
+    "method": "git worktree add --detach <temporary-path> <tag>; compare HEAD to peeled tag commit; remove temporary worktree",
+    "remote_peeling_verified": true
+  },
+  "remote": "origin",
+  "safety": {
+    "existing_branches_deleted": false,
+    "existing_worktrees_cleaned": false,
+    "existing_worktrees_pruned": false,
+    "existing_worktrees_reset": false,
+    "existing_worktrees_switched": false,
+    "generated_logs_committed": false,
+    "runtime_or_secret_content_copied": false,
+    "unique_commits_deleted": false
+  },
+  "sanitized_tracked_evidence": true,
+  "worktrees": [
+    {
+      "branch": "feat/worldsim-v5",
+      "dirty": false,
+      "head": "93c7b99adbbdc4bd4306cde73a55170320370643",
+      "path": ".",
+      "status_counts": {
+        "staged": 0,
+        "unstaged": 0,
+        "untracked": 0
+      },
+      "upstream": "origin/feat/worldsim-v5"
+    },
+    {
+      "branch": "codex/worldsim-v5-package",
+      "dirty": false,
+      "head": "be9e34303b38335f45566d999bd7906b8ccf3e3f",
+      "path": "../browser-sim-worldsim-v5-package",
+      "status_counts": {
+        "staged": 0,
+        "unstaged": 0,
+        "untracked": 0
+      },
+      "upstream": "@{upstream}"
+    },
+    {
+      "branch": "codex/branch-cutover-plan",
+      "dirty": true,
+      "head": "93c7b99adbbdc4bd4306cde73a55170320370643",
+      "path": ".codex-worktrees/branch-cutover-plan",
+      "status_counts": {
+        "staged": 0,
+        "unstaged": 0,
+        "untracked": 1
+      },
+      "upstream": null
+    },
+    {
+      "branch": "codex/cutover-acceptance",
+      "dirty": false,
+      "head": "717554c2945e3a94f9474b6dfe01ac0cd999c111",
+      "path": ".codex-worktrees/cutover-acceptance",
+      "status_counts": {
+        "staged": 0,
+        "unstaged": 0,
+        "untracked": 0
+      },
+      "upstream": "origin/codex/cutover-acceptance"
+    },
+    {
+      "branch": "codex/cutover-r8a-checkpoint",
+      "dirty": false,
+      "head": "4f32dabfa043a2543f1eb33fa28bb2e55e5045e7",
+      "path": ".codex-worktrees/cutover-r8a-checkpoint",
+      "status_counts": {
+        "staged": 0,
+        "unstaged": 0,
+        "untracked": 0
+      },
+      "upstream": "origin/codex/cutover-r8a-checkpoint"
+    },
+    {
+      "branch": "codex/engineering-skills-setup",
+      "dirty": true,
+      "head": "9eeadebfdabc686744293584304d84cd918459a6",
+      "path": ".codex-worktrees/engineering-skills-setup",
+      "status_counts": {
+        "staged": 0,
+        "unstaged": 1,
+        "untracked": 3
+      },
+      "upstream": "origin/main"
+    },
+    {
+      "branch": "feat/multi-benchmark",
+      "dirty": true,
+      "head": "d2c3809ddac437a1992087f7033aa00906412a01",
+      "path": ".codex-worktrees/feat-multi-benchmark",
+      "status_counts": {
+        "staged": 71,
+        "unstaged": 0,
+        "untracked": 0
+      },
+      "upstream": "origin/feat/multi-benchmark"
+    },
+    {
+      "branch": "multi-benchmark-rebased",
+      "dirty": true,
+      "head": "78fe8938460b8510e0a3b2960411615b6da05e50",
+      "path": ".codex-worktrees/multi-benchmark-rebased",
+      "status_counts": {
+        "staged": 20,
+        "unstaged": 7,
+        "untracked": 0
+      },
+      "upstream": null
+    },
+    {
+      "branch": "codex-structured-asr-parity",
+      "dirty": true,
+      "head": "5d047dc5d3cd7d87ec5078bed974267ccd581347",
+      "path": ".codex-worktrees/structured-asr-parity",
+      "status_counts": {
+        "staged": 0,
+        "unstaged": 18,
+        "untracked": 0
+      },
+      "upstream": null
+    }
+  ]
+}
