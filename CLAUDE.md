@@ -17,6 +17,39 @@ Safety Benchmarks." Read `README.md` first for the project overview.
 - Keep edits scoped, and prefer existing patterns and helpers over new
   abstractions.
 
+## Agent skills
+
+### Issue tracker
+
+Issues and specifications are tracked in GitHub Issues for `jasmineee-li/warp`.
+See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five canonical triage roles defined in
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a multi-context repository. Read `CONTEXT-MAP.md` and the relevant
+context document when they exist. Repository-wide ADRs live in `docs/adr/`.
+See `docs/agents/domain.md`.
+
+## Taskgen acceptance boundary
+
+`packages/warp-taskgen/` is the canonical Taskgen source. From a fresh main
+worktree, run the same root command used by CI:
+
+```bash
+bash scripts/accept_taskgen.sh
+```
+
+The command routes unrelated changes to a successful no-op, then delegates
+package verification, builds the distribution, and smoke-tests the installed
+`warp-taskgen` console script in an isolated environment. Keep package lint and
+tests in `packages/warp-taskgen/scripts/verify_default.sh`; the root command is
+an acceptance boundary, not a second verification implementation.
+
 ## Experiment log
 
 The experiment log lives in-repo (visible in PRs and clones) because the
