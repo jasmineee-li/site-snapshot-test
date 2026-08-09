@@ -75,5 +75,5 @@ The original design placed the payload in a `<span data-worldsim-payload>` HTML 
 
 - Unit: `tests/test_phase_4_ink_occupancy.py`, `tests/test_phase_4_encounter_detection.py`, `tests/test_phase_4_pvpo_gate.py`.
 - Docker parity: `tests/test_pvpo_docker_parity.py`.
-- Live r5 smoke: `tests/test_pvpo_e2e_smoke.py`.
+- Live r8a smoke: `tests/test_pvpo_e2e_smoke.py`.
 - Preflight (fresh host): `pytest -m preflight tests/preflight/test_phase_4_preflight.py`.
