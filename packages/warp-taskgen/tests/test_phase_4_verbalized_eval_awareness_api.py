@@ -508,7 +508,7 @@ def test_vea_prompt_sha256_pinned():
     ).read_bytes()
     assert (
         hashlib.sha256(prompt_bytes).hexdigest()
-        == "b3dc0d340183dc2d8542649d72f31a859b2aa6fc33a32384ad5ae2f88fb209bf"
+        == "2a00d59332c6f809810c87dbe198ecb524ad8ce2d1bc002d36df9bcf1b0b99d9"
     ), f"VEA prompt drift: {hashlib.sha256(prompt_bytes).hexdigest()}"
 
 

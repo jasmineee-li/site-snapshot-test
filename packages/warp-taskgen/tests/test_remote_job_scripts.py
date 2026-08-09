@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -95,6 +96,12 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     args = json.loads(args_file.read_text())
     joined = "\n".join(args)
     assert "--dry-run" in args
+    assert "--delete" in args
+    exclude_values = {
+        args[index + 1]
+        for index, value in enumerate(args[:-1])
+        if value == "--exclude"
+    }
     assert ".env" in joined
     assert ".git" in joined
     assert ".git/" in joined
@@ -104,6 +111,20 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     assert "docs/handoffs/codex-handoff-*.md" in joined
     assert "logs/" in joined
     assert "pipeline_outputs/" in joined
+    assert "data/" in joined
+    assert "CODEX.local.md" in joined
+    assert ".cache/" in joined
+    assert "dist/" in joined
+    assert ".DS_Store" in joined
+    assert ".worldsim_sync_stamp.json" in joined
+    assert {
+        "data/",
+        "CODEX.local.md",
+        ".cache/",
+        "dist/",
+        ".DS_Store",
+        ".worldsim_sync_stamp.json",
+    } <= exclude_values
     assert "*.sqlite" in joined
     assert "*.sqlite3" in joined
     assert ".modal/" in joined
@@ -2035,7 +2056,7 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
     )
     results_path = phase4_dir / "results.json"
     results_path.write_text(json.dumps([{"task_id": "adv_gitlab", "final_status": "resistant"}]))
-    old_time = time.mktime((2026, 4, 29, 0, 0, 0, 0, 0, 0))
+    old_time = datetime(2026, 4, 29, tzinfo=UTC).timestamp()
     os.utime(results_path, (old_time, old_time))
     (job_dir / "metadata.json").write_text(
         json.dumps(

@@ -85,12 +85,55 @@ def test_r8a_wrappers_use_r8a_host_config_and_control_plane_audit() -> None:
     proxy = (repo_root / "scripts" / "deploy_proxy_r8a.sh").read_text()
 
     assert "configs/benchmark_hosts/r8a.yaml" in bootstrap
+    assert "r8a_host_config.sh" in bootstrap
+    assert "FORWARD_ARGS" in bootstrap
     assert "scale_config.r8a-24x24.yml" in bootstrap
     assert "audit_r8a_control_plane.sh" in bootstrap
     assert "configs/benchmark_hosts/r5.yaml" not in bootstrap
     assert "configs/benchmark_hosts/r8a.yaml" in proxy
+    assert "r8a_host_config.sh" in proxy
+    assert "FORWARD_ARGS" in proxy
     assert "audit_r8a_control_plane.sh" in proxy
     assert "configs/benchmark_hosts/r5.yaml" not in proxy
+
+
+def test_r8a_wrappers_refuse_public_template() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    env = _base_env(repo_root)
+
+    for script in ("bootstrap_r8a.sh", "deploy_proxy_r8a.sh"):
+        completed = subprocess.run(
+            [
+                "bash",
+                str(repo_root / "scripts" / script),
+                "--host-config",
+                "configs/benchmark_hosts/r8a.yaml",
+            ],
+            cwd=repo_root,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+
+        assert completed.returncode == 2
+        assert "refuses the tracked public template" in completed.stderr
+
+
+def test_r8a_wrappers_help_is_available_without_host_config() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    env = _base_env(repo_root)
+
+    for script in ("bootstrap_r8a.sh", "deploy_proxy_r8a.sh"):
+        completed = subprocess.run(
+            ["bash", str(repo_root / "scripts" / script), "--help"],
+            cwd=repo_root,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+
+        assert completed.returncode == 0
+        assert "gitignored *.local.yaml overlay" in completed.stdout
 
 
 def test_setup_phase4_on_host_fails_when_playwright_install_deps_fails(tmp_path: Path) -> None:

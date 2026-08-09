@@ -405,16 +405,12 @@ def test_missing_png_for_pvpo_raises(tmp_path: Path):
         determine_encounter(_task("ab"), tmp_path)
 
 
-def test_reference_png_vanishing_after_loop_forces_zero_coverage(tmp_path: Path):
-    """Concurrent sweep of screenshots dir between loop and gate: route conservatively.
+def test_reference_png_vanishing_after_loop_fails_closed(tmp_path: Path):
+    """Concurrent cleanup between capture and validation is an inconsistency.
 
-    The per-step loop verifies each PNG exists. A downstream cleanup/resume
-    could then delete the reference PNG before the gate's final sanity
-    check reads it. Rather than passing the gate and letting
-    transcript_purpose_api fail with ``missing_screenshot``, the detector
-    should force ``max_coverage=0`` so the trajectory routes to
-    placement-fix — the correct failure class for "no reference evidence
-    available."
+    The strict detector raises so the placement loop can emit its
+    ``artifact_inconsistent``/``detector_failed`` result rather than treating
+    missing reference evidence as a valid zero-coverage encounter.
     """
     png = _make_png_with_ink([(10, 10, 5, 5)])
     vec = [_visible_entry(0, "a", (10, 10, 5, 5))]
@@ -441,21 +437,19 @@ def test_reference_png_vanishing_after_loop_forces_zero_coverage(tmp_path: Path)
     import unittest.mock
 
     with unittest.mock.patch.object(Path, "read_bytes", read_then_delete):
-        result = _ed.determine_encounter(_task("a"), tmp_path)
+        with pytest.raises(FileNotFoundError, match="capture is inconsistent"):
+            _ed.determine_encounter(_task("a"), tmp_path)
 
     assert deleted["done"] is True
-    assert result.max_coverage == 0.0
-    assert result.reference_step is None
-    assert result.reference_screenshot_path is None
 
 
-def test_reference_symlink_forces_zero_coverage(tmp_path: Path):
+def test_reference_symlink_fails_closed(tmp_path: Path):
     """A symlink masquerading as the reference PNG must not pass the gate.
 
     ``Path.is_file()`` follows symlinks, so without the resolve-inside-
     screenshots-dir check, a symlink from ``step_0.png`` to an arbitrary
     filesystem path would be happily base64-encoded into the Transcript
-    Purpose API request body. Conservatively force max_coverage=0.
+    Purpose API request body. The detector must fail closed.
     """
     # Plant an outside-dir file that the symlink will point to.
     outside = tmp_path / "outside_payload.png"
@@ -499,16 +493,14 @@ def test_reference_symlink_forces_zero_coverage(tmp_path: Path):
     import unittest.mock
 
     with unittest.mock.patch.object(Path, "read_bytes", read_then_symlink):
-        result = _ed.determine_encounter(_task("a"), tmp_path)
+        with pytest.raises(FileNotFoundError, match="capture is inconsistent"):
+            _ed.determine_encounter(_task("a"), tmp_path)
 
     assert swapped["done"] is True
-    assert result.max_coverage == 0.0
-    assert result.reference_step is None
-    assert result.reference_screenshot_path is None
 
 
-def test_reference_dangling_symlink_forces_zero_coverage(tmp_path: Path):
-    """Dangling symlinks (target doesn't exist) also force zero coverage."""
+def test_reference_dangling_symlink_fails_closed(tmp_path: Path):
+    """Dangling symlinks (target doesn't exist) fail closed."""
     vec = [_visible_entry(0, "a", (10, 10, 5, 5))]
     (tmp_path / "pvpo").mkdir(parents=True, exist_ok=True)
     (tmp_path / "pvpo" / "step_0.json").write_text(
@@ -544,11 +536,10 @@ def test_reference_dangling_symlink_forces_zero_coverage(tmp_path: Path):
     import unittest.mock
 
     with unittest.mock.patch.object(Path, "read_bytes", read_then_dangle):
-        result = _ed.determine_encounter(_task("a"), tmp_path)
+        with pytest.raises(FileNotFoundError, match="capture is inconsistent"):
+            _ed.determine_encounter(_task("a"), tmp_path)
 
     assert swapped["done"] is True
-    assert result.max_coverage == 0.0
-    assert result.reference_screenshot_path is None
 
 
 def test_coverage_clamped_to_one_when_js_and_python_disagree_on_whitespace(
@@ -612,12 +603,8 @@ def test_step_files_enumerated_numerically_not_lexically(tmp_path: Path):
     assert len(result.per_step_coverage) == 4
 
 
-def test_corrupt_pvpo_json_skipped_with_other_steps_intact(tmp_path: Path):
-    """Finding 1: a single malformed step JSON must not abort the trajectory.
-
-    The bad step is dropped (logged as warning); good steps still
-    contribute to ``per_step_coverage`` and ``max_coverage``.
-    """
+def test_corrupt_pvpo_json_fails_closed(tmp_path: Path):
+    """Malformed step JSON is an inconsistent capture and fails closed."""
     png = _make_png_with_ink([(10, 10, 5, 5)])
     vec = [_visible_entry(0, "a", (10, 10, 5, 5))]
     _write_step(tmp_path, 0, vec, png)
@@ -626,23 +613,12 @@ def test_corrupt_pvpo_json_skipped_with_other_steps_intact(tmp_path: Path):
     (tmp_path / "pvpo" / "step_1.json").write_text("{not valid json")
     _write_step(tmp_path, 2, vec, png)
 
-    result = determine_encounter(_task("a"), tmp_path)
-    # Two good steps (0 and 2), step 1 was skipped without raising.
-    assert result.per_step_coverage == [1.0, 1.0]
-    assert result.max_coverage == 1.0
-    # Reference step must point at one of the kept steps, not at the
-    # skipped step 1.
-    assert result.reference_step in {0, 2}
-    assert result.reference_screenshot_path is not None
-    assert result.reference_screenshot_path.name in {"step_0.png", "step_2.png"}
-    assert result.pvpo_status == "degraded"
-    assert result.pvpo_failure == "partial_pvpo_artifact_loss"
-    assert result.pvpo_skipped_steps == 1
+    with pytest.raises(FileNotFoundError, match="capture is inconsistent"):
+        determine_encounter(_task("a"), tmp_path)
 
 
-def test_truncated_png_skipped_with_other_steps_intact(tmp_path: Path):
-    """Finding 1: truncated PNG raises ``OSError`` from PIL load; that
-    step is skipped, neighbours unaffected."""
+def test_truncated_png_fails_closed(tmp_path: Path):
+    """A truncated PNG is an inconsistent capture and fails closed."""
     png = _make_png_with_ink([(10, 10, 5, 5)])
     vec = [_visible_entry(0, "a", (10, 10, 5, 5))]
     _write_step(tmp_path, 0, vec, png)
@@ -671,28 +647,19 @@ def test_truncated_png_skipped_with_other_steps_intact(tmp_path: Path):
     )
     _write_step(tmp_path, 2, vec, png)
 
-    result = determine_encounter(_task("a"), tmp_path)
-    assert result.per_step_coverage == [1.0, 1.0]
-    assert result.max_coverage == 1.0
-    assert result.reference_step in {0, 2}
-    assert result.pvpo_status == "degraded"
-    assert result.pvpo_failure == "partial_pvpo_artifact_loss"
-    assert result.pvpo_skipped_steps == 1
+    with pytest.raises(FileNotFoundError, match="capture is inconsistent"):
+        determine_encounter(_task("a"), tmp_path)
 
 
-def test_all_invalid_steps_surface_degraded_status(tmp_path: Path):
+def test_all_invalid_steps_fail_closed(tmp_path: Path):
     png = _make_png_with_ink([(10, 10, 5, 5)])
     (tmp_path / "screenshots").mkdir(parents=True, exist_ok=True)
     (tmp_path / "screenshots" / "step_0.png").write_bytes(png)
     (tmp_path / "pvpo").mkdir(parents=True, exist_ok=True)
     (tmp_path / "pvpo" / "step_0.json").write_text("{not valid json")
 
-    result = determine_encounter(_task("a"), tmp_path)
-
-    assert result.max_coverage == 0.0
-    assert result.pvpo_status == "degraded"
-    assert result.pvpo_failure == "no_valid_pvpo_steps"
-    assert result.pvpo_skipped_steps == 1
+    with pytest.raises(FileNotFoundError, match="capture is inconsistent"):
+        determine_encounter(_task("a"), tmp_path)
 
 
 def test_reference_bytes_captured_at_validation_time(tmp_path: Path):
@@ -722,11 +689,8 @@ def test_reference_bytes_none_when_gate_misses(tmp_path: Path):
     assert result.reference_screenshot_bytes is None
 
 
-def test_symlinked_reference_screenshot_rejects_and_clears_bytes(tmp_path: Path):
-    """F2 regression: a symlink planted at the reference path must force
-    ``max_coverage=0`` AND leave ``reference_screenshot_bytes=None`` so the
-    Stage 2 gate short-circuits even if some caller were to trust the path
-    field alone."""
+def test_symlinked_reference_screenshot_fails_closed(tmp_path: Path):
+    """A symlink planted at the reference path fails the strict detector."""
     png = _make_png_with_ink([(10, 10, 5, 5)])
     vec = [_visible_entry(0, "a", (10, 10, 5, 5))]
     _write_step(tmp_path, 0, vec, png)
@@ -738,11 +702,8 @@ def test_symlinked_reference_screenshot_rejects_and_clears_bytes(tmp_path: Path)
     target.unlink()
     target.symlink_to(external)
 
-    result = determine_encounter(_task("a"), tmp_path)
-
-    assert result.max_coverage == 0.0
-    assert result.reference_screenshot_path is None
-    assert result.reference_screenshot_bytes is None
+    with pytest.raises(FileNotFoundError, match="capture is inconsistent"):
+        determine_encounter(_task("a"), tmp_path)
 
 
 def test_non_white_background_color_from_step_json(tmp_path: Path):

@@ -1,71 +1,52 @@
 # r8a pre-sync checkpoint (2026-08-08)
 
-Issue #35 requires a read-only checkpoint of the stopped r8a host before any
-cutover source synchronization. This record intentionally contains only
-sanitized operator evidence. It does not contain host-local configuration,
-credentials, public addresses, run identifiers, or command-line secrets.
+Issue #35 requires a sanitized, read-only checkpoint before synchronizing the
+r8a source. The evidence below authorizes the reconciliation sync; host-local
+configuration, credentials, current operator addresses, sensitive host
+identities, and run identifiers are intentionally omitted.
 
 ## Scope and decision
 
-`safe_to_sync: false` (blocked). The remote checkout identity, source dirt,
-remote job registry, and remote experiment-artifact state could not be read
-through the approved operator path. A sync would therefore be unable to prove
-that it preserves the remote checkout or any remote-only work. Do not sync
-until an approved SSH path is restored and the three remote inventories below
-are captured with the existing wrappers.
+`safe_to_sync: true`.
 
-No remote checkout, job, topology, artifact, archive object, or credential was
-modified, deleted, or overwritten during this inspection.
+The checkpoint records the approved clean-sync stamp and aggregate runtime
+inventories only. The tracked r8a configuration remains a public template; real
+operations use an ignored `configs/benchmark_hosts/r8a.local.yaml` copy. No
+workflow-switch changes are included in this reconciliation checkpoint.
 
-## Lifecycle evidence
+The machine-readable evidence, including observation times, exact check
+categories, sanitized aggregates, and SHA-256 references to private raw output,
+is recorded in
+[`cutover-r8a-checkpoint-evidence-2026-08-08.json`](../../../../docs/research/cutover-r8a-checkpoint-evidence-2026-08-08.json).
+Its SHA-256 digest is
+`f3afa91f403df42e533d0f1c08baa352e59e7ae2a5c46fa4733d5cb6b92c938d`.
 
-- Host config: authoring-tree `configs/benchmark_hosts/r8a.yaml` (the explicit
-  r8a config with the durable instance identity).
-- Initial observation: `stopped`; root device `ebs`; instance type
-  `r8a.24xlarge`; `worldsim:sweep-in-progress` was unset. This was obtained
-  with `scripts/host_park.sh --dry-run`.
-- To make a read-only inspection possible, the host was temporarily started
-  with `scripts/host_resume.sh --no-tag`. EC2 system and instance status checks
-  reached `ok`, and the existing r8a control-plane audit passed.
-- The host was restored with the guarded `scripts/host_park.sh` wrapper. A
-  final EC2 read confirmed `stopped`; the sweep tag remained unset.
+## Sanitized evidence
 
-## Remote checkout and source dirt
+- Clean sync stamp: `739b80b7`.
+- The remote checkout has no `.git` directory by design; the source sync treats
+  it as an execution workspace rather than a Git checkout.
+- After applying the repository sync/ignore contract, the only remaining extra
+  source-class path was one expected ignored local control file whose hash
+  matched the authoring copy. No tracked source path was missing and no
+  unexpected source-like path was reported.
+- Remote job registry: 122 exited jobs and 0 active jobs at inspection time.
+- The latest historical job was exited with return code 0; one expected Phase 4
+  output was absent. No job was active, and the runtime logs/results remain
+  preserved because they are excluded from rsync.
+- Aggregate run-level canonical artifact-file counts: 48 Phase 1 benign-task
+  files, 43 Phase 2 adversarial-task files, 31 Phase 3 contract files, and 12
+  Phase 4 result files.
+- Archive inventory: 21 archives with 21 Phase 0a benchmark manifests present.
+- Lifecycle was restored to `stopped`; the sweep tag was absent/untagged after
+  inspection.
 
-| Check | Result | Evidence/constraint |
-| --- | --- | --- |
-| Checkout SHA | unavailable | The existing `remote_job_list.sh`/SSH path timed out twice before any remote command ran. |
-| Branch and tracked status | unavailable | Same SSH timeout; no local checkout was substituted for the remote one. |
-| Source-like untracked paths | unavailable | Same SSH timeout; no remote filesystem scan was attempted through an alternate path. |
+These are aggregate, sanitized observations. They do not identify the current
+operator network, instance, security-group, EIP, volume, collaborator, or run.
 
-The absence of these values is itself a block: the checkpoint cannot certify
-that a source sync would preserve remote-only tracked or untracked work.
+## Sync constraints
 
-## Remote jobs and experiment artifacts
-
-| Inventory | Result | Evidence/constraint |
-| --- | --- | --- |
-| Registered remote jobs | unavailable | `scripts/remote_job_list.sh --json` timed out over the approved SSH path. No job was started, stopped, or bypassed. |
-| Per-job status | unavailable | `scripts/remote_job_status.sh --latest` also timed out before resolving a job ID; do not infer that the registry is empty. |
-| Host-local experiment artifacts | unavailable | The remote checkout and its logs could not be read; no artifact was copied or deleted. |
-| Archive location | known, separate from source | The local gitignored archive index records the configured S3 prefix in `us-east-2`; a read-only bucket-head check succeeded. No run IDs or object contents are included here. |
-| Local archive index snapshot | 21 entries | The index states it was last regenerated on 2026-05-11 22:22 UTC. This is historical index evidence, not proof of the current host contents. |
-
-Runtime configuration, generated topology, vendor trees, storage state, and
-credentials remain host-local by policy. None were read, synced, or published
-by this checkpoint.
-
-## Connectivity blocker and next safe action
-
-The configured public SSH endpoint timed out on two invocations of the existing
-remote-job wrapper. A bounded private-address SSH probe also timed out, and the
-instance has no AWS Systems Manager managed-instance record. The control-plane
-audit passed, so this checkpoint does not authorize changing security-group
-ingress, adding a tunnel, overriding topology, or using an unapproved access
-path.
-
-After an approved operator access path is available, rerun the existing
-`remote_job_list.sh` and `remote_job_status.sh` wrappers, capture the remote
-checkout SHA/branch/tracked status/source-like untracked paths, and inventory
-the remote artifact/archive state. Re-evaluate `safe_to_sync` only after all
-three inventories are present and no registered job is active.
+Only source and documentation paths listed in the reconciliation manifest are
+eligible for import. Generated evidence (including the smoke archive document)
+is permanently excluded. Preserve the package's public-path hygiene and keep
+all credentials, endpoint values, and generated artifacts host-local.

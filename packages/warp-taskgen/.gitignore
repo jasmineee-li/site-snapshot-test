@@ -42,6 +42,7 @@ data/hf/**
 *.sqlite3
 instances.json
 instances.*.local.json
+configs/benchmark_hosts/*.local.yaml
 
 # Vendors — external benchmark clones (user runs `git clone` themselves)
 vendors/

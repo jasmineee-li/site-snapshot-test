@@ -1,19 +1,24 @@
 # Rigor-run setup runbook
 
 One-page reference for going from a fresh EC2 host to a Phase 4 rigor run.
-Codifies the manual r5 setup from 2026-04-20 while keeping the commands
-host-config driven for current r5/r8a runs.
+Codifies the manual r5 setup from 2026-04-20 while making r8a the canonical
+host-config-driven path for current runs.
+
+The tracked `configs/benchmark_hosts/r8a.yaml` is a sanitized public template.
+Copy it to the ignored `configs/benchmark_hosts/r8a.local.yaml`, fill in the
+selected host values locally, and use that explicit path for real operations.
 
 ## Sequence
 
-1. **`scripts/bootstrap_r5.sh`** (or equivalent for the target host).
-   Generates the scale compose, preflights the SG, brings benchmark
-   containers up with env-ctrl responding.
+1. **`scripts/bootstrap_r8a.sh`** for current r8a runs, or the selected-host
+   equivalent. Audits the r8a control plane, generates the scale compose,
+   preflights the SG, and brings benchmark containers up with env-ctrl
+   responding.
 2. **`scripts/setup_phase4_on_host.sh`** idempotent setup:
 
    ```
    scripts/setup_phase4_on_host.sh \
-       --host-config configs/benchmark_hosts/r5.yaml \
+       --host-config configs/benchmark_hosts/r8a.local.yaml \
        --instances instances.scale.json \
        --artifacts-source s3://benchmark-archives/worldsim-runs/<run_id>/
    ```
@@ -40,7 +45,7 @@ host-config driven for current r5/r8a runs.
    - repo/app environment such as `.env`, `OPENAI_API_KEY`,
      `ANTHROPIC_API_KEY`, and login helper values;
    - Modal client credentials for the remote user, normally
-     `/home/ubuntu/.modal.toml` with mode `600`.
+     `/srv/warp-taskgen/.modal.toml` with mode `600`.
 
    Repo sync and `.env` sync do not install the Modal client config. A missing
    client config can pass project-level key checks and then fail at Modal image
@@ -48,8 +53,8 @@ host-config driven for current r5/r8a runs.
 3. **Launch or resume**:
    ```
    scripts/remote_job_start.sh \
-       --host-config configs/benchmark_hosts/r5.yaml \
-       --remote-dir /home/ubuntu/browser-sim \
+       --host-config configs/benchmark_hosts/r8a.local.yaml \
+       --remote-dir /srv/warp-taskgen \
        --name phase4-rigor \
        --state-dir logs/<run_name> \
        --expected-output logs/<run_name>/phase_4/results.json \
@@ -63,8 +68,8 @@ host-config driven for current r5/r8a runs.
    resume subcommand through the same remote job wrapper:
    ```
    scripts/remote_job_start.sh \
-       --host-config configs/benchmark_hosts/r5.yaml \
-       --remote-dir /home/ubuntu/browser-sim \
+       --host-config configs/benchmark_hosts/r8a.local.yaml \
+       --remote-dir /srv/warp-taskgen \
        --name phase4-resume \
        --state-dir logs/<run_name> \
        --expected-output logs/<run_name>/phase_4/results.json \
@@ -87,8 +92,8 @@ host-config driven for current r5/r8a runs.
 
    ```
    scripts/remote_job_start.sh \
-       --host-config configs/benchmark_hosts/r8a.yaml \
-       --remote-dir /home/ubuntu/browser-sim \
+       --host-config configs/benchmark_hosts/r8a.local.yaml \
+       --remote-dir /srv/warp-taskgen \
        --name phase4-rigor-p48-processpool \
        --state-dir logs/<run_name> \
        --expected-output logs/<run_name>/phase_4/results.json \
@@ -128,6 +133,101 @@ host-config driven for current r5/r8a runs.
    salvage remains inspection evidence only; it does not make a failed
    process-pool merge canonical.
 
+## Park between sweeps (stop idle billing)
+
+When no rigor sweep is running, stop the host with
+`scripts/host_park.sh`. r8a billing is ~$120/day idle, so parking between
+sweeps is a sizable saving. Compute is the only thing the stop pauses;
+the EBS volume and EIP keep their fixed monthly charges.
+
+```bash
+# Park (stop) the host. Refuses if a sweep is in progress.
+scripts/host_park.sh --host-config configs/benchmark_hosts/r8a.local.yaml
+
+# Resume (start) and audit. Sets the sweep tag before starting so the
+# auto-stop layers don't fire during the run.
+scripts/host_resume.sh --host-config configs/benchmark_hosts/r8a.local.yaml
+```
+
+The `worldsim:sweep-in-progress=true` tag is what gates `host_park.sh`
+(and the EventBridge / CloudWatch auto-stop layers, once enabled).
+`host_resume.sh` sets it for you. After the sweep finishes AND the
+archive completes, clear it:
+
+```bash
+aws ec2 delete-tags --region us-east-2 \
+  --resources <instance-id> \
+  --tags Key=worldsim:sweep-in-progress
+```
+
+If the tag is stuck after a crash and you need to park anyway, pass
+`--force` to `host_park.sh` (the operator IAM identity is logged).
+
+If storage_state cookies on disk are older than 24h when you resume,
+the first thing to run is `scripts/setup_phase4_on_host.sh` to refresh
+them; otherwise Phase 0c will fail with stale-session errors. Pass
+`--regen-topology` to `host_resume.sh` to chain it automatically.
+
+## Archive a completed run to S3
+
+After a rigor run completes and the results are accepted as evidence, archive
+the run directory to `s3://benchmark-archives/worldsim-runs/<run_id>/` so the
+trajectories survive even when the host disk is recycled or the AMI is
+rotated. The script lives at `scripts/archive_run_to_s3.sh` and follows the
+AWS-recommended two-pass discipline (sync, verify with dryrun, optional delete).
+
+```
+scripts/archive_run_to_s3.sh <run_id>
+```
+
+This will:
+
+1. Validate the run directory exists and write `ARCHIVE_MANIFEST.json` capturing
+   the git sha, branch, hostname, file count, and byte count at archive time.
+2. `aws s3 sync` the run directory to `s3://benchmark-archives/worldsim-runs/<run_id>/`
+   with `STANDARD_IA` storage class and `--only-show-errors` operator logging.
+3. Verify with `aws s3 sync --dryrun` — must report zero `upload:` lines.
+4. Tag the manifest object so future audits can filter by `project=warp-taskgen`,
+   `run_id=<id>`, `archived_at=<ISO>`, `git_sha=<sha>`, `purpose=paper-evidence`.
+
+After the local copy is no longer needed (and disk pressure warrants it), pass
+`--delete-local` for the same invocation to remove the local directory in the
+same pass. Verification still runs first; `--delete-local` will refuse to delete
+if verification didn't run.
+
+```
+scripts/archive_run_to_s3.sh <run_id> --delete-local
+```
+
+Resume after interruption: just rerun the same command. `aws s3 sync` is
+natively idempotent — it skips files already at the destination with matching
+size and mtime. The two-pass dryrun verification will catch any partial state.
+
+Refresh the local archive index after archiving:
+
+```
+scripts/regen_archive_index.sh
+```
+
+That regenerates `docs/runs/archive-index.md` (gitignored) from S3 metadata
+plus the local HuggingFace dataset references. Shows gaps where HF references
+a run_id that has no S3 archive.
+
+Hardlink note: `du -sb` counts hardlinks once; S3 expands them into separate
+objects. The S3 byte total will exceed the local `du -sb` total — this is
+expected and the verification script accounts for it. Don't panic at the size
+diff; the dryrun check is the authoritative integrity gate.
+
+Sequencing note for paper handoff:
+
+1. Phase 4 completes and produces `results.json` plus the HF dataset export.
+2. The HF export commits to `data/hf/<dataset_id>/`.
+3. `scripts/archive_run_to_s3.sh <run_id>` writes the trajectories to S3.
+4. `scripts/regen_archive_index.sh` updates the local index.
+5. Only then is the run "fully landed". A run with HF export but no S3 archive
+   is incomplete because reviewers / future you cannot retrieve the underlying
+   trajectories that back the HF rows.
+
 ## Remote job wrapper quickstart
 
 Use the remote job scripts for any r5 command that may outlive an interactive
@@ -136,9 +236,9 @@ a registry under `<remote-dir>/logs/remote_jobs/<job_id>/`.
 
 1. Sync the checkout without secrets or generated logs:
    ```
-   scripts/sync_to_r5.sh \
+   scripts/sync_to_host.sh \
        --host-config configs/benchmark_hosts/r5.yaml \
-       --remote-dir /home/ubuntu/browser-sim
+       --remote-dir /srv/warp-taskgen
    ```
    `--ssh-key ~/.ssh/webarena-key.pem` is expanded locally before it reaches
    `rsync`; avoid nested quoted `$HOME` in hand-written `rsync -e` strings.
@@ -148,7 +248,7 @@ a registry under `<remote-dir>/logs/remote_jobs/<job_id>/`.
    ```
    scripts/remote_job_start.sh \
        --host-config configs/benchmark_hosts/r5.yaml \
-       --remote-dir /home/ubuntu/browser-sim \
+       --remote-dir /srv/warp-taskgen \
        --name phase1-route-diversity \
        --expected-output logs/phase_1/benign_tasks.json \
        -- \
@@ -264,7 +364,7 @@ double-check the slug against the provider's current catalog.
 - `GITLAB_HOST` / `GITLAB_STORAGE_STATE_PATH` — override defaults for `scripts/login_gitlab_r5.py`.
 - `WORLDSIM_REPO_ROOT` — override sentinel-walk repo discovery.
 - `WORLDSIM_BENCHMARK_ROOT`, override the WebArena Verified checkout used by
-  `scripts/setup_phase4_on_host.sh` (default `/home/ubuntu/vendors/webarena-verified`).
+  `scripts/setup_phase4_on_host.sh` (default `/srv/warp-taskgen/vendors/webarena-verified`).
 
 ## When something breaks mid-run
 

@@ -134,18 +134,22 @@ running instances. Phase 0c works without it (code-reading only). Phases 1,
 **Deploy the proxy:**
 
 ```bash
-# Canonical r5 path (scale port map + explicit HTTP opt-in):
-./scripts/deploy_proxy_r5.sh
+# Copy the public template once, then keep real host values in this ignored file.
+cp configs/benchmark_hosts/r8a.yaml configs/benchmark_hosts/r8a.local.yaml
+
+# Canonical r8a path (audited EIP/SSH control plane + scale port map):
+./scripts/deploy_proxy_r8a.sh \
+    --host-config configs/benchmark_hosts/r8a.local.yaml
 
 # Generic path with explicit topology and HTTP opt-in:
 ./scripts/deploy_benchmark_proxy.sh \
-    --host-config configs/benchmark_hosts/r5.yaml \
+    --host-config configs/benchmark_hosts/r8a.local.yaml \
     --topology scale \
     --insecure-http
 
 # With explicit arguments:
 ./scripts/deploy_benchmark_proxy.sh \
-    --host-config configs/benchmark_hosts/r5.yaml \
+    --host-config configs/benchmark_hosts/r8a.local.yaml \
     --topology scale \
     --insecure-http \
     --ssh-key ~/.ssh/webarena-key.pem \
@@ -157,13 +161,23 @@ one listener row per proxy mapping, and restarts nginx. Current scale maps inclu
 separate web and envctrl rows per replica rather than one generic proxy port per
 site. The command is idempotent, safe to re-run, and benchmark-agnostic because it
 reads port mappings from `scripts/proxy_ports.conf` or a custom file. The
-checked-in `deploy_proxy_r5.sh` wrapper currently opts into token-protected HTTP
-by passing `--insecure-http`; switch to TLS inputs if you want HTTPS on the
-public proxy.
+checked-in `deploy_proxy_r8a.sh` wrapper first audits the control plane and opts
+into token-protected HTTP by passing `--insecure-http`; switch to TLS inputs if
+you want HTTPS on the public proxy. The checked-in host config is a sanitized
+template; pass the ignored `r8a.local.yaml` explicitly to generic scripts for
+real operations.
 
-For the scale bring-up path, `./scripts/bootstrap_r5.sh` now regenerates the
-scale artifacts and runs a security-group preflight against the generated
-runtime ports before staging the compose file onto the host.
+For the canonical scale bring-up path, run:
+
+```bash
+./scripts/bootstrap_r8a.sh \
+    --host-config configs/benchmark_hosts/r8a.local.yaml
+```
+
+The wrapper audits the r8a control plane, regenerates the 24x24 scale artifacts,
+and runs a security-group preflight against the generated runtime ports before
+staging the compose file onto the host. `bootstrap_r5.sh` remains only for
+legacy r5 runs.
 
 For TLS-backed Phase 0c probing, the deploy helper also accepts
 `--tls-cert /path/on/host/fullchain.pem --tls-key /path/on/host/privkey.pem`
@@ -250,11 +264,12 @@ uv run warp-taskgen phase 2 --benchmark vendors/webarena-verified \
   --feasibility-instances instances.smoke.json
 
 # On r5/r8a, regenerate instances.scale.json from the selected host config
-# instead of hand-editing IPs. The generated scale file carries host_access
-# metadata and binds site_url/reset_endpoint/placeholders to orchestrator_host
-# (172.17.0.1). Then re-mint Phase 0d against that exact generated file so
-# storage_state cookie domains match the runtime host view:
-./scripts/generate_scale_r5.sh
+# instead of hand-editing IPs. Generated instance/proxy/compose files are
+# gitignored host-local scratch. For canonical r8a runs, use the 24x24 scale
+# config: 24 GitLab replicas + 24 Reddit/Postmill replicas.
+./scripts/generate_scale.sh \
+  --host-config configs/benchmark_hosts/r8a.local.yaml \
+  --scale-config scripts/scale_config.r8a-24x24.yml
 uv run warp-taskgen phase 0d --benchmark vendors/webarena-verified \
   --instances instances.scale.json
 

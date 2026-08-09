@@ -80,6 +80,14 @@ excludes=(
     "logs_*/"
     "logs_run*/"
     "pipeline_outputs/"
+    # Runtime datasets and host-local build/operator artifacts must survive
+    # rsync --delete on the execution host; the package tracks only data/.gitkeeps.
+    "data/"
+    "CODEX.local.md"
+    ".cache/"
+    "dist/"
+    ".DS_Store"
+    ".worldsim_sync_stamp.json"
     "*.sqlite"
     "*.sqlite3"
     "reports/"

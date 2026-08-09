@@ -1,0 +1,136 @@
+{
+  "format": "warp-cutover-r8a-checkpoint-evidence-v1",
+  "date": "2026-08-08",
+  "issue": 38,
+  "purpose": "Sanitized, read-only r8a pre-sync checkpoint evidence",
+  "observation_window": {
+    "started_at_utc": "2026-08-09T00:05:26Z",
+    "finished_at_utc": "2026-08-09T00:16:26Z"
+  },
+  "collection": {
+    "private_evidence_bundle": "private-local-evidence-bundle",
+    "raw_outputs_public": false,
+    "lifecycle_cycles": 2,
+    "lifecycle_reason": "The second bounded cycle corrected the artifact inventory from top-level paths to aggregate run-directory globs; both cycles started and ended stopped and untagged.",
+    "checks": [
+      {
+        "category": "lifecycle",
+        "command": "scripts/host_resume.sh --host-config <configured-r8a-host> --no-tag",
+        "paired_command": "scripts/host_park.sh --host-config <configured-r8a-host>"
+      },
+      {
+        "category": "source",
+        "command": "read-only SSH: sync stamp, Git-directory presence, source-path inventory, and hashes for classified expected extras"
+      },
+      {
+        "category": "jobs",
+        "command": "scripts/remote_job_list.sh --host-config <configured-r8a-host> --json --limit 1000",
+        "paired_command": "scripts/remote_job_status.sh --host-config <configured-r8a-host> --latest"
+      },
+      {
+        "category": "artifacts",
+        "command": "read-only SSH: aggregate single-level run-directory globs for canonical Phase 1, Phase 2, Phase 3, and Phase 4 artifact files"
+      },
+      {
+        "category": "archives",
+        "command": "AWS S3 list-objects-v2 archive-prefix inventory plus head-object checks for each Phase 0a benchmark manifest"
+      },
+      {
+        "category": "final_state",
+        "command": "AWS EC2 state and sweep-tag readback after lifecycle wrapper park"
+      }
+    ]
+  },
+  "source": {
+    "ssh_read_ok": true,
+    "remote_git_directory_present": false,
+    "sync_stamp": {
+      "source_sha": "739b80b78b35c082df6a141276bf8ae2bc435661",
+      "source_branch": "feat/worldsim-v5",
+      "source_dirty": false,
+      "git_metadata_excluded": true,
+      "synced_at": "2026-05-11T01:50:07.784519+00:00"
+    },
+    "path_comparison": {
+      "tracked_source_paths": 785,
+      "remote_source_paths": 786,
+      "missing_tracked_source_path_count": 0,
+      "expected_ignored_local_control_file_count": 1,
+      "unexpected_source_like_path_count": 0,
+      "ignored_local_control_hash_matches_authoring_copy": true
+    },
+    "classification_note": "Runtime data, caches, distributions, instance-locality files, sync metadata, generated topology, logs, vendors, and credentials were classified by the repository sync/ignore contract and excluded from source-like drift."
+  },
+  "jobs": {
+    "registry_entries": 122,
+    "status_counts": {
+      "exited": 122
+    },
+    "active_count": 0,
+    "latest_status": "exited",
+    "latest_returncode": 0,
+    "latest_missing_expected_output_count": 1,
+    "latest_status_note": "The missing expected output belongs to an exited historical job and remains preserved under excluded runtime logs."
+  },
+  "artifacts": {
+    "count_semantics": "Number of existing canonical artifact files matched across one run-directory level under runtime logs; symlink targets count when they resolve to files.",
+    "phase_1_benign_tasks_file_count": 48,
+    "phase_2_adversarial_tasks_file_count": 43,
+    "phase_3_contracts_file_count": 31,
+    "phase_4_results_file_count": 12
+  },
+  "archives": {
+    "archive_prefix_count": 21,
+    "listing_truncated": false,
+    "benchmark_manifest_present_count": 21,
+    "benchmark_manifest_missing_count": 0
+  },
+  "lifecycle": {
+    "initial_state": "stopped",
+    "resume_mode": "no_tag",
+    "root_device_type": "ebs",
+    "final_state": "stopped",
+    "final_sweep_tag_present": false
+  },
+  "evidence_integrity": {
+    "algorithm": "sha256",
+    "private_digest_manifest": "SHA256SUMS",
+    "private_digest_manifest_sha256": "862e9d9c642fd6b723e4af0a4b1908986fbcd158bddc9b77027e10ce91c55a9f",
+    "raw_outputs": {
+      "remote_checkpoint.raw.json": "0632d630ecc3de5ccc3d2437d923349d8cc885f9d30fde0800c670190597ff12",
+      "remote_job_list.raw.json": "f3c0b3cd0904ab63f9e3072cc6a0b3283e4168e30be033f5ebcb50f497578dd9",
+      "remote_job_status.raw.txt": "7ba006519b15d990728dc02b6f2a5332f61247a7bf9de8da11fd0f511cb460dc",
+      "artifact_inventory.raw.json": "45c3a6450a280a8d50b09004d3498853996a731a86afce3d7f3ee617df45e37d",
+      "s3_archive_prefixes.raw.json": "15329340c501343c689f811ffdad173d362c9931d0b19ce475d96126136e37ea",
+      "s3_manifest_heads.raw.json": "37897d9217ce193f46bba01f4190b4418bb38fca65edd7f214a96c9aabeea65a",
+      "ec2_initial.raw.json": "324e99b4a82aae35ddc7028a12fe2de9d7b27596ce939a6f45fd01a16a26b65a",
+      "ec2_supplement_final.raw.json": "324e99b4a82aae35ddc7028a12fe2de9d7b27596ce939a6f45fd01a16a26b65a"
+    },
+    "canonical_outputs": {
+      "source.canonical.json": "19f00e3abd46c0adff2fd10b60f64a1974f2620e989bc2ac856309f9b600c937",
+      "jobs.canonical.json": "d927f81f8373c3b4e3269bea62bd4a0c8e1913bd2d8b0a869ce9788a407a3527",
+      "artifacts.canonical.json": "8604f20cb936b1f57b0e4774574acdabbccb6eff124c3c3bba683903a9fbb767",
+      "archives.canonical.json": "85f277858daa2f7080b92b197aa2b1a97f1180ad77cda0563e5d9c8f485d37f0",
+      "lifecycle.canonical.json": "cacbc6432f3ea3256cade14fdc2f19c6a2ffc4461c3a1e33597c38fa5d8574ab",
+      "checkpoint.canonical.json": "6a10a898c2c98a588b6e014f8192917683e88b7adfba214bd38b782935394bd0"
+    }
+  },
+  "safe_to_sync": {
+    "value": true,
+    "basis": [
+      "The sync stamp records a clean source checkout and source-path comparison found no missing tracked or unexpected source-like paths.",
+      "All 122 registered jobs were exited and no active job was present.",
+      "Runtime artifact and archive inventories were collected separately from source state.",
+      "The repository sync contract excludes runtime logs, archives, topology, credentials, vendors, and other host-local state.",
+      "The host was returned to stopped state with the sweep tag absent."
+    ],
+    "constraint": "Authorization is limited to the reconciliation source scope; no checkout, job, artifact, topology, or host-local configuration mutation was performed by this checkpoint."
+  },
+  "redactions": [
+    "network addresses and operator CIDRs",
+    "cloud resource identifiers",
+    "run and job identifiers",
+    "credentials and host-local configuration",
+    "private collaborator identities"
+  ]
+}

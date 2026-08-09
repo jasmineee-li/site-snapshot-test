@@ -5,6 +5,7 @@ Imports the validator functions directly for unit testing.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -13,12 +14,19 @@ from unittest import mock
 import pytest
 
 # The validator module lives in worldsim/ but is designed to be standalone.
-# Import it by adding worldsim/ to the path.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "worldsim"))
+# Load it by file location so this test does not leave ``worldsim/`` at the
+# front of ``sys.path``.  A persistent top-level path entry can shadow the
+# third-party ``browser_use`` package for unrelated tests in the same worker.
+_VALIDATOR_PATH = Path(__file__).resolve().parent.parent / "worldsim" / "_sandbox_validator.py"
+_VALIDATOR_SPEC = importlib.util.spec_from_file_location("_sandbox_validator", _VALIDATOR_PATH)
+assert _VALIDATOR_SPEC is not None and _VALIDATOR_SPEC.loader is not None
+validator = importlib.util.module_from_spec(_VALIDATOR_SPEC)
+sys.modules["_sandbox_validator"] = validator
+_VALIDATOR_SPEC.loader.exec_module(validator)
 
-import _sandbox_validator as validator
-
-from worldsim.phase_2.target_resolution.constants import LISTING_DETAIL_FORCING_REGEXES
+from worldsim.phase_2.target_resolution.constants import (  # noqa: E402
+    LISTING_DETAIL_FORCING_REGEXES,
+)
 
 
 def _db_row_value(*, table: str, value_column: str, where: dict[str, object]) -> dict:
