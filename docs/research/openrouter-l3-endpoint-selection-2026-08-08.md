@@ -6,9 +6,8 @@ This note explains the release-gate observation recorded in
 [`cutover-release-proof-2026-08-08.md`](./cutover-release-proof-2026-08-08.md):
 the r8a Phase 2 L3 classifier received HTTP 404 with the message
 `No endpoints available matching your guardrail restrictions and data policy`.
-No credential value was read or copied while preparing this note. The source
-of truth for the request path is the checked-in code, not a secret or host
-overlay.
+No credential value is recorded in this note. The source of truth for the
+request path is the checked-in code, not a secret or host overlay.
 
 ## What the code actually requested
 
@@ -141,11 +140,34 @@ approved OpenRouter policy/provider configuration for Sonnet or a direct
 Anthropic/OAuth path; changing the model is not a substitute for understanding
 the account policy.
 
+## Resolution
+
+The signed-in OpenRouter account showed no workspace guardrails, empty provider
+allow/ignore lists, and no enabled ZDR switches. The old configured key was
+valid but did not appear in that account's key list, which is consistent with a
+legacy or different-account key carrying the failing policy.
+
+With owner approval, a dedicated key named `warp-taskgen-r8a` was created in
+the signed-in default workspace with no guardrail, a $50 total limit, and a
+30-day expiry on 2026-09-08. The key value was transferred without appearing in
+commands or output, installed only in ignored local and r8a `.env` files, and
+the temporary transfer files were deleted.
+
+The replacement key produced these bounded results:
+
+- `/api/v1/key` authenticated successfully and `/models/user` returned 391
+  policy-filtered models.
+- The exact repository L3 `emit_target` tool request passed for the unchanged
+  `anthropic/claude-sonnet-4-6` identifier; the dotted Sonnet alias and Gemini
+  Flash Lite also passed.
+- The correct-locality live integration wrapper passed 20 tests with 2 skips.
+- The real two-task Phase 4 canary used the same Anthropic-compatible route;
+  every observed `/v1/messages` call returned HTTP 200 and the job exited zero.
+
 ## Conclusion
 
-The authenticated probes confirm “no endpoint survived OpenRouter policy
-filtering,” not “the key, benchmark, or r8a is broken.” Trying smaller models
-does not solve the account-wide restriction. The canonical unblock is to use
-the approved direct Anthropic/OAuth path or correct the dedicated OpenRouter
-account's privacy/guardrail configuration, then rerun the exact L3 smoke before
-Phase 2c. No credential value was printed or persisted.
+The old key's account-level policy was the cause. The key authenticated, but no
+endpoint survived its policy filtering. The benchmark, r8a, Anthropic Messages
+request shape, tools, and canonical Sonnet model identifier were all proven
+working with the dedicated replacement key. No model substitution or gate
+bypass was necessary, and no credential value was printed or tracked.
