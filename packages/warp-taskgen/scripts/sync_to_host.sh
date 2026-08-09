@@ -70,12 +70,9 @@ excludes=(
     "docs/handoffs/codex-handoff-*.md"
     ".claude/worktrees/"
     "AgentLab/"
-    "vendors/RedTeamCUA/"
-    "vendors/eval_awareness/"
-    "vendors/os-harm/"
-    "vendors/wasp/"
-    "vendors/webarena-infinity/"
-    "vendors/webarena-verified/"
+    # Every vendor checkout is host-local and gitignored. A selective list
+    # lets rsync --delete erase newly added benchmark/vendor trees.
+    "vendors/"
     "logs/"
     "logs_*/"
     "logs_run*/"

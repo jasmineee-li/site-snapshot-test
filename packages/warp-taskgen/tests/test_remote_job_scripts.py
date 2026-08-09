@@ -124,6 +124,7 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
         "dist/",
         ".DS_Store",
         ".worldsim_sync_stamp.json",
+        "vendors/",
     } <= exclude_values
     assert "*.sqlite" in joined
     assert "*.sqlite3" in joined
