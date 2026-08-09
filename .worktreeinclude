@@ -1,0 +1,5 @@
+# Small, non-secret Taskgen state for Codex-managed development worktrees.
+# Live tokens, environments, datasets, vendors, and symlinks stay in Local.
+packages/warp-taskgen/.benchmark_host_id
+packages/warp-taskgen/instances.json
+packages/warp-taskgen/instances.smoke.local.json
