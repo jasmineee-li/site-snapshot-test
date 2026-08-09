@@ -299,6 +299,16 @@ uv run warp-taskgen phase 2c \
 uv run warp-taskgen resume
 ```
 
+### Phase 4 execution boundary
+
+Phase 4 does not launch Modal sandboxes. The selected benchmark host runs the
+Browser Use worker pool and its runner-owned browser, while refusal judging,
+Transcript Purpose, VEA, placement-fix, and iterator rewrites use direct
+host-side Anthropic Messages API calls. The `--sandbox-model` option is retained
+as the shared model selector for those structured calls; its name does not mean
+that Phase 4 starts a Modal sandbox. Modal remains part of the earlier
+code-exploration and task-generation phases that need isolated filesystems.
+
 Pipeline state is written to `logs/pipeline_state.json` before each major operation. If you use a custom `WARP_TASKGEN_STATE_DIR`, WARP Taskgen also writes a pointer under `logs/` so `uv run warp-taskgen resume` can find the active run later without re-exporting the environment variable. The legacy `WORLDSIM_STATE_DIR` name remains accepted as a compatibility alias.
 
 Phase 4 result.json carries two parallel awareness metrics on every trajectory where a Needham XML transcript can be extracted. PVPO remains the encounter gate, but TP/VEA are observational context classifiers and may still run on `encounter.max_coverage == 0` trajectories:
