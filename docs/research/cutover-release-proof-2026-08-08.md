@@ -97,6 +97,8 @@ Anthropic API key or Claude OAuth token is configured.
 
 Changing an account privacy policy or substituting a model is outside this
 source-control cutover. The wrapper therefore has not passed once as required.
+The official-document review and authenticated small-model probes are recorded
+in `docs/research/openrouter-l3-endpoint-selection-2026-08-08.md`.
 
 ## Strict cohort and Phase 4 canary
 
@@ -132,9 +134,10 @@ pre-cutover default suite with 24 known failures (3,476 passed, 4 skipped).
 Those failures are exactly the baseline defects corrected by reconciliation:
 the VEA hash pin, missing PVPO preflight import, strict encounter expectations,
 Browser Use test-path pollution, and a timezone-sensitive remote-job fixture.
-The cutover rollback is content-correct, but issue #39's literal requirement
-that this older tree pass the same command is not satisfiable without either
-backporting those fixes or explicitly changing the acceptance criterion.
+The cutover rollback is content-correct. On 2026-08-08 the owner approved the
+canonical rollback criterion as exact frontier-tree restoration with no new
+failures beyond this recorded baseline. Issue #39 was updated accordingly; no
+backport to the retired authoring frontier is required.
 
 ## Required unblock
 
@@ -147,8 +150,5 @@ backporting those fixes or explicitly changing the acceptance criterion.
 3. Run one bounded real Phase 4 task for GitLab and one for Reddit/Postmill with
    explicit timeouts, the default `eval-awareness-iterator`, and no feasibility
    bypass. Accept artifact/invariant shape rather than ASR equality.
-4. Resolve the rollback acceptance contradiction by either backporting the 24
-   baseline fixes to the rollback frontier or explicitly approving exact-tree
-   restoration plus the recorded baseline failure as the rollback criterion.
-5. Only after all four items pass, create a final annotated release tag, close
+4. Only after all three live items pass, create a final annotated release tag, close
    #39, and begin the protected-main/post-merge proof in #40.
