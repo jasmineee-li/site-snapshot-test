@@ -1,16 +1,16 @@
 ---
 name: benchmark-host-ops
-description: Operational reference for WorldSim v5 benchmark hosts — nginx reverse-proxy deployment (scripts/deploy_benchmark_proxy.sh, check_proxy_drift.sh), fresh-host bootstrap (scripts/setup_phase4_on_host.sh), chrome-headless-shell Docker requirements for PVPO rigor runs, and the GitLab external_url workaround. Use whenever the user works on a fresh EC2/r5 benchmark host, deploys or debugs the nginx proxy, sees 502/403 errors from benchmark sites, mentions gitlab.rb / external_url drift, asks about chrome-headless-shell / beginFrame / pvpo_cdp_url, wants to run setup_phase4_on_host.sh, or prepares a Phase 4 rigor run — even if they don't explicitly name the skill. Also invoke for questions about the proxy token (X-Worldsim-Token), port offset scheme, ProxyingHTTPAdapter's Location-rewrite, or why the proxy config must be generated from the script and never hand-edited.
+description: Operational reference for WARP Taskgen benchmark hosts — nginx reverse-proxy deployment (scripts/deploy_benchmark_proxy.sh, check_proxy_drift.sh), fresh-host bootstrap (scripts/setup_phase4_on_host.sh), chrome-headless-shell Docker requirements for PVPO rigor runs, and the GitLab external_url workaround. Use whenever the user works on the current EC2/r8a benchmark host, deploys or debugs the nginx proxy, sees 502/403 errors from benchmark sites, mentions gitlab.rb / external_url drift, asks about chrome-headless-shell / beginFrame / pvpo_cdp_url, wants to run setup_phase4_on_host.sh, or prepares a Phase 4 rigor run — even if they don't explicitly name the skill. Also invoke for questions about the proxy token (X-Worldsim-Token), port offset scheme, ProxyingHTTPAdapter's Location-rewrite, or why the proxy config must be generated from the script and never hand-edited.
 ---
 
 # Benchmark host operations
 
-Everything here is ops plumbing. The v5 orchestrator connects to pre-running benchmark instances supplied by the user; this skill covers *how those instances get stood up and kept healthy* on AWS r5 hosts, and how the orchestrator reaches them securely.
+Everything here is ops plumbing. The WARP Taskgen orchestrator connects to pre-running benchmark instances supplied by the user; this skill covers *how those instances get stood up and kept healthy* on the selected AWS host, and how the orchestrator reaches them securely.
 
 | Topic | When to consult | File |
 |---|---|---|
 | nginx proxy deployment, drift detection, GitLab `external_url` handling | Running `deploy_benchmark_proxy.sh` / `check_proxy_drift.sh`, debugging 502/403 from the proxy, changing port maps or auth tokens | `references/proxy-deployment.md` |
-| Fresh-host bootstrap sequence | First time setting up a new r5 instance, re-running after a wipe, debugging a failed preflight | `references/fresh-host-bootstrap.md` |
+| Fresh-host bootstrap sequence | First time setting up the current r8a instance, re-running after a wipe, debugging a failed preflight | `references/fresh-host-bootstrap.md` |
 | chrome-headless-shell container + beginFrame | Running PVPO with non-zero coverage, debugging `max_coverage=0` on every trajectory, touching `worldsim/docker/chrome-headless-shell.Dockerfile` | `references/rigor-containers.md` |
 
 ## Invariants
@@ -25,19 +25,18 @@ Everything here is ops plumbing. The v5 orchestrator connects to pre-running ben
 
 | Script | Purpose |
 |---|---|
-| `scripts/bootstrap_r5.sh` | Initial r5 bootstrap — install deps, pull benchmark containers, start env-ctrl. |
+| `scripts/bootstrap_r8a.sh` | Current r8a bootstrap — audit the control plane, generate topology, preflight security groups, and start env-ctrl. |
 | `scripts/deploy_benchmark_proxy.sh` | Generate + install nginx proxy config with token auth on offset ports. `--via-ssm` supported for SSH-blocked SGs. |
 | `scripts/check_proxy_drift.sh` | Diff on-host nginx config against what the script would generate. `--verify-runtime` adds runtime checks. |
-| `scripts/deploy_proxy_r5.sh` | Convenience wrapper for r5-specific proxy deploys. |
+| `scripts/deploy_proxy_r8a.sh` | Audited wrapper for current r8a proxy deploys. |
 | `scripts/setup_phase4_on_host.sh` | Idempotent fresh-host → Phase-4-ready. Bundles uv/venvs, Playwright deps, pvpo-chrome container, artifact sync, storage_state mint, preflight gate. |
 | `scripts/preflight_host_config.py` | Validates a `configs/benchmark_hosts/*.yaml` file. |
 | `scripts/preflight_security_group.py` | Validates the EC2 SG has the right ports open. |
 | `scripts/nightly_feasibility_check.sh` | Scheduled job — re-runs Phase 2c against a live host and alerts on drift. |
-| `scripts/ssh_r5.sh` | SSH wrapper that falls back to SSM when the SG blocks direct SSH. |
 
 ## Configuration layout
 
-- `configs/benchmark_hosts/*.yaml` — one file per host (e.g., `r5.yaml`). Holds `HOST_IP`, `orchestrator_host`, `instances_file`, etc.
+- `configs/benchmark_hosts/*.yaml` — sanitized templates plus ignored local operator configs (for example `r8a.local.yaml`). Holds `HOST_IP`, `orchestrator_host`, `instances_file`, etc.
 - `scripts/proxy_ports.conf` — site-to-port mapping the proxy reads. Format: `name:real_port:proxy_port`.
 - `instances*.json` — the `BenchmarkConfig` the orchestrator reads: per-instance `{site_url, reset_endpoint, db_connection?}`.
 - `.proxy_token` — generated by `deploy_benchmark_proxy.sh`; mounted on each instance config as the `X-Worldsim-Token` header value. Do not commit.

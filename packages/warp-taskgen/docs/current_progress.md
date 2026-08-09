@@ -34,7 +34,7 @@ artifact fields remain `worldsim`; active spec filenames use WARP Taskgen names.
 
 - Technical source of truth: `docs/warp-taskgen-technical-spec.md`
 - Domain invariants: `agent_docs/domain-invariants.md`
-- r5 and rigor runbook: `docs/handoffs/rigor-run-setup.md`
+- r8a and rigor runbook: `docs/handoffs/rigor-run-setup.md`
 - Phase 2c floor: `docs/handoffs/phase-2c-admission-floor.md`
 - Expanded Phase 4 sweep, title-inclusive historical cohort: `docs/runs/phase4-expanded-model-sweep-20260501.md`
 - No-title mainline sweep config: `configs/phase4_model_sweeps/phase4_20260502_no_title.json`

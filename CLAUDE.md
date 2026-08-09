@@ -35,10 +35,18 @@ This is a multi-context repository. Read `CONTEXT-MAP.md` and the relevant
 context document when they exist. Repository-wide ADRs live in `docs/adr/`.
 See `docs/agents/domain.md`.
 
-## Taskgen acceptance boundary
+## Taskgen development
 
-`packages/warp-taskgen/` is the canonical Taskgen source. From a fresh main
-worktree, run the same root command used by CI:
+`packages/warp-taskgen/` on current `origin/main` is the only writable Taskgen
+source. Start each change in one short-lived topic worktree:
+
+```bash
+git fetch origin main
+git worktree add .codex-worktrees/<topic> -b codex/<topic> origin/main
+```
+
+Make Taskgen edits in that worktree's `packages/warp-taskgen/`, run the same
+root command used by CI, and open one PR to `main`:
 
 ```bash
 bash scripts/accept_taskgen.sh
@@ -49,6 +57,10 @@ package verification, builds the distribution, and smoke-tests the installed
 `warp-taskgen` console script in an isolated environment. Keep package lint and
 tests in `packages/warp-taskgen/scripts/verify_default.sh`; the root command is
 an acceptance boundary, not a second verification implementation.
+Remove the topic worktree after its PR merges. There is no source snapshot or
+sync-back step. `packages/warp-taskgen/scripts/sync_to_host.sh` is an
+operational deployment helper for prepared benchmark hosts; it does not create
+another writable Taskgen source.
 
 ## Experiment log
 

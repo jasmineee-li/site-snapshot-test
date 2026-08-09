@@ -77,7 +77,7 @@ single-process run.
 For changes touching editors, seeding, Phase 2c, Phase 4, PVPO capture, or any host-API prompt file, use a live stack when available:
 
 ```bash
-scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml --quiet
+scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r8a.local.yaml --quiet
 ```
 
 `--quiet` captures passing pytest output and surfaces full output only on failure. If it fails, include the surfaced failure output in the PR or handoff.

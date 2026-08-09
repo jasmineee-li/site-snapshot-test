@@ -230,16 +230,18 @@ Sequencing note for paper handoff:
 
 ## Remote job wrapper quickstart
 
-Use the remote job scripts for any r5 command that may outlive an interactive
+Use the remote job scripts for any selected-host command that may outlive an interactive
 SSH session. They detach with `/dev/null` stdin, file-backed stdout/stderr, and
 a registry under `<remote-dir>/logs/remote_jobs/<job_id>/`.
 
 1. Sync the checkout without secrets or generated logs:
    ```
    scripts/sync_to_host.sh \
-       --host-config configs/benchmark_hosts/r5.yaml \
+       --host-config configs/benchmark_hosts/r8a.local.yaml \
        --remote-dir /srv/warp-taskgen
    ```
+   This is an operational deployment of the accepted checkout; it does not
+   create another writable Taskgen source.
    `--ssh-key ~/.ssh/webarena-key.pem` is expanded locally before it reaches
    `rsync`; avoid nested quoted `$HOME` in hand-written `rsync -e` strings.
 
@@ -247,7 +249,7 @@ a registry under `<remote-dir>/logs/remote_jobs/<job_id>/`.
    timestamped `job_id` plus exact follow-up commands.
    ```
    scripts/remote_job_start.sh \
-       --host-config configs/benchmark_hosts/r5.yaml \
+       --host-config configs/benchmark_hosts/r8a.local.yaml \
        --remote-dir /srv/warp-taskgen \
        --name phase1-route-diversity \
        --expected-output logs/phase_1/benign_tasks.json \
@@ -257,10 +259,10 @@ a registry under `<remote-dir>/logs/remote_jobs/<job_id>/`.
 
 3. Inspect, tail, and stop by registry id:
    ```
-   scripts/remote_job_status.sh --host-config configs/benchmark_hosts/r5.yaml --job-id <job_id>
-   scripts/remote_job_tail.sh --host-config configs/benchmark_hosts/r5.yaml --job-id <job_id> --lines 120
-   scripts/remote_job_tail.sh --host-config configs/benchmark_hosts/r5.yaml --job-id <job_id> --stderr
-   scripts/remote_job_stop.sh --host-config configs/benchmark_hosts/r5.yaml --job-id <job_id>
+   scripts/remote_job_status.sh --host-config configs/benchmark_hosts/r8a.local.yaml --job-id <job_id>
+   scripts/remote_job_tail.sh --host-config configs/benchmark_hosts/r8a.local.yaml --job-id <job_id> --lines 120
+   scripts/remote_job_tail.sh --host-config configs/benchmark_hosts/r8a.local.yaml --job-id <job_id> --stderr
+   scripts/remote_job_stop.sh --host-config configs/benchmark_hosts/r8a.local.yaml --job-id <job_id>
    ```
    `--latest` and `--name <name>` are supported for status/tail/list convenience;
    stop intentionally requires `--job-id`.

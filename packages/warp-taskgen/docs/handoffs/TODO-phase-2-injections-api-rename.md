@@ -2,6 +2,8 @@
 
 > **ACTIVE DEFERRED RENAME TODO.** Structural rename only; no Phase 2 behavior,
 > admission, or Phase 4 changes belong in this task.
+> Start any implementation from current `origin/main` in a short-lived
+> worktree and edit the canonical `packages/warp-taskgen/` source only.
 
 ## Status
 
@@ -37,7 +39,7 @@ uv run python scripts/readiness_audit.py --fail-on legacy-imports --json | rg le
 uv run python -c "from worldsim.phase_2.runner_api import generate_phase_2a_plans_api; print(generate_phase_2a_plans_api)"
 
 # Live r5 smoke before merging the whole chain.
-bash scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml --quiet
+bash scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r8a.local.yaml --quiet
 ```
 
 ## Out of scope for the rename PR

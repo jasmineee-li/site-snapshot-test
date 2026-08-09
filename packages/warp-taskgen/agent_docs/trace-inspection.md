@@ -11,12 +11,12 @@ Start with the compact inspector instead of hand-written `python -c` JSON dumps:
 uv run warp-taskgen trace summary logs/<run>
 ```
 
-For r5 artifacts, run the same inspector remotely:
+For current r8a artifacts, run the same inspector remotely:
 
 ```bash
 scripts/remote_trace_inspect.sh \
-  --host-config configs/benchmark_hosts/r5.yaml \
-  --remote-dir /home/ubuntu/browser-sim \
+  --host-config configs/benchmark_hosts/r8a.local.yaml \
+  --remote-dir /srv/warp-taskgen \
   --run logs/<run> -- summary
 ```
 
@@ -25,8 +25,8 @@ state dir from metadata:
 
 ```bash
 scripts/remote_trace_inspect.sh \
-  --host-config configs/benchmark_hosts/r5.yaml \
-  --remote-dir /home/ubuntu/browser-sim \
+  --host-config configs/benchmark_hosts/r8a.local.yaml \
+  --remote-dir /srv/warp-taskgen \
   --job-id <job_id> -- summary
 ```
 

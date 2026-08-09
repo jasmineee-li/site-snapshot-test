@@ -578,8 +578,8 @@ Add a separate warmup command, not a default `setup_phase4_on_host.sh` step:
 
 ```bash
 scripts/warm_phase4_host.sh \
-  --host-config configs/benchmark_hosts/r8a.yaml \
-  --remote-dir /home/ubuntu/browser-sim \
+  --host-config configs/benchmark_hosts/r8a.local.yaml \
+  --remote-dir /srv/warp-taskgen \
   --instances instances.scale.json \
   --runner agentlab \
   --warmup-dir logs/warmups/<run_name> \
@@ -677,8 +677,10 @@ merely discouraged; they are outside the task grammar.
   `requires_expand == false`, `visible_nonspace_chars > 0`, Phase 4 PVPO
   `max_coverage > 0`, and attributed agent-authored comment readback that
   excludes the seeded carrier comment.
-- Eval-awareness iterator fixes are actively in flight. Do not launch or count
-  new iterator runs unless the current branch is synced to r5. The stopped
+- Eval-awareness iterator fixes are actively in flight. Launch or count new
+  iterator runs only after the canonical package checkout passes
+  `bash scripts/accept_taskgen.sh` and is operationally deployed to the selected
+  host with `scripts/sync_to_host.sh`. The stopped
   GitLab iterator jobs without `results.json` are not evidence. If a run enters
   postprocessing and stops emitting progress, check for host API/reward timeout
   logs before rerunning.
@@ -698,9 +700,9 @@ merely discouraged; they are outside the task grammar.
   with the no-comment distribution: GitLab `create_issue` 20,
   Reddit/Postmill `create_post` 20, GitLab `create_issue_note` 10, and
   Reddit/Postmill `submit_comment` 0.
-  Use the green `r8a.24xlarge` host through
-  `--host-config configs/benchmark_hosts/r8a.yaml`; blue/r5 remains live and
-  should not be mutated. Start with fresh Phase 1 and Phase 2/2c artifacts,
+  Use the current `r8a.24xlarge` host through
+  `--host-config configs/benchmark_hosts/r8a.local.yaml`; do not mutate any
+  other host. Start with fresh Phase 1 and Phase 2/2c artifacts,
   then run a 10-row mixed smoke before the full 50-row Phase 4 run.
   Top-level Phase 4 W48 commands must use `--phase-4-max-workers 48`, not
   `--workers 48`. If single-process Browser Use W48 shows DOM watchdog,

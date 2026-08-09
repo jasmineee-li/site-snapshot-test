@@ -36,7 +36,7 @@ This is the documented floor for shipping Phase 4. Future Phase 2c runs that pro
 
 ## Rigor-run provenance pin
 
-`logs/phase_2/adversarial_tasks.json` is mutable on r5 — Phase 2c reverifies,
+The historical `logs/phase_2/adversarial_tasks.json` copy on r5 was mutable — Phase 2c reverifies,
 integration tests, and ad-hoc scripts can overwrite it. For new rigor runs,
 prefer an immutable run directory or archive plus `artifact_manifest.json`
 instead of copying backup files inside canonical `logs/phase_2`.
@@ -45,7 +45,7 @@ Current setup writes provenance with:
 
 ```
 scripts/setup_phase4_on_host.sh \
-  --host-config configs/benchmark_hosts/r5.yaml \
+  --host-config configs/benchmark_hosts/r8a.local.yaml \
   --instances instances.scale.json \
   --artifacts-source s3://benchmark-archives/worldsim-runs/<run_id>/
 ```

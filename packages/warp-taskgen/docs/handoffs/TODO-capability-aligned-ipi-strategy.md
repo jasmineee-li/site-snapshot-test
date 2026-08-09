@@ -5,7 +5,9 @@
 > and current execution status against `docs/current_progress.md` before using
 > any item below as an execution checklist.
 
-> Active status snapshot: May 7, 2026. Branch: `feat/worldsim-v5`.
+> Active status snapshot: May 7, 2026. New implementation work starts in the
+> canonical `packages/warp-taskgen/` source from a short-lived worktree based
+> on current `origin/main`.
 >
 > This handoff is intended for an autonomous coding/research agent. It is
 > self-contained enough to understand the current research direction, why the
@@ -187,9 +189,11 @@ Near-term Tier 3 candidate:
 Tier 3 destructive-resource tasks should remain hard conditions until Tier 2 is
 working.
 
-## Current State Of The Branch
+## Historical implementation state
 
-The relevant branch is `feat/worldsim-v5`.
+The commits below record the pre-cutover implementation state. New changes
+start in the canonical `packages/warp-taskgen/` source from current
+`origin/main`.
 
 Recent scenario-generator commits include:
 
@@ -250,9 +254,9 @@ If touching GitLab editor/reward behavior, also inspect:
 - `tests/test_rewards.py`
 - relevant GitLab action/readback tests.
 
-## Current Active Run To Watch
+## Historical run record (2026-05-04)
 
-The parallel agent reported an active r5 job:
+The May 7 snapshot recorded this r5 job:
 
 ```text
 20260504T231209Z-tier2-gitlab-public-followup-phase1-3-fresh2-745c9b
@@ -501,7 +505,7 @@ bash scripts/verify_fast.sh
 Use live integration wrapper only when a stack is available:
 
 ```bash
-scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml --quiet
+scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r8a.local.yaml --quiet
 ```
 
 Scenario audit should be run before live Phase 4:

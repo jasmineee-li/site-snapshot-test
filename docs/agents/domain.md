@@ -37,9 +37,13 @@ vocabulary and decision history.
 
 ## Canonical Taskgen route
 
-Taskgen changes belong in `packages/warp-taskgen/`. Validate them from the
-repository root with `bash scripts/accept_taskgen.sh`, the same acceptance
-command used by CI.
+`packages/warp-taskgen/` on current `origin/main` is the only writable Taskgen
+source. Start one short-lived topic worktree from `origin/main`, make the
+Taskgen change there, validate it from the repository root with
+`bash scripts/accept_taskgen.sh`, and open one PR to `main`. Remove the
+worktree after merge. The acceptance command is the same one used by CI; there
+is no source snapshot or sync-back step. Package `scripts/sync_to_host.sh` is
+only an operational deployment to a prepared benchmark host.
 
 ## Use glossary vocabulary
 

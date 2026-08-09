@@ -2,11 +2,11 @@
 
 ## The sequence
 
-From a bare r5 instance to Phase-4-ready requires a specific order. `scripts/setup_phase4_on_host.sh` codifies everything the operator had to do by hand on the 2026-04-20 r5 setup, so the short version is "run the script". But when it fails, you need to know which step.
+From the current r8a instance to Phase-4-ready requires a specific order. `scripts/setup_phase4_on_host.sh` codifies the sequence, including lessons from the historical 2026-04-20 r5 setup, so the short version is "run the script". But when it fails, you need to know which step.
 
 Order matters:
 
-1. **Bootstrap.** `scripts/bootstrap_r5.sh` (or `bootstrap_ec2.sh` on older instances) installs system deps, pulls the benchmark Docker images, and starts env-ctrl on the instance. This is a prerequisite; `setup_phase4_on_host.sh` assumes it has already run and all benchmark containers are up with env-ctrl responding.
+1. **Bootstrap.** `scripts/bootstrap_r8a.sh --host-config configs/benchmark_hosts/r8a.local.yaml` audits the control plane, installs the required host topology, and starts env-ctrl on the instance. This is a prerequisite; `setup_phase4_on_host.sh` assumes it has already run and all benchmark containers are up with env-ctrl responding.
 2. **uv + venvs.** The orchestrator uses `uv`; the WebArena-Verified evaluator ships as its own package with its own venv (`warp-taskgen-webarena-verified`). Both must resolve before anything downstream works.
 3. **Playwright system deps.** Browser-Use runs Playwright against chromium; Playwright needs libnss3, libxss1, etc. on Linux.
 4. **pvpo-chrome container.** The `chrome-headless-shell` Docker container (see `rigor-containers.md`) must be built and running with the right flags before Phase 4 can compute non-zero PVPO coverage.
@@ -23,7 +23,7 @@ The script accepts `--skip-pvpo-container` / `--skip-gitlab-mint` flags for part
 
 ```bash
 scripts/setup_phase4_on_host.sh \
-  --host-config configs/benchmark_hosts/r5.yaml \
+  --host-config configs/benchmark_hosts/r8a.local.yaml \
   --instances instances.scale.json \
   --artifacts-source s3://benchmark-archives/worldsim-runs/<id>/
 ```

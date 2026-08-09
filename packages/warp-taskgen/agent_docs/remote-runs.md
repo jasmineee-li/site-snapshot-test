@@ -1,13 +1,13 @@
 # Remote Runs and Host Ops
 
-Use this before fresh-host setup, benchmark proxy work, selected-host runs such as r5/r8a, Phase 4 rigor runs, or debugging live benchmark infrastructure.
+Use this before fresh-host setup, benchmark proxy work, current r8a runs, Phase 4 rigor runs, or debugging live benchmark infrastructure.
 
 ## Operator Flow
 
 Read `docs/handoffs/rigor-run-setup.md` for the full runbook. The short version:
 
-1. Prepare or validate the host config, for example `configs/benchmark_hosts/r5.yaml` or `configs/benchmark_hosts/r8a.yaml`.
-2. Sync code with `scripts/sync_to_host.sh` or the selected-host equivalent.
+1. Copy the sanitized r8a template to the ignored operator config `configs/benchmark_hosts/r8a.local.yaml`, then validate it.
+2. Deploy the accepted checkout with `scripts/sync_to_host.sh`. This is an operational host transfer only; source authority remains `packages/warp-taskgen/` on `origin/main`.
 3. Start long jobs with `scripts/remote_job_start.sh` and a job id.
 4. Monitor with `scripts/remote_job_status.sh` or `scripts/remote_job_tail.sh`.
 5. Stop only with `scripts/remote_job_stop.sh --job-id <id>`.
@@ -73,7 +73,7 @@ cleanup of generated topology artifacts, rerun:
 
 ```bash
 scripts/setup_phase4_on_host.sh \
-  --host-config configs/benchmark_hosts/r8a.yaml \
+  --host-config configs/benchmark_hosts/r8a.local.yaml \
   --instances instances.scale.json \
   --scale-config scripts/scale_config.r8a-24x24.yml
 ```
@@ -87,23 +87,22 @@ precondition, materialize a fresh state directory from the verified Phase
 This keeps failed setup attempts from becoming part of the evidentiary run
 history and makes later summaries unambiguous.
 
-Canonical selected-host Phase 4 launch shape. r8a is the example below because
-it is the current paper-facing scale/smoke host. For legacy r5 runs, swap in
-`configs/benchmark_hosts/r5.yaml` and the matching generated topology.
+Canonical selected-host Phase 4 launch shape. r8a is the current paper-facing
+scale/smoke host.
 
 ```bash
 RUN=logs/<phase4_run_name>
 SOURCE=logs/<verified_phase2_phase3_source>
 
 scripts/remote_job_start.sh \
-  --host-config configs/benchmark_hosts/r8a.yaml \
-  --remote-dir /home/ubuntu/browser-sim \
+  --host-config configs/benchmark_hosts/r8a.local.yaml \
+  --remote-dir /srv/warp-taskgen \
   --name <short-job-name> \
   --state-dir "$RUN" \
   --expected-output "$RUN/phase_4/results.json" -- \
   bash -lc '
     set -euo pipefail
-    cd /home/ubuntu/browser-sim
+    cd /srv/warp-taskgen
     RUN="'"$RUN"'"
     SOURCE="'"$SOURCE"'"
     rm -rf "$RUN"
@@ -133,17 +132,6 @@ scripts/remote_job_start.sh \
 rigor commands so run intent is visible in job logs. For legacy `3+3+1`
 comparability, use `--phase-4-variant-system strategy-variation` and set
 `--phase-4-variant-budget adaptive-3-3-1` explicitly.
-
-Current r5 topology:
-
-- Runtime instances file: `instances.scale.json`
-- Modal/public smoke instances file: `instances.smoke.json`
-- Active sites: 21 GitLab replicas and 10 Reddit/Postmill replicas
-- Smoke coverage: one GitLab replica and one Reddit/Postmill replica
-- Runtime host view: `172.17.0.1`
-- Public/proxy host view: `3.12.221.9`
-- Proxy map has both web and envctrl listener rows, not one generic proxy port
-  per site.
 
 `remote_job_status.sh` is the first status surface. It reports process liveness,
 heartbeat age, expected-output presence, and Phase 4 progress when available.
@@ -207,8 +195,8 @@ Canonical process-pool shape. The `--workers 48` flag below belongs to
 
 ```bash
 scripts/remote_job_start.sh \
-  --host-config configs/benchmark_hosts/r8a.yaml \
-  --remote-dir /home/ubuntu/browser-sim \
+  --host-config configs/benchmark_hosts/r8a.local.yaml \
+  --remote-dir /srv/warp-taskgen \
   --name phase4-tier2-exact50-browseruse-gpt52-p48-processpool \
   --state-dir logs/<process_pool_run> \
   --expected-output logs/<process_pool_run>/phase_4/results.json -- \
@@ -256,15 +244,15 @@ which rows were replaced. Iterator-checkpoint timeout salvage rows are useful fo
 inspection, but they do not make the original process-pool run canonical; the
 merge still fails closed and writes partial artifacts until repaired or rerun.
 
-WARP Taskgen uses two different network localities on r5. Treat the instances
+WARP Taskgen uses two different network localities on the selected host. Treat the instances
 file as an execution-locality contract, not just a dataset selector:
 
-| Phase / caller | Where traffic originates | Correct r5 instances file | Why |
+| Phase / caller | Where traffic originates | Correct instances file | Why |
 | --- | --- | --- | --- |
-| Phase 0c profiling | Modal sandbox outside r5 | `instances.smoke.json` or equivalent public/proxy file | Modal cannot reach r5-only addresses such as `172.17.0.1`; it needs the authenticated public proxy. |
-| Phase 0c host-side inventory enrichment | r5 orchestrator process | `--host-inventory-instances instances.scale.json` | Reddit DB enumeration and GitLab project inventory run on the host, not in Modal; they need the orchestrator-local topology. |
-| Phase 2c render checks | r5 host / runner-owned browser sessions | `instances.scale.json` | AWS does not reliably hairpin public-IP traffic from the instance to itself; on-host browsers need `orchestrator_host`. |
-| Phase 4 agent/PVPO | r5 host / runner-owned browser sessions | `instances.scale.json` | Same on-host browser topology as Phase 2c; storage-state cookies are host-bound. |
+| Phase 0c profiling | Modal sandbox outside the host | `instances.smoke.json` or equivalent public/proxy file | Modal cannot reach host-only addresses such as `172.17.0.1`; it needs the authenticated public proxy. |
+| Phase 0c host-side inventory enrichment | Orchestrator process on the selected host | `--host-inventory-instances instances.scale.json` | Reddit DB enumeration and GitLab project inventory run on the host, not in Modal; they need the orchestrator-local topology. |
+| Phase 2c render checks | Selected host / runner-owned browser sessions | `instances.scale.json` | AWS does not reliably hairpin public-IP traffic from the instance to itself; on-host browsers need `orchestrator_host`. |
+| Phase 4 agent/PVPO | Selected host / runner-owned browser sessions | `instances.scale.json` | Same on-host browser topology as Phase 2c; storage-state cookies are host-bound. |
 
 Do not collapse these into one rule. `instances.scale.json` is correct for
 Phase 2c/4 and wrong for Modal Phase 0c. `instances.smoke.json` is correct for
@@ -274,7 +262,7 @@ host's `orchestrator_host`.
 Phase 0c has one mixed-locality edge case: its browser probes run in Modal, but
 host-side inventory enrichment, such as Reddit forum DB enumeration, runs in
 the detached orchestrator process. For fresh novel GitLab/Reddit generation on
-r5, pass both localities explicitly:
+the selected host, pass both localities explicitly:
 `--instances instances.smoke.json --host-inventory-instances instances.scale.json`.
 Do not rely on rewriting only the host portion of `instances.smoke.json`: scale
 topology can use different per-replica DB/API ports, so a host-only rewrite can
@@ -286,7 +274,7 @@ falls back to the original URL if the host-local candidate fails. If enrichment
 falls back to static profile samples, treat any later source-data 404s as stale
 inventory evidence, not as a carrier-render verdict.
 
-On r5, also treat the benchmark source path as host-local. `sync_to_host.sh`
+On the selected host, also treat the benchmark source path as host-local. `sync_to_host.sh`
 intentionally excludes repo-local `vendors/`, so
 `/home/ubuntu/browser-sim/vendors/webarena-verified` may be stale or incomplete.
 Use `/home/ubuntu/vendors/webarena-verified` in remote Phase 0/1/2 commands
@@ -316,7 +304,7 @@ testing a different topology, and record why the run is not comparable.
 
 After context compaction or a long pause, treat any live artifact path as
 topology-bound until checked. Before reusing a Phase 2/2c or Phase 4 state
-directory on r5:
+directory on the selected host:
 
 - Confirm the command uses `instances.scale.json` for on-host browser phases.
 - Confirm the artifact's saved benchmark metadata was produced for the same
@@ -358,7 +346,7 @@ Run this on any fresh host before Phase 4:
 
 ```bash
 scripts/setup_phase4_on_host.sh \
-  --host-config configs/benchmark_hosts/r5.yaml \
+  --host-config configs/benchmark_hosts/r8a.local.yaml \
   --instances instances.scale.json \
   --artifacts-source s3://benchmark-archives/worldsim-runs/<run_id>/
 ```
@@ -391,15 +379,14 @@ Never hand-edit `/etc/nginx/conf.d/worldsim-proxy.conf` on the host. Verify pari
 
 ```bash
 scripts/check_proxy_drift.sh \
-  --host 3.12.221.9 \
+  --host-config configs/benchmark_hosts/r8a.local.yaml \
   --topology scale \
   --insecure-http \
   --verify-runtime
 ```
 
-If the drift checker grows full `--host-config` support, the runbook can switch
-back to that form. Until then, pass the host explicitly so the command cannot
-silently verify the wrong target.
+The ignored local config selects the audited host without embedding a live
+address in the runbook.
 
 The proxy uses token auth (`X-Worldsim-Token`) and offset ports from `scripts/proxy_ports.conf`. Phase 0c may use the proxy for live verification; Phases 3 and 4 use real `site_url` and `reset_endpoint` values from the instances file.
 
@@ -419,7 +406,7 @@ debugging path is enabled.
 For PR gates against a live stack:
 
 ```bash
-scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml --quiet
+scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r8a.local.yaml --quiet
 ```
 
 Use `--quiet` for agent sessions. It prints a one-line pass summary or full failure output.
@@ -429,7 +416,7 @@ and the selected host config. This is intentional: `sync_to_host.sh` excludes
 generated topology artifacts, and host setup may regenerate `instances.smoke.json`
 with ports that differ from a stale laptop checkout. Pass `--instances` only
 when you intentionally want a specific public/proxy or scale topology file. On
-r5/r8 host-side Phase 2c/4 commands, continue using `instances.scale.json`.
+selected-host Phase 2c/4 commands, continue using `instances.scale.json`.
 
 **Topology-mismatch symptom and fix.** If the wrapper fails reddit-side tests
 with `Connection refused` on a stale legacy smoke proxy port (for example
@@ -440,13 +427,15 @@ the matching generated scale fixture:
 
 ```bash
 bash scripts/run_integration_tests.sh \
-    --host-config configs/benchmark_hosts/r5.yaml \
+    --host-config configs/benchmark_hosts/r8a.local.yaml \
     --quiet
 
 # Deliberate scale-topology check:
-bash scripts/generate_scale.sh --host-config configs/benchmark_hosts/r8a.yaml
+bash scripts/generate_scale.sh \
+    --host-config configs/benchmark_hosts/r8a.local.yaml \
+    --scale-config scripts/scale_config.r8a-24x24.yml
 bash scripts/run_integration_tests.sh \
-    --host-config configs/benchmark_hosts/r5.yaml \
+    --host-config configs/benchmark_hosts/r8a.local.yaml \
     --instances instances.scale.json \
     --quiet
 ```
