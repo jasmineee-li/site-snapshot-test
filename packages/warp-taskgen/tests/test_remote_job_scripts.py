@@ -125,6 +125,13 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
         ".DS_Store",
         ".worldsim_sync_stamp.json",
         "vendors/",
+        ".cursor/",
+        ".claude/local.md",
+        ".claude/settings.local.json",
+        "instances.smoke.local.json",
+        "instances.json",
+        "configs/benchmark_hosts/*.local.yaml",
+        "configs/benchmark_hosts/r5.yaml",
     } <= exclude_values
     assert "*.sqlite" in joined
     assert "*.sqlite3" in joined
