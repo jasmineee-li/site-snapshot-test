@@ -23,7 +23,7 @@
 # existing work's sentinel / already-running state.
 #
 # Usage (from the repo root, on your workstation):
-#   ./scripts/bootstrap_ec2.sh --host-config configs/benchmark_hosts/r5.yaml
+#   ./scripts/bootstrap_ec2.sh --host-config configs/benchmark_hosts/r8a.yaml
 #
 #   # Explicit overrides (generic path):
 #   HOST_IP=1.2.3.4 WORLDSIM_BIND_HOST=0.0.0.0 \

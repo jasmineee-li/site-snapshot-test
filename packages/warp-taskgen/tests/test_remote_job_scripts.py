@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -80,7 +81,7 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     completed = subprocess.run(
         [
             "bash",
-            str(repo_root / "scripts" / "sync_to_r5.sh"),
+            str(repo_root / "scripts" / "sync_to_host.sh"),
             "--host-config",
             str(host_config),
             "--dry-run",
@@ -95,6 +96,12 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     args = json.loads(args_file.read_text())
     joined = "\n".join(args)
     assert "--dry-run" in args
+    assert "--delete" in args
+    exclude_values = {
+        args[index + 1]
+        for index, value in enumerate(args[:-1])
+        if value == "--exclude"
+    }
     assert ".env" in joined
     assert ".git" in joined
     assert ".git/" in joined
@@ -104,6 +111,28 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     assert "docs/handoffs/codex-handoff-*.md" in joined
     assert "logs/" in joined
     assert "pipeline_outputs/" in joined
+    assert "data/" in joined
+    assert "CODEX.local.md" in joined
+    assert ".cache/" in joined
+    assert "dist/" in joined
+    assert ".DS_Store" in joined
+    assert ".worldsim_sync_stamp.json" in joined
+    assert {
+        "data/",
+        "CODEX.local.md",
+        ".cache/",
+        "dist/",
+        ".DS_Store",
+        ".worldsim_sync_stamp.json",
+        "vendors/",
+        ".cursor/",
+        ".claude/local.md",
+        ".claude/settings.local.json",
+        "instances.smoke.local.json",
+        "instances.json",
+        "configs/benchmark_hosts/*.local.yaml",
+        "configs/benchmark_hosts/r5.yaml",
+    } <= exclude_values
     assert "*.sqlite" in joined
     assert "*.sqlite3" in joined
     assert ".modal/" in joined
@@ -129,8 +158,8 @@ def test_sync_dry_run_excludes_linked_worktree_git_file(tmp_path: Path) -> None:
     (worktree_root / ".git").write_text("gitdir: /local/only/path/.git/worktrees/demo\n")
     scripts_dir = worktree_root / "scripts"
     scripts_dir.mkdir()
-    (scripts_dir / "sync_to_r5.sh").write_text(
-        (repo_root / "scripts" / "sync_to_r5.sh").read_text()
+    (scripts_dir / "sync_to_host.sh").write_text(
+        (repo_root / "scripts" / "sync_to_host.sh").read_text()
     )
     (scripts_dir / "lib").mkdir()
     (scripts_dir / "lib" / "remote_jobs.sh").write_text(
@@ -154,7 +183,7 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     completed = subprocess.run(
         [
             "bash",
-            str(worktree_root / "scripts" / "sync_to_r5.sh"),
+            str(worktree_root / "scripts" / "sync_to_host.sh"),
             "--host-config",
             str(host_config),
             "--dry-run",
@@ -266,7 +295,7 @@ Path({str(rsync_called)!r}).write_text("called", encoding="utf-8")
     completed = subprocess.run(
         [
             "bash",
-            str(repo_root / "scripts" / "sync_to_r5.sh"),
+            str(repo_root / "scripts" / "sync_to_host.sh"),
             "--host-config",
             str(host_config),
             "--remote-dir",
@@ -2035,7 +2064,7 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
     )
     results_path = phase4_dir / "results.json"
     results_path.write_text(json.dumps([{"task_id": "adv_gitlab", "final_status": "resistant"}]))
-    old_time = time.mktime((2026, 4, 29, 0, 0, 0, 0, 0, 0))
+    old_time = datetime(2026, 4, 29, tzinfo=UTC).timestamp()
     os.utime(results_path, (old_time, old_time))
     (job_dir / "metadata.json").write_text(
         json.dumps(

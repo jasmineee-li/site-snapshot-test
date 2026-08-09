@@ -34,7 +34,7 @@ Options:
 
 Everything after -- is forwarded to `worldsim trace` after the run path, for example:
 
-  scripts/remote_trace_inspect.sh --host-config configs/benchmark_hosts/r5.yaml \
+  scripts/remote_trace_inspect.sh --host-config configs/benchmark_hosts/r8a.yaml \
     --remote-dir /home/ubuntu/browser-sim \
     --run logs/my_run -- summary --action create_issue_note
 USAGE

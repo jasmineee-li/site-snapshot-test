@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from worldsim.phase_4._context import install_context
+from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
 
 install_context(globals())
 

@@ -15,7 +15,7 @@ ALLOW_ACTIVE_JOBS=0
 
 usage() {
     cat <<'USAGE'
-sync_to_r5.sh
+sync_to_host.sh
 
 Options:
   --host-config <path>      benchmark host YAML (required)
@@ -61,25 +61,37 @@ excludes=(
     "instances.scale.json.fragment"
     "instances.smoke.json"
     "instances.smoke.json.fragment"
+    "instances.smoke.local.json"
+    "instances.json"
+    "configs/benchmark_hosts/*.local.yaml"
+    "configs/benchmark_hosts/r5.yaml"
     "compose.scale.yml"
     "compose.smoke.yml"
     "scripts/docker-compose.scale.yml"
     "scripts/docker-compose.smoke.yml"
     "scripts/proxy_ports.conf"
     ".codex-worktrees/"
+    ".cursor/"
     "docs/handoffs/codex-handoff-*.md"
     ".claude/worktrees/"
+    ".claude/local.md"
+    ".claude/settings.local.json"
     "AgentLab/"
-    "vendors/RedTeamCUA/"
-    "vendors/eval_awareness/"
-    "vendors/os-harm/"
-    "vendors/wasp/"
-    "vendors/webarena-infinity/"
-    "vendors/webarena-verified/"
+    # Every vendor checkout is host-local and gitignored. A selective list
+    # lets rsync --delete erase newly added benchmark/vendor trees.
+    "vendors/"
     "logs/"
     "logs_*/"
     "logs_run*/"
     "pipeline_outputs/"
+    # Runtime datasets and host-local build/operator artifacts must survive
+    # rsync --delete on the execution host; the package tracks only data/.gitkeeps.
+    "data/"
+    "CODEX.local.md"
+    ".cache/"
+    "dist/"
+    ".DS_Store"
+    ".worldsim_sync_stamp.json"
     "*.sqlite"
     "*.sqlite3"
     "reports/"

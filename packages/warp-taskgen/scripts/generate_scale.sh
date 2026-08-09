@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-HOST_CONFIG="$REPO_ROOT/configs/benchmark_hosts/r5.yaml"
+HOST_CONFIG="$REPO_ROOT/configs/benchmark_hosts/r8a.yaml"
 SCALE_CONFIG="$REPO_ROOT/scripts/scale_config.yml"
 ARGS=()
 while (("$#")); do

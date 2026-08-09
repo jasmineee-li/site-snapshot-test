@@ -135,7 +135,7 @@ Required new probes:
   ordered actions or explicitly mark the trajectory as lower-confidence instead
   of silently reading only the first action.
 
-### Layer 3 - r5 Live Smoke
+### Layer 3 - r8a Live Smoke
 
 Purpose: prove BrowserGym, Playwright, CDP, service-worker policy, PVPO,
 network/HAR, rewards, resume, and artifact manifests together on the rigor host.
@@ -143,9 +143,9 @@ network/HAR, rewards, resume, and artifact manifests together on the rigor host.
 Smallest smoke:
 
 ```bash
-scripts/sync_to_r5.sh --host-config configs/benchmark_hosts/r5.yaml
+scripts/sync_to_host.sh --host-config configs/benchmark_hosts/r8a.local.yaml
 scripts/remote_job_start.sh \
-  --host-config configs/benchmark_hosts/r5.yaml \
+  --host-config configs/benchmark_hosts/r8a.local.yaml \
   --name agentlab-parity-proof-current-reddit \
   --source-log logs/<phase4-source-run> \
   -- \
@@ -655,9 +655,9 @@ bash scripts/verify_fast.sh
 Live gate before claiming AgentLab `phase4-run` WorldSim-v5 parity:
 
 ```bash
-scripts/sync_to_r5.sh --host-config configs/benchmark_hosts/r5.yaml
+scripts/sync_to_host.sh --host-config configs/benchmark_hosts/r8a.local.yaml
 scripts/remote_job_start.sh \
-  --host-config configs/benchmark_hosts/r5.yaml \
+  --host-config configs/benchmark_hosts/r8a.local.yaml \
   --name agentlab-parity-proof-current-reddit \
   --source-log logs/<phase4-source-run> \
   -- \

@@ -139,9 +139,11 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
             ``save_step_artifacts`` contract violation, not an
             on-disk corruption symptom, so we still raise to surface it.
             Per-file parse / decode corruption (partial JSON write,
-            truncated PNG) is logged at warning and the offending step
-            is skipped — see Finding 1 in
-            ``docs/todo-pvpo-post-ship-review.md``.
+            truncated PNG), vanished reference files, and symlinked reference
+            paths are also capture inconsistencies and raise. The placement
+            loop catches this strict failure and records an
+            ``artifact_inconsistent``/``detector_failed`` result rather than
+            treating incomplete evidence as a valid encounter.
 
     Returns:
         :class:`EncounterResult`. Empty trajectories yield

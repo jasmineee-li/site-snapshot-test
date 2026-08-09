@@ -29,16 +29,18 @@ commit new runtime output under `logs/`.
 ## Where To Look For Current Artifacts
 
 Do not assume git has the newest task artifacts. Phase 1, Phase 2, Phase 3, and
-Phase 4 commands write mutable state under `logs/`, and r5 is often the freshest
-working copy during live benchmark work.
+Phase 4 commands write mutable state under `logs/`, and the active benchmark
+host or archive is often fresher than the local checkout during live work.
 
 Before changing, deleting, or relying on task artifacts, check the active host
 or archive first. Use repository remote-run wrappers for active jobs.
 
-Treat r5 as live operational state, not automatically canonical source. If a
-remote artifact is promoted into a paper, rigor run, or long-lived fixture,
-record the producing code SHA, host or archive path, counts, hashes, and restore
-command in git. Otherwise keep it out of tracked source.
+Treat any remote host as live operational state, not automatically canonical
+source. r8a is the current canonical scale/smoke host; r5 references are legacy
+unless a specific runbook says that run actually executed on r5. If a remote
+artifact is promoted into a paper, rigor run, or long-lived fixture, record the
+producing code SHA, host or archive path, counts, hashes, and restore command in
+git. Otherwise keep it out of tracked source.
 
 ## Promotion Criteria
 

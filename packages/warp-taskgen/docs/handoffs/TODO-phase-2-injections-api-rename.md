@@ -2,6 +2,8 @@
 
 > **ACTIVE DEFERRED RENAME TODO.** Structural rename only; no Phase 2 behavior,
 > admission, or Phase 4 changes belong in this task.
+> Start any implementation from current `origin/main` in a short-lived
+> worktree and edit the canonical `packages/warp-taskgen/` source only.
 
 ## Status
 
@@ -9,9 +11,9 @@
 
 ## Why this is still pending
 
-When PR #11 was rebased onto post-PR-10 `feat/worldsim-v5`, the canonical Shape-C streaming L3 implementation lived at `worldsim/phases/phase_2_injections_api.py` (542 lines), not at the previously planned `worldsim/phase_2/runner_api.py`. PR #11's delegation test pinned this with the comment:
+When PR #11 was rebased onto the then-current authoring branch, the canonical Shape-C streaming L3 implementation lived at `worldsim/phases/phase_2_injections_api.py` (542 lines), not at the previously planned `worldsim/phase_2/runner_api.py`. PR #11's delegation test pinned this with the comment:
 
-> `phase_2_injections_api` remains the canonical Shape-C streaming L3 implementation on `feat/worldsim-v5`; the PR #11 rename to `worldsim.phase_2.runner_api` was deferred to a later migration cycle.
+> `phase_2_injections_api` remains the canonical Shape-C streaming L3 implementation; the PR #11 rename to `worldsim.phase_2.runner_api` was deferred to a later migration cycle.
 
 PR #13's cutover therefore landed against **6 wrappers** instead of 7. The audit guard's `LEGACY_PHASE_IMPORT_MODULES` set in `scripts/readiness_audit.py` excludes `worldsim.phases.phase_2_injections_api` so canonical callers in `worldsim/phase_2/_context.py` keep working.
 
@@ -36,8 +38,8 @@ uv run python scripts/readiness_audit.py --fail-on legacy-imports --json | rg le
 # Confirm Phase 2a still resolves.
 uv run python -c "from worldsim.phase_2.runner_api import generate_phase_2a_plans_api; print(generate_phase_2a_plans_api)"
 
-# Live r5 smoke before merging the whole chain.
-bash scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml --quiet
+# Live r8a smoke before merging the whole chain.
+bash scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r8a.local.yaml --quiet
 ```
 
 ## Out of scope for the rename PR

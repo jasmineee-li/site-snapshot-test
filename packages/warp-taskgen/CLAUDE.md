@@ -28,19 +28,38 @@ optimize for evading safeguards.
 - `agent_docs/verification.md` — test/lint/live-gate selection and quiet output wrappers.
 - `agent_docs/domain-invariants.md` — Phase 2/4, auth, sandbox, prompt, and WASP invariants.
 - `agent_docs/code-organization.md` — feature/domain module ownership, compatibility-wrapper policy, and readiness debt sequencing.
-- `agent_docs/remote-runs.md` — r5, proxy, fresh-host, and long-run discipline.
+- `agent_docs/remote-runs.md` — r8a, proxy, fresh-host, and long-run discipline.
 - `agent_docs/trace-inspection.md` — Phase 4 trace/result debugging. When asked why tasks complied, resisted, were unaware, or why iterator contrasts failed, start with `uv run warp-taskgen trace ...` or `scripts/remote_trace_inspect.sh` before ad hoc JSON dumps.
 - `agent_docs/phase4-reporting-metrics.md` — ASR denominator semantics and Phase 4 reporting labels.
 - Work loop: Research -> Plan -> Implement -> Validate. Keep each context small; use `rg`; delegate focused exploration/verification to sub-agents when the harness supports it.
 - Prefer existing patterns and helpers over new abstractions. Keep edits scoped; do not rewrite generated logs or hand-edit `feasibility.status`.
 - Treat `logs/` as runtime output; use `agent_docs/artifacts.md` before deleting, restoring, or promoting generated artifacts.
 - Main commands: `uv sync --extra dev`, `bash scripts/verify_fast.sh`, `bash scripts/verify_default.sh`, `uv run warp-taskgen --help`, `uv run pytest <paths> -q`, `uv run ruff check <paths>`, `uv run ruff format <paths>`.
-- Use `scripts/lib/run_silent.sh` or repo quiet wrappers; for live gates use `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml --quiet`. Never truncate verbose output yourself.
+- Use `scripts/lib/run_silent.sh` or repo quiet wrappers; for live gates use `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r8a.local.yaml --quiet`. Never truncate verbose output yourself.
 - Claude/Modal auth precedence lives in `worldsim/modal_sandbox.py::_build_claude_secrets` and `worldsim/phase_4/anthropic_client.py`; never hard-code one auth mode.
 - On resume or context compaction, preserve completed actions, active assumptions, artifact paths/IDs, tool outcomes, unresolved blockers, and the next concrete goal.
 - Keep final responses concise by default; use detailed sections only for reviews, handoffs, or when the user asks for depth.
 - If an instruction here caused a wrong turn or was missing during a real failure, propose the smallest `AGENTS.md`/`agent_docs/` fix after handling the task.
 - Do not generate or serve web applications from this repo.
+
+## Canonical development workflow
+
+`packages/warp-taskgen/` on current `origin/main` is the only writable Taskgen
+source. Start each change in one short-lived topic worktree:
+
+```bash
+git fetch origin main
+git worktree add .codex-worktrees/<topic> -b codex/<topic> origin/main
+```
+
+Make the Taskgen change there, run `bash scripts/accept_taskgen.sh` from the
+repository root, and open one PR to `main`. The root command is also the single
+command used by CI: it delegates to this package's `scripts/verify_default.sh`,
+then builds and installs the wheel in isolation to smoke-test the installed
+CLI. Keep lint and test behavior in the existing verification scripts. Remove
+the topic worktree after merge; there is no source snapshot or sync-back step.
+`scripts/sync_to_host.sh` only deploys the accepted checkout to a prepared
+benchmark host and never establishes source authority.
 
 <important if="you are changing tests, lint, CI hooks, or verification flow">
 - Default pytest runs with `--strict-markers` and excludes `integration`, `feasibility`, `preflight`, `live_l3`, and `crash_resume`; register any new marker in `pyproject.toml` and opt into excluded markers deliberately.
@@ -66,7 +85,7 @@ optimize for evading safeguards.
 
 <important if="you are setting up hosts, deploying the proxy, or preparing rigor runs">
 - Read `agent_docs/remote-runs.md` and `docs/handoffs/rigor-run-setup.md` first.
-- On r5, instance files are execution-locality contracts: Modal Phase 0/0c uses externally reachable/proxied `instances.smoke.json`, while on-host Phase 2c/4 uses `instances.scale.json`. Do not generalize one file across both localities.
+- On the selected r8a host, instance files are execution-locality contracts: Modal Phase 0/0c uses externally reachable/proxied `instances.smoke.json`, while on-host Phase 2c/4 uses `instances.scale.json`. Do not generalize one file across both localities.
 - Use `scripts/setup_phase4_on_host.sh` on fresh hosts; its preflight proves storage state, evaluator venv, and benchmark connectivity.
 - Proxy source of truth is `scripts/deploy_benchmark_proxy.sh`; never hand-edit `/etc/nginx/conf.d/worldsim-proxy.conf`.
 - Rigor PVPO uses `page-surface-stable` capture on the runner-owned browser; dedicated PVPO browser containers were removed and are not an active run path.

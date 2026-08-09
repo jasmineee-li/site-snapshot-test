@@ -51,7 +51,7 @@ explicitly when the change warrants the extra coverage.
 
 Invocation:
     bash scripts/run_integration_tests.sh \\
-        --host-config configs/benchmark_hosts/r5.yaml \\
+        --host-config configs/benchmark_hosts/r8a.yaml \\
         --verify-read-surface-urls
 """
 

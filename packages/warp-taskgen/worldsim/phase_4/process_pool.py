@@ -82,6 +82,8 @@ class WorkerOutcome:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from worldsim.phase_4.sweep_tag import sweep_in_progress
+
     args = _parse_args(argv)
     pool_args = ProcessPoolArgs(
         source_state_dir=args.source_state_dir,
@@ -108,7 +110,8 @@ def main(argv: list[str] | None = None) -> int:
         skip_host_bound_storage_state_auth=args.skip_host_bound_storage_state_auth,
         task_limit=args.task_limit,
     )
-    return asyncio.run(run_process_pool(pool_args))
+    with sweep_in_progress():
+        return asyncio.run(run_process_pool(pool_args))
 
 
 async def run_process_pool(args: ProcessPoolArgs) -> int:
@@ -468,7 +471,10 @@ def _load_worker_results(assignment: WorkerAssignment) -> tuple[list[dict[str, A
     if not results_path.exists():
         salvaged = _salvage_worker_results_from_iterator_checkpoint(assignment)
         if salvaged:
-            return salvaged, f"salvaged missing worker results from iterator checkpoint: {results_path}"
+            return (
+                salvaged,
+                f"salvaged missing worker results from iterator checkpoint: {results_path}",
+            )
         return [], f"missing worker results: {results_path}"
     try:
         payload = json.loads(results_path.read_text())
@@ -502,9 +508,7 @@ def _salvage_worker_results_from_iterator_checkpoint(
             continue
         checkpoint = _load_json_dict(checkpoint_path)
         baseline_result = _load_json_dict(baseline_result_path)
-        iterations = [
-            item for item in checkpoint.get("iterations", []) if isinstance(item, dict)
-        ]
+        iterations = [item for item in checkpoint.get("iterations", []) if isinstance(item, dict)]
         if not any(isinstance(item.get("result"), dict) for item in iterations):
             continue
         try:
@@ -943,7 +947,9 @@ def _child_phase4_progress_fields(assignment: WorkerAssignment) -> dict[str, Any
         fields["active_initial_task_ids"] = child_progress.get("active_initial_task_ids")
     else:
         fields["current_step"] = "worker_subprocess_starting"
-    sidecar_status = _load_json_dict(_candidate_task_trace_dir(assignment) / "agentlab_sidecar_status.json")
+    sidecar_status = _load_json_dict(
+        _candidate_task_trace_dir(assignment) / "agentlab_sidecar_status.json"
+    )
     if sidecar_status:
         for key in (
             "sidecar_status",
@@ -969,8 +975,11 @@ def _candidate_task_trace_dir(assignment: WorkerAssignment) -> Path:
     task_root = progress.get("task_dir_root")
     if isinstance(task_root, str) and task_root.strip():
         return Path(task_root) / safe_task_path_component(assignment.task.get("id"))
-    return assignment.state_dir / "phase_4" / "unknown" / safe_task_path_component(
-        assignment.task.get("id")
+    return (
+        assignment.state_dir
+        / "phase_4"
+        / "unknown"
+        / safe_task_path_component(assignment.task.get("id"))
     )
 
 

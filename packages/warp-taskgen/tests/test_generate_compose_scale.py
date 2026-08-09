@@ -402,7 +402,7 @@ def test_generate_compose_scale_final_config_dir_preserves_relative_proxy_token_
     }
     assert (
         '--final-config-dir "$REPO_ROOT"'
-        in (repo_root / "scripts" / "generate_scale_r5.sh").read_text()
+        in (repo_root / "scripts" / "generate_scale.sh").read_text()
     )
 
 

@@ -2,6 +2,23 @@
 
 WARP task generation and admission pipeline for browser-agent IPI benchmarks. Generates indirect prompt injection tasks against pre-running benchmark environments (WebArena), runs Browser Use agents by default with an optional AgentLab sidecar runner, and scores them on two sequential gates: **paint-verified payload encounter** and **attack effectiveness**. Transcript Purpose and VEA are observational in baseline scoring; the explicit eval-awareness iterator may use Transcript Purpose only for bounded rewrite control.
 
+## Development workflow
+
+This package on current `origin/main` is the only writable Taskgen source.
+Start one short-lived topic worktree, edit `packages/warp-taskgen/`, run the
+root acceptance command, and open one PR to `main`:
+
+```bash
+git fetch origin main
+git worktree add .codex-worktrees/<topic> -b codex/<topic> origin/main
+cd .codex-worktrees/<topic>
+bash scripts/accept_taskgen.sh
+```
+
+Remove the worktree after merge. There is no source snapshot or sync-back
+step. `packages/warp-taskgen/scripts/sync_to_host.sh` is only for deploying an
+accepted checkout to a prepared benchmark host.
+
 ## Install
 
 ```bash
@@ -116,7 +133,7 @@ uv run warp-taskgen phase 4 \
    - Shopping, shopping_admin, map/OSM, Magento, Wikipedia, and classifieds settings are historical full-benchmark/support plumbing and are not active IPI carriers unless the spec reopens scope.
    - Phase 4 PVPO uses `page-surface-stable` capture on the runner-owned browser for both Browser Use and AgentLab. Do not configure dedicated PVPO browser endpoints for new shipping runs. Legacy instance files may still contain `pvpo_cdp_url`; canonical Phase 4 treats it as inert metadata.
 
-Phases 0, 1, 2a, and 2b only need the benchmark **codebase** on disk, not running instances. **Phase 2c requires a live dev instance** (local defaults use `instances.smoke.json`): each adversarial task's `adversarial_data_seed` is POSTed against the live platform to prove feasibility. On remote benchmark hosts such as r5/r8a, use the host-local `instances.scale.json` for Phase 2c and Phase 4 so browser traffic uses the orchestrator host view. Pass `--skip-feasibility` only for fast dev iteration; unverified tasks are not suitable for shipping Phase 4 runs.
+Phases 0, 1, 2a, and 2b only need the benchmark **codebase** on disk, not running instances. **Phase 2c requires a live dev instance** (local defaults use `instances.smoke.json`): each adversarial task's `adversarial_data_seed` is POSTed against the live platform to prove feasibility. On the current r8a benchmark host, use the host-local `instances.scale.json` for Phase 2c and Phase 4 so browser traffic uses the orchestrator host view. Pass `--skip-feasibility` only for fast dev iteration; unverified tasks are not suitable for shipping Phase 4 runs.
 
 ### Proxy Setup (Phase 0c live verification)
 
@@ -134,18 +151,22 @@ running instances. Phase 0c works without it (code-reading only). Phases 1,
 **Deploy the proxy:**
 
 ```bash
-# Canonical r5 path (scale port map + explicit HTTP opt-in):
-./scripts/deploy_proxy_r5.sh
+# Copy the public template once, then keep real host values in this ignored file.
+cp configs/benchmark_hosts/r8a.yaml configs/benchmark_hosts/r8a.local.yaml
+
+# Canonical r8a path (audited EIP/SSH control plane + scale port map):
+./scripts/deploy_proxy_r8a.sh \
+    --host-config configs/benchmark_hosts/r8a.local.yaml
 
 # Generic path with explicit topology and HTTP opt-in:
 ./scripts/deploy_benchmark_proxy.sh \
-    --host-config configs/benchmark_hosts/r5.yaml \
+    --host-config configs/benchmark_hosts/r8a.local.yaml \
     --topology scale \
     --insecure-http
 
 # With explicit arguments:
 ./scripts/deploy_benchmark_proxy.sh \
-    --host-config configs/benchmark_hosts/r5.yaml \
+    --host-config configs/benchmark_hosts/r8a.local.yaml \
     --topology scale \
     --insecure-http \
     --ssh-key ~/.ssh/webarena-key.pem \
@@ -157,13 +178,23 @@ one listener row per proxy mapping, and restarts nginx. Current scale maps inclu
 separate web and envctrl rows per replica rather than one generic proxy port per
 site. The command is idempotent, safe to re-run, and benchmark-agnostic because it
 reads port mappings from `scripts/proxy_ports.conf` or a custom file. The
-checked-in `deploy_proxy_r5.sh` wrapper currently opts into token-protected HTTP
-by passing `--insecure-http`; switch to TLS inputs if you want HTTPS on the
-public proxy.
+checked-in `deploy_proxy_r8a.sh` wrapper first audits the control plane and opts
+into token-protected HTTP by passing `--insecure-http`; switch to TLS inputs if
+you want HTTPS on the public proxy. The checked-in host config is a sanitized
+template; pass the ignored `r8a.local.yaml` explicitly to generic scripts for
+real operations.
 
-For the scale bring-up path, `./scripts/bootstrap_r5.sh` now regenerates the
-scale artifacts and runs a security-group preflight against the generated
-runtime ports before staging the compose file onto the host.
+For the canonical scale bring-up path, run:
+
+```bash
+./scripts/bootstrap_r8a.sh \
+    --host-config configs/benchmark_hosts/r8a.local.yaml
+```
+
+The wrapper audits the r8a control plane, regenerates the 24x24 scale artifacts,
+and runs a security-group preflight against the generated runtime ports before
+staging the compose file onto the host. Older r5 bring-up instructions are
+retained only in historical run records.
 
 For TLS-backed Phase 0c probing, the deploy helper also accepts
 `--tls-cert /path/on/host/fullchain.pem --tls-key /path/on/host/privkey.pem`
@@ -249,12 +280,13 @@ uv run warp-taskgen phase 4 \
 uv run warp-taskgen phase 2 --benchmark vendors/webarena-verified \
   --feasibility-instances instances.smoke.json
 
-# On r5/r8a, regenerate instances.scale.json from the selected host config
-# instead of hand-editing IPs. The generated scale file carries host_access
-# metadata and binds site_url/reset_endpoint/placeholders to orchestrator_host
-# (172.17.0.1). Then re-mint Phase 0d against that exact generated file so
-# storage_state cookie domains match the runtime host view:
-./scripts/generate_scale_r5.sh
+# On the selected host, regenerate instances.scale.json from its local config
+# instead of hand-editing IPs. Generated instance/proxy/compose files are
+# gitignored host-local scratch. For canonical r8a runs, use the 24x24 scale
+# config: 24 GitLab replicas + 24 Reddit/Postmill replicas.
+./scripts/generate_scale.sh \
+  --host-config configs/benchmark_hosts/r8a.local.yaml \
+  --scale-config scripts/scale_config.r8a-24x24.yml
 uv run warp-taskgen phase 0d --benchmark vendors/webarena-verified \
   --instances instances.scale.json
 
