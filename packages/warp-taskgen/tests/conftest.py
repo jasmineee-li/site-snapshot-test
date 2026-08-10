@@ -7,7 +7,6 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from instructor.core.exceptions import FailedAttempt, InstructorRetryException
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -152,6 +151,12 @@ class _FakeInstructorMessages:
         self._mock_client = mock_client
 
     async def create_with_completion(self, **kwargs: Any) -> tuple[Any, Any]:
+        # Instructor is only needed when a test exercises the fake structured
+        # completion path. Keep its provider graph out of pytest collection so
+        # tests that do not use this fixture can start without importing the
+        # heavyweight optional client dependencies.
+        from instructor.core.exceptions import FailedAttempt, InstructorRetryException
+
         response_model = kwargs.pop("response_model")
         context = kwargs.pop("context", None)
         retry_policy = kwargs.pop("max_retries", None)

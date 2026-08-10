@@ -531,12 +531,11 @@ PY
 cd "$remote_dir"
 python3 "$job_dir/run_job.py" "$fingerprint" </dev/null >/dev/null 2>/dev/null &
 pid="$!"
-pgid=""
-for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
-    pgid="$(python3 -c 'import os, sys; print(os.getpgid(int(sys.argv[1])))' "$pid" 2>/dev/null || true)"
-    [[ "$pgid" == "$pid" ]] && break
-    sleep 0.1
-done
+# The runner briefly calls setsid before launching the child.  Keep the
+# readiness wait in one feature-local helper so fast exits (including Linux
+# zombies) return immediately instead of starting twenty Python interpreters
+# and sleeping for the full two-second polling window.
+pgid="$(python3 "$remote_dir/scripts/remote_job_process_group.py" "$pid" 2>/dev/null || true)"
 start_ticks=""
 if [[ -r "/proc/$pid/stat" ]]; then
     start_ticks="$(awk '{print $22}' "/proc/$pid/stat" 2>/dev/null || true)"

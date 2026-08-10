@@ -14,8 +14,14 @@ permissions:
   contents: read
 
 jobs:
-  taskgen-acceptance:
-    name: taskgen-acceptance
+  taskgen-tests:
+    name: taskgen-tests (${{ matrix.lane }})
+    strategy:
+      fail-fast: false
+      matrix:
+        lane:
+          - core-tests
+          - remote-job-tests
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -34,5 +40,51 @@ jobs:
           enable-cache: true
           cache-dependency-glob: packages/warp-taskgen/uv.lock
 
-      - name: Run canonical Taskgen acceptance
-        run: bash scripts/accept_taskgen.sh
+      - name: Run Taskgen test lane
+        run: bash scripts/accept_taskgen.sh --lane "${{ matrix.lane }}"
+
+  taskgen-package-proof:
+    name: taskgen-package-proof
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: packages/warp-taskgen/uv.lock
+
+      - name: Run Taskgen package proof
+        run: bash scripts/accept_taskgen.sh --lane package-proof
+
+  taskgen-acceptance:
+    name: taskgen-acceptance
+    if: ${{ always() }}
+    needs:
+      - taskgen-tests
+      - taskgen-package-proof
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every acceptance lane to pass
+        env:
+          TESTS_RESULT: ${{ needs.taskgen-tests.result }}
+          PACKAGE_PROOF_RESULT: ${{ needs.taskgen-package-proof.result }}
+        run: |
+          if [[ "$TESTS_RESULT" != "success" ]]; then
+            printf 'Taskgen test lanes: %s\n' "$TESTS_RESULT" >&2
+            exit 1
+          fi
+          if [[ "$PACKAGE_PROOF_RESULT" != "success" ]]; then
+            printf 'Taskgen package proof: %s\n' "$PACKAGE_PROOF_RESULT" >&2
+            exit 1
+          fi
+          printf 'Taskgen acceptance: all lanes passed\n'
