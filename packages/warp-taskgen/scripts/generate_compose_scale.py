@@ -41,6 +41,7 @@ import ipaddress
 import json
 import pathlib
 import sys
+from collections.abc import Sequence
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
@@ -648,7 +649,12 @@ def _resolve_host_contract(
 # ---------------------------------------------------------------------------
 
 
-def main() -> int:
+def main(argv: Sequence[str] | None = None) -> int:
+    """Generate compose/config artifacts for the selected topology.
+
+    ``argv`` is injectable so feature callers and tests can use the generator
+    in-process while the module entrypoint keeps the same command-line API.
+    """
     ap = argparse.ArgumentParser(description=__doc__ or "")
     ap.add_argument("--config", required=True, help="path to scale_config.yml")
     ap.add_argument(
@@ -718,7 +724,7 @@ def main() -> int:
             "as absolute paths."
         ),
     )
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     cfg_path = pathlib.Path(args.config)
     if not cfg_path.exists():

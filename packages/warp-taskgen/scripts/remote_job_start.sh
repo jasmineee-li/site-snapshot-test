@@ -82,86 +82,7 @@ print(f"{stamp}-{name}-{secrets.token_hex(3)}")
 PY
 )"
 
-COMMAND_ENVELOPE_B64="$(python3 - "$@" <<'PY'
-import base64
-import json
-import os
-import shlex
-import sys
-from pathlib import Path
-
-original = list(sys.argv[1:])
-mode = os.environ.get("WORLDSIM_REMOTE_JOB_EXEC_MODE", "auto").strip().lower() or "auto"
-if mode not in {"auto", "direct", "login-shell"}:
-    raise SystemExit(
-        "WORLDSIM_REMOTE_JOB_EXEC_MODE must be one of auto, direct, or login-shell"
-    )
-
-SHELLS = {"bash", "sh", "zsh"}
-ENV_MANAGED_COMMANDS = {
-    "bun",
-    "claude",
-    "modal",
-    "node",
-    "npm",
-    "npx",
-    "pnpm",
-    "poetry",
-    "uv",
-    "uvx",
-}
-
-
-def basename(value: str) -> str:
-    return Path(value).name
-
-
-def already_shell(argv: list[str]) -> bool:
-    return len(argv) >= 3 and basename(argv[0]) in SHELLS and argv[1] in {"-c", "-lc"}
-
-
-def managed_command_name(argv: list[str]) -> str:
-    if not argv:
-        return ""
-    if basename(argv[0]) == "env":
-        for item in argv[1:]:
-            if "=" not in item:
-                return basename(item)
-        return "env"
-    return basename(argv[0])
-
-
-def should_login_shell_wrap(argv: list[str]) -> bool:
-    if not argv or already_shell(argv):
-        return False
-    if os.path.isabs(argv[0]) or "/" in argv[0]:
-        return False
-    return managed_command_name(argv) in ENV_MANAGED_COMMANDS
-
-
-normalized = original
-reason = "direct"
-if mode == "login-shell" and not already_shell(original):
-    normalized = ["bash", "-lc", shlex.join(original)]
-    reason = "forced_login_shell"
-elif mode == "auto" and should_login_shell_wrap(original):
-    normalized = ["bash", "-lc", shlex.join(original)]
-    reason = f"auto_login_shell_for_{managed_command_name(original)}"
-elif already_shell(original):
-    reason = "already_shell"
-
-payload = {
-    "command": normalized,
-    "execution": {
-        "mode": mode,
-        "normalized": normalized != original,
-        "reason": reason,
-        "original_command": original,
-    },
-}
-print(base64.b64encode(json.dumps(payload).encode()).decode())
-PY
-)"
+COMMAND_ENVELOPE_B64="$(python3 "$REPO_ROOT/scripts/remote_job_decisions.py" normalize -- "$@")"
 if ((${#EXPECTED_OUTPUTS[@]})); then
     EXPECTED_B64="$(rj_json_b64 "${EXPECTED_OUTPUTS[@]}")"
 else
@@ -219,8 +140,6 @@ import base64
 import hashlib
 import json
 import os
-import re
-import shlex
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -228,6 +147,13 @@ from pathlib import Path
 
 job_dir = Path(sys.argv[1])
 remote_dir = Path(sys.argv[2])
+sys.path.insert(0, str(remote_dir / "scripts"))
+from remote_job_decisions import (
+    command_runs_phase,
+    command_runs_resume,
+    command_sets_inline_state_dir,
+    option_value,
+)
 job_id = sys.argv[3]
 name = sys.argv[4]
 host_config = sys.argv[5]
@@ -276,91 +202,6 @@ def read_json(path):
     except Exception:
         return None
 
-def option_value(option):
-    for index, value in enumerate(argv):
-        if value == option and index + 1 < len(argv):
-            return argv[index + 1]
-        if value.startswith(option + "="):
-            return value.split("=", 1)[1]
-    return None
-
-def is_smoke_instances(value):
-    return isinstance(value, str) and Path(value).name == "instances.smoke.json"
-
-def command_runs_resume():
-    joined = " ".join(argv)
-    return (
-        re.search(r"(^|\s)(?:warp-taskgen|worldsim)\s+resume(?:\s|$)", joined) is not None
-        or re.search(r"(^|\s)python\s+-m\s+worldsim\.main\s+resume(?:\s|$)", joined) is not None
-        or re.search(r"(^|\s)worldsim\.main\s+resume(?:\s|$)", joined) is not None
-    )
-
-def command_sets_inline_state_dir():
-    joined = " ".join(argv)
-    return "WORLDSIM_STATE_DIR" in joined or "WARP_TASKGEN_STATE_DIR" in joined
-
-KNOWN_PHASES = {"0", "0c", "1", "2", "2c", "3", "4"}
-ENTRYPOINTS = {"warp-taskgen", "worldsim", "worldsim.main"}
-PHASE_BOOLEAN_OPTIONS = {
-    "--skip-feasibility",
-    "--generate-novel",
-    "--resume",
-    "--force",
-    "--quiet",
-    "--allow-unknown-auth",
-    "--skip-host-bound-storage-state-auth",
-}
-
-def is_python_module_entrypoint(tokens, index):
-    return (
-        tokens[index] == "python"
-        and index + 2 < len(tokens)
-        and tokens[index + 1] == "-m"
-        and tokens[index + 2] == "worldsim.main"
-    )
-
-def entrypoint_at(tokens, index):
-    token = tokens[index]
-    if token in ENTRYPOINTS:
-        return index + 1
-    if is_python_module_entrypoint(tokens, index):
-        return index + 3
-    return None
-
-def command_runs_phase(phase):
-    tokens = argv
-    if len(argv) >= 3 and argv[0] == "bash" and argv[1] == "-lc":
-        try:
-            tokens = shlex.split(argv[2])
-        except ValueError:
-            tokens = argv
-    index = 0
-    while index < len(tokens):
-        command_index = entrypoint_at(tokens, index)
-        if command_index is None or command_index >= len(tokens) or tokens[command_index] != "phase":
-            index += 1
-            continue
-        skip_value = False
-        for token in tokens[command_index + 1 :]:
-            if token in {"&&", "||", ";"}:
-                break
-            if skip_value:
-                skip_value = False
-                continue
-            if token in KNOWN_PHASES:
-                return token == phase
-            if token.startswith("--"):
-                if "=" not in token and token not in PHASE_BOOLEAN_OPTIONS:
-                    skip_value = True
-                continue
-            if token.startswith("-"):
-                continue
-        index += 1
-    return False
-
-def command_runs_phase4():
-    return command_runs_phase("4")
-
 def saved_pipeline_state_path():
     if state_dir_mode == "set":
         value = state_dir if state_dir is not None else state_dir_value
@@ -382,14 +223,14 @@ if (
     advertise_host
     and orchestrator_host
     and advertise_host != orchestrator_host
-    and command_runs_resume()
-    and option_value("--instances") is None
+    and command_runs_resume(argv)
+    and option_value(argv, "--instances") is None
 ):
     state = read_json(saved_pipeline_state_path())
     if isinstance(state, dict):
         saved_instances = state.get("instances_path")
         last_step = str(state.get("last_step") or state.get("step") or "")
-        if is_smoke_instances(saved_instances) and (
+        if isinstance(saved_instances, str) and Path(saved_instances).name == "instances.smoke.json" and (
             "phase_4" in last_step or "phase_2c" in last_step or "feasibility" in last_step
         ):
             raise SystemExit(
@@ -400,8 +241,8 @@ if (
                 "--feasibility-instances instances.scale.json for Phase 2c resume."
             )
 
-if command_runs_phase4() and state_dir_mode != "set" and not expected_outputs:
-    if command_sets_inline_state_dir():
+if command_runs_phase(argv, "4") and state_dir_mode != "set" and not expected_outputs:
+    if command_sets_inline_state_dir(argv):
         raise SystemExit(
             "remote job phase4 observability guard blocked this command: "
             "a state-dir env is set inside the shell command, but metadata cannot "

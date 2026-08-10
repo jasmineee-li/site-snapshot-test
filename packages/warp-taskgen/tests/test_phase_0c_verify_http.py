@@ -30,9 +30,13 @@ class _Handler(BaseHTTPRequestHandler):
         return
 
 
+def _serve_until_shutdown(server: ThreadingHTTPServer) -> None:
+    server.serve_forever(poll_interval=0.01)
+
+
 def test_verify_http_reports_status_and_auth_header():
     server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread = threading.Thread(target=_serve_until_shutdown, args=(server,), daemon=True)
     thread.start()
     try:
         host, port = server.server_address
@@ -52,7 +56,7 @@ def test_verify_http_reports_status_and_auth_header():
 
 def test_verify_http_bounds_post_body_preview():
     server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread = threading.Thread(target=_serve_until_shutdown, args=(server,), daemon=True)
     thread.start()
     try:
         host, port = server.server_address
@@ -74,13 +78,17 @@ def test_verify_http_bounds_post_body_preview():
 
 def test_verify_http_does_not_follow_redirects_with_auth_header():
     target = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
-    target_thread = threading.Thread(target=target.serve_forever, daemon=True)
+    target_thread = threading.Thread(target=_serve_until_shutdown, args=(target,), daemon=True)
     target_thread.start()
     redirector = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
     host, port = target.server_address
     redirector.redirect_target = f"http://{host}:{port}/target"
     redirector.redirect_seen_token = None
-    redirect_thread = threading.Thread(target=redirector.serve_forever, daemon=True)
+    redirect_thread = threading.Thread(
+        target=_serve_until_shutdown,
+        args=(redirector,),
+        daemon=True,
+    )
     redirect_thread.start()
     try:
         redirect_host, redirect_port = redirector.server_address

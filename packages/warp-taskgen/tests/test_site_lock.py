@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import time
 
 import pytest
 
@@ -19,14 +18,32 @@ def _clean_locks():
 async def test_same_site_serializes():
     """Two tasks for the same site must not overlap."""
     timeline: list[tuple[str, str]] = []
+    first_entered = asyncio.Event()
+    second_attempting = asyncio.Event()
+    second_entered = asyncio.Event()
+    release_first = asyncio.Event()
 
-    async def work(label: str) -> None:
+    async def first_work() -> None:
         async with site_lock("shopping"):
-            timeline.append((label, "enter"))
-            await asyncio.sleep(0.05)
-            timeline.append((label, "exit"))
+            timeline.append(("a", "enter"))
+            first_entered.set()
+            await release_first.wait()
+            timeline.append(("a", "exit"))
 
-    await asyncio.gather(work("a"), work("b"))
+    async def second_work() -> None:
+        await first_entered.wait()
+        second_attempting.set()
+        async with site_lock("shopping"):
+            second_entered.set()
+            timeline.append(("b", "enter"))
+            timeline.append(("b", "exit"))
+
+    first_task = asyncio.create_task(first_work())
+    second_task = asyncio.create_task(second_work())
+    await second_attempting.wait()
+    assert not second_entered.is_set()
+    release_first.set()
+    await asyncio.gather(first_task, second_task)
 
     # One must finish before the other starts — no interleaving.
     enters = [i for i, (_, ev) in enumerate(timeline) if ev == "enter"]
@@ -38,22 +55,20 @@ async def test_same_site_serializes():
 @pytest.mark.asyncio
 async def test_different_sites_run_in_parallel():
     """Tasks on different sites must overlap in time."""
-    timestamps: dict[str, list[float]] = {}
+    entered = {
+        "shopping": asyncio.Event(),
+        "gitlab": asyncio.Event(),
+    }
 
-    async def work(site: str) -> None:
+    async def work(site: str, other_site: str) -> None:
         async with site_lock(site):
-            timestamps[site] = [time.monotonic()]
-            await asyncio.sleep(0.05)
-            timestamps[site].append(time.monotonic())
+            entered[site].set()
+            await entered[other_site].wait()
 
-    await asyncio.gather(work("shopping"), work("gitlab"))
-
-    # They should overlap: the second task's start should be before the first
-    # task's end (allowing for tiny scheduling jitter).
-    shopping_start, shopping_end = timestamps["shopping"]
-    gitlab_start, gitlab_end = timestamps["gitlab"]
-    # At least one must have started before the other ended.
-    assert shopping_start < gitlab_end and gitlab_start < shopping_end
+    await asyncio.wait_for(
+        asyncio.gather(work("shopping", "gitlab"), work("gitlab", "shopping")),
+        timeout=1,
+    )
 
 
 @pytest.mark.asyncio
@@ -75,9 +90,14 @@ async def test_exception_releases_lock():
 @pytest.mark.asyncio
 async def test_task_lock_allows_same_site_parallelism_on_distinct_instances():
     """Bound tasks with distinct reset endpoints should run in parallel."""
-    timestamps: dict[str, list[float]] = {}
+    first_endpoint = "http://shopping-1.test/init"
+    second_endpoint = "http://shopping-2.test/init"
+    entered = {
+        first_endpoint: asyncio.Event(),
+        second_endpoint: asyncio.Event(),
+    }
 
-    async def work(reset_endpoint: str) -> None:
+    async def work(reset_endpoint: str, other_endpoint: str) -> None:
         task = {
             "site": "shopping",
             "sites": ["shopping"],
@@ -87,26 +107,28 @@ async def test_task_lock_allows_same_site_parallelism_on_distinct_instances():
             },
         }
         async with task_lock(task):
-            timestamps[reset_endpoint] = [time.monotonic()]
-            await asyncio.sleep(0.05)
-            timestamps[reset_endpoint].append(time.monotonic())
+            entered[reset_endpoint].set()
+            await entered[other_endpoint].wait()
 
-    await asyncio.gather(
-        work("http://shopping-1.test/init"),
-        work("http://shopping-2.test/init"),
+    await asyncio.wait_for(
+        asyncio.gather(
+            work(first_endpoint, second_endpoint),
+            work(second_endpoint, first_endpoint),
+        ),
+        timeout=1,
     )
-
-    first_start, first_end = timestamps["http://shopping-1.test/init"]
-    second_start, second_end = timestamps["http://shopping-2.test/init"]
-    assert first_start < second_end and second_start < first_end
 
 
 @pytest.mark.asyncio
 async def test_task_lock_serializes_on_shared_secondary_endpoint():
     """Tasks that share any reset endpoint must not overlap."""
     timeline: list[tuple[str, str]] = []
+    first_entered = asyncio.Event()
+    second_attempting = asyncio.Event()
+    second_entered = asyncio.Event()
+    release_first = asyncio.Event()
 
-    async def work(label: str, endpoints: list[str]) -> None:
+    async def work(label: str, endpoints: list[str], *, hold: bool) -> None:
         task = {
             "sites": ["shopping", "gitlab"],
             "_worldsim_runtime": {
@@ -114,15 +136,37 @@ async def test_task_lock_serializes_on_shared_secondary_endpoint():
                 "sites": ["shopping", "gitlab"],
             },
         }
+        if not hold:
+            await first_entered.wait()
+            second_attempting.set()
         async with task_lock(task):
+            if hold:
+                first_entered.set()
+            else:
+                second_entered.set()
             timeline.append((label, "enter"))
-            await asyncio.sleep(0.05)
+            if hold:
+                await release_first.wait()
             timeline.append((label, "exit"))
 
-    await asyncio.gather(
-        work("a", ["http://shopping-1.test/init", "http://gitlab.test/init"]),
-        work("b", ["http://shopping-2.test/init", "http://gitlab.test/init"]),
+    first_task = asyncio.create_task(
+        work(
+            "a",
+            ["http://shopping-1.test/init", "http://gitlab.test/init"],
+            hold=True,
+        )
     )
+    second_task = asyncio.create_task(
+        work(
+            "b",
+            ["http://shopping-2.test/init", "http://gitlab.test/init"],
+            hold=False,
+        )
+    )
+    await second_attempting.wait()
+    assert not second_entered.is_set()
+    release_first.set()
+    await asyncio.gather(first_task, second_task)
 
     enters = [i for i, (_, ev) in enumerate(timeline) if ev == "enter"]
     exits = [i for i, (_, ev) in enumerate(timeline) if ev == "exit"]

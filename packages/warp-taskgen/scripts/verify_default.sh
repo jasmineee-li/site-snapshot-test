@@ -9,4 +9,4 @@ cd "$ROOT_DIR"
 "$ROOT_DIR/scripts/verify_fast.sh" --skip-collect
 "$ROOT_DIR/scripts/lib/run_silent.sh" \
     "default pytest parallel" \
-    "uv run pytest -q -n auto --dist worksteal"
+    "uv run pytest -q -n 4 --dist worksteal"

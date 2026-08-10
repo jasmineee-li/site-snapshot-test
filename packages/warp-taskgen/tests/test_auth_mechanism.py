@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 from argparse import Namespace
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -50,6 +52,17 @@ def _valid_agent_context_with_auth(auth_mechanism: dict | None) -> dict:
     if auth_mechanism is not None:
         data["auth_mechanism"] = auth_mechanism
     return data
+
+
+def _install_fake_phase_4_runner(monkeypatch: pytest.MonkeyPatch, run) -> None:
+    """Install a tiny Phase 4 runner module for dispatch-gate tests."""
+    module = ModuleType("worldsim.phase_4.runner")
+    module.run = run
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+
+    import worldsim.phase_4 as phase_4
+
+    monkeypatch.setattr(phase_4, "runner", module, raising=False)
 
 
 # ---------------------------------------------------------------------------
@@ -741,12 +754,19 @@ class TestUnknownAuthGate:
 
         called = False
 
-        async def fake_phase_4_run(args):
+        def fake_phase_4_run(*args, **kwargs):
             nonlocal called
             called = True
             return 0
 
-        monkeypatch.setattr("worldsim.phase_4.runner.run", fake_phase_4_run)
+        # Patch the already-loaded dispatch seam instead of resolving
+        # ``worldsim.phase_4.runner``. The refusal gate must return before
+        # Phase 4's heavy runner graph is imported, and this guard still
+        # proves that execution never reaches the bounded runner call.
+        monkeypatch.setattr(
+            "worldsim.main._run_phase4_with_bounded_async_shutdown",
+            fake_phase_4_run,
+        )
 
         rc = _dispatch_phase(
             Namespace(
@@ -782,7 +802,7 @@ class TestUnknownAuthGate:
             assert args.phase == "4"
             return 0
 
-        monkeypatch.setattr("worldsim.phase_4.runner.run", fake_phase_4_run)
+        _install_fake_phase_4_runner(monkeypatch, fake_phase_4_run)
 
         rc = _dispatch_phase(
             Namespace(
@@ -836,7 +856,7 @@ class TestUnknownAuthGate:
             called = True
             return 0
 
-        monkeypatch.setattr("worldsim.phase_4.runner.run", fake_phase_4_run)
+        _install_fake_phase_4_runner(monkeypatch, fake_phase_4_run)
 
         rc = _dispatch_phase(
             Namespace(

@@ -10,6 +10,14 @@ from worldsim.phase_2.target_resolution.types import ResourceKind
 VIEWPORT_BUDGET_CHARS = 600
 DEFAULT_L4_TOP_N = 3
 DEFAULT_REDDIT_MAX_EXISTING_COMMENTS = 0
+PHASE_2A_SYNTHETIC_PLACEHOLDERS: dict[str, str] = {
+    "__GITLAB__": "https://gitlab.local",
+    "__REDDIT__": "https://reddit.local",
+    "__SHOPPING__": "https://shopping.local",
+    "__SHOPPING_ADMIN__": "https://shopping-admin.local",
+    "__WIKIPEDIA__": "https://wikipedia.local",
+    "__MAP__": "https://map.local",
+}
 _ISSUE_RE = re.compile(r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/issues/(?P<issue_iid>\d+)")
 _ISSUE_LISTING_RE = re.compile(r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/issues(?:/?(?:\?|$))")
 _MR_RE = re.compile(r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/merge_requests/(?P<mr_iid>\d+)")

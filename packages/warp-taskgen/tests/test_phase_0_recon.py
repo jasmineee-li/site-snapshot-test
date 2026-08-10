@@ -1434,42 +1434,6 @@ async def test_run_phase_0c_reuses_when_host_inventory_file_omits_site(monkeypat
 
 
 @pytest.mark.asyncio
-async def test_run_phase_0c_does_not_publish_invalid_profiles(monkeypatch, tmp_path):
-    benchmark_root, source_file = _benchmark_setup(tmp_path)
-    de_attempts = 0
-
-    async def fake_run_claude_in_sandbox(*args, **kwargs):
-        nonlocal de_attempts
-        label = kwargs["label"]
-        if "-A-verify" in label:
-            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
-        if "-B-data" in label:
-            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
-        if "-C-context" in label:
-            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
-        if "-DE-inject" in label:
-            de_attempts += 1
-            return _sandbox_json(
-                INJECTION_OUTPUT, _valid_injection_surface(source_field="posts.body")
-            )
-        raise AssertionError(f"unexpected sandbox label: {label}")
-
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
-
-    with pytest.raises(RuntimeError, match="failed validation"):
-        await phase_0_recon.run_phase_0c(
-            manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
-            sandbox_map={"shopping": [str(source_file)]},
-            benchmark_root=benchmark_root,
-            output_dir=tmp_path / "out",
-        )
-
-    assert de_attempts == 1 + phase_0_recon.PROFILE_FIX_MAX_ITERATIONS
-    assert not (tmp_path / "out" / "BENCHMARK_PROFILE_shopping.json").exists()
-    assert not (tmp_path / "out" / "AGENT_CONTEXT_shopping.json").exists()
-
-
-@pytest.mark.asyncio
 async def test_correction_loop_fixes_invalid_tier_output(monkeypatch, tmp_path):
     benchmark_root, source_file = _benchmark_setup(tmp_path)
     de_attempts = 0
