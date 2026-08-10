@@ -14,13 +14,16 @@ LANE_REMOTE_JOB_TESTS="remote-job-tests"
 
 usage() {
     cat <<'EOF'
-Usage: scripts/accept_taskgen.sh [--lane LANE]
+Usage: scripts/accept_taskgen.sh [--lane LANE] [--route-only]
 
 Run the canonical WARP Taskgen acceptance boundary. With no lane, run the
 complete local gate. In GitHub Actions, each lane skips dependency and package
 work when the pull request has no changes to the canonical package, this
 command, or its workflow. A local invocation always runs unless
 TASKGEN_ACCEPTANCE_CHANGED_FILES is supplied.
+
+Use --route-only to print exactly "run" or "skip" without installing or
+running anything. CI uses this before Python and uv setup.
 
 Lanes:
   full             Complete local gate (the default).
@@ -31,6 +34,7 @@ EOF
 }
 
 lane="$LANE_FULL"
+route_only=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --help|-h)
@@ -45,6 +49,10 @@ while [[ $# -gt 0 ]]; do
             fi
             lane="$2"
             shift 2
+            ;;
+        --route-only)
+            route_only=1
+            shift
             ;;
         *)
             printf 'error: unknown argument %s\n' "$1" >&2
@@ -89,9 +97,18 @@ fi
 if [[ "$route_known" -eq 1 ]]; then
     decision="$(python3 "$ROUTER" "${route_args[@]}")"
     if [[ "$decision" == "skip" ]]; then
+        if [[ "$route_only" -eq 1 ]]; then
+            printf 'skip\n'
+            exit 0
+        fi
         printf 'Taskgen acceptance: skip (no canonical Taskgen changes)\n'
         exit 0
     fi
+fi
+
+if [[ "$route_only" -eq 1 ]]; then
+    printf 'run\n'
+    exit 0
 fi
 
 if [[ "$lane" == "$LANE_FULL" ]]; then

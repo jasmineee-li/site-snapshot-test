@@ -11,11 +11,17 @@ ACCEPTANCE = REPO_ROOT / "scripts" / "accept_taskgen.sh"
 LANES = ("package-proof", "core-tests", "remote-job-tests")
 
 
-def _run_wrapper(*args: str, changed_files: str | None = None) -> subprocess.CompletedProcess[str]:
+def _run_wrapper(
+    *args: str,
+    changed_files: str | None = None,
+    extra_env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env.pop("TASKGEN_ACCEPTANCE_FORCE", None)
     if changed_files is not None:
         env["TASKGEN_ACCEPTANCE_CHANGED_FILES"] = changed_files
+    if extra_env:
+        env.update(extra_env)
     return subprocess.run(
         ["bash", str(ACCEPTANCE), *args],
         cwd=REPO_ROOT,
@@ -42,6 +48,18 @@ def test_unknown_lane_is_rejected() -> None:
     assert "not-a-lane" in result.stderr
 
 
+@pytest.mark.parametrize(
+    ("changed_files", "expected"),
+    [("README.md\n", "skip"), ("packages/warp-taskgen/README.md\n", "run")],
+)
+def test_route_only_reports_machine_readable_decision(changed_files: str, expected: str) -> None:
+    result = _run_wrapper("--route-only", changed_files=changed_files)
+
+    assert result.returncode == 0
+    assert result.stdout == f"{expected}\n"
+    assert result.stderr == ""
+
+
 @pytest.mark.parametrize("args", [(), ("--lane", "full"), *(("--lane", lane) for lane in LANES)])
 def test_full_and_named_lanes_preserve_unrelated_change_noop(args: tuple[str, ...]) -> None:
     result = _run_wrapper(*args, changed_files="README.md\n")
@@ -49,3 +67,47 @@ def test_full_and_named_lanes_preserve_unrelated_change_noop(args: tuple[str, ..
     assert result.returncode == 0
     assert "skip" in result.stdout
     assert "uv sync" not in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("lane", "required", "forbidden"),
+    [
+        (
+            "core-tests",
+            "--ignore tests/test_remote_job_scripts.py",
+            "--dist load tests/test_remote_job_scripts.py",
+        ),
+        (
+            "remote-job-tests",
+            "--dist load tests/test_remote_job_scripts.py",
+            "--ignore tests/test_remote_job_scripts.py",
+        ),
+    ],
+)
+def test_test_lanes_partition_remote_job_file(
+    tmp_path: Path, lane: str, required: str, forbidden: str
+) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    command_log = tmp_path / "uv-commands.log"
+    fake_uv = fake_bin / "uv"
+    fake_uv.write_text(
+        '#!/usr/bin/env bash\nprintf \'%s\\n\' "$*" >> "$TASKGEN_TEST_UV_LOG"\n',
+        encoding="utf-8",
+    )
+    fake_uv.chmod(0o755)
+
+    result = _run_wrapper(
+        "--lane",
+        lane,
+        extra_env={
+            "PATH": f"{fake_bin}:{os.environ.get('PATH', '')}",
+            "TASKGEN_ACCEPTANCE_FORCE": "1",
+            "TASKGEN_TEST_UV_LOG": str(command_log),
+        },
+    )
+
+    assert result.returncode == 0, result.stderr
+    commands = command_log.read_text(encoding="utf-8")
+    assert required in commands
+    assert forbidden not in commands

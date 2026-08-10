@@ -17,7 +17,8 @@ jobs:
   taskgen-tests:
     name: taskgen-tests (${{ matrix.lane }})
     strategy:
-      fail-fast: false
+      fail-fast: true
+      max-parallel: 2
       matrix:
         lane:
           - core-tests
@@ -29,18 +30,25 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Route Taskgen acceptance
+        id: route
+        run: printf 'decision=%s\n' "$(bash scripts/accept_taskgen.sh --route-only)" >> "$GITHUB_OUTPUT"
+
       - name: Set up Python
+        if: steps.route.outputs.decision == 'run'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Set up uv
+        if: steps.route.outputs.decision == 'run'
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           cache-dependency-glob: packages/warp-taskgen/uv.lock
 
       - name: Run Taskgen test lane
+        if: steps.route.outputs.decision == 'run'
         run: bash scripts/accept_taskgen.sh --lane "${{ matrix.lane }}"
 
   taskgen-package-proof:
@@ -52,18 +60,25 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Route Taskgen acceptance
+        id: route
+        run: printf 'decision=%s\n' "$(bash scripts/accept_taskgen.sh --route-only)" >> "$GITHUB_OUTPUT"
+
       - name: Set up Python
+        if: steps.route.outputs.decision == 'run'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Set up uv
+        if: steps.route.outputs.decision == 'run'
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           cache-dependency-glob: packages/warp-taskgen/uv.lock
 
       - name: Run Taskgen package proof
+        if: steps.route.outputs.decision == 'run'
         run: bash scripts/accept_taskgen.sh --lane package-proof
 
   taskgen-acceptance:

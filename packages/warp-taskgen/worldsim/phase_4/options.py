@@ -1,7 +1,7 @@
 """Phase 4 variant configuration used by the CLI and runtime.
 
-This module intentionally contains only immutable option values and small
-normalization helpers.  Keeping the parser-facing choices here lets the CLI
+This module intentionally contains only option values and small normalization
+helpers. Keeping the parser-facing choices here lets the CLI
 avoid importing Phase 4's linked execution context merely to build argparse
 choices.
 """

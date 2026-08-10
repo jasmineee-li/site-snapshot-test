@@ -194,8 +194,9 @@ taskgen-tests (matrix: shard 0/1[, 2])  ─┐
 taskgen-package-smoke                    ─┘
 ```
 
-The matrix test jobs should run only the default pytest selection, with
-`-n auto --dist worksteal`; the package job should run the lint/readiness and
+The core test job should run the default selection with the remote-job file
+excluded and `--dist worksteal`; the remote-job job should run that file with
+`--dist load`. The package job should run the lint/readiness and
 fresh wheel-install/CLI smoke once, but not rerun pytest. Keep the local
 `accept_taskgen.sh` default as the sequential full boundary, and factor small
 test-only/package-only entry points for CI rather than teaching every matrix
@@ -212,7 +213,7 @@ Only this aggregate check should be selected as the branch-protection
 requirement; matrix names are implementation details that can change when the
 shard count changes.
 
-Set matrix `fail-fast: true` (the GitHub default) so a known failure cancels
+Set matrix `fail-fast: true` so a known failure cancels
 remaining shards and shortens feedback. Set `max-parallel` to the chosen shard
 count so the intended concurrency is explicit. GitHub's matrix strategy starts
 one job per combination, maximizes parallel jobs by default, and supports both
@@ -239,21 +240,17 @@ the stable `taskgen-acceptance` check.
 ### Shard selection and coverage proof
 
 There is no built-in pytest option that partitions a suite across separate
-machines. The first implementation should add a small in-repository selector
-that accepts `TASKGEN_TEST_SHARD_INDEX` and `TASKGEN_TEST_SHARD_COUNT`, collects
-the same default node IDs, and assigns each ID deterministically. Do not split
-by equal file count: the remote-job and CLI subprocess tests are much heavier
-than most pure unit tests. Start with two duration-weighted groups based on the
-existing slow-test report; if the slowest shard exceeds the fastest by more
-than about 15%, refresh the weights from CI duration data.
-
-The selector must be coverage-preserving. In the same workflow change, add a
-cheap collection/count assertion (or a tiny manifest artifact) proving that the
-union of shard node IDs equals the current default collection exactly once:
-3,552 collected, with the same 41 marked-out tests and no duplicate IDs. Keep
-the full serial/parallel default command available for local verification and
-as a periodic safety run; the matrix is a distribution mechanism, not a new
-test-selection policy.
+machines. The measured suite already has a natural exact partition: the core
+lane runs the default selection with `tests/test_remote_job_scripts.py`
+ignored, while the remote-job lane runs exactly that file. Their union is the
+default suite and their intersection is empty by construction, without a
+selector plugin or duration manifest. Wrapper contract tests pin both commands
+so a later edit cannot silently overlap or omit the remote-job file. The
+baseline research run selected 3,552 tests; after adding the reviewed tests in
+this implementation, validation selected 3,569 tests (3,525 core plus 44
+remote-job), with the same 41 marked-out tests. Keep the full parallel default
+command available for local verification; the matrix is a distribution
+mechanism, not a new test-selection policy.
 
 Avoid uploading one artifact per passing shard merely to aggregate status.
 GitHub's artifacts are intended to persist or transfer files between jobs, and
