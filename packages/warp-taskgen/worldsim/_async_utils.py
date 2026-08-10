@@ -46,6 +46,7 @@ async def retrying[T](
     *,
     retries: int = 1,
     backoff_base_seconds: float = 1.0,
+    sleep: Callable[[float], Awaitable[None]] | None = None,
     attempts_log: list[dict[str, Any]] | None = None,
     retry_on: tuple[str, ...] = _DEFAULT_RETRY_KINDS,
     on_retry: Callable[[EditorError], Awaitable[None]] | None = None,
@@ -57,6 +58,10 @@ async def retrying[T](
     set and the rationale.
 
     Backoff is ``backoff_base_seconds * 2 ** attempt``.
+
+    ``sleep`` is an optional async delay dependency. When omitted, the
+    production default is ``asyncio.sleep``; callers that own a narrow retry
+    behavior can inject a local seam without changing production timings.
 
     When ``attempts_log`` is supplied, one dict is appended per attempt with
     keys ``attempt`` (0-indexed), ``status`` (``"success"``, ``"retrying"``,
@@ -70,6 +75,7 @@ async def retrying[T](
     precedence and the hook error is logged at WARNING.
     """
     last_exc: EditorError | None = None
+    sleep_fn = asyncio.sleep if sleep is None else sleep
     for attempt in range(retries + 1):
         started = time.monotonic()
         try:
@@ -104,7 +110,7 @@ async def retrying[T](
                 delay,
                 exc.detail,
             )
-            await asyncio.sleep(delay)
+            await sleep_fn(delay)
             continue
         elapsed_ms = int((time.monotonic() - started) * 1000)
         if attempts_log is not None:

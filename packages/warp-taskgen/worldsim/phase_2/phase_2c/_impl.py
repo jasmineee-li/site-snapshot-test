@@ -76,6 +76,7 @@ from worldsim.phase_2.phase_2c.reddit_attribution import (
     _task_has_gitlab_create_issue_note_reward,
     _task_has_reddit_submit_comment_reward,
 )
+from worldsim.phase_2.phase_2c.retry_timing import phase_2c_retry_sleep
 from worldsim.phases.phase_2_reachability import (
     ReachabilityOutcome,
 )
@@ -813,6 +814,7 @@ async def _verify_one(
         handle, metadata = await retrying(
             _apply_and_keep_metadata,
             retries=retry_count,
+            sleep=phase_2c_retry_sleep,
             attempts_log=attempts,
         )
     except EditorError as exc:
@@ -906,7 +908,7 @@ async def _verify_one(
                 and not render_outcome.ok
                 and render_outcome.kind == _RENDER_UNVERIFIED_KIND
             ):
-                await asyncio.sleep(_RENDER_UNVERIFIED_RETRY_DELAY_S)
+                await phase_2c_retry_sleep(_RENDER_UNVERIFIED_RETRY_DELAY_S)
                 render_outcome = await _run_render_check(
                     browser=browser,
                     render_semaphore=render_semaphore,

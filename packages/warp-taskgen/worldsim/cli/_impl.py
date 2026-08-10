@@ -1827,14 +1827,6 @@ def _unknown_auth_sites(
 def _dispatch_phase(args: argparse.Namespace) -> int:
     """Dispatch to the requested phase module."""
     from worldsim.cost_tracker import tracker as cost_tracker
-    from worldsim.phase_2 import runner as phase_2_injections
-    from worldsim.phase_4 import runner as phase_4_adversarial
-    from worldsim.phases import (
-        phase_0_recon,
-        phase_0d_auth_bootstrap,
-        phase_1_tasks,
-        phase_3_benign,
-    )
     from worldsim.state import get_state_dir
 
     # Load any previously saved cost data so cross-phase totals accumulate.
@@ -1843,6 +1835,8 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
 
     phase = args.phase
     if phase in {"0", "0a", "0b", "0c"}:
+        from worldsim.phases import phase_0_recon
+
         if not args.benchmark:
             print(
                 f"--benchmark is required for Phase {phase}. "
@@ -1862,6 +1856,8 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
             )
         )
     elif phase == "0d":
+        from worldsim.phases import phase_0d_auth_bootstrap
+
         if not args.benchmark:
             print(
                 "--benchmark is required for Phase 0d; generator_script paths "
@@ -1871,12 +1867,18 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
             return 1
         rc = asyncio.run(phase_0d_auth_bootstrap.run(args))
     elif phase == "1":
+        from worldsim.phases import phase_1_tasks
+
         rc = asyncio.run(phase_1_tasks.run(args))
     elif phase in {"2", "2c"}:
+        from worldsim.phase_2 import runner as phase_2_injections
+
         if phase == "2c":
             args.feasibility_only = True
         rc = asyncio.run(phase_2_injections.run(args))
     elif phase == "3":
+        from worldsim.phases import phase_3_benign
+
         rc = asyncio.run(phase_3_benign.run(args))
     elif phase == "4":
         allow_unknown = getattr(args, "allow_unknown_auth", False)
@@ -1906,6 +1908,7 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
             )
             return 2
         try:
+            from worldsim.phase_4 import runner as phase_4_adversarial
             from worldsim.phase_4.sweep_tag import sweep_in_progress
 
             with _phase4_run_lock(get_state_dir()), sweep_in_progress():

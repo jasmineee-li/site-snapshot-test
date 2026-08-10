@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from pathlib import Path
 
 import yaml
 
-from scripts.generate_compose_scale import expand_site, make_ip_allocator
+from scripts.generate_compose_scale import expand_site, main, make_ip_allocator
 from worldsim.config import BenchmarkConfig
 
 
@@ -27,7 +29,21 @@ def _write_host_config(tmp_path: Path, **overrides: object) -> Path:
     return host_config_path
 
 
+def _run_generator(argv: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
+    """Invoke the feature-owned generator without paying a Python process startup."""
+    stdout = StringIO()
+    stderr = StringIO()
+    with redirect_stdout(stdout), redirect_stderr(stderr):
+        return_code = main(argv)
+    result = subprocess.CompletedProcess(argv, return_code, stdout.getvalue(), stderr.getvalue())
+    if check:
+        result.check_returncode()
+    return result
+
+
 def test_generate_compose_scale_preserves_runtime_contract(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "generate_compose_scale.py"
     base_config = {
         "benchmark_name": "WebArena Verified",
         "benchmark_codebase": "vendors/webarena-verified",
@@ -97,8 +113,6 @@ def test_generate_compose_scale_preserves_runtime_contract(tmp_path: Path) -> No
     base_path.write_text(json.dumps(base_config, indent=2) + "\n")
     config_path.write_text(json.dumps(scale_config))
 
-    repo_root = Path(__file__).resolve().parents[1]
-    script_path = repo_root / "scripts" / "generate_compose_scale.py"
     host_config_path = _write_host_config(tmp_path)
 
     subprocess.run(
@@ -216,12 +230,8 @@ def test_generate_compose_scale_keeps_external_proxy_token_references(
     host_config_path = _write_host_config(tmp_path)
     monkeypatch.setenv("WORLDSIM_TEST_PROXY_TOKEN", "live-token-that-must-not-be-serialized")
 
-    repo_root = Path(__file__).resolve().parents[1]
-    script_path = repo_root / "scripts" / "generate_compose_scale.py"
-    subprocess.run(
+    _run_generator(
         [
-            sys.executable,
-            str(script_path),
             "--config",
             str(config_path),
             "--base-config",
@@ -231,8 +241,6 @@ def test_generate_compose_scale_keeps_external_proxy_token_references(
             "--out-dir",
             str(tmp_path),
         ],
-        check=True,
-        cwd=repo_root,
     )
 
     verification_proxy = json.loads((tmp_path / "instances.json").read_text())["verification_proxy"]
@@ -294,12 +302,8 @@ def test_generate_compose_scale_rewrites_relative_proxy_token_file_for_generated
     host_config_path = _write_host_config(base_dir)
     monkeypatch.setenv("WORLDSIM_TEST_PROXY_TOKEN", "env-token-that-must-not-be-serialized")
 
-    repo_root = Path(__file__).resolve().parents[1]
-    script_path = repo_root / "scripts" / "generate_compose_scale.py"
-    subprocess.run(
+    _run_generator(
         [
-            sys.executable,
-            str(script_path),
             "--config",
             str(config_path),
             "--base-config",
@@ -309,8 +313,6 @@ def test_generate_compose_scale_rewrites_relative_proxy_token_file_for_generated
             "--out-dir",
             str(out_dir),
         ],
-        check=True,
-        cwd=repo_root,
     )
 
     generated_text = (out_dir / "instances.json").read_text()
@@ -329,6 +331,7 @@ def test_generate_compose_scale_final_config_dir_preserves_relative_proxy_token_
     monkeypatch,
     tmp_path: Path,
 ) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
     repo_like_dir = tmp_path / "repo"
     out_dir = tmp_path / "generated"
     repo_like_dir.mkdir()
@@ -372,12 +375,8 @@ def test_generate_compose_scale_final_config_dir_preserves_relative_proxy_token_
     host_config_path = _write_host_config(repo_like_dir)
     monkeypatch.setenv("WORLDSIM_TEST_PROXY_TOKEN", "env-token-that-must-not-be-serialized")
 
-    repo_root = Path(__file__).resolve().parents[1]
-    script_path = repo_root / "scripts" / "generate_compose_scale.py"
-    subprocess.run(
+    _run_generator(
         [
-            sys.executable,
-            str(script_path),
             "--config",
             str(config_path),
             "--base-config",
@@ -389,8 +388,6 @@ def test_generate_compose_scale_final_config_dir_preserves_relative_proxy_token_
             "--final-config-dir",
             str(repo_like_dir),
         ],
-        check=True,
-        cwd=repo_root,
     )
 
     verification_proxy = json.loads((out_dir / "instances.json").read_text())["verification_proxy"]
@@ -443,14 +440,10 @@ def test_generate_compose_scale_adds_gitlab_validation_endpoint(tmp_path: Path) 
     base_path.write_text(json.dumps(base_config, indent=2) + "\n")
     config_path.write_text(json.dumps(scale_config))
 
-    repo_root = Path(__file__).resolve().parents[1]
-    script_path = repo_root / "scripts" / "generate_compose_scale.py"
     host_config_path = _write_host_config(tmp_path)
 
-    subprocess.run(
+    _run_generator(
         [
-            sys.executable,
-            str(script_path),
             "--config",
             str(config_path),
             "--base-config",
@@ -460,8 +453,6 @@ def test_generate_compose_scale_adds_gitlab_validation_endpoint(tmp_path: Path) 
             "--out-dir",
             str(tmp_path),
         ],
-        check=True,
-        cwd=repo_root,
     )
 
     instances_config = json.loads((tmp_path / "instances.json").read_text())
@@ -503,14 +494,10 @@ def test_generate_compose_scale_require_pinned_images_rejects_tagged_refs(tmp_pa
     base_path.write_text(json.dumps(base_config, indent=2) + "\n")
     config_path.write_text(json.dumps(scale_config))
 
-    repo_root = Path(__file__).resolve().parents[1]
-    script_path = repo_root / "scripts" / "generate_compose_scale.py"
     host_config_path = _write_host_config(tmp_path)
 
-    completed = subprocess.run(
+    completed = _run_generator(
         [
-            sys.executable,
-            str(script_path),
             "--config",
             str(config_path),
             "--base-config",
@@ -521,9 +508,7 @@ def test_generate_compose_scale_require_pinned_images_rejects_tagged_refs(tmp_pa
             "--out-dir",
             str(tmp_path),
         ],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
+        check=False,
     )
 
     assert completed.returncode == 2
@@ -602,8 +587,6 @@ def test_generate_compose_scale_uses_canonical_shared_volume_names_and_db_ports(
     base_path.write_text(json.dumps(base_config, indent=2) + "\n")
     config_path.write_text(json.dumps(scale_config))
 
-    repo_root = Path(__file__).resolve().parents[1]
-    script_path = repo_root / "scripts" / "generate_compose_scale.py"
     host_config_path = _write_host_config(
         tmp_path,
         advertise_host="198.51.100.24",
@@ -613,10 +596,8 @@ def test_generate_compose_scale_uses_canonical_shared_volume_names_and_db_ports(
         allow_public_db_bind=False,
     )
 
-    subprocess.run(
+    _run_generator(
         [
-            sys.executable,
-            str(script_path),
             "--config",
             str(config_path),
             "--base-config",
@@ -626,8 +607,6 @@ def test_generate_compose_scale_uses_canonical_shared_volume_names_and_db_ports(
             "--out-dir",
             str(tmp_path),
         ],
-        check=True,
-        cwd=repo_root,
     )
 
     compose = yaml.safe_load((tmp_path / "compose.scale.yml").read_text())
@@ -682,12 +661,8 @@ def test_generate_compose_scale_requires_explicit_host_contract(tmp_path: Path) 
     base_path.write_text(json.dumps(base_config, indent=2) + "\n")
     config_path.write_text(json.dumps(scale_config))
 
-    repo_root = Path(__file__).resolve().parents[1]
-    script_path = repo_root / "scripts" / "generate_compose_scale.py"
-    completed = subprocess.run(
+    completed = _run_generator(
         [
-            sys.executable,
-            str(script_path),
             "--config",
             str(config_path),
             "--base-config",
@@ -695,9 +670,7 @@ def test_generate_compose_scale_requires_explicit_host_contract(tmp_path: Path) 
             "--out-dir",
             str(tmp_path),
         ],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
+        check=False,
     )
 
     assert completed.returncode == 2
@@ -734,12 +707,8 @@ def test_generate_compose_scale_rejects_unapproved_public_binds_on_raw_cli(
     base_path.write_text(json.dumps(base_config, indent=2) + "\n")
     config_path.write_text(json.dumps(scale_config))
 
-    repo_root = Path(__file__).resolve().parents[1]
-    script_path = repo_root / "scripts" / "generate_compose_scale.py"
-    completed = subprocess.run(
+    completed = _run_generator(
         [
-            sys.executable,
-            str(script_path),
             "--config",
             str(config_path),
             "--base-config",
@@ -753,9 +722,7 @@ def test_generate_compose_scale_rejects_unapproved_public_binds_on_raw_cli(
             "--out-dir",
             str(tmp_path),
         ],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
+        check=False,
     )
 
     assert completed.returncode == 2
@@ -802,12 +769,8 @@ def test_generate_compose_scale_bakes_proxy_port_into_env_var(tmp_path: Path) ->
     config_path.write_text(json.dumps(scale_config))
     host_config_path = _write_host_config(tmp_path)
 
-    repo_root = Path(__file__).resolve().parents[1]
-    script_path = repo_root / "scripts" / "generate_compose_scale.py"
-    subprocess.run(
+    _run_generator(
         [
-            sys.executable,
-            str(script_path),
             "--config",
             str(config_path),
             "--base-config",
@@ -817,8 +780,6 @@ def test_generate_compose_scale_bakes_proxy_port_into_env_var(tmp_path: Path) ->
             "--out-dir",
             str(tmp_path),
         ],
-        check=True,
-        cwd=repo_root,
     )
 
     compose = yaml.safe_load((tmp_path / "compose.scale.yml").read_text())
@@ -873,12 +834,8 @@ def test_generate_compose_scale_auto_omits_verification_proxy_on_loopback(
         allow_public_db_bind=False,
     )
 
-    repo_root = Path(__file__).resolve().parents[1]
-    script_path = repo_root / "scripts" / "generate_compose_scale.py"
-    completed = subprocess.run(
+    completed = _run_generator(
         [
-            sys.executable,
-            str(script_path),
             "--config",
             str(config_path),
             "--base-config",
@@ -888,10 +845,6 @@ def test_generate_compose_scale_auto_omits_verification_proxy_on_loopback(
             "--out-dir",
             str(tmp_path),
         ],
-        check=True,
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
     )
 
     instances_config = json.loads((tmp_path / "instances.json").read_text())
@@ -956,12 +909,8 @@ def test_generate_compose_scale_uses_orchestrator_host_for_all_runtime_urls(
         orchestrator_host="172.17.0.1",
     )
 
-    repo_root = Path(__file__).resolve().parents[1]
-    script_path = repo_root / "scripts" / "generate_compose_scale.py"
-    subprocess.run(
+    _run_generator(
         [
-            sys.executable,
-            str(script_path),
             "--config",
             str(config_path),
             "--base-config",
@@ -971,8 +920,6 @@ def test_generate_compose_scale_uses_orchestrator_host_for_all_runtime_urls(
             "--out-dir",
             str(tmp_path),
         ],
-        check=True,
-        cwd=repo_root,
     )
 
     instances_config = json.loads((tmp_path / "instances.json").read_text())
@@ -1037,12 +984,8 @@ def test_generate_compose_scale_orchestrator_host_defaults_to_advertise_host(
     config_path.write_text(json.dumps(scale_config))
     host_config_path = _write_host_config(tmp_path, advertise_host="203.0.113.10")
 
-    repo_root = Path(__file__).resolve().parents[1]
-    script_path = repo_root / "scripts" / "generate_compose_scale.py"
-    subprocess.run(
+    _run_generator(
         [
-            sys.executable,
-            str(script_path),
             "--config",
             str(config_path),
             "--base-config",
@@ -1052,8 +995,6 @@ def test_generate_compose_scale_orchestrator_host_defaults_to_advertise_host(
             "--out-dir",
             str(tmp_path),
         ],
-        check=True,
-        cwd=repo_root,
     )
 
     gitlab_0 = json.loads((tmp_path / "instances.json").read_text())["instances"][0]
@@ -1103,12 +1044,8 @@ def test_generate_compose_scale_skips_chromium_restricted_browser_ports(
         orchestrator_host="172.17.0.1",
     )
 
-    repo_root = Path(__file__).resolve().parents[1]
-    script_path = repo_root / "scripts" / "generate_compose_scale.py"
-    subprocess.run(
+    _run_generator(
         [
-            sys.executable,
-            str(script_path),
             "--config",
             str(config_path),
             "--base-config",
@@ -1118,8 +1055,6 @@ def test_generate_compose_scale_skips_chromium_restricted_browser_ports(
             "--out-dir",
             str(tmp_path),
         ],
-        check=True,
-        cwd=repo_root,
     )
 
     instances_config = json.loads((tmp_path / "instances.json").read_text())

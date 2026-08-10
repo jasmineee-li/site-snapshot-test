@@ -212,12 +212,6 @@ def test_canonicalize_strips_leading_and_trailing_slashes():
     assert _canonicalize_project_path("/primer/design/") == "primer/design"
 
 
-def test_patch_benign_target_resource_urls_imports_after_reconstruction_split():
-    import scripts.patch_benign_target_resource_urls as patch_script
-
-    assert callable(patch_script.main)
-
-
 def test_patch_benign_target_resource_urls_rewrites_and_is_idempotent(tmp_path):
     import json
 

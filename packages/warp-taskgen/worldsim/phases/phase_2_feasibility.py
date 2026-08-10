@@ -12,11 +12,7 @@ from worldsim.phase_2.phase_2c import auth_preflight as _auth_preflight
 from worldsim.phase_2.phase_2c import outcomes as _outcomes
 
 globals().update(
-    {
-        name: value
-        for name, value in vars(_legacy_impl).items()
-        if not name.startswith("__")
-    }
+    {name: value for name, value in vars(_legacy_impl).items() if not name.startswith("__")}
 )
 logger = logging.getLogger(__name__)
 
@@ -56,6 +52,7 @@ _PATCHABLE_GLOBALS = (
     "resolve_agent_auth_headers",
     "resolve_storage_state_path",
     "retrying",
+    "phase_2c_retry_sleep",
     "select_task_site_instance_dict_p2c",
     "storage_state_preflight_error_for_payload",
     "verify_reachable",
@@ -79,9 +76,7 @@ _ORIGINAL_SOURCE_DATA_PREFLIGHT_FUNCS = {
 
 
 def _source_data_impl_patch_state() -> dict[str, Any]:
-    return {
-        name: getattr(_legacy_impl, name) for name in _SOURCE_DATA_PREFLIGHT_PATCHABLE_GLOBALS
-    }
+    return {name: getattr(_legacy_impl, name) for name in _SOURCE_DATA_PREFLIGHT_PATCHABLE_GLOBALS}
 
 
 def _restore_source_data_impl_patch_state(state: dict[str, Any]) -> None:

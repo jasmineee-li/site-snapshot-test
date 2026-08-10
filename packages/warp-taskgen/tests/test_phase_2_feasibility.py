@@ -173,7 +173,9 @@ def test_reddit_submit_comment_feasibility_requires_seed_comment_ids():
 
     problem = feas._attach_reddit_comment_attribution_contract(task, {})
 
-    assert problem == "reddit submit_comment attribution requires seeded carrier comment_id metadata"
+    assert (
+        problem == "reddit submit_comment attribution requires seeded carrier comment_id metadata"
+    )
     assert "attribution_contract" not in task
 
 
@@ -2494,6 +2496,12 @@ def test_case_03_auth_missing_does_not_retry(tmp_path, monkeypatch):
 
 def test_case_04_retry_after_request_failed_succeeds(tmp_path, monkeypatch):
     handle = _FakeHandle()
+    sleep_calls: list[float] = []
+
+    async def _fake_sleep(seconds: float) -> None:
+        sleep_calls.append(seconds)
+
+    monkeypatch.setattr(feas, "phase_2c_retry_sleep", _fake_sleep)
 
     def responder(idx, seed, instance):
         if idx == 0:
@@ -2515,6 +2523,7 @@ def test_case_04_retry_after_request_failed_succeeds(tmp_path, monkeypatch):
     attempts = report.verified[0]["feasibility"]["attempts"]
     assert [a["attempt"] for a in attempts] == [0, 1]
     assert attempts[-1]["status"] == "success"
+    assert sleep_calls == [1.0]
 
 
 # ---------------------------------------------------------------------------
@@ -2523,6 +2532,13 @@ def test_case_04_retry_after_request_failed_succeeds(tmp_path, monkeypatch):
 
 
 def test_case_05_retry_exhausted_yields_request_failed(tmp_path, monkeypatch):
+    sleep_calls: list[float] = []
+
+    async def _fake_sleep(seconds: float) -> None:
+        sleep_calls.append(seconds)
+
+    monkeypatch.setattr(feas, "phase_2c_retry_sleep", _fake_sleep)
+
     def responder(idx, seed, instance):
         raise EditorError("request_failed", "upstream 503", http_status=503)
 
@@ -2540,6 +2556,10 @@ def test_case_05_retry_exhausted_yields_request_failed(tmp_path, monkeypatch):
     assert len(report.infeasible) == 1
     errors = report.infeasible[0]["feasibility"]["errors"]
     assert errors[0]["kind"] == "request_failed"
+    attempts = report.infeasible[0]["feasibility"]["attempts"]
+    assert [a["attempt"] for a in attempts] == [0, 1]
+    assert [a["status"] for a in attempts] == ["request_failed", "request_failed"]
+    assert sleep_calls == [1.0]
 
 
 # ---------------------------------------------------------------------------
@@ -3411,6 +3431,12 @@ def test_render_check_failing_marks_render_unverified(tmp_path, monkeypatch):
     classified as infeasible with kind='render_unverified' and
     render_evidence captured on the error entry."""
     monkeypatch.delenv("WORLDSIM_PHASE_2C_SKIP_RENDER_CHECK", raising=False)
+    sleep_calls: list[float] = []
+
+    async def _fake_sleep(seconds: float) -> None:
+        sleep_calls.append(seconds)
+
+    monkeypatch.setattr(feas, "phase_2c_retry_sleep", _fake_sleep)
 
     fake_browser = _FakePlaywrightBrowser(
         _FakePlaywrightPage(body="page loaded but seeded payload absent")
@@ -3435,6 +3461,7 @@ def test_render_check_failing_marks_render_unverified(tmp_path, monkeypatch):
     assert error["kind"] == "render_unverified"
     assert "render_evidence" in error
     assert error["render_evidence"]["kind"] == "render_unverified"
+    assert sleep_calls == [feas._RENDER_UNVERIFIED_RETRY_DELAY_S]
 
 
 def test_render_check_skipped_via_env_var_omits_render_fields(tmp_path, monkeypatch):
@@ -3720,7 +3747,7 @@ def test_render_unverified_retries_once_after_short_sleep(tmp_path, monkeypatch)
     async def _fake_sleep(seconds: float) -> None:
         sleep_calls.append(seconds)
 
-    monkeypatch.setattr(feas.asyncio, "sleep", _fake_sleep)
+    monkeypatch.setattr(feas, "phase_2c_retry_sleep", _fake_sleep)
 
     _patch_apply_with_metadata(monkeypatch, ["http://shop.example/catalog/product/view/id/67"])
     tasks_path = _write_tasks(tmp_path, [_shopping_review_task()])
@@ -3756,7 +3783,7 @@ def test_render_unverified_retry_respects_final_miss(tmp_path, monkeypatch):
     async def _fake_sleep(seconds: float) -> None:
         return None
 
-    monkeypatch.setattr(feas.asyncio, "sleep", _fake_sleep)
+    monkeypatch.setattr(feas, "phase_2c_retry_sleep", _fake_sleep)
 
     _patch_apply_with_metadata(monkeypatch, ["http://shop.example/catalog/product/view/id/67"])
     tasks_path = _write_tasks(tmp_path, [_shopping_review_task()])
@@ -3772,8 +3799,3 @@ def test_render_unverified_retry_respects_final_miss(tmp_path, monkeypatch):
     assert len(report.infeasible) == 1
     error = report.infeasible[0]["feasibility"]["errors"][0]
     assert error["kind"] == "render_unverified"
-
-
-def test_render_unverified_retry_delay_constant_is_three_seconds():
-    assert feas._RENDER_UNVERIFIED_RETRY_DELAY_S == 3.0
-    assert feas._RENDER_UNVERIFIED_KIND == "render_unverified"

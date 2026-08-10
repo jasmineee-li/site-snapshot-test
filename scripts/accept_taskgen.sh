@@ -161,7 +161,7 @@ case "$lane" in
             cd "$PACKAGE_DIR"
             "$PACKAGE_DIR/scripts/lib/run_silent.sh" \
                 "core pytest parallel" \
-                "uv run pytest -q -n auto --dist worksteal --ignore tests/test_remote_job_scripts.py"
+                "uv run pytest -q -n 4 --dist worksteal --ignore tests/test_remote_job_scripts.py --ignore tests/test_remote_job_decisions.py"
         )
         ;;
     "$LANE_REMOTE_JOB_TESTS")
@@ -169,7 +169,7 @@ case "$lane" in
             cd "$PACKAGE_DIR"
             "$PACKAGE_DIR/scripts/lib/run_silent.sh" \
                 "remote-job pytest parallel" \
-                "uv run pytest -q -n auto --dist load tests/test_remote_job_scripts.py"
+                "uv run pytest -q -n 4 --dist load tests/test_remote_job_scripts.py tests/test_remote_job_decisions.py"
         )
         ;;
 esac

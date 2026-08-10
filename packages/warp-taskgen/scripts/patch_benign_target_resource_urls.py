@@ -24,7 +24,7 @@ import json
 import sys
 from pathlib import Path
 
-from worldsim.phase_2.runner import _PHASE_2A_SYNTHETIC_PLACEHOLDERS
+from worldsim.phase_2.target_resolution.constants import PHASE_2A_SYNTHETIC_PLACEHOLDERS
 from worldsim.phase_2.target_resolution.reconstruction import _reconstruct_start_url_from_anchors
 
 
@@ -62,7 +62,7 @@ def main(argv: list[str]) -> int:
             skipped += 1
             continue
         reconstructed = _reconstruct_start_url_from_anchors(
-            site_kind, kind, anchors, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
+            site_kind, kind, anchors, PHASE_2A_SYNTHETIC_PLACEHOLDERS
         )
         if reconstructed and reconstructed != resource.get("start_url_resolved"):
             resource["start_url_resolved"] = reconstructed

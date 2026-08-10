@@ -69,6 +69,9 @@ from worldsim.phase_2.target_resolution.runner import (
     derive_benign_target_resource,
     resolve_tasks,
 )
+from worldsim.phase_2.target_resolution.constants import (
+    PHASE_2A_SYNTHETIC_PLACEHOLDERS as _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
+)
 from worldsim.phases.phase_2_text_fill import (
     DEFAULT_TEXT_FILL_CONCURRENCY,
     DEFAULT_TEXT_FILL_MODEL,
@@ -151,14 +154,6 @@ _L4_LISTING_KINDS = frozenset(
         "gitlab_dashboard_list",
     }
 )
-_PHASE_2A_SYNTHETIC_PLACEHOLDERS: dict[str, str] = {
-    "__GITLAB__": "https://gitlab.local",
-    "__REDDIT__": "https://reddit.local",
-    "__SHOPPING__": "https://shopping.local",
-    "__SHOPPING_ADMIN__": "https://shopping-admin.local",
-    "__WIKIPEDIA__": "https://wikipedia.local",
-    "__MAP__": "https://map.local",
-}
 _FRAMINGS = (
     "authority",
     "urgency",
