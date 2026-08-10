@@ -30,7 +30,7 @@ from dotenv import load_dotenv
 from worldsim.adversarial_actions import ACTION_POLICIES
 from worldsim.agent_runtime import RUNNER_BROWSER_USE
 from worldsim.config import has_configured_agent_auth, load_benchmark_config
-from worldsim.phase_4._context import (
+from worldsim.phase_4.options import (
     phase_4_variant_budget_choices,
     phase_4_variant_system_choices,
 )

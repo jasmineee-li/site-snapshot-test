@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -20,6 +21,14 @@ def _base_env(repo_root: Path, tmp_path: Path) -> dict[str, str]:
 def _write_executable(path: Path, body: str) -> None:
     path.write_text(body)
     path.chmod(0o755)
+
+
+def _install_remote_process_group_helper(remote_dir: Path) -> None:
+    source = Path(__file__).resolve().parents[1] / "scripts" / "remote_job_process_group.py"
+    target = remote_dir / "scripts" / source.name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, target)
+    target.chmod(source.stat().st_mode & 0o777)
 
 
 def _host_config(tmp_path: Path) -> Path:
@@ -469,6 +478,7 @@ def test_start_rejects_shell_wrapped_resume_with_saved_smoke_instances_on_remote
     host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
     remote_dir = tmp_path / "remote" / "browser-sim"
     (remote_dir / "logs").mkdir(parents=True)
+    _install_remote_process_group_helper(remote_dir)
     (remote_dir / "logs" / "pipeline_state.json").write_text(
         json.dumps({"step": "phase_4", "instances_path": "instances.smoke.json"}),
         encoding="utf-8",
@@ -523,6 +533,7 @@ def test_start_rejects_shell_phase4_with_inline_state_dir_without_expected_outpu
     host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
     remote_dir = tmp_path / "remote" / "browser-sim"
     remote_dir.mkdir(parents=True)
+    _install_remote_process_group_helper(remote_dir)
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
     _write_executable(
@@ -609,6 +620,7 @@ def test_start_allows_chained_phase0_smoke_and_phase2_scale_topology(
     host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
     remote_dir = tmp_path / "remote" / "browser-sim"
     remote_dir.mkdir(parents=True)
+    _install_remote_process_group_helper(remote_dir)
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
     _write_executable(
@@ -659,6 +671,7 @@ def test_start_exports_orchestrator_host_to_remote_job_env(tmp_path: Path) -> No
     host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
     remote_dir = tmp_path / "remote" / "browser-sim"
     remote_dir.mkdir(parents=True)
+    _install_remote_process_group_helper(remote_dir)
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
     _write_executable(
@@ -837,6 +850,7 @@ def test_start_allows_chained_phase1_novel_with_explicit_benchmark(
     host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
     remote_dir = tmp_path / "remote" / "browser-sim"
     remote_dir.mkdir(parents=True)
+    _install_remote_process_group_helper(remote_dir)
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
     _write_executable(
@@ -928,6 +942,7 @@ def test_start_allows_chained_phase2_and_phase3_with_matching_origin(
     host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
     remote_dir = tmp_path / "remote" / "browser-sim"
     remote_dir.mkdir(parents=True)
+    _install_remote_process_group_helper(remote_dir)
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
     _write_executable(
@@ -1314,6 +1329,7 @@ def test_start_allows_phase4_with_scale_instances_and_task_timeout(
     host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
     remote_dir = tmp_path / "remote" / "browser-sim"
     remote_dir.mkdir(parents=True)
+    _install_remote_process_group_helper(remote_dir)
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
     _write_executable(
@@ -1367,6 +1383,7 @@ def test_start_allows_scale_instances_on_remote_orchestrator_host(tmp_path: Path
     host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
     remote_dir = tmp_path / "remote" / "browser-sim"
     remote_dir.mkdir(parents=True)
+    _install_remote_process_group_helper(remote_dir)
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
     _write_executable(
@@ -1417,6 +1434,7 @@ def test_start_writes_remote_metadata_with_fake_ssh(tmp_path: Path) -> None:
     host_config = _host_config(tmp_path)
     remote_dir = tmp_path / "remote" / "browser-sim"
     remote_dir.mkdir(parents=True)
+    _install_remote_process_group_helper(remote_dir)
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
     _write_executable(
@@ -1482,6 +1500,7 @@ def test_start_auto_wraps_uv_command_in_login_shell(tmp_path: Path) -> None:
     host_config = _host_config(tmp_path)
     remote_dir = tmp_path / "remote" / "browser-sim"
     remote_dir.mkdir(parents=True)
+    _install_remote_process_group_helper(remote_dir)
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
     _write_executable(
@@ -1542,6 +1561,7 @@ def test_start_records_child_launch_failure_with_fake_ssh(tmp_path: Path) -> Non
     host_config = _host_config(tmp_path)
     remote_dir = tmp_path / "remote" / "browser-sim"
     remote_dir.mkdir(parents=True)
+    _install_remote_process_group_helper(remote_dir)
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
     _write_executable(

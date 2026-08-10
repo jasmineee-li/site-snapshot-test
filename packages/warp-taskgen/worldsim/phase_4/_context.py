@@ -20,6 +20,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
+
 import requests
 from worldsim import outcome_taxonomy
 from worldsim.agent_auth import resolve_agent_auth_headers
@@ -136,6 +137,20 @@ from worldsim.task_reset_cache import (
     result_likely_mutated_state,
 )
 from worldsim.trajectory import save_result
+from worldsim.phase_4.options import (
+    ADAPTIVE_VARIANT_BUDGET as _ADAPTIVE_VARIANT_BUDGET,
+    DEFAULT_PHASE_4_EVAL_AWARENESS_MAX_ITERATIONS as _DEFAULT_PHASE_4_EVAL_AWARENESS_MAX_ITERATIONS,
+    DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET as _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
+    DEFAULT_PHASE_4_VARIANT_SYSTEM as _DEFAULT_PHASE_4_VARIANT_SYSTEM,
+    PHASE_4_EVAL_AWARENESS_ITERATOR_VERSION as _PHASE_4_EVAL_AWARENESS_ITERATOR_VERSION,
+    PHASE_4_VARIANT_BUDGET_PRESETS as _PHASE_4_VARIANT_BUDGET_PRESETS,
+    PHASE_4_VARIANT_SYSTEMS as _PHASE_4_VARIANT_SYSTEMS,
+    normalize_eval_awareness_max_iterations as _normalize_eval_awareness_max_iterations,
+    normalize_phase_4_variant_system as _normalize_phase_4_variant_system,
+    phase_4_variant_budget_choices,
+    phase_4_variant_budget_shape as _phase_4_variant_budget_shape,
+    phase_4_variant_system_choices,
+)
 
 logger = logging.getLogger(__name__)
 _CHECKPOINT_FINGERPRINT_KEY = "_source_fingerprint"
@@ -264,49 +279,6 @@ _RESET_MAX_RETRIES = 2
 _RESET_RETRY_DELAY = 10
 
 _VARIANT_ROUNDS_KEY = "variant_rounds"
-_PHASE_4_VARIANT_SYSTEMS: tuple[str, ...] = (
-    "eval-awareness-iterator",
-    "strategy-variation",
-    "none",
-)
-_DEFAULT_PHASE_4_VARIANT_SYSTEM = "eval-awareness-iterator"
-_DEFAULT_PHASE_4_EVAL_AWARENESS_MAX_ITERATIONS = 3
-_PHASE_4_EVAL_AWARENESS_ITERATOR_VERSION = "eval-awareness-iterator-v1"
-_ADAPTIVE_VARIANT_BUDGET = (3, 3, 1)
-_PHASE_4_VARIANT_BUDGET_PRESETS: dict[str, tuple[int, ...]] = {
-    "adaptive-3-3-1": _ADAPTIVE_VARIANT_BUDGET,
-    "smoke-3-probe": (3,),
-}
-_DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET = "adaptive-3-3-1"
-
-
-def phase_4_variant_budget_choices() -> tuple[str, ...]:
-    return tuple(_PHASE_4_VARIANT_BUDGET_PRESETS)
-
-
-def phase_4_variant_system_choices() -> tuple[str, ...]:
-    return _PHASE_4_VARIANT_SYSTEMS
-
-
-def _normalize_phase_4_variant_system(value: str | None) -> str:
-    normalized = (value or _DEFAULT_PHASE_4_VARIANT_SYSTEM).strip()
-    if normalized in _PHASE_4_VARIANT_SYSTEMS:
-        return normalized
-    return _DEFAULT_PHASE_4_VARIANT_SYSTEM
-
-
-def _normalize_eval_awareness_max_iterations(value: int | None) -> int:
-    if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
-        return value
-    return _DEFAULT_PHASE_4_EVAL_AWARENESS_MAX_ITERATIONS
-
-
-def _phase_4_variant_budget_shape(preset: str | None) -> tuple[int, ...]:
-    normalized = (preset or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET).strip()
-    return _PHASE_4_VARIANT_BUDGET_PRESETS.get(
-        normalized,
-        _PHASE_4_VARIANT_BUDGET_PRESETS[_DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET],
-    )
 
 
 def install_context(namespace: dict[str, object]) -> None:
