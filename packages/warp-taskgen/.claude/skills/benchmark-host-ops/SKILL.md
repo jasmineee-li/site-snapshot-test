@@ -1,46 +1,22 @@
 ---
 name: benchmark-host-ops
-description: Operational reference for WARP Taskgen benchmark hosts — nginx reverse-proxy deployment (scripts/deploy_benchmark_proxy.sh, check_proxy_drift.sh), fresh-host bootstrap (scripts/setup_phase4_on_host.sh), chrome-headless-shell Docker requirements for PVPO rigor runs, and the GitLab external_url workaround. Use whenever the user works on the current EC2/r8a benchmark host, deploys or debugs the nginx proxy, sees 502/403 errors from benchmark sites, mentions gitlab.rb / external_url drift, asks about chrome-headless-shell / beginFrame / pvpo_cdp_url, wants to run setup_phase4_on_host.sh, or prepares a Phase 4 rigor run — even if they don't explicitly name the skill. Also invoke for questions about the proxy token (X-Worldsim-Token), port offset scheme, ProxyingHTTPAdapter's Location-rewrite, or why the proxy config must be generated from the script and never hand-edited.
+description: Model-invoked router for WARP Taskgen host lifecycle and remote runs. Use for r8a host setup, host-config and topology selection, proxy deployment or drift, remote_job_start/status/tail, sync_to_host, SSH/SSM launch issues, storage_state or evaluator preflight, and choosing smoke versus scale instances. Use the Phase 4 skill for PVPO, gate routing, TP/VEA, iterator, or judge semantics.
 ---
 
 # Benchmark host operations
 
-Everything here is ops plumbing. The WARP Taskgen orchestrator connects to pre-running benchmark instances supplied by the user; this skill covers *how those instances get stood up and kept healthy* on the selected AWS host, and how the orchestrator reaches them securely.
+Use the canonical operational docs; this skill contains routing only.
 
-| Topic | When to consult | File |
-|---|---|---|
-| nginx proxy deployment, drift detection, GitLab `external_url` handling | Running `deploy_benchmark_proxy.sh` / `check_proxy_drift.sh`, debugging 502/403 from the proxy, changing port maps or auth tokens | `references/proxy-deployment.md` |
-| Fresh-host bootstrap sequence | First time setting up the current r8a instance, re-running after a wipe, debugging a failed preflight | `references/fresh-host-bootstrap.md` |
-| chrome-headless-shell container + beginFrame | Running PVPO with non-zero coverage, debugging `max_coverage=0` on every trajectory, touching `worldsim/docker/chrome-headless-shell.Dockerfile` | `references/rigor-containers.md` |
+- Read `agent_docs/remote-runs.md` for r8a lifecycle, host-local topology, proxy, locality, remote jobs, artifact handoff, and long-run monitoring.
+- Read `agent_docs/verification.md` for preflight, live-gate selection, quiet wrappers, and required evidence.
+- Read `agent_docs/secrets.md` before changing credentials, tokens, or auth wiring.
+- Inspect the script `--help` and selected host YAML before assuming a flag or field; generated instance, compose, and proxy files are host-local.
 
-## Invariants
+Current routing facts:
 
-**Source of truth for the nginx config is `scripts/deploy_benchmark_proxy.sh::generate_nginx_config()`.** Never hand-edit `/etc/nginx/conf.d/worldsim-proxy.conf` on the host. The script is in-repo and versioned; hand edits survive until the next instance rebuild and then silently vanish. Verify parity with `scripts/check_proxy_drift.sh`; pass `--verify-runtime` to additionally confirm nginx has actually loaded the on-disk config (runs `nginx -t`, checks `systemctl is-active nginx`, compares oldest worker PID start-time vs config mtime, and greps error.log for recent `[emerg]`).
+- `r8a` is the active paper-facing scale/smoke host; use the ignored operator config and generated topology for that host.
+- Modal Phase 0c uses smoke/public or proxied instances; on-host Phase 2c and Phase 4 use scale/orchestrator instances.
+- `sync_to_host.sh` deploys an accepted checkout; package source on `origin/main` remains authoritative.
+- Phase 4 PVPO is runner-owned, page-surface-stable capture; no separate browser endpoint or container is part of the active path.
 
-**Rigor runs need the chrome-headless-shell container.** `HeadlessExperimental.beginFrame` is unsupported on native macOS Chrome builds; without the container, PVPO capture falls back to zero coverage per step, every trajectory routes to placement-fix, and results are useless for rigor analysis. Each Phase 4 execution instance carries its own `pvpo_cdp_url` (typically `127.0.0.1:9222`, `127.0.0.1:9223`, …). Browser-Use connects to the instance-bound endpoint, not a shared one.
-
-**Fresh hosts must pass preflight before a Phase 4 launch.** `scripts/setup_phase4_on_host.sh` step 7 runs `pytest -m preflight tests/preflight` and proves: every configured PVPO CDP endpoint is reachable and uniquely assigned, gitlab Phase 0d `storage_state` exists with non-empty cookies, and the `warp-taskgen-webarena-verified` evaluator venv resolves. Skipping preflight is the failure mode that ate most of 2026-04-20.
-
-## Script index
-
-| Script | Purpose |
-|---|---|
-| `scripts/bootstrap_r8a.sh` | Current r8a bootstrap — audit the control plane, generate topology, preflight security groups, and start env-ctrl. |
-| `scripts/deploy_benchmark_proxy.sh` | Generate + install nginx proxy config with token auth on offset ports. `--via-ssm` supported for SSH-blocked SGs. |
-| `scripts/check_proxy_drift.sh` | Diff on-host nginx config against what the script would generate. `--verify-runtime` adds runtime checks. |
-| `scripts/deploy_proxy_r8a.sh` | Audited wrapper for current r8a proxy deploys. |
-| `scripts/setup_phase4_on_host.sh` | Idempotent fresh-host → Phase-4-ready. Bundles uv/venvs, Playwright deps, pvpo-chrome container, artifact sync, storage_state mint, preflight gate. |
-| `scripts/preflight_host_config.py` | Validates a `configs/benchmark_hosts/*.yaml` file. |
-| `scripts/preflight_security_group.py` | Validates the EC2 SG has the right ports open. |
-| `scripts/nightly_feasibility_check.sh` | Scheduled job — re-runs Phase 2c against a live host and alerts on drift. |
-
-## Configuration layout
-
-- `configs/benchmark_hosts/*.yaml` — sanitized templates plus ignored local operator configs (for example `r8a.local.yaml`). Holds `HOST_IP`, `orchestrator_host`, `instances_file`, etc.
-- `scripts/proxy_ports.conf` — site-to-port mapping the proxy reads. Format: `name:real_port:proxy_port`.
-- `instances*.json` — the `BenchmarkConfig` the orchestrator reads: per-instance `{site_url, reset_endpoint, db_connection?}`.
-- `.proxy_token` — generated by `deploy_benchmark_proxy.sh`; mounted on each instance config as the `X-Worldsim-Token` header value. Do not commit.
-
-## WASP-aligned scope reminder
-
-As of 2026-04-21, v5 only runs against **GitLab issues/comments and Reddit (Postmill) posts/comments**. Magento, Wikipedia, OpenStreetMap, and classifieds are out of scope. Any setup work for those sites is deferred — if a script still has Magento code paths (e.g., `fix_magento_base_url.sh` on older checkouts), that's archaeology, not live ops.
+Completion check: the selected host config, locality-specific instances file, expected artifact source, and verification command are explicit before a remote job starts.

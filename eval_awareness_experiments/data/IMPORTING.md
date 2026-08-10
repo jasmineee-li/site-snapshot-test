@@ -2,6 +2,9 @@
 
 Instructions for extracting website data from each benchmark source into the standardized format.
 
+Run commands from the repository root in the locked `uv` environment described
+by `eval_awareness_experiments/SETUP.md`.
+
 Each source produces per-environment directories containing `{page}.html`, `{page}.png`, and `{page}_axtree.txt` files, plus a manifest entry in `data/manifest.json`.
 
 ## WebArena-Infinity
@@ -18,10 +21,10 @@ Currently configured for extraction: `gmail`, `gmail-accounts-and-contacts`, `gi
 **Run extraction:**
 ```bash
 # All configured apps
-conda run -n worldsim python -m eval_awareness_experiments.extract_webarena_infinity
+uv run python -m eval_awareness_experiments.extract_webarena_infinity
 
 # Specific apps
-conda run -n worldsim python -m eval_awareness_experiments.extract_webarena_infinity --apps gmail,paypal-my-wallet
+uv run python -m eval_awareness_experiments.extract_webarena_infinity --apps gmail,paypal-my-wallet
 ```
 
 **Adding a new app:**
@@ -47,15 +50,18 @@ conda run -n worldsim python -m eval_awareness_experiments.extract_webarena_infi
 
 Scraped from live websites using Playwright.
 
+Use only read-only public pages. Do not authenticate, submit forms, mutate
+state, or capture private data.
+
 ```bash
 # All presets (github, gitlab, paypal)
-conda run -n worldsim python -m eval_awareness_experiments.scraper
+uv run python -m eval_awareness_experiments.scraper
 
 # Specific presets
-conda run -n worldsim python -m eval_awareness_experiments.scraper --presets github,gitlab
+uv run python -m eval_awareness_experiments.scraper --presets github,gitlab
 
 # Single URL
-conda run -n worldsim python -m eval_awareness_experiments.scraper --url https://example.com --name example_home
+uv run python -m eval_awareness_experiments.scraper --url https://example.com --name example_home
 ```
 
 See `PRESET_URLS` in `scraper.py` to add new presets.
@@ -65,7 +71,7 @@ See `PRESET_URLS` in `scraper.py` to add new presets.
 Extracted from browser-sim `results/` directory. These are LLM-generated web pages from the redteam pipeline.
 
 ```bash
-conda run -n worldsim python -m eval_awareness_experiments.extract_worldsim --results-dir results/ --output eval_awareness_experiments/data/worldsim
+uv run python -m eval_awareness_experiments.extract_worldsim --results-dir results/ --output eval_awareness_experiments/data/worldsim
 ```
 
 ## TheAgentCompany (TAC)

@@ -48,11 +48,12 @@ Current and target ownership should stay explicit:
   final-state compilers, and reward introspection. Keep the old
   `compiler.py` import surface as a facade while migrating callers to the
   behavior-owned modules.
-- Phase 0c profile rigor is split by behavior: `phase_0_recon.py` remains the
-  compatibility runner, `phase_0_evidence_index.py` owns neutral source indexes,
-  `phase_0c_artifacts.py` owns provenance/reuse/trace artifacts, and
-  `phase_0c_audit.py` owns deterministic host audits. Do not move these
-  concerns into Modal sandbox setup; `modal_sandbox.py` stays an
+- Phase 0c profile rigor is split by behavior:
+  `worldsim/phases/phase_0_recon.py` remains the compatibility runner,
+  `worldsim/phases/phase_0_evidence_index.py` owns neutral source indexes,
+  `worldsim/phases/phase_0c_artifacts.py` owns provenance/reuse/trace artifacts,
+  and `worldsim/phases/phase_0c_audit.py` owns deterministic host audits. Do not
+  move these concerns into Modal sandbox setup; `modal_sandbox.py` stays an
   infrastructure-only runner.
 - `worldsim.seed_contracts`: shared seed/editor-call contract behavior used by
   Phase 2, Phase 4, seeding, and sandbox validation. This package must preserve
@@ -105,8 +106,8 @@ Keep pytest tests under top-level `tests/`, mirrored by domain where practical:
 - `tests/phase_2/`
 - `tests/phase_4/`
 - `tests/seed_contracts/`
-- `tests/browser_use/`
-- `tests/sandbox_validator/`
+- `tests/test_browser_use_agent.py` and other Browser Use-focused files
+- `tests/test_sandbox_validator.py`
 
 Tests may import feature-private helpers when those helpers encode important
 contracts, but they should import them from the owning feature package rather

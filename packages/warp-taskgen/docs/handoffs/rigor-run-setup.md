@@ -4,6 +4,9 @@ One-page reference for going from a fresh EC2 host to a Phase 4 rigor run.
 Codifies the manual r5 setup from 2026-04-20 while making r8a the canonical
 host-config-driven path for current runs.
 
+Run relative commands from the canonical package root (`/srv/warp-taskgen` on
+the selected host) unless a step names another directory.
+
 The tracked `configs/benchmark_hosts/r8a.yaml` is a sanitized public template.
 Copy it to the ignored `configs/benchmark_hosts/r8a.local.yaml`, fill in the
 selected host values locally, and use that explicit path for real operations.
@@ -303,7 +306,7 @@ Failure recovery:
 
 | check | failure remediation |
 |---|---|
-| `logs/phase_0d/gitlab/storage_state.json` has cookies | rerun `login_gitlab_r5.py` or setup step 6 |
+| `logs/phase_0d/gitlab/storage_state.json` has cookies | rerun setup step 6 with `scripts/setup_phase4_on_host.sh` |
 | evaluator venv imports `webarena_verified` | rerun setup step 1 |
 
 If preflight fails, the bash orchestrator exits non-zero and nothing is
@@ -363,7 +366,6 @@ double-check the slug against the provider's current catalog.
   (default is repo-relative
   `packages/warp-taskgen-webarena-verified/.venv/bin/python`).
 - `WORLDSIM_AUTO_MINT_STORAGE_STATE` — opt non-WebArena-Verified benchmarks in to runtime auto-heal. `true` is implicit for WebArena Verified.
-- `GITLAB_HOST` / `GITLAB_STORAGE_STATE_PATH` — override defaults for `scripts/login_gitlab_r5.py`.
 - `WORLDSIM_REPO_ROOT` — override sentinel-walk repo discovery.
 - `WORLDSIM_BENCHMARK_ROOT`, override the WebArena Verified checkout used by
   `scripts/setup_phase4_on_host.sh` (default `/srv/warp-taskgen/vendors/webarena-verified`).
