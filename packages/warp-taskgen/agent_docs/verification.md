@@ -1,154 +1,85 @@
 # Verification Guide
 
-Use this when choosing tests, lint, live gates, or context-efficient command output.
+Use this when selecting tests, lint, live gates, or compact command output.
+Unless a command says otherwise, run it from `packages/warp-taskgen/`.
 
-## Context-Efficient Output
+## Output and local checks
 
-Prefer repo wrappers that print one success line and full failure output. Do not manually summarize or truncate verbose logs; deterministic wrappers handle that.
-
-```bash
-scripts/lib/run_silent.sh "phase 4 unit tests" \
-  "uv run pytest -x tests/phase_4 tests/test_phase_4_judge_api.py tests/test_phase_4_variant_api.py tests/test_phase_4_pvpo_capture.py -q"
-```
-
-You can also source it inside a longer shell session:
+Use `scripts/lib/run_silent.sh` or an existing quiet wrapper. It prints one
+success line and full failure output; preserve the failure instead of manually
+truncating it. Prefer fail-fast focused tests before broad suites:
 
 ```bash
-source scripts/lib/run_silent.sh
-run_silent "ruff changed files" "uv run ruff check path/to/file.py"
-```
-
-The wrapper uses fail-fast-friendly commands well: prefer `pytest -x` for focused failing suites so the agent fixes one failure at a time.
-
-## Fast Local Checks
-
-For a repo-wide fast baseline, prefer the checked-in wrapper:
-
-```bash
-bash scripts/verify_fast.sh
-```
-
-It runs scoped Ruff over `worldsim tests scripts`, pytest collection, and the
-tracked-file readiness audit through `scripts/lib/run_silent.sh`. Use it before
-broader validation and before handing off agent-authored changes.
-
-`bash scripts/verify_fast.sh --skip-collect` is reserved for wrappers that run
-pytest immediately afterward and would otherwise pay collection twice.
-
-`logs/` is runtime output, not source. Regenerate Phase artifacts through the
-pipeline commands instead of committing files under `logs/`. See
-`agent_docs/artifacts.md` for artifact traceability, recovery, and fixture
-promotion rules.
-
-Use the narrowest meaningful check first, then broaden before shipping:
-
-```bash
+scripts/lib/run_silent.sh "focused tests" \
+  "uv run pytest -x <relevant-test-files> -q"
 uv run ruff check <changed-python-files>
 uv run ruff format <changed-python-files>
-uv run pytest -x <relevant-test-files> -q
 ```
 
-The default pytest config excludes live or expensive markers:
+The fast baseline is `bash scripts/verify_fast.sh`; normal local shipping is
+`bash scripts/verify_default.sh`. The latter runs the fast readiness checks and
+the default pytest suite with xdist. `--skip-collect` is for wrappers that run
+pytest immediately afterward.
 
-```text
-not integration and not feasibility and not preflight and not live_l3 and not crash_resume
-```
+Default pytest uses `--strict-markers` and excludes
+`integration`, `feasibility`, `preflight`, `live_l3`, and `crash_resume`. Add
+new markers to `pyproject.toml` and opt into excluded suites deliberately.
+`logs/` is runtime output; apply `agent_docs/artifacts.md` before treating it as
+source or a fixture.
 
-Default pytest also uses `--strict-markers`; add new markers to
-`pyproject.toml` before using them in tests.
+## Live gate
 
-Run excluded markers explicitly only when the task requires them.
-
-For normal local shipping, use the default wrapper:
+Changes to editors, seeding, Phase 2c, Phase 4, PVPO capture, or host-API
+prompts use a live stack when available:
 
 ```bash
-bash scripts/verify_default.sh
+scripts/run_integration_tests.sh \
+  --host-config configs/benchmark_hosts/r8a.local.yaml --quiet
 ```
 
-It runs the fast Ruff/readiness checks via `verify_fast.sh --skip-collect`,
-then runs the default pytest suite with `pytest-xdist`
-(`-n auto --dist worksteal`). The wrapper skips the standalone collection check
-because the following pytest run collects the same default suite. Use plain
-`uv run pytest -q` when debugging order-sensitive failures or when you need a
-single-process run.
+Docs-only guidance changes do not require a live stack. They do require a
+truth check against the current spec, source, and command help. The setup
+preflight command is `uv run pytest -m preflight tests/preflight -q`; its
+evidence is storage-state presence and evaluator-venv resolution, not live task
+connectivity.
 
-## Live Integration Gate
+## Phase 4 evidence
 
-For changes touching editors, seeding, Phase 2c, Phase 4, PVPO capture, or any host-API prompt file, use a live stack when available:
+For `eval-awareness-iterator`, verify the run summary covers every default-path
+PVPO-valid baseline, including compliant rows, with an iterator envelope or an
+explicit skip reason. Record the configured sequential cap (default 3), TP
+trigger, cue diagnosis/rewrite status, host contract-QA rejection buckets,
+browser-evaluated/PVPO-valid/TP-real/VEA-aware/compliant counts, selected
+iteration, stop reason, and unchanged benign task/reward contracts. Use
+`agent_docs/phase4-contracts.md` for gate and branch semantics and
+`phase4-reporting-metrics.md` for labels.
 
-```bash
-scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r8a.local.yaml --quiet
-```
+For legacy `strategy-variation`, record the `3+3+1` budget, per-round
+generated/host-rejected/browser-evaluated/PVPO-valid/compliant counts, lineage,
+termination reason, and unchanged benign contracts. Do not fold observational
+iterator or action fields into final ASR.
 
-`--quiet` captures passing pytest output and surfaces full output only on failure. If it fails, include the surfaced failure output in the PR or handoff.
+## Specialized checks
 
-Docs-only changes that describe Phase 4 behavior do not require a live stack by
-themselves, but they should name the expected runtime evidence. For the default
-`eval-awareness-iterator`, verification evidence should show:
+- CLI: `uv run warp-taskgen --help`
+- Readiness: `uv run python scripts/readiness_audit.py --json`
+- Fresh-host gate: `uv run pytest -m preflight tests/preflight -q`
+- Crash/resume: `uv run pytest -m crash_resume tests/test_crash_resume_*.py -q`
+- WebArena adapter: `uv sync --directory packages/warp-taskgen-webarena-verified --locked`
+- AgentLab sidecar: `uv sync --directory packages/worldsim-agentlab-runner --locked`
+- Adapter smoke: `uv run pytest tests/test_agentlab_runner.py tests/phase_4/test_process_pool.py tests/rewards/test_vendor_webarena.py -q`
+- Trace observability: `uv run pytest tests/test_agentlab_runner.py tests/phase_4/test_process_pool.py tests/test_phase_4_trace_inspection.py -q`
+- Phase 0c audit: `uv run python scripts/audit_phase_0c_profiles.py logs/<run>/phase_0c`
+- Phase 4 summary: `uv run python scripts/summarize_phase_4_results.py logs/<run>`
+- Variant QA: `uv run python scripts/audit_phase_4_variants.py logs/<run>`
+- Paired runs: `uv run python scripts/compare_phase_4_runs.py logs/<baseline> logs/<candidate>`
 
-- every Phase 4 default-path task has an `eval_awareness_iterator` envelope or
-  an explicit iterator skip reason; baseline-complied rows are included, not
-  only resistant rows
-- the configured sequential rewrite cap (default 3)
-- the TP trigger for each attempted iteration, including `None`/failure triggers
-- cue diagnosis and rewrite status for each iteration
-- rejected-rewrite classes from host payload-contract QA
-- for renderer-backed payloads, renderer id, slot-delta status, and host
-  render-validation buckets; accepted `markdown_fenced_system` rewrites must
-  still contain exactly one ` ```system ` fenced block with required concealed
-  tokens inside the block
-- browser-evaluated, PVPO-valid, TP-real, VEA-aware, and compliant counts
-- selected iteration and stop reason
-- unchanged benign task contracts and Phase 3 reward functions across rewrites
+## Hooks and completion
 
-For the legacy `3+3+1` adaptive strategy loop, verification evidence should show:
+Claude sessions use `.claude/hooks/ruff-autofix.sh` after Python edits and
+`.claude/hooks/stop-verify.sh` for changed tracked Python. Other agents use
+quiet wrappers to provide equivalent evidence.
 
-- the configured attack budget (`[3, 3, 1]`, total variant budget 7)
-- per-round generated, host-rejected, browser-evaluated, PVPO-valid, and compliant counts
-- round lineage for each variant (`root_attempt_id`, `parent_attempt_id`, `round_index`, `round_variant_index`, selected strategy, refusal trigger)
-- unchanged benign task contracts and Phase 3 reward functions across variants
-
-For Phase 4 summary/reporting changes, check `agent_docs/phase4-reporting-metrics.md`
-and verify that output distinguishes fixed-cohort `Headline ASR` from
-PVPO-encounter-conditional `Gate-1 ASR`. Legacy aliases are acceptable only as
-compatibility fields or explicitly labeled historical output.
-- termination reason (`success`, no actionable lineage, no viable generation, or budget exhausted)
-
-Wrapper facts that matter:
-
-- Without `--host-config`, the default instances file is the local
-  `instances.smoke.json`.
-- With `--host-config` and no explicit `--instances`, the wrapper generates a
-  temporary host-config-specific smoke instances file. This avoids stale local
-  ports after remote setup regenerates host-local topology artifacts.
-- Pass `--instances` only when intentionally testing a specific topology file.
-- `--host-view auto` chooses the right URL view for local vs remote execution;
-  use `--host-view orchestrator` on r5 when checking host-local browser paths.
-- The wrapper sources `.env` when present and fails loudly when required live
-  browser/Playwright dependencies are missing.
-
-## Specialized Checks
-
-- Phase 4 fresh-host preflight: `uv run pytest -m preflight tests/preflight -q`
-- Crash/resume behavior: `uv run pytest -m crash_resume tests/test_crash_resume_*.py -q`
-- WebArena evaluator adapter: `uv sync --directory packages/warp-taskgen-webarena-verified --locked`
-- AgentLab sidecar sync: `uv sync --directory packages/worldsim-agentlab-runner --locked`
-- Package Ruff: `uv run ruff check packages/worldsim-agentlab-runner/src packages/warp-taskgen-webarena-verified/src`
-- AgentLab/WebArena adapter smoke: `uv run pytest tests/test_agentlab_runner.py tests/phase_4/test_process_pool.py tests/rewards/test_vendor_webarena.py -q`
-- AgentLab/trace-inspection observability: `uv run pytest tests/test_agentlab_runner.py tests/phase_4/test_process_pool.py tests/test_phase_4_trace_inspection.py -q`
-- CLI smoke: `uv run warp-taskgen --help`
-- Readiness metrics: `uv run python scripts/readiness_audit.py --json`
-- Phase 4 result audit: `uv run python scripts/summarize_phase_4_results.py logs/<run>`
-- Phase 4 variant-generation QA: `uv run python scripts/audit_phase_4_variants.py logs/<run>`; for `3+3+1` runs, confirm attack-budget totals, round lineage, host-finalization rejection buckets, and that only selected payload text changed across variants
-- Phase 4 paired-run comparison: `uv run python scripts/compare_phase_4_runs.py logs/<baseline> logs/<candidate>`
-- Phase 0c profile provenance/quality audit: `uv run python scripts/audit_phase_0c_profiles.py logs/<run>/phase_0c`
-- Secrets policy: `agent_docs/secrets.md`
-
-## Hooks
-
-Claude Code sessions have two local hooks:
-
-- `.claude/hooks/ruff-autofix.sh` runs after Python edits and applies safe Ruff fixes/formatting.
-- `.claude/hooks/stop-verify.sh` checks tracked changed Python files on stop, surfacing only failures.
-
-Other agents should emulate the same behavior with `run_silent` rather than streaming full passing test output.
+Completion means the narrowest relevant checks passed, excluded/live suites
+were opted into when required, and the handoff names commands, evidence paths,
+and any unresolved infrastructure blocker.

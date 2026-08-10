@@ -1,60 +1,33 @@
-# Domain Docs
+# Domain routes
 
-This is a multi-context repository.
+Use this file to route terminology and durable domain decisions. It is not a
+second implementation workflow.
 
-## Before exploring
+## Existing owners
 
-1. Read `CONTEXT-MAP.md` when it exists.
-2. Read the context document that applies to the work.
-3. Read relevant repository-wide ADRs under `docs/adr/`.
-4. Read relevant context-specific ADRs.
+- Repository purpose and released vocabulary: `README.md`.
+- Taskgen concepts and invariants: `packages/warp-taskgen/CLAUDE.md`,
+  `packages/warp-taskgen/docs/warp-taskgen-technical-spec.md`, and the relevant
+  `packages/warp-taskgen/agent_docs/` file.
+- Evaluation-awareness concepts and study design:
+  `eval_awareness_experiments/CLAUDE.md` and
+  `eval_awareness_experiments/EXPERIMENTS.md`.
+- Experiment history and result provenance:
+  `eval_awareness_experiments/experiment_log.md`.
+- Issue and triage vocabulary: `docs/agents/issue-tracker.md` and
+  `docs/agents/triage-labels.md`.
 
-If a document does not exist, continue without it. Domain documents are
-created when terminology or architectural decisions need to be recorded.
+## Vocabulary rules
 
-## Context layout
+- Use **WARP** in new prose. Keep `worldsim` when it names a legacy package,
+  schema, environment variable, or deployed identifier.
+- Use terms as defined by the owning guide or specification. Do not introduce a
+  competing synonym in issue titles, plans, tests, or architectural notes.
+- When a term is ambiguous, read the owning document and state the ambiguity
+  before proposing a new name.
 
-Repository-wide map:
+## Decision rule
 
-- `CONTEXT-MAP.md`
-
-Repository-wide decisions:
-
-- `docs/adr/`
-
-WARP Taskgen context:
-
-- `packages/warp-taskgen/CONTEXT.md`
-- `packages/warp-taskgen/docs/adr/`
-
-Evaluation-awareness context:
-
-- `eval_awareness/CONTEXT.md`
-- `eval_awareness/docs/adr/`
-
-The root map can add more contexts when a first-party area develops a distinct
-vocabulary and decision history.
-
-## Canonical Taskgen route
-
-`packages/warp-taskgen/` on current `origin/main` is the only writable Taskgen
-source. Start one short-lived topic worktree from `origin/main`, make the
-Taskgen change there, validate it from the repository root with
-`bash scripts/accept_taskgen.sh`, and open one PR to `main`. Remove the
-worktree after merge. The acceptance command is the same one used by CI; there
-is no source snapshot or sync-back step. Package `scripts/sync_to_host.sh` is
-only an operational deployment to a prepared benchmark host.
-
-## Use glossary vocabulary
-
-Use terms exactly as the relevant context document defines them. Do not replace
-a defined term with a synonym in issue titles, specifications, test names, or
-architectural proposals.
-
-If a required term is missing, do not invent a competing term. Record the gap
-for domain-modeling work.
-
-## ADR conflicts
-
-If proposed work conflicts with an ADR, identify the conflict in the issue or
-specification. Do not silently replace the earlier decision.
+Record a durable terminology or architecture decision in its owning document,
+and link the issue or PR that motivated it. If no existing owner fits, pause
+and ask for a domain-modeling decision instead of creating another glossary.

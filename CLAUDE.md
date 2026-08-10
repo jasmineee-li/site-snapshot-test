@@ -1,131 +1,64 @@
-# CLAUDE.md
+# WARP agent router
 
-Guidance for Claude Code and other agentic tools working in this repository.
-This is the public **WARP** repo: the code, benchmark, and analysis behind the
-paper "WARP: Measuring and Mitigating Evaluation Awareness in Browser-Agent
-Safety Benchmarks." Read `README.md` first for the project overview.
+This repository contains WARP, the browser-agent safety benchmark and the
+evaluation-awareness study behind it. Read `README.md` when the repository
+purpose or released artifacts matter; use the path-specific guides below for
+implementation work.
 
-## Workflow
+## Route by path first
 
-- Commit frequently and atomically. One commit per logical change, don't
-  batch unrelated edits. Commit as soon as a unit of work is complete and
-  verified, rather than accumulating diffs across a session.
-- Always `git push` after every atomic commit on a non-main branch. Durable
-  authorization: the user has pre-approved pushing here, so don't re-ask per
-  commit. Protected: never push to `main` / `master` without explicit
-  confirmation.
-- Keep edits scoped, and prefer existing patterns and helpers over new
-  abstractions.
+- For `packages/warp-taskgen/**`, read `packages/warp-taskgen/CLAUDE.md` before
+  editing. It owns Taskgen architecture, safety invariants, and verification.
+- For `eval_awareness_experiments/**`, `eval_awareness/**`, `probes/**`, or
+  `models/**`, read `eval_awareness_experiments/CLAUDE.md` first. It owns the
+  study workflow, data provenance, benchmark safety, and experiment logging.
+- For issue or specification work, read `docs/agents/issue-tracker.md`.
+- For triage decisions, read `docs/agents/triage-labels.md`.
+- For terminology or a domain decision, read `docs/agents/domain.md` and then
+  the owning path guide or specification.
+- When launching or updating an experiment, read
+  `eval_awareness_experiments/experiment_log.md` and add the new entry at the
+  top of that log.
 
-## Agent skills
+## Canonical delivery boundary
 
-### Issue tracker
+The repository-wide workflow is one focused change in one short-lived topic
+worktree from `origin/main`, delivered as one PR to `main`, then removed after
+merge. Path-specific guides own the commands, tests, and domain details; this
+file owns the one-worktree/one-PR boundary. Keep implementation and review
+scoped to the requested path. Do not create a second source snapshot or a
+sync-back workflow.
 
-Issues and specifications are tracked in GitHub Issues for `jasmineee-li/warp`.
-See `docs/agents/issue-tracker.md`.
+## Stable names and safety
 
-### Triage labels
+- Use **WARP** in new prose. Keep historical `worldsim` identifiers, schema
+  names, environment variables, and infrastructure names when compatibility
+  requires them; rename them only in explicitly scoped work.
+- Run adversarial and state-changing browser tasks only on configured sandboxed
+  benchmark infrastructure. Evaluation data collection may perform the
+  documented read-only capture of public pages; do not use it for authenticated,
+  private, destructive, or account-affecting actions.
+- Preserve benchmark admission, exposure, visibility, scoring, readback, and
+  safety checks. Treat vendored or upstream trees as read-only references unless
+  the path guide explicitly assigns a patch workflow.
+- Keep API keys and host credentials in the environment or approved local
+  configuration. Never commit secrets or paste them into logs, fixtures, or
+  experiment notes.
 
-Use the five canonical triage roles defined in
-`docs/agents/triage-labels.md`.
+## Guidance hygiene
 
-### Domain docs
+- Keep one source of truth for each rule. Do not copy package or experiment
+  command catalogs into this router; discover commands from the owning guide,
+  current environment, and each tool's `--help` output.
+- Prefer existing specs, helpers, tests, and artifact formats over new
+  abstractions. Record the evidence for completion: changed paths, validation,
+  and any unresolved blocker.
+- If a path-specific instruction conflicts with this router, stop and surface
+  the conflict before changing behavior. Keep this file stable and small so
+  nested guidance can carry branch-specific detail.
 
-This is a multi-context repository. Read `CONTEXT-MAP.md` and the relevant
-context document when they exist. Repository-wide ADRs live in `docs/adr/`.
-See `docs/agents/domain.md`.
+## Completion
 
-## Taskgen development
-
-`packages/warp-taskgen/` on current `origin/main` is the only writable Taskgen
-source. Start each change in one short-lived topic worktree:
-
-```bash
-git fetch origin main
-git worktree add .codex-worktrees/<topic> -b codex/<topic> origin/main
-```
-
-Make Taskgen edits in that worktree's `packages/warp-taskgen/`, run the same
-root command used by CI, and open one PR to `main`:
-
-```bash
-bash scripts/accept_taskgen.sh
-```
-
-The command routes unrelated changes to a successful no-op, then delegates
-package verification, builds the distribution, and smoke-tests the installed
-`warp-taskgen` console script in an isolated environment. Keep package lint and
-tests in `packages/warp-taskgen/scripts/verify_default.sh`; the root command is
-an acceptance boundary, not a second verification implementation.
-Remove the topic worktree after its PR merges. There is no source snapshot or
-sync-back step. `packages/warp-taskgen/scripts/sync_to_host.sh` is an
-operational deployment helper for prepared benchmark hosts; it does not create
-another writable Taskgen source.
-
-## Experiment log
-
-The experiment log lives in-repo (visible in PRs and clones) because the
-project has external collaborators.
-
-Path: `eval_awareness_experiments/experiment_log.md`, newest entry at the top,
-one entry per experiment (`## YYYY-MM-DD — slug`, with Type / Groups / What /
-Why / Parent / Key change / Files / Results / Notes). Add an entry when an
-experiment is launched (a plan plus empty results is fine) and update it when
-results land.
-
-## What's here
-
-The repo holds the two lines of work from the paper, plus shared infrastructure:
-
-- **`packages/warp-taskgen/`** is the WARP benchmark-generation pipeline
-  (Phases 0-4: recon, benign-task generation, adversarial-twin seeding,
-  admission, and scored rollout with the eval-awareness iterator). This is the
-  primary codebase. It has its own `CLAUDE.md` and `agent_docs/`; read those
-  before working in it.
-- **`eval_awareness/`, `eval_awareness_experiments/`, `probes/`, `models/`**
-  hold the cross-benchmark evaluation-awareness study: measuring whether
-  frontier models recognize IPI safety benchmarks (DoomArena, WASP, AgentDojo,
-  InjecAgent) as evaluations, the causal eval-cue intervention, and
-  residual-stream probes on open-weight CUA models. Start at
-  `eval_awareness_experiments/EXPERIMENTS.md`.
-- **`AgentLab/`** is vendored, read-only reference: the BrowserGym
-  `GenericAgent` harness the eval runs go through. Do not treat it as
-  first-party code and do not import from it into `warp-taskgen`; retype
-  equivalent behavior if you need it.
-- **`README.md`** front door, **`docs/`** handoff notes, **`data/`**,
-  **`results/`**, **`notebooks/`**, **`read_logs/`** tracked artifacts and
-  analysis, **`scripts/`** loose experiment tooling.
-
-## Commands
-
-The WARP pipeline is its own `uv` project:
-
-```bash
-cd packages/warp-taskgen
-uv sync --extra dev
-uv run warp-taskgen --help
-```
-
-For tests, lint, live gates, and pipeline internals, use
-`packages/warp-taskgen/CLAUDE.md` and `packages/warp-taskgen/agent_docs/`
-(`verification.md`, `domain-invariants.md`, `phase4-reporting-metrics.md`,
-`trace-inspection.md`).
-
-## Naming
-
-This project was previously **WorldSim**; public docs use **WARP**. The
-distribution, CLI, Modal app, HF dataset, and specs are all WARP-named. The
-internal Python package, the `WORLDSIM_*` env vars, schema-version constants,
-and some infra identifiers (`X-Worldsim-Token`, `worldsim-proxy.conf`)
-intentionally stay `worldsim`: renaming them would break saved artifacts,
-external runbooks, and the deployed proxy/compose stack. Use **WARP** in new
-prose; leave `worldsim` code identifiers alone unless a change is explicitly
-scoped to renaming them.
-
-## Scope and safety
-
-WARP is safety-evaluation infrastructure for browser-agent indirect prompt
-injection. Work only on repo code, generated logs/traces, and configured
-benchmark infrastructure. Do not target real services, credentials, users,
-money, or production systems; all adversarial content is scoped to sandboxed
-host-environment instances.
+Before handoff, verify the requested scope and relevant checks, then report
+the changed paths, evidence, and any blocker. A clean diff is not a substitute
+for the path guide's validation contract.

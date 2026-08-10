@@ -30,7 +30,7 @@ data/
 
 Each sample has up to 3 files with the same base name:
 - `{name}.html` — Raw HTML source
-- `{name}_axtree.json` — Accessibility tree (JSON)
+- `{name}_axtree.txt` — Accessibility tree text (ARIA snapshot)
 - `{name}.png` — Screenshot (1280x720 viewport)
 
 ## Data Collection

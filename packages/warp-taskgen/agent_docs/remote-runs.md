@@ -1,348 +1,90 @@
-# Remote Runs and Host Ops
+# Remote Runs and Host Operations
 
-Use this before fresh-host setup, benchmark proxy work, current r8a runs, Phase 4 rigor runs, or debugging live benchmark infrastructure.
+Use this before fresh-host setup, r8a work, remote jobs, proxy changes, Phase 4
+rigor runs, or live integration debugging. It is an operator route, not a
+second source for script help; use each command's `--help` for flags.
 
-## Operator Flow
+## Canonical flow
 
-Read `docs/handoffs/rigor-run-setup.md` for the full runbook. The short version:
+1. Validate the ignored operator config
+   `configs/benchmark_hosts/r8a.local.yaml` and audit the selected host.
+2. Transfer the accepted checkout with `scripts/sync_to_host.sh`; this is an
+   operational deployment, not a second writable Taskgen source.
+3. Start a named job with `scripts/remote_job_start.sh`, an explicit
+   `--state-dir`, and an `--expected-output` artifact.
+4. Watch `scripts/remote_job_status.sh` first; use
+   `scripts/remote_job_tail.sh` only after status identifies stale or failed
+   output.
+5. Stop by job id with `scripts/remote_job_stop.sh` and preserve the registry.
 
-1. Copy the sanitized r8a template to the ignored operator config `configs/benchmark_hosts/r8a.local.yaml`, then validate it.
-2. Deploy the accepted checkout with `scripts/sync_to_host.sh`. This is an operational host transfer only; source authority remains `packages/warp-taskgen/` on `origin/main`.
-3. Start long jobs with `scripts/remote_job_start.sh` and a job id.
-4. Monitor with `scripts/remote_job_status.sh` or `scripts/remote_job_tail.sh`.
-5. Stop only with `scripts/remote_job_stop.sh --job-id <id>`.
+Syncing while a registered job runs mixes checkout versions across phases.
+Use `--allow-active-jobs` only for deliberate maintenance with the provenance
+impact recorded. Keep secrets in the pushed environment, never in commands or
+shell history.
 
-Avoid raw long-lived SSH pipes for runs. Never use broad `pkill -f` to stop jobs.
-Do not sync a remote checkout while a registered job is still running. Common
-Phase 0 -> 1 -> 2 and Phase 4 commands start fresh Python processes between
-steps; syncing mid-chain can make one artifact use multiple code versions.
-`sync_to_host.sh` blocks active remote jobs by default. Use
-`--allow-active-jobs` only for deliberate maintenance after recording why mixed
-checkout provenance is acceptable.
+## Launch contract
 
-`remote_job_start.sh` normalizes common project toolchain commands such as
-`uv`, `uvx`, `pnpm`, `bun`, `npm`, `npx`, `node`, `modal`, and `claude` through
-`bash -lc` before the detached runner starts them. This makes detached jobs use
-the same login-shell PATH as an operator session and prevents false "stale"
-jobs from tools installed by shell startup files. Metadata records both
-`original_command` and normalized `command`, plus `command_execution.reason`.
-Use an explicit `bash -lc '...'` command for multi-step runs. Set
-`WORLDSIM_REMOTE_JOB_EXEC_MODE=direct` only when intentionally testing exact
-argv/PATH behavior; launch failures are written as `exit.status=launch_failed`
-and surfaced by `remote_job_status.sh`.
-
-Use `--expected-output <path>` for the artifact that proves the job did real
-work. For named Phase 1/2/3/4 runs, pass an explicit
-`--state-dir logs/<run_name>` to `remote_job_start.sh`; the wrapper currently
-sets `WORLDSIM_STATE_DIR` for the detached process, and `warp-taskgen` accepts
-`WARP_TASKGEN_STATE_DIR` as the canonical alias while preserving that legacy
-env. Do not pass `--output-dir` to `warp-taskgen phase`; the phase CLI is
-state-dir based. Use `--state-dir auto` only for isolated experiments. Push required remote environment variables with
-`scripts/remote_env_push.sh`; do not paste secrets into job commands or
-hand-written shell history.
-
-Modal-backed phases need two auth layers on remote hosts:
-
-- Provider/app secrets in the repo `.env` or pushed environment, such as
-  `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and auto-login values.
-- The Modal client token config readable by the remote `ubuntu` user, normally
-  `/home/ubuntu/.modal.toml` with mode `600`.
-
-Do not assume syncing the repo or `.env` configures the Modal client. Phase 0c
-and legacy sandbox-backed Phase 1 can pass project preflight yet still fail
-Modal image prebuild with `Token missing` if the client config is absent. Verify
-fresh hosts with a non-printing token check such as:
+The canonical selected-host shape is:
 
 ```bash
-ssh ubuntu@<host> 'cd /home/ubuntu/browser-sim && uv run python -c "from modal.config import config; raise SystemExit(0 if config.get(\"token_id\") and config.get(\"token_secret\") else 1)"'
-```
-
-r8a is the canonical scale/smoke host for current paper-facing work. Its
-canonical scale topology is 24 GitLab replicas plus 24 Reddit/Postmill
-replicas, generated from `scripts/scale_config.r8a-24x24.yml`; local ignored
-copies of `instances.scale.json`, `instances.smoke.json`, proxy maps, or
-generated compose files may be absent or stale. Its durable AWS identity is
-managed by a narrow CloudFormation control-plane stack:
-`infra/cloudformation/r8a-control-plane.yaml`. Use
-`scripts/deploy_r8a_control_plane.sh` for EIP association and operator SSH
-ingress, then run `scripts/audit_r8a_control_plane.sh` before starting or
-stopping the host. Do not hand-associate an Elastic IP or add ad hoc SSH ingress
-unless the stack is being repaired; otherwise drift detection loses value. The
-stack does not manage generated benchmark topology. After an EIP change or local
-cleanup of generated topology artifacts, rerun:
-
-```bash
-scripts/setup_phase4_on_host.sh \
-  --host-config configs/benchmark_hosts/r8a.local.yaml \
-  --instances instances.scale.json \
-  --scale-config scripts/scale_config.r8a-24x24.yml
-```
-
-Treat launch attempts and evidence runs as separate artifacts. If a remote job
-exits before it starts the measured phase, for example because auth, topology,
-or prerequisite artifacts are missing, keep its remote job registry for
-diagnostics but do not relaunch into the same state directory. Fix the
-precondition, materialize a fresh state directory from the verified Phase
-0c/1/2/3 inputs, and start a new job whose `--expected-output` points at that fresh run.
-This keeps failed setup attempts from becoming part of the evidentiary run
-history and makes later summaries unambiguous.
-
-Canonical selected-host Phase 4 launch shape. r8a is the current paper-facing
-scale/smoke host.
-
-```bash
-RUN=logs/<phase4_run_name>
-SOURCE=logs/<verified_phase2_phase3_source>
-
 scripts/remote_job_start.sh \
   --host-config configs/benchmark_hosts/r8a.local.yaml \
   --remote-dir /srv/warp-taskgen \
   --name <short-job-name> \
-  --state-dir "$RUN" \
-  --expected-output "$RUN/phase_4/results.json" -- \
-  bash -lc '
-    set -euo pipefail
-    cd /srv/warp-taskgen
-    RUN="'"$RUN"'"
-    SOURCE="'"$SOURCE"'"
-    rm -rf "$RUN"
-    mkdir -p "$RUN"
-    for d in phase_0c phase_1 phase_2 phase_3; do
-      cp -a "$SOURCE/$d" "$RUN/$d"
-    done
-    uv run warp-taskgen phase \
-      --instances instances.scale.json \
-      --sites reddit \
-      --task-origin new_task \
-      --max-tasks-per-site 16 \
-      --phase-4-variant-system eval-awareness-iterator \
-      --phase-4-eval-awareness-max-iterations 3 \
-      --agent-provider openai \
-      --agent-model gpt-5.2 \
-      --agent-service-tier priority \
-      --agent-llm-timeout 240 \
-      --agent-step-timeout 300 \
-      --agent-task-timeout 900 \
-      --sandbox-model claude-sonnet-4-6 \
-      4
-  '
-```
-
-`eval-awareness-iterator` is the Phase 4 default. Pass it explicitly in remote
-rigor commands so run intent is visible in job logs. For legacy `3+3+1`
-comparability, use `--phase-4-variant-system strategy-variation` and set
-`--phase-4-variant-budget adaptive-3-3-1` explicitly.
-
-`remote_job_status.sh` is the first status surface. It reports process liveness,
-heartbeat age, expected-output presence, and Phase 4 progress when available.
-Tail logs only when status says output is stale or failed.
-For Phase 4, treat `phase4_progress` staleness as stronger evidence than noisy
-Browser Use stderr. Remote Phase 4 commands must pass `--agent-task-timeout`
-explicitly; `--agent-llm-timeout` and `--agent-step-timeout` do not bound
-session-start, CDP, or cleanup deadlocks.
-
-High-concurrency Browser Use runs should cap expensive CDP state collection
-separately from the outer worker count. `--phase-4-max-workers 48` means up to
-48 live browser agents, but DOM snapshots and screenshots should not all hit
-CDP simultaneously. The runner applies these PVPO-only backpressure defaults:
-
-- `WORLDSIM_BROWSER_USE_DOM_STATE_CAP=16`
-- `WORLDSIM_BROWSER_USE_SCREENSHOT_CAP=8`
-- `WORLDSIM_BROWSER_USE_DEFAULT_ACTION_CAP=48`
-
-For urgent W48 Browser Use runs, use `WORLDSIM_WORKER_STAGGER_DELAY_S=2.0`.
-This reaches the full worker set in about 90 seconds, while avoiding the
-sub-minute first-navigation stampede that can turn Browser Use's 8s page
-readiness wait into `Navigation failed` / `DOMWatchdog` cascades. Reserve
-lower values such as `0.5` for explicit stress tests, not paper-facing runs.
-The Browser Use adapter also defaults high-concurrency event budgets to
-`TIMEOUT_NavigateToUrlEvent=45.0`, `TIMEOUT_BrowserStateRequestEvent=60.0`,
-and `TIMEOUT_BrowserConnectedEvent=60.0`; explicit environment values still
-override these defaults.
-
-Raise the outer worker cap only after `browser_runtime.json` shows low
-`browser_use_*_watchdog_slow_calls`, low `browser_use_cdp_cancelled_requests_drained`,
-and stable PVPO capture summaries. Do not treat a completed run as W48-clean if
-duplicate CDP responses, DOM watchdog slow calls, or `pvpo_capture_degraded`
-rows grow monotonically across tasks.
-
-For paper-facing W48 Browser Use or AgentLab Phase 4 runs, top-level
-`warp-taskgen phase 4` commands must use `--phase-4-max-workers 48`. Do not
-use `--workers 48` there; the remote launch guard rejects that spelling for
-top-level Phase 4. `--workers` is only for `scripts/run_phase4_process_pool.py`.
-
-Prefer process isolation over a single Phase 4 process with
-`--phase-4-max-workers 48` only when the single process shows runner
-event-bus/CDP contention. In that case, use `scripts/run_phase4_process_pool.py`
-from the remote job wrapper. The process-pool wrapper owns its own `--workers`
-flag. The supervisor launches normal
-`warp-taskgen phase 4` subprocesses, each with `--phase-4-max-workers 1`, a
-single `--phase-4-task-id`, and a one-instance config. This preserves Phase 4
-admission, seeding, PVPO, TP, VEA, eval-awareness iteration, rewards, and
-readback semantics while isolating Browser Use or AgentLab sidecar event loops
-and CDP clients by OS process. Page-surface-stable PVPO observes each worker's
-normal browser session, so process-pool parallelism is bounded by the number of
-tasks, benchmark instances, runner browser/session capacity, and host CPU/RAM.
-If task distribution is site-skewed, observed parallelism is still bounded by
-the number of tasks and benchmark instances available for that site. For
-AgentLab parity runs, inspect each task's
-`browser_runtime.json` for `browser_instance_scope="agent_run"` and
-`agent_browser_connect_count=1`; BrowserGym auxiliary chat/UI launches are
-reported separately under `auxiliary_browser_connect_count`.
-
-Canonical process-pool shape. The `--workers 48` flag below belongs to
-`scripts/run_phase4_process_pool.py`, not to top-level `warp-taskgen phase 4`:
-
-```bash
-scripts/remote_job_start.sh \
-  --host-config configs/benchmark_hosts/r8a.local.yaml \
-  --remote-dir /srv/warp-taskgen \
-  --name phase4-tier2-exact50-browseruse-gpt52-p48-processpool \
-  --state-dir logs/<process_pool_run> \
-  --expected-output logs/<process_pool_run>/phase_4/results.json -- \
-  uv run python scripts/run_phase4_process_pool.py \
-    --source-state-dir logs/<source_with_phase_2_adversarial_tasks_and_phase_3_contracts> \
+  --state-dir logs/<run> \
+  --expected-output logs/<run>/phase_4/results.json -- \
+  bash -lc 'cd /srv/warp-taskgen && uv run warp-taskgen phase 4 \
     --instances instances.scale.json \
-    --workers 48 \
-    --runner browser_use \
-    --agent-provider openai \
-    --agent-model gpt-5.2 \
-    --agent-service-tier priority \
-    --agent-llm-timeout 240 \
-    --agent-step-timeout 300 \
-    --agent-task-timeout 2400 \
     --phase-4-variant-system eval-awareness-iterator \
-    --phase-4-eval-awareness-max-iterations 3
+    --phase-4-eval-awareness-max-iterations 3 \
+    --agent-task-timeout 900'
 ```
 
-While the process pool is running, start with `scripts/remote_job_status.sh`.
-Its Phase 4 progress block includes active process-pool worker rows with worker
-id, task id, current AgentLab/Phase 4 step, task trace dir, worker state dir,
-and worker stderr path. Use `scripts/remote_job_tail.sh --worker-id <n>` or
-`--task-id <id>` only after status points at a stale or failing worker. Task-id
-tailing checks active `progress.json` first and completed
-`phase_4/process_pool_summary.json` / `partial_manifest.json` second, so it can
-tail completed process-pool workers after the summary is written. After
-completion, inspect `phase_4/process_pool_summary.json` for per-worker
-stdout/stderr paths, exit codes, timeouts, assigned instance indexes, and PVPO
-endpoints. The final
-`phase_4/results.json` is written only after every expected task has exactly
-one valid worker result; missing, duplicate, or mismatched task IDs fail closed
-instead of producing a partial canonical result. Failed process-pool runs may
-write `phase_4/results.partial.json` and `phase_4/partial_manifest.json` for
-operator inspection. Those files are never paper-eligible, the run still exits
-nonzero, and only canonical `phase_4/results.json` counts as a complete Phase 4
-artifact.
+Pass an explicit whole-trajectory `--agent-task-timeout` on remote Phase 4
+jobs. LLM and step timeouts do not bound session start, CDP, or cleanup
+deadlocks. The default variant system is `eval-awareness-iterator`; legacy
+comparability uses `strategy-variation` with the named `adaptive-3-3-1`
+budget.
 
-If the failed task set is rerun successfully, use
-`scripts/repair_process_pool_partial.py` to build a separate repaired run rather
-than editing the partial artifacts. The repair tool combines the original partial
-run with targeted retry runs, writes canonical `phase_4/results.json`, stamps
-`phase_4/process_pool_repair_manifest.json`, and marks
-`paper_eligible="operator_review_required"` so the operator explicitly reviews
-which rows were replaced. Iterator-checkpoint timeout salvage rows are useful for
-inspection, but they do not make the original process-pool run canonical; the
-merge still fails closed and writes partial artifacts until repaired or rerun.
+For high-concurrency Browser Use, keep expensive DOM/screenshot CDP calls under
+their separate caps and inspect `browser_runtime.json` before increasing the
+outer worker cap. Top-level Phase 4 uses `--phase-4-max-workers`; the
+process-pool wrapper alone owns `--workers`.
 
-WARP Taskgen uses two different network localities on the selected host. Treat the instances
-file as an execution-locality contract, not just a dataset selector:
+Process-pool runs preserve the normal admission, seeding, PVPO, TP, VEA,
+iterator, reward, and readback contracts. A complete pool writes exactly one
+valid result per expected task to `phase_4/results.json`; missing, duplicate,
+or mismatched task ids fail closed. `results.partial.json` and
+`partial_manifest.json` are inspection artifacts, not paper-eligible results.
+Repair into a separate run with
+`scripts/repair_process_pool_partial.py --help`; do not edit partial output.
 
-| Phase / caller | Where traffic originates | Correct instances file | Why |
-| --- | --- | --- | --- |
-| Phase 0c profiling | Modal sandbox outside the host | `instances.smoke.json` or equivalent public/proxy file | Modal cannot reach host-only addresses such as `172.17.0.1`; it needs the authenticated public proxy. |
-| Phase 0c host-side inventory enrichment | Orchestrator process on the selected host | `--host-inventory-instances instances.scale.json` | Reddit DB enumeration and GitLab project inventory run on the host, not in Modal; they need the orchestrator-local topology. |
-| Phase 2c render checks | Selected host / runner-owned browser sessions | `instances.scale.json` | AWS does not reliably hairpin public-IP traffic from the instance to itself; on-host browsers need `orchestrator_host`. |
-| Phase 4 agent/PVPO | Selected host / runner-owned browser sessions | `instances.scale.json` | Same on-host browser topology as Phase 2c; storage-state cookies are host-bound. |
+## Locality and topology
 
-Do not collapse these into one rule. `instances.scale.json` is correct for
-Phase 2c/4 and wrong for Modal Phase 0c. `instances.smoke.json` is correct for
-Modal Phase 0c and wrong for on-host Phase 2c/4 unless regenerated for the
-host's `orchestrator_host`.
+Treat instance files as execution-locality contracts:
 
-Phase 0c has one mixed-locality edge case: its browser probes run in Modal, but
-host-side inventory enrichment, such as Reddit forum DB enumeration, runs in
-the detached orchestrator process. For fresh novel GitLab/Reddit generation on
-the selected host, pass both localities explicitly:
-`--instances instances.smoke.json --host-inventory-instances instances.scale.json`.
-Do not rely on rewriting only the host portion of `instances.smoke.json`: scale
-topology can use different per-replica DB/API ports, so a host-only rewrite can
-silently point at the wrong service. Reddit forum enrichment must also intersect
-the scale replica pool before advertising forum anchors; forums created by live
-profiling or prior editor probes on a single replica are not stable benchmark
-inventory. GitLab handle enrichment follows the same host-side API rule and
-falls back to the original URL if the host-local candidate fails. If enrichment
-falls back to static profile samples, treat any later source-data 404s as stale
-inventory evidence, not as a carrier-render verdict.
+| Caller | Origin | Instance view |
+| --- | --- | --- |
+| Phase 0c browser probes | Modal sandbox | `instances.smoke.json` or an equivalent public/proxy view |
+| Phase 0c host inventory | selected host orchestrator | `--host-inventory-instances instances.scale.json` |
+| Phase 2c render checks | selected-host browser | `instances.scale.json` |
+| Phase 4 agent/PVPO | selected-host browser | `instances.scale.json` |
 
-On the selected host, also treat the benchmark source path as host-local. `sync_to_host.sh`
-intentionally excludes repo-local `vendors/`, so
-`/home/ubuntu/browser-sim/vendors/webarena-verified` may be stale or incomplete.
-Use `/home/ubuntu/vendors/webarena-verified` in remote Phase 0/1/2 commands
-unless you have explicitly hydrated and verified the repo-local vendor tree.
-`remote_job_start.sh` blocks the repo-relative WebArena Verified path by default
-for this reason.
+The mixed Phase 0c path needs both files when fresh GitLab/Reddit inventory is
+generated: `--instances instances.smoke.json
+--host-inventory-instances instances.scale.json`. Do not rewrite only the host
+portion of a smoke file; replica DB/API ports and inventory must come from the
+selected scale topology.
 
-Generated topology artifacts are host-local too. `instances.scale.json`,
-`instances.smoke.json`, their fragments, generated compose files, and proxy port
-maps are gitignored and should be regenerated on the host from the selected
-host config, not synced from a laptop checkout.
+Generated instances, fragments, compose files, and proxy maps are host-local
+and gitignored. Regenerate them from the selected host config. Browser-facing
+ports must avoid Chromium's restricted-port list; repair topology generation,
+not task seeds or placement-fix variants. A topology mismatch is an
+infrastructure symptom, not a carrier, prompt, or strategy verdict.
 
-Scale generation also owns browser-port safety. Browser-facing `site_url`
-ports must avoid Chromium's restricted-port list, such as `10080`; the
-generator skips restricted candidates and `BenchmarkConfig` rejects stale
-instance files that still advertise them. Do not repair this inside task seeds
-or placement-fix variants, because the seeded data, auth state, reset endpoint,
-and evaluator origin must all stay on the same replica.
+## Fresh host, proxy, and lifecycle
 
-`scripts/remote_job_start.sh` enforces this split on
-`remote_direct_restricted` hosts: it blocks Phase 2/2c/4 smoke inputs and
-blocks Phase 0/0c scale inputs. Override with
-`WORLDSIM_ALLOW_REMOTE_INSTANCE_TOPOLOGY_MISMATCH=1` only when intentionally
-testing a different topology, and record why the run is not comparable.
-
-## Resume and Compaction Checks
-
-After context compaction or a long pause, treat any live artifact path as
-topology-bound until checked. Before reusing a Phase 2/2c or Phase 4 state
-directory on the selected host:
-
-- Confirm the command uses `instances.scale.json` for on-host browser phases.
-- Confirm the artifact's saved benchmark metadata was produced for the same
-  instance pool. If Phase 2c refuses a metadata mismatch, rerun a small matching
-  Phase 1 -> 2 job instead of forcing the old artifact through a different
-  instance file.
-- Treat `host_unreachable`, public-IP navigation from the host, and GitLab
-  storage-state host mismatches as topology symptoms first, not as carrier,
-  prompt, or strategy verdicts.
-
-Remote metadata and logs live under:
-
-```text
-<remote-dir>/logs/remote_jobs/<job_id>/
-```
-
-Live hosts often contain the freshest Phase task artifacts under `logs/`.
-Before relying on checked-in task JSON, audit the host or run archive and follow
-`agent_docs/artifacts.md` for manifest, hash, and fixture-promotion rules.
-
-## Park Between Sweeps
-
-When no rigor sweep is running, stop the host with
-`scripts/host_park.sh --host-config configs/benchmark_hosts/<host>.yaml`
-to avoid idle compute billing. Resume with `scripts/host_resume.sh`
-(it sets `worldsim:sweep-in-progress=true` before starting so the
-auto-stop layers do not fire during the run). Operator workflow is
-documented in `docs/handoffs/rigor-run-setup.md` under "Park between
-sweeps". Clear the sweep tag after the sweep AND archive complete.
-
-The full three-layer lifecycle policy (operator scripts + EventBridge
-auto-stop + CloudWatch backstop + termination protection) is in
-`docs/infra/r8a-control-plane.md` under "Lifecycle policy". Read it
-before disabling any layer for a long sweep window.
-
-## Fresh Host Gate
-
-Run this on any fresh host before Phase 4:
+On a fresh host, run:
 
 ```bash
 scripts/setup_phase4_on_host.sh \
@@ -351,97 +93,61 @@ scripts/setup_phase4_on_host.sh \
   --artifacts-source s3://benchmark-archives/worldsim-runs/<run_id>/
 ```
 
-If `--artifacts-source` is omitted, the script expects matching
-`phase_0c`, `phase_2`, and `phase_3` artifacts to already exist under the
-selected state directory. Use `/home/ubuntu/vendors/webarena-verified` as the
-benchmark source unless you have explicitly hydrated the repo-local
-`vendors/webarena-verified` tree on the host.
+The setup sequence regenerates topology, syncs Phase 0c/2/3 artifacts, mints
+host-bound GitLab storage state, and runs `pytest -m preflight tests/preflight`.
+That preflight proves non-empty storage state and evaluator-venv resolution; it
+does not prove live benchmark task connectivity. Current PVPO is
+page-surface-stable on the runner-owned browser and needs no dedicated browser
+container or PVPO endpoint. Historical `pvpo_cdp_url` metadata is ignored; no
+legacy browser route is active.
 
-Its preflight step runs `pytest -m preflight tests/preflight` and proves:
-
-- GitLab Phase 0d `storage_state` exists with non-empty cookies.
-- The `warp-taskgen-webarena-verified` evaluator venv resolves from the repo-local `packages/warp-taskgen-webarena-verified` environment.
-
-Current page-surface-stable PVPO does not require dedicated PVPO browser
-containers, and this preflight does not prove live benchmark task connectivity.
-
-Do not skip this before rigor runs.
-
-## Proxy Discipline
-
-The source of truth for nginx proxy config is:
-
-```text
-scripts/deploy_benchmark_proxy.sh
-```
-
-Never hand-edit `/etc/nginx/conf.d/worldsim-proxy.conf` on the host. Verify parity with:
+The nginx source of truth is `scripts/deploy_benchmark_proxy.sh`. Check parity
+without hand-editing the generated host file:
 
 ```bash
 scripts/check_proxy_drift.sh \
   --host-config configs/benchmark_hosts/r8a.local.yaml \
-  --topology scale \
-  --insecure-http \
-  --verify-runtime
+  --topology scale --insecure-http --verify-runtime
 ```
 
-The ignored local config selects the audited host without embedding a live
-address in the runbook.
+Token auth is `X-Worldsim-Token`; proxy ports come from
+`scripts/proxy_ports.conf`. Phase 0c may use the proxy, while on-host Phases 3
+and 4 use the real `site_url` and `reset_endpoint` values in the selected
+instances file.
 
-The proxy uses token auth (`X-Worldsim-Token`) and offset ports from `scripts/proxy_ports.conf`. Phase 0c may use the proxy for live verification; Phases 3 and 4 use real `site_url` and `reset_endpoint` values from the instances file.
+When no rigor sweep is running, park the host with
+`scripts/host_park.sh --host-config configs/benchmark_hosts/r8a.local.yaml` and
+resume with `scripts/host_resume.sh --host-config configs/benchmark_hosts/r8a.local.yaml`.
+Read the lifecycle policy in
+`docs/infra/r8a-control-plane.md` before disabling an auto-stop layer.
 
-## PVPO Rigor Requirement
+## Resume and evidence
 
-Phase 4 rigor runs use page-surface-stable PVPO. The runner captures the
-visible viewport from its own browser with normal CDP `Page.captureScreenshot`
-and accepts evidence only when pre/post DOM witness probes are stable.
-Dedicated compositor-driving browser containers are removed from the active run
-path and should not be configured for new rigor runs. Some generated
-legacy-compatible instance files still carry `pvpo_cdp_url`; canonical
-page-surface-stable PVPO ignores that metadata unless an explicit legacy
-debugging path is enabled.
+After compaction or a pause, verify the instance pool before reusing state:
 
-## Live Integration Command
+- on-host Phase 2c/4 uses regenerated `instances.scale.json`;
+- saved benchmark metadata matches that pool;
+- host-unreachable, public-IP navigation, and host-bound cookie errors are
+  investigated as topology symptoms first.
 
-For PR gates against a live stack:
+Remote metadata is under `<remote-dir>/logs/remote_jobs/<job_id>/`. Audit the
+active host or archive before trusting checked-in task JSON, then apply
+`agent_docs/artifacts.md` promotion rules. A setup/launch failure gets a fresh
+state directory after the precondition is fixed; do not relaunch into the same
+evidentiary run.
+
+For the live PR gate, use the current host config and quiet wrapper:
 
 ```bash
-scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r8a.local.yaml --quiet
+scripts/run_integration_tests.sh \
+  --host-config configs/benchmark_hosts/r8a.local.yaml --quiet
 ```
 
-Use `--quiet` for agent sessions. It prints a one-line pass summary or full failure output.
-With `--host-config` and no explicit `--instances`, the wrapper now generates a
-temporary host-config-specific smoke instances file from `scripts/scale_config.yml`
-and the selected host config. This is intentional: `sync_to_host.sh` excludes
-generated topology artifacts, and host setup may regenerate `instances.smoke.json`
-with ports that differ from a stale laptop checkout. Pass `--instances` only
-when you intentionally want a specific public/proxy or scale topology file. On
-selected-host Phase 2c/4 commands, continue using `instances.scale.json`.
+With no explicit `--instances`, the wrapper generates a host-config-specific
+smoke file. Pass `--instances instances.scale.json` only for an intentional
+scale-topology check.
 
-**Topology-mismatch symptom and fix.** If the wrapper fails reddit-side tests
-with `Connection refused` on a stale legacy smoke proxy port (for example
-`19999`, derived from old local `reddit:9999`), Reddit is usually not down.
-First rerun without an explicit `--instances` so the wrapper can generate the
-host-specific smoke file. If you are deliberately testing scale topology, pass
-the matching generated scale fixture:
-
-```bash
-bash scripts/run_integration_tests.sh \
-    --host-config configs/benchmark_hosts/r8a.local.yaml \
-    --quiet
-
-# Deliberate scale-topology check:
-bash scripts/generate_scale.sh \
-    --host-config configs/benchmark_hosts/r8a.local.yaml \
-    --scale-config scripts/scale_config.r8a-24x24.yml
-bash scripts/run_integration_tests.sh \
-    --host-config configs/benchmark_hosts/r8a.local.yaml \
-    --instances instances.scale.json \
-    --quiet
-```
-
-The default-installed proxy adapter in `tests/integration/conftest.py`
-(`_DEFAULT_SITE_PORTS`) already covers both legacy `9999` and the scale band
-`9900..9990`, so picking replica 0 (`reddit:9900`, `gitlab:8023`) flows through
-the existing nginx listens automatically. The corrective action is the
-fixture, not the proxy.
+Completion means the job has one explicit topology, state directory,
+expected-output contract, and timeout; status evidence identifies the final
+artifact; and any live gate or topology mismatch is recorded as infrastructure
+evidence rather than model behavior.
