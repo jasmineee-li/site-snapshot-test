@@ -121,6 +121,179 @@ root wrapper performs its safe internal no-op routing. Preserve that shape.
    duplication, cache pressure, log usability, and required-check behavior
    before adopting it.
 
+## Larger-gains addendum: CI-level parallelism
+
+The largest remaining wall-time lever is running independent test partitions
+on independent runners. `pytest-xdist` parallelizes workers inside one VM;
+GitHub Actions matrix jobs parallelize across VMs, without requiring a larger
+runner. A larger runner is the other option, but it changes the billing and
+runner-availability trade-off described below. The xdist documentation
+confirms that `-n auto` uses the physical cores visible to the machine and that
+`worksteal` is useful for uneven test durations
+([xdist distribution](https://pytest-xdist.readthedocs.io/en/stable/distribution.html#running-tests-across-multiple-cpus)).
+
+### Controlled benchmark evidence and corrected projection
+
+The controlled local comparison for the proposed two-shard shape is:
+
+| Command shape | Wall time |
+| --- | ---: |
+| Full default suite, `-n 4 --dist worksteal` | **29.86s** |
+| Core suite excluding `tests/test_remote_job_scripts.py`, `-n 4 --dist worksteal` | **16.93s** |
+| `tests/test_remote_job_scripts.py` alone, `-n 4 --dist worksteal` | **17.80s** |
+| Same remote-job file, `-n 4 --dist load` | **16.33s** |
+
+The reproducible forms were:
+
+```text
+uv run pytest -q -n 4 --dist worksteal
+uv run pytest -q -n 4 --dist worksteal --ignore tests/test_remote_job_scripts.py
+uv run pytest -q -n 4 --dist worksteal tests/test_remote_job_scripts.py
+uv run pytest -q -n 4 --dist load tests/test_remote_job_scripts.py
+```
+
+These are wall times from the same checkout and environment; xdist worker
+durations must not be summed. A two-shard CI matrix keeps `-n 4` inside each
+independent runner, so its critical pytest path is the slower of the two
+partitions, approximately **17.80s** in this controlled local shape. That is
+about 40% below the 29.86-second unsplit run. The earlier 31-second `n2`
+estimate was the wrong model for CI sharding: it treated the shards as two
+workers on one machine, rather than two four-worker runners.
+
+Scaling the observed GitHub pytest phase (about 61s) by that local ratio gives
+approximately 36s; allowing for runner differences and imperfect balancing,
+use **36–42s as a CI pytest projection**, not a guarantee. With fresh-runner
+checkout/setup, the package smoke, and the aggregate job, the full required
+check projects to roughly **55–65s versus 99s observed**. Validate that range
+with at least five CI runs and report median/p95 before changing the default.
+
+Three shards have no controlled three-way partition evidence yet. They may
+reduce the test critical path further, but another checkout/sync, collection,
+queue, and imbalance surface can erase the theoretical gain. Do not promise a
+40–55s total until a real three-way duration-balanced run demonstrates it.
+The `load` result for the remote-job file is useful follow-up evidence, but it
+is not enough to replace the repository-wide `worksteal` default; compare
+multiple CI runs and fixture behavior before changing the scheduler.
+
+| Shape | Evidence-backed test critical path | Main trade-off | Full-check projection |
+| --- | ---: | --- | ---: |
+| One standard runner, current CI job | 61s observed in CI | No setup duplication | 99s observed |
+| Two standard runners, each `-n 4` | 17.80s local shape; 36–42s CI projection | Two checkouts/syncs and balancing | **55–65s projected** |
+| Three standard runners, each `-n 4` | Not measured | More setup, queue, and imbalance risk | Not estimated |
+| One 8-core larger runner | At best about 31s by arithmetic only | Metered runner and xdist/process overhead | Requires a real 8-core benchmark |
+
+### Minimal architecture that keeps one required check
+
+Use one matrix job for test shards, one independent job for the package smoke,
+and one final aggregate job whose displayed name remains exactly
+`taskgen-acceptance`:
+
+```text
+taskgen-tests (matrix: shard 0/1[, 2])  ─┐
+                                           ├─> taskgen-acceptance (required)
+taskgen-package-smoke                    ─┘
+```
+
+The matrix test jobs should run only the default pytest selection, with
+`-n auto --dist worksteal`; the package job should run the lint/readiness and
+fresh wheel-install/CLI smoke once, but not rerun pytest. Keep the local
+`accept_taskgen.sh` default as the sequential full boundary, and factor small
+test-only/package-only entry points for CI rather than teaching every matrix
+step to duplicate the wrapper's shell logic. This keeps local behavior and the
+fresh-install proof unchanged while allowing the two CI branches to overlap.
+
+The aggregate job must use `if: ${{ always() }}` and inspect the matrix and
+package results, failing if any required branch failed or was cancelled. GitHub
+documents that `needs` normally skips dependants after a failure and that an
+`always()` conditional is required when a dependent status must still be
+reported ([using jobs](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-jobs),
+[required-check troubleshooting](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)).
+Only this aggregate check should be selected as the branch-protection
+requirement; matrix names are implementation details that can change when the
+shard count changes.
+
+Set matrix `fail-fast: true` (the GitHub default) so a known failure cancels
+remaining shards and shortens feedback. Set `max-parallel` to the chosen shard
+count so the intended concurrency is explicit. GitHub's matrix strategy starts
+one job per combination, maximizes parallel jobs by default, and supports both
+`fail-fast` and `max-parallel` ([matrix strategies](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/run-job-variations),
+[workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idstrategymatrix)).
+
+### Preserve the current path no-op
+
+Do not add a workflow-level `paths:` filter. The current workflow intentionally
+starts on every pull request and lets the root acceptance router no-op when no
+canonical Taskgen path changed. GitHub warns that a workflow skipped by path
+filtering leaves its required check pending and can block a pull request; a
+conditionally skipped job, by contrast, reports success ([required-check
+troubleshooting](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)).
+
+For the matrix design, run the existing router immediately after checkout in
+each shard/package job, before Python/uv setup. A non-Taskgen change should
+return success without syncing dependencies; a Taskgen change should continue
+to the selected test or package mode. This preserves the current no-op
+contract without introducing a serial route job or relying on a fragile matrix
+output. The aggregate job then sees successful no-op branches and still emits
+the stable `taskgen-acceptance` check.
+
+### Shard selection and coverage proof
+
+There is no built-in pytest option that partitions a suite across separate
+machines. The first implementation should add a small in-repository selector
+that accepts `TASKGEN_TEST_SHARD_INDEX` and `TASKGEN_TEST_SHARD_COUNT`, collects
+the same default node IDs, and assigns each ID deterministically. Do not split
+by equal file count: the remote-job and CLI subprocess tests are much heavier
+than most pure unit tests. Start with two duration-weighted groups based on the
+existing slow-test report; if the slowest shard exceeds the fastest by more
+than about 15%, refresh the weights from CI duration data.
+
+The selector must be coverage-preserving. In the same workflow change, add a
+cheap collection/count assertion (or a tiny manifest artifact) proving that the
+union of shard node IDs equals the current default collection exactly once:
+3,552 collected, with the same 41 marked-out tests and no duplicate IDs. Keep
+the full serial/parallel default command available for local verification and
+as a periodic safety run; the matrix is a distribution mechanism, not a new
+test-selection policy.
+
+Avoid uploading one artifact per passing shard merely to aggregate status.
+GitHub's artifacts are intended to persist or transfer files between jobs, and
+jobs that consume an artifact must wait for the producer and perform the
+upload/download ([workflow artifacts](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts)).
+Use normal job logs and `GITHUB_STEP_SUMMARY` for pass/fail and duration
+information ([workflow commands — job summaries](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#adding-a-job-summary)).
+Upload a small JUnit/duration artifact only on failure or when running a
+diagnostic benchmark; keep it out of the required critical path.
+
+### Runner-size alternative
+
+The standard `ubuntu-latest` runner has four CPUs and 16 GB RAM for public
+repositories; private-repository standard runners have two CPUs and 8 GB
+([GitHub-hosted runner specifications](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)).
+That explains why a larger runner can improve the existing single-job shape:
+the same xdist command can use more workers without repeating checkout and
+dependency setup. GitHub's larger Linux runners offer 8, 16, and larger CPU
+sizes, but they are metered and have possible queue-to-assign delay
+([larger-runner reference](https://docs.github.com/en/actions/reference/runners/larger-runners),
+[runner pricing](https://docs.github.com/en/enterprise-cloud@latest/billing/reference/actions-runner-pricing)).
+For a public repository, standard runners are free while larger runners are
+still billed; for a private repository, compare the billed whole-minute cost of
+one larger job with the multiplied matrix-job minutes. Do not switch runner
+size based on the local Mac result alone—measure `-n 4` on the current runner,
+then an 8-core candidate, using the same commit and at least five runs.
+
+### Recommendation
+
+The largest low-risk gain is a **two-shard CI matrix plus a parallel package
+smoke and a stable `taskgen-acceptance` aggregate**. It should cut the current
+99-second critical path toward the 50–65-second range without weakening the
+fresh-wheel boundary. After the test seams in the first optimization order are
+fixed, re-measure two versus three shards. Consider an 8-core larger runner
+only if the organization already accepts its metered cost; it is simpler YAML,
+but it cannot beat well-balanced free matrix jobs by enough to justify paying
+for it in this small suite. A 16-core runner or more than three shards is not a
+minimal change: process startup, collection, and the slowest shard will become
+the limiting factors.
+
 ## Coverage-preserving acceptance criteria
 
 Any speed change should prove, on the same commit:
@@ -143,3 +316,8 @@ Any speed change should prove, on the same commit:
 - [GitHub artifacts versus caching](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts)
 - [GitHub matrix strategies](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/run-job-variations)
 - [GitHub required-check troubleshooting](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)
+- [GitHub Actions jobs and `needs`](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-jobs)
+- [GitHub-hosted runner specifications](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
+- [GitHub larger runners reference](https://docs.github.com/en/actions/reference/runners/larger-runners)
+- [GitHub Actions runner pricing](https://docs.github.com/en/enterprise-cloud@latest/billing/reference/actions-runner-pricing)
+- [GitHub workflow commands and job summaries](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#adding-a-job-summary)
