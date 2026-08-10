@@ -247,7 +247,7 @@ default suite and their intersection is empty by construction, without a
 selector plugin or duration manifest. Wrapper contract tests pin both commands
 so a later edit cannot silently overlap or omit the remote-job file. The
 baseline research run selected 3,552 tests; after adding the reviewed tests in
-this implementation, validation selected 3,569 tests (3,525 core plus 44
+this implementation, validation selected 3,574 tests (3,530 core plus 44
 remote-job), with the same 41 marked-out tests. Keep the full parallel default
 command available for local verification; the matrix is a distribution
 mechanism, not a new test-selection policy.
