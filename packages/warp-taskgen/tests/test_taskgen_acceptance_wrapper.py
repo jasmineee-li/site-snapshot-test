@@ -60,6 +60,22 @@ def test_route_only_reports_machine_readable_decision(changed_files: str, expect
     assert result.stderr == ""
 
 
+def test_route_only_unresolved_base_fails_open_with_clean_stdout() -> None:
+    missing_ref = "origin/does-not-exist"
+
+    result = _run_wrapper(
+        "--route-only",
+        extra_env={
+            "GITHUB_BASE_REF": "does-not-exist",
+            "GITHUB_BASE_SHA": missing_ref,
+        },
+    )
+
+    assert result.returncode == 0
+    assert result.stdout == "run\n"
+    assert missing_ref in result.stderr
+
+
 @pytest.mark.parametrize("args", [(), ("--lane", "full"), *(("--lane", lane) for lane in LANES)])
 def test_full_and_named_lanes_preserve_unrelated_change_noop(args: tuple[str, ...]) -> None:
     result = _run_wrapper(*args, changed_files="README.md\n")

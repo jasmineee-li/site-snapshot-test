@@ -90,7 +90,7 @@ elif [[ -n "${GITHUB_BASE_REF:-}" ]]; then
             [[ -n "$path" ]] && route_args+=(--path "$path")
         done < <(git -C "$ROOT_DIR" diff --name-only "$base_ref...HEAD")
     else
-        printf 'Taskgen acceptance: unable to resolve %s; running full acceptance\n' "$base_ref"
+        printf 'Taskgen acceptance: unable to resolve %s; running full acceptance\n' "$base_ref" >&2
     fi
 fi
 
