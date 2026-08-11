@@ -135,11 +135,11 @@ async def run(args: argparse.Namespace) -> int:
             **state_metadata,
         )
         return 1
-    capabilities = get_benchmark_capabilities(run_benchmark or config.benchmark_name)
-    if capabilities.phase_4_mode != "worldsim_v5":
-        message = (
-            f"benchmark {capabilities.canonical_name!r} does not support WARP Taskgen Phase 4"
-        )
+    benchmark = run_benchmark or config.benchmark_name
+    try:
+        capabilities = get_benchmark_capabilities(benchmark).require("phase_4_execution")
+    except ValueError:
+        message = f"benchmark {benchmark!r} does not support WARP Taskgen Phase 4"
         logger.error("Phase 4 benchmark metadata gate failed: %s", message)
         save_state(
             "phase_4",

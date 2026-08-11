@@ -177,11 +177,12 @@ def _gate_phase_2c_benchmark(
             "mixed benchmark metadata between Phase 2 tasks and Phase 2c instances: "
             f"tasks={task_benchmark!r}, instances={instances_benchmark!r}"
         )
-    capabilities = get_benchmark_capabilities(task_benchmark)
-    if not capabilities.phase_2_feasibility_supported:
+    try:
+        capabilities = get_benchmark_capabilities(task_benchmark).require("phase_2_feasibility")
+    except ValueError as exc:
         raise ValueError(
             f"benchmark {task_benchmark!r} does not support WARP Taskgen Phase 2c"
-        )
+        ) from exc
     return capabilities.canonical_name
 
 
@@ -190,11 +191,14 @@ def _gate_phase_2_skip_benchmark(task_records: list[dict[str, Any]]) -> str:
         task_records,
         label="Phase 2 adversarial tasks",
     )
-    capabilities = get_benchmark_capabilities(benchmark)
-    if not capabilities.phase_2_supported:
-        raise ValueError(f"benchmark {benchmark!r} does not support WARP Taskgen Phase 2")
-    if not capabilities.phase_2_feasibility_supported:
-        raise ValueError(f"benchmark {benchmark!r} does not support WARP Taskgen Phase 2c")
+    try:
+        capabilities = get_benchmark_capabilities(benchmark).require("phase_2_generation")
+    except ValueError as exc:
+        raise ValueError(f"benchmark {benchmark!r} does not support WARP Taskgen Phase 2") from exc
+    try:
+        capabilities = get_benchmark_capabilities(benchmark).require("phase_2_feasibility")
+    except ValueError as exc:
+        raise ValueError(f"benchmark {benchmark!r} does not support WARP Taskgen Phase 2c") from exc
     return capabilities.canonical_name
 
 

@@ -71,6 +71,163 @@ def test_homebrew_eval_accepts_network_event_alias():
     assert "[network_event] PASS" in message
 
 
+@pytest.mark.parametrize("task_id", [17, None])
+def test_explicit_comparison_benchmark_never_dispatches_to_warp_evaluators(
+    monkeypatch: pytest.MonkeyPatch,
+    task_id: int | None,
+) -> None:
+    from worldsim.rewards import dispatcher
+
+    calls: list[str] = []
+
+    monkeypatch.setattr(
+        dispatcher,
+        "_run_webarena_verified_eval",
+        lambda *args, **kwargs: calls.append("vendor") or (True, "vendor"),
+    )
+    monkeypatch.setattr(
+        dispatcher,
+        "_run_homebrew_eval",
+        lambda *args, **kwargs: calls.append("homebrew") or (True, "homebrew"),
+    )
+
+    passed, message = run_reward_function(
+        {"benchmark": "WASP", "task_id": task_id, "eval": []},
+        {},
+    )
+
+    assert passed is False
+    assert "does not support capability 'warp_evaluation'" in message
+    assert calls == []
+
+
+def test_missing_benchmark_metadata_preserves_historical_homebrew_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from worldsim.rewards import dispatcher
+
+    calls: list[str] = []
+    monkeypatch.setattr(
+        dispatcher,
+        "_run_homebrew_eval",
+        lambda *args, **kwargs: calls.append("homebrew") or (True, "homebrew"),
+    )
+
+    assert run_reward_function({"eval": []}, {}) == (True, "homebrew")
+    assert calls == ["homebrew"]
+
+
+def test_explicit_comparison_top_level_network_evaluator_fails_before_local_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from worldsim.rewards import dispatcher
+
+    calls: list[str] = []
+    monkeypatch.setattr(
+        dispatcher,
+        "_eval_network_event",
+        lambda *args, **kwargs: calls.append("network") or (True, "network"),
+    )
+
+    passed, message = run_reward_function(
+        {
+            "type": "NetworkEventEvaluator",
+            "benchmark": "wasp",
+            "expected": {"url": "https://example.test"},
+        },
+        {},
+        network_trace=[{"url": "https://example.test", "method": "GET"}],
+    )
+
+    assert passed is False
+    assert "does not support capability 'warp_evaluation'" in message
+    assert calls == []
+
+
+def test_explicit_unknown_top_level_network_evaluator_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from worldsim.rewards import dispatcher
+
+    calls: list[str] = []
+    monkeypatch.setattr(
+        dispatcher,
+        "_eval_network_event",
+        lambda *args, **kwargs: calls.append("network") or (True, "network"),
+    )
+
+    passed, message = run_reward_function(
+        {
+            "type": "NetworkEventEvaluator",
+            "benchmark": "future-unknown-benchmark",
+            "expected": {"url": "https://example.test"},
+        },
+        {},
+        network_trace=[{"url": "https://example.test", "method": "GET"}],
+    )
+
+    assert passed is False
+    assert "unknown benchmark" in message
+    assert calls == []
+
+
+def test_explicit_blank_benchmark_metadata_fails_closed() -> None:
+    passed, message = run_reward_function(
+        {"type": "NetworkEventEvaluator", "benchmark": "", "expected": {}},
+        {},
+        network_trace=[],
+    )
+
+    assert passed is False
+    assert message == "benchmark contract rejected: benchmark metadata is empty"
+
+
+def test_conflicting_reward_and_instance_benchmark_metadata_fails_closed() -> None:
+    passed, message = run_reward_function(
+        {"eval": [], "benchmark": "webarena_verified"},
+        {"benchmark_name": "wasp"},
+    )
+
+    assert passed is False
+    assert "mixed benchmark metadata" in message
+
+
+@pytest.mark.parametrize(
+    ("benchmark", "task_id", "expected"),
+    [
+        ("WebArena Verified", 17, "vendor"),
+        ("webarena-verified", None, "homebrew"),
+    ],
+)
+def test_webarena_aliases_preserve_evaluator_authority_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+    benchmark: str,
+    task_id: int | None,
+    expected: str,
+) -> None:
+    from worldsim.rewards import dispatcher
+
+    calls: list[str] = []
+    monkeypatch.setattr(
+        dispatcher,
+        "_run_webarena_verified_eval",
+        lambda *args, **kwargs: calls.append("vendor") or (True, "vendor"),
+    )
+    monkeypatch.setattr(
+        dispatcher,
+        "_run_homebrew_eval",
+        lambda *args, **kwargs: calls.append("homebrew") or (True, "homebrew"),
+    )
+
+    passed, message = run_reward_function(
+        {"task_id": task_id, "eval": [], "benchmark": benchmark},
+        {},
+    )
+
+    assert (passed, message) == (True, expected)
+    assert calls == [expected]
+
+
 def test_top_level_agent_response_evaluator_dispatches_without_checker_registry():
     agent_result = types.SimpleNamespace(final_result='["fixed"]', is_done=True)
 

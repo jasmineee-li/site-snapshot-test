@@ -79,9 +79,7 @@ def _with_phase1_route_surface_overlays(
         logger.warning("Phase 2: site profile %s has non-list injection_surface", site_name)
         return site_profile
     existing_ids = {
-        str(surface.get("id") or "")
-        for surface in surfaces
-        if isinstance(surface, Mapping)
+        str(surface.get("id") or "") for surface in surfaces if isinstance(surface, Mapping)
     }
     added = 0
     for overlay in overlays:
@@ -164,11 +162,12 @@ async def run(args: argparse.Namespace) -> int:
             benign_tasks,
             label="Phase 1 benign tasks",
         )
-        capabilities = get_benchmark_capabilities(benchmark_name)
-        if not capabilities.phase_2_supported:
+        try:
+            get_benchmark_capabilities(benchmark_name).require("phase_2_generation")
+        except ValueError as exc:
             raise ValueError(
                 f"benchmark {benchmark_name!r} does not support WARP Taskgen Phase 2"
-            )
+            ) from exc
     except ValueError as exc:
         logger.error("Phase 2 benchmark gate failed: %s", exc)
         save_state(

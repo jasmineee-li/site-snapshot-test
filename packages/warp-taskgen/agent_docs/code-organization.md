@@ -58,6 +58,14 @@ Current and target ownership should stay explicit:
 - `worldsim.seed_contracts`: shared seed/editor-call contract behavior used by
   Phase 2, Phase 4, seeding, and sandbox validation. This package must preserve
   sandbox packaging constraints and parity tests.
+- `worldsim.benchmark_capabilities`: immutable Benchmark Contract identity,
+  alias normalization, explicit WARP phase admission versus comparison-only
+  ingestion, runner declarations, and evaluator-authority decisions. It must
+  not own Site HTTP behavior, auth/browser/reset lifecycle, runner execution,
+  evaluator subprocesses, or reward/scoring implementations. Registration is
+  metadata only; new callers must require the named capability before
+  admission. Legacy phase flags remain derived compatibility readers during
+  the current migration cycle.
 - `worldsim.seeding`: host-side seed validation, context rendering, editor-call
   execution, read-surface/result metadata, reddit/map context resolution,
   runtime error validation, DB helpers, and editor-argument compatibility. This
