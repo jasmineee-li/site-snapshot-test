@@ -187,7 +187,22 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
     if state_path.exists():
         state = load_json(state_path)
         if isinstance(state, dict):
-            payload["pipeline_state"] = state
+            from worldsim.run_definition import (
+                _redact_state_for_status,
+                define_run,
+                plan_resume,
+            )
+
+            payload["pipeline_state"] = _redact_state_for_status(state)
+
+            try:
+                run_definition = define_run(state)
+                resume_plan = plan_resume(run_definition, state, run_root=run_root)
+            except ValueError as exc:
+                payload["run_definition_error"] = str(exc)
+            else:
+                payload["run_definition"] = run_definition.to_dict()
+                payload["resume_plan"] = resume_plan.to_dict()
     if progress_path.exists():
         progress = load_json(progress_path)
         if isinstance(progress, dict):
@@ -342,6 +357,26 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
             lines.append(f"Task dir root: {task_dir_root}")
     else:
         lines.append("Pipeline: no pipeline_state.json found")
+
+    run_definition = payload.get("run_definition")
+    if isinstance(run_definition, dict):
+        lines.append(
+            "Run definition: "
+            f"schema={run_definition.get('schema_version', 'unknown')} "
+            f"digest={run_definition.get('definition_digest', 'unknown')} "
+            f"run_id={run_definition.get('run_id') or 'not-persisted'} "
+            f"legacy={str(bool(run_definition.get('legacy'))).lower()}"
+        )
+    resume_plan = payload.get("resume_plan")
+    if isinstance(resume_plan, dict):
+        lines.append(
+            "Resume plan: "
+            f"mode={resume_plan.get('mode', 'unknown')} "
+            f"action={resume_plan.get('lifecycle_action', 'unknown')} "
+            f"target={resume_plan.get('target_step') or 'none'}"
+        )
+    elif payload.get("run_definition_error"):
+        lines.append(f"Run definition: unavailable ({payload['run_definition_error']})")
 
     progress = payload.get("phase4_progress")
     if isinstance(progress, dict):

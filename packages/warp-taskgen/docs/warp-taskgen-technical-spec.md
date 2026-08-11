@@ -305,6 +305,15 @@ On crash, `--resume` reads this file and applies two-branch logic:
 
 `_PHASE_ORDER` is a fixed list: `["phase_0a", "phase_0b", "phase_0c", "phase_0d", "phase_1", "phase_2", "phase_3", "phase_4"]`. The resume loader also checks for a `logs_dir` key in the state metadata; if present, it uses that path instead of the default, allowing runs that were started with a custom `WORLDSIM_STATE_DIR` to resume correctly.
 
+`status` additionally projects an immutable, schema-versioned Run Definition
+from an allowlist of the non-secret result-affecting inputs already present in
+pipeline state. Its SHA-256 Definition Digest is an explanation aid, not a
+replacement for Phase 2 or Phase 4 fingerprints. The accompanying read-only
+Resume Plan mirrors the existing complete/running/failed routing and identifies
+feature checkpoint families whose owning validators must still inspect them.
+Legacy runs have no inferred Run ID. Persisted opaque Run IDs, Derived Run
+lineage, and any lifecycle/pause changes are deferred to later slices.
+
 ### CLI Flags
 
 `worldsim.main` exposes core pipeline subcommands `phase <id>`, `resume`, and `rescore-phase-3`, plus operator utilities including `trace`, `preflight`, `status`, `inspect`, `agentlab`, and `task-bank`. The `resume` subcommand mirrors every pipeline flag below so that a crashed run can be restarted with either the saved values or an override. `resume` reads the saved step from `logs/pipeline_state.json`, applies the two-branch logic from the State Persistence section, and then dispatches exactly as if you had typed `phase <id>` with the stored arguments.
