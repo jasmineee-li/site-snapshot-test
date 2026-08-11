@@ -401,15 +401,20 @@ async def _run_render_check(
 
     async def _do() -> RenderOutcome:
         try:
+            verify_kwargs: dict[str, Any] = {
+                "browser": browser,
+                "urls": urls,
+                "site_name": site_name,
+                "site_url": site_url,
+                "signature": signature,
+                "browser_context_kwargs": browser_context_kwargs,
+                "write_tokens": write_tokens or None,
+                "diagnostics": render_diagnostics or None,
+            }
+            if bound_site is not None:
+                verify_kwargs["readback_site"] = bound_site
             return await verify_seed_renders_fn(
-                browser=browser,
-                urls=urls,
-                site_name=site_name,
-                site_url=site_url,
-                signature=signature,
-                browser_context_kwargs=browser_context_kwargs,
-                write_tokens=write_tokens or None,
-                diagnostics=render_diagnostics or None,
+                **verify_kwargs,
             )
         except Exception as exc:  # pragma: no cover - defensive
             logger_obj.exception("phase 2c render check crashed")

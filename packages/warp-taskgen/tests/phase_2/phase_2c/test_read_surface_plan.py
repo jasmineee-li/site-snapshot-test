@@ -8,12 +8,16 @@ from tests.sites.test_read_surface import FakeReadSurfaceSite
 from worldsim.phase_2.phase_2c import _impl as phase_2c_impl
 from worldsim.phase_2.phase_2c import probes
 from worldsim.seeding import SeedSiteRegistration, SeedSiteRegistry
-from worldsim.sites import SiteCatalog
+from worldsim.sites import ReadbackDecision, ReadbackObservation, SiteCatalog
 
 
 @pytest.mark.asyncio
 async def test_render_check_consumes_injected_site_plan(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, Any] = {}
+
+    class FakeReadbackSite(FakeReadSurfaceSite):
+        def interpret_readback(self, observation: ReadbackObservation) -> ReadbackDecision:
+            return ReadbackDecision(observation.payload == "fake observation", "fake_decision")
 
     async def fake_verify_seed_renders(**kwargs: Any):
         captured.update(kwargs)
@@ -60,7 +64,7 @@ async def test_render_check_consumes_injected_site_plan(monkeypatch: pytest.Monk
             "site_url": "https://fake.local",
             "benchmark": "webarena_verified",
         },
-        site_catalog=SiteCatalog([FakeReadSurfaceSite()]),
+        site_catalog=SiteCatalog([FakeReadbackSite()]),
     )
 
     assert outcome.ok
@@ -72,6 +76,10 @@ async def test_render_check_consumes_injected_site_plan(monkeypatch: pytest.Monk
         "verification_mode": "seed_resource",
         "provenance_source": "editor_api_response",
     }
+    decision = captured["readback_site"].interpret_readback(
+        ReadbackObservation("resource_identity", {"comment_id": "17"}, "fake observation")
+    )
+    assert decision == ReadbackDecision(True, "fake_decision")
 
 
 @pytest.mark.asyncio

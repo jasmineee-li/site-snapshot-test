@@ -30,6 +30,8 @@ from urllib.parse import quote as urlquote
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from worldsim.agent_auth import playwright_storage_state
+from worldsim.sites import ReadbackDecision, ReadbackObservation, default_catalog
+from worldsim.sites.gitlab_readback import note_html_for_id, rendered_note_text
 
 logger = logging.getLogger(__name__)
 
@@ -644,34 +646,19 @@ async def _layout_probe_for_signature(page: Any, normalized_needle: str) -> dict
 
 
 def _extract_note_html(body: str, note_id_str: str) -> str | None:
-    """Return the ``note_html`` for the discussion note with the given id."""
+    """Compatibility facade for Site-owned GitLab note interpretation."""
     try:
         payload = json.loads(body)
     except (json.JSONDecodeError, ValueError):
         return None
-    if not isinstance(payload, list):
-        return None
-    for discussion in payload:
-        if not isinstance(discussion, dict):
-            continue
-        notes = discussion.get("notes") or []
-        if not isinstance(notes, list):
-            continue
-        for note in notes:
-            if not isinstance(note, dict):
-                continue
-            if str(note.get("id")) == note_id_str:
-                html_body = note.get("note_html")
-                return html_body if isinstance(html_body, str) else None
-    return None
+    _found, note_html = note_html_for_id(payload, note_id_str)
+    return note_html
 
 
 def _strip_html(html_blob: str) -> str:
-    """Strip tags and unescape entities to produce rendered plain text."""
-    import html as _html
+    """Compatibility facade for Site-owned GitLab note text rendering."""
 
-    text = _HTML_TAG_RE.sub(" ", html_blob)
-    return _html.unescape(re.sub(r"\s+", " ", text)).strip()
+    return rendered_note_text(html_blob)
 
 
 async def _gitlab_note_ryw_fastpath(
@@ -684,6 +671,7 @@ async def _gitlab_note_ryw_fastpath(
     scoped_extra_http_headers: dict[str, str] | None = None,
     header_scope_url: str | None = None,
     diagnostics: dict[str, Any] | None = None,
+    readback_site: Any | None = None,
 ) -> RenderOutcome | None:
     """Read-your-write fallback for GitLab issue / MR notes.
 
@@ -756,39 +744,48 @@ async def _gitlab_note_ryw_fastpath(
         body = await response.text()
     except Exception:
         return None
-    # Match the editor-returned id against the JSON payload. GitLab's REST
-    # API (POST /notes) returns ``id`` as an integer, but the view-controller
-    # endpoint that backs ``/discussions.json`` serializes notes via a Rails
-    # serializer that emits ``"id":"42"`` (quoted string). Cover both shapes
-    # plus the compact/spaced variants ActiveSupport::JSON can produce.
     note_id_str = str(note_id)
-    candidates = (
-        f'"id":{note_id_str}',
-        f'"id": {note_id_str}',
-        f'"id":"{note_id_str}"',
-        f'"id": "{note_id_str}"',
+    bound_readback = readback_site or default_catalog().bind(
+        site="gitlab",
+        origin=_gitlab_origin_from_target(target_url),
     )
-    matched = next((c for c in candidates if c in body), None)
+    decision = bound_readback.interpret_readback(
+        ReadbackObservation(
+            kind="resource_identity",
+            identity_tokens={"note_id": note_id},
+            payload=body,
+        )
+    )
+    matched = decision if isinstance(decision, ReadbackDecision) and decision.verified else None
     logger.info(
         "phase 2c render RYW fetched %s status=%s body_len=%d looking_for=%r match=%s",
         json_url,
         status,
         len(body or ""),
-        candidates[0],
+        f"note_id={note_id_str}",
         matched is not None,
     )
     if matched is not None:
-        note_html = _extract_note_html(body, note_id_str)
-        rendered_text = _strip_html(note_html) if note_html else None
-        # Pull a small context window around the match for the snippet
-        # field so evidence reports show what matched.
-        idx = body.find(matched)
-        snippet = body[max(0, idx - 40) : idx + 200] if idx >= 0 else body[:200]
+        marker = next(
+            (
+                candidate
+                for candidate in (
+                    f'"id":{note_id_str}',
+                    f'"id": {note_id_str}',
+                    f'"id":"{note_id_str}"',
+                    f'"id": "{note_id_str}"',
+                )
+                if candidate in body
+            ),
+            None,
+        )
+        pos = body.find(marker) if marker is not None else -1
+        snippet = body[max(0, pos - 80) : pos + 200] if pos >= 0 else body[:200]
         return RenderOutcome.passed(
             url=json_url,
-            signature=f"note_id={note_id_str}",
+            signature=matched.matched_signature or f"note_id={note_id_str}",
             snippet=snippet,
-            rendered_body_text=rendered_text,
+            rendered_body_text=matched.rendered_text,
             diagnostics=diagnostics,
         )
     return None
@@ -1246,6 +1243,7 @@ async def _gitlab_issue_description_ryw_fastpath(
     scoped_extra_http_headers: dict[str, str] | None = None,
     header_scope_url: str | None = None,
     diagnostics: dict[str, Any] | None = None,
+    readback_site: Any | None = None,
 ) -> RenderOutcome | None:
     """Read-your-write fallback for GitLab created issue descriptions.
 
@@ -1342,7 +1340,24 @@ async def _gitlab_issue_description_ryw_fastpath(
             continue
         normalized_description = _normalize(description)
         normalized_signature = _normalize(signature)
-        if normalized_signature not in normalized_description:
+        bound_readback = readback_site or default_catalog().bind(
+            site="gitlab",
+            origin=_gitlab_origin_from_target(target_url),
+        )
+        decision = bound_readback.interpret_readback(
+            ReadbackObservation(
+                kind="resource_signature",
+                identity_tokens={"project_id": project_id, "issue_iid": issue_iid},
+                payload={
+                    "normalized_description": _normalize(description),
+                    "normalized_signature": _normalize(signature),
+                    "project_id": payload.get("project_id"),
+                    "iid": payload.get("iid"),
+                },
+                signature=normalized_signature,
+            )
+        )
+        if not isinstance(decision, ReadbackDecision) or not decision.verified:
             _append_gitlab_issue_description_ryw_diagnostic(
                 diagnostics,
                 {
@@ -1555,6 +1570,7 @@ async def verify_seed_renders(
     browser_context_kwargs: dict[str, Any] | None = None,
     write_tokens: dict[str, Any] | None = None,
     diagnostics: dict[str, Any] | None = None,
+    readback_site: Any | None = None,
 ) -> RenderOutcome:
     """Open a fresh context, try each URL until the signature appears.
 
@@ -1697,10 +1713,22 @@ async def verify_seed_renders(
                             "reason": "probe_failed",
                             "comment_id": reddit_comment_id,
                         }
-                        if not (isinstance(probe, dict) and probe.get("ok") is True):
+                        bound_readback = readback_site or default_catalog().bind(
+                            site="reddit",
+                            origin=site_url,
+                        )
+                        decision = bound_readback.interpret_readback(
+                            ReadbackObservation(
+                                kind="comment_visibility",
+                                identity_tokens={"comment_id": reddit_comment_id},
+                                payload=probe,
+                                signature=signature,
+                            )
+                        )
+                        if not isinstance(decision, ReadbackDecision) or not decision.verified:
                             reason = (
-                                str(probe.get("reason"))
-                                if isinstance(probe, dict) and probe.get("reason")
+                                decision.reason
+                                if isinstance(decision, ReadbackDecision)
                                 else "probe_failed"
                             )
                             errors[target] = f"reddit_seed_comment_visibility_failed:{reason}"
@@ -1745,6 +1773,7 @@ async def verify_seed_renders(
                     scoped_extra_http_headers=scoped_extra_http_headers,
                     header_scope_url=site_url,
                     diagnostics=diagnostics,
+                    readback_site=readback_site,
                 )
                 if ryw_hit is not None:
                     return ryw_hit
@@ -1758,6 +1787,7 @@ async def verify_seed_renders(
                     scoped_extra_http_headers=scoped_extra_http_headers,
                     header_scope_url=site_url,
                     diagnostics=diagnostics,
+                    readback_site=readback_site,
                 )
                 if issue_ryw_hit is not None:
                     return issue_ryw_hit

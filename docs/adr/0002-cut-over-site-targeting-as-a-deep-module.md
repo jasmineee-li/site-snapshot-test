@@ -200,6 +200,31 @@ exposure/admission, and cleanup. Existing GitLab note and Reddit comment
 read-your-write browser probes also remain executor-owned until a later
 readback slice.
 
+## ST-8 scope (pure Site readback interpretation)
+
+The eighth bounded slice moves deterministic interpretation of completed
+readback observations behind the bound Site. Immutable observations carry a
+readback kind, identity tokens, signature, and already-collected payload; Site
+interpreters return typed decisions without importing browser, auth, HTTP,
+retry, reachability, admission, cleanup, or reward behavior.
+
+GitLab owns exact note-ID interpretation of discussion JSON and normalized
+issue-description signature decisions. Reddit owns the exact seeded-comment,
+first-visible, painted-at-entry, and no-expansion decision over an executor DOM
+snapshot. The render executor still owns request construction, same-origin
+auth headers, Playwright/DOM collection, navigation, timeouts, retry, and
+outcome mapping. Historical helper names remain one-cycle compatibility
+surfaces while active interpretation delegates to the Site.
+
+Malformed observations, missing identities, mismatched IDs, absent signatures,
+and interpreter exceptions fail closed. A test-only Site can interpret the
+same contract through an injected catalog without global registration.
+For GitLab discussions, an exact returned note ID is the authoritative
+read-your-write witness; `note_html` remains optional diagnostic text because
+valid discussion payloads do not always include it.
+Transport descriptors, generic selector languages, reachability,
+exposure/admission, reward/scoring, and facade deletion remain deferred.
+
 ## Final cutover and deletion criteria
 
 Site Targeting is fully cut over only when all intended callers use the bound
