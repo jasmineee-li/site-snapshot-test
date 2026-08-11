@@ -13,7 +13,7 @@ import json
 import logging
 import os
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -140,14 +140,31 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
         _validate_existing_definition(state_file, binding.definition)
         state["run_definition"] = binding.definition.to_dict()
     state_dir.mkdir(parents=True, exist_ok=True)
-    # Discovery pointer first: if a crash lands between the two writes for a
-    # brand-new custom logs dir, ``resume`` can still recover from the mirrored
-    # snapshot instead of losing the run entirely.
     status = str(normalized_metadata.get("status", "unknown")).strip() or "unknown"
-    _write_resume_pointer(state)
-    # Atomic write: write to a temp file in the same directory, then rename.
-    # os.replace is atomic on POSIX when src and dst are on the same filesystem.
-    write_json_atomic(state_file, state, failpoint_base=f"state.save_state.{step}.{status}")
+    pause_capable = step == "phase_4" and not bool(normalized_metadata.get("process_pool"))
+    if pause_capable:
+        from worldsim.run_control import (
+            PauseBoundaryReached,
+            clear_pause_request,
+            pause_control_lock,
+            pause_requested,
+        )
+
+        control = pause_control_lock(state_dir)
+    else:
+        control = nullcontext()
+    with control:
+        # Discovery pointer first: if a crash lands between the two writes for a
+        # brand-new custom logs dir, ``resume`` can still recover from the mirrored
+        # snapshot instead of losing the run entirely.
+        _write_resume_pointer(state)
+        # Atomic write: write to a temp file in the same directory, then rename.
+        # os.replace is atomic on POSIX when src and dst are on the same filesystem.
+        write_json_atomic(state_file, state, failpoint_base=f"state.save_state.{step}.{status}")
+        if pause_capable and status == "running" and pause_requested(state_dir):
+            raise PauseBoundaryReached()
+        if pause_capable and status in {"complete", "partial_complete", "failed"}:
+            clear_pause_request(state_dir)
 
 
 def initialize_isolated_run_state(
@@ -181,6 +198,42 @@ def initialize_isolated_run_state(
         state,
         failpoint_base="run_materialization.child_state",
     )
+
+
+def transition_pipeline_status(
+    status: str,
+    *,
+    expected_statuses: set[str],
+    state_dir: Path | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Atomically replace only lifecycle state while preserving checkpoint data."""
+
+    root = _canonical_path(state_dir or get_state_dir())
+    state_file = root / "pipeline_state.json"
+    try:
+        payload = json.loads(state_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"pipeline state at {state_file} is unreadable") from exc
+    if not isinstance(payload, dict):
+        raise ValueError(f"pipeline state at {state_file} must contain an object")
+    observed = str(payload.get("status") or "")
+    if observed not in expected_statuses:
+        raise ValueError(f"pipeline status changed from the expected state: {observed!r}")
+    updated = {
+        **payload,
+        **(metadata or {}),
+        "status": status,
+        "timestamp": datetime.now(UTC).isoformat(),
+        "logs_dir": str(root),
+    }
+    _write_resume_pointer(updated)
+    write_json_atomic(
+        state_file,
+        updated,
+        failpoint_base=f"state.transition.{status}",
+    )
+    return updated
 
 
 def _validate_existing_definition(path: Path, expected: RunDefinition) -> None:

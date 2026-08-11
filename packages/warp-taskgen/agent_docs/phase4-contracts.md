@@ -70,6 +70,18 @@ variant generation, TP, VEA, placement-fix, cue diagnosis, and rewrite. No
 trajectory step runs in a Modal sandbox. See `runtime-boundaries.md` for auth,
 retry, and sandbox inclusion rules.
 
+## Cooperative pause
+
+Normal single-process Phase 4 may pause only at initial task-dequeue and
+postprocessing-dequeue boundaries. A request stops new admission; an already
+admitted browser, API, cleanup, or postprocessing unit finishes and writes its
+normal artifact before the runner records `paused`. Resume reruns Phase 4 and
+the existing result fingerprint plus required-sidecar checks remain the only
+reuse authority. Do not turn queued work into error results, cancel active
+units, or infer pause from `progress.json`. Process-pool Phase 4 and Phases 0-3
+are outside this contract. SIGINT/SIGTERM may persist `interrupted` after stack
+unwind; SIGKILL cannot be relabeled because no handler ran.
+
 Completion means gate classification, awareness branch, variant budget,
 immutable contracts, ASR denominator, and artifact evidence are all explicit in
 the changed code or report, with `phase4-reporting-metrics.md` used for labels.

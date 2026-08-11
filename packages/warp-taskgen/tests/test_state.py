@@ -731,6 +731,8 @@ def test_dispatch_resume_retries_failed_checkpoint(monkeypatch, tmp_path):
         instances_path="/tmp/instances.json",
         agent_model="gpt-5.4",
     )
+    stale_pause_marker = custom_logs / "pause_request.json"
+    stale_pause_marker.write_text("{}", encoding="utf-8")
     monkeypatch.delenv("WORLDSIM_STATE_DIR")
 
     captured = {}
@@ -747,6 +749,38 @@ def test_dispatch_resume_retries_failed_checkpoint(monkeypatch, tmp_path):
     assert rc == 0
     assert captured["phase"] == "4"
     assert captured["agent_model"] == "gpt-5.4"
+    assert not stale_pause_marker.exists()
+
+
+@pytest.mark.parametrize("status", ["paused", "interrupted"])
+def test_dispatch_resume_retries_cooperative_lifecycle_status(
+    monkeypatch,
+    tmp_path,
+    status,
+):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_4",
+        status=status,
+        instances_path="/tmp/instances.json",
+        agent_model="gpt-5.4",
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["agent_model"] = args.agent_model
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 0
+    assert captured == {"phase": "4", "agent_model": "gpt-5.4"}
 
 
 def test_dispatch_resume_omits_saved_task_cap_by_default(monkeypatch, tmp_path):

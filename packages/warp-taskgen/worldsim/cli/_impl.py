@@ -868,6 +868,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Resume: force the saved Phase 2 run down the offline L1/L2-only "
         "resolver path instead of live L3/L4 enrichment.",
     )
+    pause_cmd = subparsers.add_parser(
+        "pause",
+        help="Request a cooperative pause at the next safe Phase 4 boundary.",
+    )
+    pause_cmd.add_argument(
+        "--state-dir",
+        type=Path,
+        default=None,
+        help="Run state directory. Defaults to the configured WARP state root.",
+    )
     rescore_cmd = subparsers.add_parser(
         "rescore-phase-3",
         help="Re-score an existing Phase 3 run with the agent-response transform.",
@@ -1268,6 +1278,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "resume":
         return _dispatch_resume(args)
 
+    if args.command == "pause":
+        from worldsim.cli.run_control import dispatch_pause
+
+        return dispatch_pause(args)
+
     if args.command == "phase":
         try:
             _install_verification_proxy_from_args(args)
@@ -1567,6 +1582,9 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         reason = state.get("reason")
         suffix = f" ({reason})" if reason else ""
         print(f"Last checkpoint: {last_step} failed{suffix}. Re-running {target}.")
+    elif status in {"paused", "interrupted"}:
+        target = last_step
+        print(f"Last checkpoint: {last_step} was {status}. Re-running {target}.")
     else:
         print(f"Last checkpoint: {last_step} has unknown status {status!r}.", file=sys.stderr)
         return 1
@@ -1793,6 +1811,11 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
             "warp-taskgen resume"
         )
         return 0
+    if status in {"complete", "partial_complete", "failed", "paused", "interrupted"}:
+        from worldsim.run_control import clear_pause_request
+        from worldsim.state import get_state_dir
+
+        clear_pause_request(Path(str(state.get("logs_dir") or get_state_dir())))
     if pipeline_finished:
         print(f"Last checkpoint: {last_step} complete. Pipeline finished — nothing to resume.")
         return 0
@@ -1914,8 +1937,37 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
     except ValueError as exc:
         print(f"Phase dispatch rejected by persisted Run Definition: {exc}", file=sys.stderr)
         return 2
-    with bind_run_definition(definition, state_dir=get_state_dir()):
-        return _dispatch_phase_with_run_context(args)
+    from worldsim.cli.run_control import dispatch_phase_with_run_control
+
+    def _run_bound_phase() -> int:
+        with bind_run_definition(definition, state_dir=get_state_dir()):
+            return _dispatch_phase_with_run_context(args)
+
+    phase = str(getattr(args, "phase", ""))
+
+    @contextlib.contextmanager
+    def _lifecycle_guard():
+        if phase != "4":
+            yield
+            return
+        from worldsim.phase_4.sweep_tag import sweep_in_progress
+
+        with _phase4_run_lock(get_state_dir()), sweep_in_progress():
+            yield
+
+    try:
+        return dispatch_phase_with_run_control(
+            phase=phase,
+            state_dir=get_state_dir(),
+            operation=_run_bound_phase,
+            lifecycle_guard=_lifecycle_guard,
+        )
+    except Phase4AlreadyRunning as exc:
+        print(
+            f"Phase 4 refused to start because another run is active: {exc}",
+            file=sys.stderr,
+        )
+        return 2
 
 
 def _dispatch_phase_with_run_context(args: argparse.Namespace) -> int:
@@ -2001,21 +2053,12 @@ def _dispatch_phase_with_run_context(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
             return 2
-        try:
-            from worldsim.phase_4 import runner as phase_4_adversarial
-            from worldsim.phase_4.sweep_tag import sweep_in_progress
+        from worldsim.phase_4 import runner as phase_4_adversarial
 
-            with _phase4_run_lock(get_state_dir()), sweep_in_progress():
-                rc = _run_phase4_with_bounded_async_shutdown(
-                    phase_4_adversarial.run(args),
-                    shutdown_timeout_s=_phase4_async_shutdown_timeout(),
-                )
-        except Phase4AlreadyRunning as exc:
-            print(
-                f"Phase 4 refused to start because another run is active: {exc}",
-                file=sys.stderr,
-            )
-            return 2
+        rc = _run_phase4_with_bounded_async_shutdown(
+            phase_4_adversarial.run(args),
+            shutdown_timeout_s=_phase4_async_shutdown_timeout(),
+        )
     else:
         print(f"Unknown phase: {phase}", file=sys.stderr)
         return 1

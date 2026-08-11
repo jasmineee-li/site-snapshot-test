@@ -420,6 +420,7 @@ async def run_tasks_by_site(
     resume_fingerprint_builder: Callable[[dict[str, Any]], str] | None = None,
     result_callback: Callable[[dict[str, Any]], Any] | None = None,
     max_workers: int | None = None,
+    pause_check: Callable[[], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """Run tasks only against instances for the same site.
 
@@ -475,11 +476,17 @@ async def run_tasks_by_site(
                 ),
                 result_callback=result_callback,
                 max_workers=max_workers,
+                pause_check=pause_check,
             )
         )
 
     if batches:
         grouped_results = await asyncio.gather(*batches, return_exceptions=True)
+        from worldsim.run_control import PauseBoundaryReached, RunInterrupted
+
+        for batch in grouped_results:
+            if isinstance(batch, (PauseBoundaryReached, RunInterrupted)):
+                raise batch
         for batch in grouped_results:
             if isinstance(batch, BaseException):
                 logger.error("Site batch failed: %s", batch)

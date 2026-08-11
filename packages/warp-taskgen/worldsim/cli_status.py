@@ -203,6 +203,27 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
             else:
                 payload["run_definition"] = run_definition.to_dict()
                 payload["resume_plan"] = resume_plan.to_dict()
+        from worldsim.run_control import load_pause_request, pause_request_path
+
+        marker = pause_request_path(run_root)
+        if marker.exists():
+            try:
+                pause_request = load_pause_request(run_root)
+                pause_definition = define_run(state)
+                if (
+                    state.get("status") != "running"
+                    or state.get("step") != "phase_4"
+                    or pause_request is None
+                    or pause_request.step != "phase_4"
+                    or pause_request.run_id != pause_definition.run_id
+                    or pause_request.definition_digest != pause_definition.definition_digest
+                ):
+                    raise ValueError("pause request does not match an active Phase 4 Run")
+            except ValueError as exc:
+                payload["pause_request_error"] = str(exc)
+            else:
+                payload["pause_request"] = pause_request.to_dict()
+                payload["lifecycle_status"] = "pausing"
     if progress_path.exists():
         progress = load_json(progress_path)
         if isinstance(progress, dict):
@@ -346,10 +367,11 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
     lines = [f"WARP Taskgen status: {payload['run_root']}"]
     state = payload.get("pipeline_state")
     if isinstance(state, dict):
+        lifecycle_status = payload.get("lifecycle_status", state.get("status", "unknown"))
         lines.append(
             "Pipeline: "
             f"step={state.get('step', 'unknown')} "
-            f"status={state.get('status', 'unknown')} "
+            f"status={lifecycle_status} "
             f"timestamp={state.get('timestamp', 'unknown')}"
         )
         task_dir_root = state.get("task_dir_root")
@@ -377,6 +399,15 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
         )
     elif payload.get("run_definition_error"):
         lines.append(f"Run definition: unavailable ({payload['run_definition_error']})")
+    pause_request = payload.get("pause_request")
+    if isinstance(pause_request, dict):
+        lines.append(
+            "Pause request: "
+            f"id={pause_request.get('request_id', 'unknown')} "
+            f"requested_at={pause_request.get('requested_at', 'unknown')}"
+        )
+    elif payload.get("pause_request_error"):
+        lines.append(f"Pause request: malformed ({payload['pause_request_error']})")
 
     progress = payload.get("phase4_progress")
     if isinstance(progress, dict):

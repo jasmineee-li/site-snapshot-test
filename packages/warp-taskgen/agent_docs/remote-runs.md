@@ -130,6 +130,18 @@ After compaction or a pause, verify the instance pool before reusing state:
 - host-unreachable, public-IP navigation, and host-bound cookie errors are
   investigated as topology symptoms first.
 
+For a normal single-process Phase 4 run, request a cooperative pause without
+terminating the remote job:
+
+```bash
+WARP_TASKGEN_STATE_DIR=<run-root> uv run warp-taskgen pause
+WARP_TASKGEN_STATE_DIR=<run-root> uv run warp-taskgen status
+```
+
+Wait for `status=paused` before stopping infrastructure. `status=pausing`
+means an admitted atomic unit is still draining. Process-pool Phase 4 and
+Phases 0-3 reject this command; do not simulate pause by killing their workers.
+
 A result-affecting resume override on an identified Run materializes an
 isolated child and prints its exact resume command. Preserve both environment
 assignments so the child state and discovery mirror stay inside that child:

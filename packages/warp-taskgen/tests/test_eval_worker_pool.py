@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from worldsim.agent_config import run_tasks_by_site
 from worldsim.config import BenchmarkInstance
 from worldsim.eval_worker_pool import (
     _normalize_completed_result,
@@ -14,6 +15,7 @@ from worldsim.eval_worker_pool import (
     run_eval,
 )
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
+from worldsim.run_control import PauseBoundaryReached, RunInterrupted
 from worldsim.task_paths import safe_task_path_component
 
 
@@ -27,6 +29,65 @@ class _NoopAgent:
 
     async def teardown(self) -> None:
         return None
+
+
+@pytest.mark.asyncio
+async def test_run_eval_stops_dequeue_after_active_task_reaches_pause(monkeypatch, tmp_path):
+    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    paused = False
+    started: list[str] = []
+
+    async def task_runner(task, agent, instance, task_dir):
+        nonlocal paused
+        started.append(task["id"])
+        paused = True
+        return {"task_id": task["id"], "passed": True}
+
+    with pytest.raises(PauseBoundaryReached):
+        await run_eval(
+            tasks=[{"id": "task-a"}, {"id": "task-b"}],
+            instances=[BenchmarkInstance(site_name="shopping", site_url="http://shopping.test")],
+            agent_factory=lambda: _NoopAgent(),
+            task_runner=task_runner,
+            task_dir_root=tmp_path,
+            pause_check=lambda: paused,
+        )
+
+    assert started == ["task-a"]
+
+
+@pytest.mark.asyncio
+async def test_run_eval_propagates_handled_process_interruption(monkeypatch, tmp_path):
+    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+
+    async def task_runner(task, agent, instance, task_dir):
+        raise RunInterrupted("SIGTERM")
+
+    with pytest.raises(RunInterrupted, match="SIGTERM"):
+        await run_eval(
+            tasks=[{"id": "task-a"}],
+            instances=[BenchmarkInstance(site_name="shopping", site_url="http://shopping.test")],
+            agent_factory=lambda: _NoopAgent(),
+            task_runner=task_runner,
+            task_dir_root=tmp_path,
+        )
+
+
+@pytest.mark.asyncio
+async def test_site_router_propagates_handled_process_interruption(monkeypatch, tmp_path):
+    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+
+    async def task_runner(task, agent, instance, task_dir):
+        raise RunInterrupted("SIGTERM")
+
+    with pytest.raises(RunInterrupted, match="SIGTERM"):
+        await run_tasks_by_site(
+            tasks=[{"id": "task-a", "site": "shopping"}],
+            instances=[BenchmarkInstance(site_name="shopping", site_url="http://shopping.test")],
+            agent_factory=lambda: _NoopAgent(),
+            task_runner=task_runner,
+            task_dir_root=tmp_path,
+        )
 
 
 def test_worker_stagger_delay_accepts_env_override(monkeypatch):
@@ -378,7 +439,7 @@ def test_normalize_completed_result_preserves_phase_4_passed_and_error_fields(tm
             "passed": False,
             "error": "missing required args",
             "message": "seed preflight mismatch",
-            "final_result": "{\"status\":\"FAILURE\"}",
+            "final_result": '{"status":"FAILURE"}',
         },
         trajectory_dir=tmp_path / "adv-1",
     )
@@ -386,7 +447,7 @@ def test_normalize_completed_result_preserves_phase_4_passed_and_error_fields(tm
     assert normalized["benign_passed"] is False
     assert normalized["adversarial_passed"] is False
     assert normalized["error"] == "missing required args"
-    assert normalized["final_result"] == "{\"status\":\"FAILURE\"}"
+    assert normalized["final_result"] == '{"status":"FAILURE"}'
 
 
 def test_normalize_completed_result_preserves_final_state_fields(tmp_path):
@@ -563,7 +624,9 @@ async def test_run_eval_resume_nonexistent_dir_behaves_like_fresh_run(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_run_eval_resume_reruns_task_when_result_fingerprint_is_missing(monkeypatch, tmp_path):
+async def test_run_eval_resume_reruns_task_when_result_fingerprint_is_missing(
+    monkeypatch, tmp_path
+):
     monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
 
     task_dir = tmp_path / safe_task_path_component("task-a")

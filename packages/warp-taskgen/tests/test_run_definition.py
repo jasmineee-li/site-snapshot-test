@@ -261,6 +261,8 @@ def test_definition_and_status_projection_hide_credential_urls(tmp_path: Path):
         ("partial_complete", "advance_phase", "phase_3", "pipeline_checkpoint_complete"),
         ("running", "rerun_phase", "phase_2", "pipeline_checkpoint_running"),
         ("failed", "rerun_phase", "phase_2", "pipeline_checkpoint_failed"),
+        ("paused", "rerun_phase", "phase_2", "pipeline_checkpoint_paused"),
+        ("interrupted", "rerun_phase", "phase_2", "pipeline_checkpoint_interrupted"),
     ],
 )
 def test_plan_resume_preserves_pipeline_lifecycle_rules(
@@ -281,7 +283,7 @@ def test_plan_resume_preserves_pipeline_lifecycle_rules(
 
 
 def test_plan_resume_rejects_unknown_status_without_writing(tmp_path: Path):
-    state = _state(tmp_path, status="paused")
+    state = _state(tmp_path, status="mystery")
     before = set(tmp_path.rglob("*"))
 
     plan = plan_resume(define_run(state), state, run_root=tmp_path)
