@@ -57,3 +57,19 @@ Signal handling begins only after the Phase 4 run lock is owned. Termination
 during pre-ownership lock/sweep setup remains crash-compatible `running`, while
 the short atomic `paused`/`interrupted` state transition ignores a second
 termination signal so it cannot be torn midway.
+
+The fifth slice extends the same request sidecar to the Phase 4 process-pool
+supervisor, but not to its child runners. The output root owns an authoritative
+`pipeline_state.json` and a root-local discovery pointer. A pause request is
+serialized with assignment claim and subprocess creation, so accepted requests
+stop new child launches while already-started children finish naturally. The
+supervisor records strictly successful worker IDs in the paused checkpoint for inspection,
+leaves failed, timed-out, malformed, and queued assignments pending, writes no
+canonical merged result while paused, and then records `paused`. Continuation
+conservatively reruns every assignment in a fresh attempt root instead of
+promoting supervisor metadata past Phase 4's fingerprint/sidecar authority. It
+uses the explicit process-pool wrapper command persisted in state; generic
+`warp-taskgen resume` fails closed rather than dispatching normal Phase 4.
+Process-pool SIGTERM/crash recovery and Phases 0-3 remain outside cooperative
+pause, and the existing process-pool merge and partial-repair rules remain the
+only artifact-acceptance paths.

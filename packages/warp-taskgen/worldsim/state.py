@@ -61,10 +61,39 @@ class _RunPersistenceBinding:
     definition: RunDefinition
 
 
+@dataclass(frozen=True)
+class _StatePathBinding:
+    state_dir: Path
+    resume_pointer: Path
+
+
 _RUN_PERSISTENCE: ContextVar[_RunPersistenceBinding | None] = ContextVar(
     "worldsim_run_persistence",
     default=None,
 )
+_STATE_PATHS: ContextVar[_StatePathBinding | None] = ContextVar(
+    "worldsim_state_paths",
+    default=None,
+)
+
+
+@contextmanager
+def bind_state_paths(
+    state_dir: Path,
+    *,
+    resume_pointer: Path,
+) -> Iterator[None]:
+    """Scope state and discovery writes to one isolated orchestration root."""
+
+    binding = _StatePathBinding(
+        state_dir=_canonical_path(state_dir),
+        resume_pointer=_canonical_path(resume_pointer),
+    )
+    token = _STATE_PATHS.set(binding)
+    try:
+        yield
+    finally:
+        _STATE_PATHS.reset(token)
 
 
 @contextmanager
@@ -106,6 +135,9 @@ def validate_run_definition_binding(
 
 def get_state_dir() -> Path:
     """Return the current pipeline state directory."""
+    binding = _STATE_PATHS.get()
+    if binding is not None:
+        return binding.state_dir
     return _canonical_path(_state_dir_override() or _DEFAULT_STATE_DIR)
 
 
@@ -490,6 +522,9 @@ def _canonical_path(value: str | os.PathLike[str] | Path) -> Path:
 
 
 def _resume_pointer_path() -> Path:
+    binding = _STATE_PATHS.get()
+    if binding is not None:
+        return binding.resume_pointer
     return _canonical_path(os.environ.get(RESUME_POINTER_ENV) or _RESUME_POINTER)
 
 

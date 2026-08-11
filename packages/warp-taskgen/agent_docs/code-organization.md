@@ -87,7 +87,11 @@ Current and target ownership should stay explicit:
   admission-boundary scheduling, and paused/interrupted lifecycle transitions.
   It must not cancel admitted browser/API work, accept feature checkpoints,
   reinterpret `progress.json` as routing authority, or silently extend pause to
-  process-pool Phase 4 or Phases 0-3.
+  Phases 0-3. `worldsim.phase_4.process_pool` owns its supervisor-specific
+  claim/launch boundary and worker/result orchestration;
+  `worldsim.phase_4.process_pool_control` owns root-local lifecycle metadata,
+  output ownership, and the explicit wrapper continuation contract. Child
+  runner and result-merge acceptance remain unchanged.
   `worldsim.cli.run_control` is the thin parser/dispatch adapter that handles
   operator output and catchable process signals after the phase stack unwinds.
 - `worldsim.seeding`: host-side seed validation, context rendering, editor-call

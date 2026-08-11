@@ -812,6 +812,51 @@ def test_dispatch_resume_omits_saved_task_cap_by_default(monkeypatch, tmp_path):
     assert captured["max_tasks_per_site"] is None
 
 
+def test_dispatch_resume_refuses_process_pool_root_and_prints_wrapper_command(
+    monkeypatch,
+    tmp_path,
+    capsys,
+):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
+    command = [
+        "uv",
+        "run",
+        "python",
+        "scripts/run_phase4_process_pool.py",
+        "--resume",
+        "--out-dir",
+        str(tmp_path),
+    ]
+    (tmp_path / "pipeline_state.json").write_text(
+        json.dumps(
+            {
+                "step": "phase_4",
+                "status": "paused",
+                "timestamp": "2026-08-11T00:00:00+00:00",
+                "logs_dir": str(tmp_path),
+                "process_pool": True,
+                "process_pool_resume_argv": command,
+            }
+        ),
+        encoding="utf-8",
+    )
+    called = False
+
+    def fake_dispatch_phase(_args):
+        nonlocal called
+        called = True
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 2
+    assert called is False
+    assert "scripts/run_phase4_process_pool.py --resume" in capsys.readouterr().err
+
+
 def test_dispatch_resume_allows_explicit_task_cap_override(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"

@@ -73,14 +73,21 @@ retry, and sandbox inclusion rules.
 ## Cooperative pause
 
 Normal single-process Phase 4 may pause only at initial task-dequeue and
-postprocessing-dequeue boundaries. A request stops new admission; an already
-admitted browser, API, cleanup, or postprocessing unit finishes and writes its
-normal artifact before the runner records `paused`. Resume reruns Phase 4 and
-the existing result fingerprint plus required-sidecar checks remain the only
-reuse authority. Do not turn queued work into error results, cancel active
-units, or infer pause from `progress.json`. Process-pool Phase 4 and Phases 0-3
-are outside this contract. SIGINT/SIGTERM may persist `interrupted` after stack
-unwind; SIGKILL cannot be relabeled because no handler ran.
+postprocessing-dequeue boundaries. The process-pool supervisor may pause only
+at assignment claim/subprocess-launch boundaries. A request stops new
+admission; an already admitted browser, API, cleanup, postprocessing unit, or
+child process finishes and writes its normal artifact before the owning runner
+records `paused`. The process pool writes no canonical merged result while
+paused. Its explicit wrapper `--resume` command reruns every assignment in a
+fresh attempt root; prior successful worker IDs are inspection metadata only in
+the paused checkpoint and are not promoted around the feature-owned
+fingerprint/sidecar validators;
+generic `warp-taskgen resume` refuses to reinterpret the pool root as normal
+Phase 4. Do not turn queued work into error results, cancel active units, or
+infer pause from `progress.json`. Phases 0-3 remain outside this contract.
+Single-process SIGINT/SIGTERM may persist `interrupted` after stack unwind;
+process-pool termination remains crash-compatible, and SIGKILL cannot be
+relabeled because no handler ran.
 
 Completion means gate classification, awareness branch, variant budget,
 immutable contracts, ASR denominator, and artifact evidence are all explicit in

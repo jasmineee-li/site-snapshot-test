@@ -130,8 +130,8 @@ After compaction or a pause, verify the instance pool before reusing state:
 - host-unreachable, public-IP navigation, and host-bound cookie errors are
   investigated as topology symptoms first.
 
-For a normal single-process Phase 4 run, request a cooperative pause without
-terminating the remote job:
+For a Phase 4 run, request a cooperative pause without terminating the remote
+job. Target the normal run root or the process-pool output root:
 
 ```bash
 WARP_TASKGEN_STATE_DIR=<run-root> uv run warp-taskgen pause
@@ -139,8 +139,12 @@ WARP_TASKGEN_STATE_DIR=<run-root> uv run warp-taskgen status
 ```
 
 Wait for `status=paused` before stopping infrastructure. `status=pausing`
-means an admitted atomic unit is still draining. Process-pool Phase 4 and
-Phases 0-3 reject this command; do not simulate pause by killing their workers.
+means an admitted atomic unit or process-pool child is still draining. A paused
+process pool prints and persists its full `scripts/run_phase4_process_pool.py
+--resume ...` command; use that exact wrapper command. Generic `warp-taskgen
+resume` deliberately refuses a pool root. Process-pool termination without a
+cooperative pause remains the existing inspect/repair workflow. Phases 0-3
+reject pause; do not simulate pause by killing their workers.
 
 A result-affecting resume override on an identified Run materializes an
 isolated child and prints its exact resume command. Preserve both environment
