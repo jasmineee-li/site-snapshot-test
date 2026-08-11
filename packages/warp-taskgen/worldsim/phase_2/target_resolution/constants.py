@@ -18,61 +18,7 @@ PHASE_2A_SYNTHETIC_PLACEHOLDERS: dict[str, str] = {
     "__WIKIPEDIA__": "https://wikipedia.local",
     "__MAP__": "https://map.local",
 }
-_ISSUE_RE = re.compile(r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/issues/(?P<issue_iid>\d+)")
-_ISSUE_LISTING_RE = re.compile(r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/issues(?:/?(?:\?|$))")
-_MR_RE = re.compile(r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/merge_requests/(?P<mr_iid>\d+)")
-_MILESTONE_RE = re.compile(
-    r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/milestones/(?P<milestone_iid>\d+)"
-)
-_LABELS_RE = re.compile(r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/labels(?:/?(?:\?|$))")
-_SNIPPET_RE = re.compile(r"/-/snippets/(?P<snippet_id>\d+)")
-_SNIPPETS_INDEX_RE = re.compile(r"/-/snippets(?:/?(?:\?|$))")
-_SEARCH_RE = re.compile(
-    r"/search\?(?=[^#]*\bsearch=(?P<q>[^&]+))(?=[^#]*\bscope=(?P<scope>issues|merge_requests))"
-)
-_DASHBOARD_RE = re.compile(r"/dashboard/(?P<dash>todos|merge_requests|issues)\b")
-_PROJECT_ISSUES_API_RE = re.compile(r"/api/v4/projects/(?P<project_id>\d+)/issues\b")
-_GITLAB_PROJECT_ROOT_RE = re.compile(
-    r"^/(?P<project_path>[A-Za-z0-9_.-]+/[A-Za-z0-9_.\-/.-]+?)(?:/?(?:\?|$))"
-)
-_GITLAB_PROJECT_PATH_IN_TEXT_RE = re.compile(
-    r"\b(?P<project_path>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?)\b"
-)
-_ROOT_SEGMENT_RE = re.compile(r"^/(?P<segment>[A-Za-z][A-Za-z0-9_.\-]*)(?:/?(?:\?|$))")
-_SUBMISSION_RE = re.compile(r"/f/(?P<forum_name>[^/?#]+)/(?P<submission_id>\d+)(?:/|$|\b)")
-_FORUM_RE = re.compile(r"/f/(?P<forum_name>[^/?#\d][^/?#]*)(?:/?(?:\?|$))")
-_REDDIT_SUBMIT_RE = re.compile(r"/submit/(?P<forum_name>[^/?#]+)")
-_REDDIT_USER_DASH_RE = re.compile(r"/user/(?P<user>[^/?#]+)/(?P<dash>submitted|comments)\b")
-_GITLAB_PATTERNS: tuple[tuple[ResourceKind, re.Pattern[str]], ...] = (
-    ("gitlab_issue", _ISSUE_RE),
-    ("gitlab_mr", _MR_RE),
-    ("gitlab_project_milestone", _MILESTONE_RE),
-    ("gitlab_project_labels", _LABELS_RE),
-    ("gitlab_snippet", _SNIPPET_RE),
-    ("gitlab_snippets_index", _SNIPPETS_INDEX_RE),
-    ("gitlab_search_result", _SEARCH_RE),
-    ("gitlab_dashboard_list", _DASHBOARD_RE),
-    ("gitlab_search_result", _PROJECT_ISSUES_API_RE),
-    # Root-segment patterns disambiguated dynamically by _match_gitlab.
-    # The Pseudo-kind below is overwritten before emission; it's just a
-    # placeholder for the regex tuple.
-    ("gitlab_user_profile", _ROOT_SEGMENT_RE),
-)
-_REDDIT_PATTERNS: tuple[tuple[ResourceKind, re.Pattern[str]], ...] = (
-    ("reddit_submission", _SUBMISSION_RE),
-    ("reddit_dashboard_list", _REDDIT_USER_DASH_RE),
-    ("reddit_forum", _FORUM_RE),
-    ("reddit_forum", _REDDIT_SUBMIT_RE),
-)
 _REGEX_META_RE = re.compile(r"[\^\$\(\)\|\\\*\+\?\[\]\{\}]")
-_HOSTPREFIX_RE = re.compile(
-    r"""^(?:
-        https?://[^/]+/        # scheme://host/
-        | gitlab\.local/        # bare host
-        | localhost(?::\d+)?/   # localhost or localhost:NNNN
-    )""",
-    re.IGNORECASE | re.VERBOSE,
-)
 L3_MODEL_DEFAULT = "claude-sonnet-4-6"
 L3_MAX_TOKENS = 512
 L3_SYSTEM_PROMPT = (

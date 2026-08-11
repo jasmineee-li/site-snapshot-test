@@ -1,0 +1,7 @@
+---
+status: accepted
+---
+
+# Define resume from an immutable Run Definition
+
+Every Run will have one immutable, versioned Run Definition containing its normalized effective inputs. Start, resume, status, checkpoint fingerprints, and drift reporting will consume that definition rather than maintain separate option lists. A persisted opaque Run ID identifies one execution, while a deterministic Definition Digest compares semantic inputs; separately started Runs may therefore have equal definitions and different identities. An exact resume retains the Run ID, while a result-affecting override creates a Derived Run with a new Run ID and a reference to its source Run, and it may reuse only checkpoints that a read-only Resume Plan proves compatible. The public resumability interface will be limited to `define_run` and `plan_resume`; feature-owned definition contributors normalize and classify inputs, and separate feature-owned checkpoint policies decide compatibility. The first resumability slice will add Run Definition and Resume Plan behavior without changing lifecycle state. A later slice will add cooperative checkpoint-aligned pause semantics: `pausing` stops new scheduling, current atomic work may finish, `paused` is then persisted, and abrupt termination is represented as `interrupted` rather than deliberate pause. This accepts explicit Run derivation and lifecycle states to preserve provenance, explain reuse, and keep existing atomic artifact guarantees.

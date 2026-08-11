@@ -12,18 +12,11 @@ from worldsim.phase_2.target_resolution.encounter import (
     _route_evidence_flags,
 )
 from worldsim.phase_2.target_resolution.listing_intent import _gitlab_issue_listing_intent
-from worldsim.phase_2.target_resolution.reconstruction import _reconstruct_start_url_from_anchors
 from worldsim.phase_2.target_resolution.url_matching import (
     _empty_record,
-    _is_listing_kind,
-    _iter_eval_urls,
-    _iter_start_urls,
-    _listing_start_url,
-    _match_gitlab,
-    _match_reddit,
-    _normalise_url,
     _site_kind_for_task,
 )
+from worldsim.sites import SiteTargetingDefinitionError, TargetingFailure, default_catalog
 
 
 def derive_benign_target_resource(
@@ -54,76 +47,64 @@ def derive_benign_target_resource(
             "L3 and L4 are async; call resolve_l3() / resolve_l4() explicitly."
         )
 
-    start_urls_raw = _iter_start_urls(task)
-    resolved_start: str | None = None
-    for url in start_urls_raw:
-        resolved = _normalise_url(url, placeholders)
-        if resolved:
-            resolved_start = resolved
-            break
-
-    # L1: parse eval URLs (gold source — NetworkEvent ranked before
-    # AgentResponse so the "which URL must the agent hit" signal wins).
-    if "L1" in allow_layers:
-        for raw in _iter_eval_urls(task):
-            resolved = _normalise_url(raw, placeholders)
-            if not resolved:
-                continue
-            hit = (
-                _match_gitlab(resolved, task) if site_kind == "gitlab" else _match_reddit(resolved)
-            )
-            if hit is None:
-                continue
-            kind, anchors = hit
-            reconstructed = _reconstruct_start_url_from_anchors(
-                site_kind, kind, anchors, placeholders
-            )
-            start_url = (
-                _listing_start_url(kind, resolved, resolved_start)
-                if _is_listing_kind(kind)
-                else reconstructed or resolved_start
-            )
-            record = {
-                "kind": kind,
-                "anchors": dict(anchors),
-                "start_url_resolved": start_url,
-                "attach_surfaces": _attach_surfaces_for(kind, benchmark=benchmark, site=site_kind),
-                "encounter_requirements": _encounter_requirements(kind, task, anchors),
-                "layer": "L1",
-            }
-            record.update(_route_evidence_flags(kind, task))
-            _assert_anchor_contract_conformance(record, benchmark=benchmark, site=site_kind)
-            return record
-
-    # L2: parse start_urls directly — applies when eval[] lacks a URL
-    # (AgentResponseEvaluator-only retrieve tasks).
-    if "L2" in allow_layers and resolved_start:
-        hit = (
-            _match_gitlab(resolved_start, task)
-            if site_kind == "gitlab"
-            else _match_reddit(resolved_start)
+    try:
+        bound = default_catalog().bind(
+            benchmark=benchmark,
+            site=site_kind,
+            placeholders=placeholders,
         )
-        if hit is not None:
-            kind, anchors = hit
-            reconstructed = _reconstruct_start_url_from_anchors(
-                site_kind, kind, anchors, placeholders
+    except SiteTargetingDefinitionError:
+        return _empty_record("task is not gitlab or reddit (out of WASP scope)", None)
+
+    target = bound.resolve(task, allow_layers=allow_layers)
+    resolved_start = target.evidence_url if isinstance(target, TargetingFailure) else None
+    if not isinstance(target, TargetingFailure):
+        resolved_start = target.evidence_url
+        is_gitlab_issue_listing = (
+            site_kind == "gitlab"
+            and target.kind == "search_result"
+            and "project_path" in target.anchors
+            and "/-/issues" in str(target.evidence_url or "")
+        )
+        if is_gitlab_issue_listing:
+            listing_record = (
+                _gitlab_issue_listing_intent(
+                    task,
+                    resolved_start=resolved_start,
+                    placeholders=placeholders,
+                    benchmark=benchmark,
+                )
+                if "L2" in allow_layers
+                else None
             )
-            start_url = (
-                _listing_start_url(kind, resolved_start, resolved_start)
-                if _is_listing_kind(kind) and resolved_start is not None
-                else reconstructed or resolved_start
+            if listing_record is not None:
+                return listing_record
+            target = TargetingFailure(
+                site_kind,
+                "unresolved_evidence",
+                "L1+L2 found no concrete resource; intent-only task pending L3",
+                pending_layer="L3",
+                evidence_url=resolved_start,
             )
-            record = {
-                "kind": kind,
-                "anchors": dict(anchors),
-                "start_url_resolved": start_url,
-                "attach_surfaces": _attach_surfaces_for(kind, benchmark=benchmark, site=site_kind),
-                "encounter_requirements": _encounter_requirements(kind, task, anchors),
-                "layer": "L2",
-            }
-            record.update(_route_evidence_flags(kind, task))
-            _assert_anchor_contract_conformance(record, benchmark=benchmark, site=site_kind)
-            return record
+
+    if not isinstance(target, TargetingFailure):
+        kind = (
+            target.canonical_route.compatibility_kind
+            if target.canonical_route is not None
+            else target.kind
+        )
+        anchors = dict(target.anchors)
+        record = {
+            "kind": kind,
+            "anchors": anchors,
+            "start_url_resolved": target.start_url_resolved,
+            "attach_surfaces": _attach_surfaces_for(kind, benchmark=benchmark, site=site_kind),
+            "encounter_requirements": _encounter_requirements(kind, task, anchors),
+            "layer": target.layer,
+        }
+        record.update(_route_evidence_flags(kind, task))
+        _assert_anchor_contract_conformance(record, benchmark=benchmark, site=site_kind)
+        return record
 
     if "L2" in allow_layers and site_kind == "gitlab":
         listing_record = _gitlab_issue_listing_intent(

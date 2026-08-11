@@ -5,13 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from typing import Any
-from urllib.parse import urlsplit
 
-from worldsim.phase_2.target_resolution.constants import (
-    _GITLAB_PROJECT_PATH_IN_TEXT_RE,
-    _GITLAB_PROJECT_ROOT_RE,
-    _ISSUE_LISTING_RE,
-)
 from worldsim.phase_2.target_resolution.encounter import (
     _assert_anchor_contract_conformance,
     _attach_surfaces_for,
@@ -19,10 +13,9 @@ from worldsim.phase_2.target_resolution.encounter import (
     _route_evidence_flags,
 )
 from worldsim.phase_2.target_resolution.reconstruction import _reconstruct_start_url_from_anchors
-from worldsim.phase_2.target_resolution.url_matching import (
-    _canonicalize_project_path,
-    _path_and_query,
-)
+from worldsim.sites.gitlab import GitLabSite
+
+_GITLAB_SITE = GitLabSite()
 
 
 def _gitlab_issue_listing_intent(
@@ -95,19 +88,10 @@ def _project_path_from_gitlab_listing_task(
     resolved_start: str | None,
     placeholders: Mapping[str, str],
 ) -> str | None:
-    if resolved_start:
-        parsed = urlsplit(resolved_start)
-        path = parsed.path if parsed.scheme else _path_and_query(resolved_start)
-        issue_listing = _ISSUE_LISTING_RE.search(path)
-        if issue_listing:
-            return _canonicalize_project_path(issue_listing.group("project_path"))
-        match = _GITLAB_PROJECT_ROOT_RE.match(path)
-        if match and "/-/" not in path:
-            return _canonicalize_project_path(match.group("project_path"))
-    match = _GITLAB_PROJECT_PATH_IN_TEXT_RE.search(instruction)
-    if match:
-        return _canonicalize_project_path(match.group("project_path"))
-    return None
+    return _GITLAB_SITE.project_path_from_listing_task(
+        instruction,
+        resolved_start=resolved_start,
+    )
 
 
 def _label_names_from_gitlab_issue_listing_instruction(instruction: str) -> str | None:

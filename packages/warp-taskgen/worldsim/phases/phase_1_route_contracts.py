@@ -31,6 +31,7 @@ from worldsim.phases.phase_2_core_surfaces import (
 )
 from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
 from worldsim.placeholders import placeholder_for_site
+from worldsim.sites import SiteTargetingDefinitionError, default_catalog
 from worldsim.surface_identity import (
     canonicalize_surface_id,
     resolve_profile_surface,
@@ -290,26 +291,21 @@ def _route_variant_from_anchor_examples(
 
 
 def _start_url_patterns(site: str, kind: str, placeholder: str) -> list[str]:
-    if site == "gitlab":
-        if kind == "gitlab_search_result":
-            return [f"{placeholder}/{{project_path}}/-/issues"]
-        if kind == "gitlab_issue":
-            return [f"{placeholder}/{{project_path}}/-/issues/{{issue_iid}}"]
-        if kind == "gitlab_dashboard_list":
-            return [f"{placeholder}/dashboard/issues"]
-        if kind == "gitlab_mr":
-            return [f"{placeholder}/{{project_path}}/-/merge_requests/{{mr_iid}}"]
-    if site == "reddit":
-        if kind == "reddit_forum":
-            return [f"{placeholder}/f/{{forum_name}}"]
-        if kind == "reddit_submission":
-            return [f"{placeholder}/f/{{forum_name}}/{{submission_id}}"]
-        if kind == "reddit_dashboard_list":
-            return [
-                f"{placeholder}/user/{{username}}/submitted",
-                f"{placeholder}/user/{{username}}/comments",
-            ]
-    return []
+    try:
+        routes = default_catalog().bind(site=site).routes()
+    except SiteTargetingDefinitionError:
+        return []
+    route = next(
+        (
+            candidate
+            for candidate in routes
+            if kind in {candidate.kind, candidate.compatibility_kind}
+        ),
+        None,
+    )
+    if route is None:
+        return []
+    return [f"{placeholder}{pattern}" for pattern in route.allowed_start_url_patterns]
 
 
 def _requires_inventory_backed_start_url(site: str, kind: str) -> bool:
