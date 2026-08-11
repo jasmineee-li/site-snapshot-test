@@ -9,6 +9,7 @@ from typing import Any
 
 from worldsim.benchmark_capabilities import infer_benchmark_name
 from worldsim.phase_2.phase_2c import auth_preflight as _auth_preflight
+from worldsim.phase_2.phase_2c.policy import FeasibilityPolicyCatalog
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ async def _run_preflight_and_filter_raw(
     *,
     instances_by_site: dict[str, list[dict[str, Any]]],
     benchmark_root: Path | None = None,
+    feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
 ) -> list[dict[str, Any]]:
     """Probe every task and mutate ``raw`` in place to drop quarantined tasks.
 
@@ -102,11 +104,16 @@ async def _run_preflight_and_filter_raw(
             return None
         ctx = await _factory(context_options)
         try:
+            kwargs: dict[str, Any] = {
+                "request_context": ctx,
+                "site": site,
+                "site_url": str(instance.get("site_url") or ""),
+                "benchmark": benchmark,
+            }
+            if feasibility_policy_catalog is not None:
+                kwargs["feasibility_policy_catalog"] = feasibility_policy_catalog
             return await self_test_preflight_auth(
-                request_context=ctx,
-                site=site,
-                site_url=str(instance.get("site_url") or ""),
-                benchmark=benchmark,
+                **kwargs,
             )
         finally:
             try:
@@ -127,8 +134,11 @@ async def _run_preflight_and_filter_raw(
         benchmark = _instance_benchmark_or_none(instance)
         if benchmark is None:
             return context_options, skip_reason
+        auth_path_kwargs: dict[str, Any] = {"benchmark": benchmark}
+        if feasibility_policy_catalog is not None:
+            auth_path_kwargs["feasibility_policy_catalog"] = feasibility_policy_catalog
         if (
-            auth_self_test_path(site, benchmark=benchmark) is None
+            auth_self_test_path(site, **auth_path_kwargs) is None
             or _agent_auth_type(instance) != "storage_state"
         ):
             return context_options, skip_reason
@@ -275,11 +285,13 @@ async def _run_preflight_and_filter_raw(
                     resolved["preflight_request_context"] = context_options
                 resolved_instances.append(resolved)
             preflight_instances_by_site[site] = resolved_instances
-        keep, dropped = await preflight_benign_targets(
-            raw,
-            instances_by_site=preflight_instances_by_site,
-            request_context_factory=_factory,
-        )
+        preflight_kwargs: dict[str, Any] = {
+            "instances_by_site": preflight_instances_by_site,
+            "request_context_factory": _factory,
+        }
+        if feasibility_policy_catalog is not None:
+            preflight_kwargs["feasibility_policy_catalog"] = feasibility_policy_catalog
+        keep, dropped = await preflight_benign_targets(raw, **preflight_kwargs)
     finally:
         for ctx in contexts_created:
             try:

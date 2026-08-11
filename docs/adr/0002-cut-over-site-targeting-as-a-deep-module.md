@@ -147,6 +147,32 @@ behavior-owned execution sibling is deferred until its monkeypatch callers are
 cut over; the new registry and evidence behavior has a single implementation
 in `site_contracts.py`.
 
+## ST-6 scope (explicit feasibility policy catalog)
+
+The sixth bounded slice introduces an immutable, caller-supplied
+`FeasibilityPolicyCatalog` for the deterministic policy hooks used by the
+Phase 2c source-data preflight. The catalog normalizes benchmark aliases and
+Site names, rejects malformed or duplicate bindings, and assembles the
+WebArena Verified GitLab and Reddit policies explicitly. Importing the Phase
+2c package no longer registers those policies as a process-wide side effect.
+The canonical contracts live under `worldsim.phase_2.phase_2c`; the historical
+`worldsim.phase_2c` policy and WebArena modules remain one-cycle re-export
+facades.
+
+The source-data preflight, auth self-test path lookup, and probe-target
+planning resolve only through the explicit catalog; an unknown binding keeps
+the task on the existing downstream path rather than selecting another Site's
+policy. The historical `get/register/clear` policy functions remain a thin
+compatibility facade for callers that have not migrated, but they are not an
+active source of Phase 2c behavior. A fake policy can therefore be injected
+for one preflight run without changing active GitLab or Reddit behavior or
+leaking into a later run.
+
+ST-6 does not move seed/editor execution, browser or authentication mechanics,
+render/reachability verification, admission, visibility/readback, cleanup,
+reward/scoring, or legacy facade deletion. Those capabilities remain separate
+follow-up slices.
+
 ## Final cutover and deletion criteria
 
 Site Targeting is fully cut over only when all intended callers use the bound

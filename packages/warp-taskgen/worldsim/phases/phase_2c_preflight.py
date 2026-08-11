@@ -55,14 +55,16 @@ from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 from worldsim.benchmark_capabilities import infer_benchmark_name
-from worldsim.phase_2c.policy import (
+from worldsim.phase_2.phase_2c.policy import (
+    FeasibilityPolicyCatalog,
     PreflightClassification,
     ProbeTarget,
-    get_feasibility_policy,
+    default_feasibility_policy_catalog,
+    resolve_feasibility_policy,
+    task_probe_targets,
 )
-from worldsim.phase_2c.webarena import (
+from worldsim.phase_2.phase_2c.webarena_policy import (
     DEFAULT_LOGIN_REDIRECT_BAILOUT_RATIO,
-    WebArenaFeasibilityPolicy,
     classify_webarena_probe,
     clean_gitlab_project_path,
     dedupe_targets,
@@ -138,9 +140,18 @@ def _editor_surface_path(
     return editor_surface_path(site=site, method=method, args=args, anchors=anchors)
 
 
-def _task_probe_targets(task: dict[str, Any], instance_site_url: str) -> list[ProbeTarget]:
-    return WebArenaFeasibilityPolicy(site=str(task.get("site") or "")).probe_targets(
-        task, instance_site_url
+def _task_probe_targets(
+    task: dict[str, Any],
+    instance_site_url: str,
+    *,
+    feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
+    benchmark: object | None = None,
+) -> list[ProbeTarget]:
+    return task_probe_targets(
+        task,
+        instance_site_url,
+        feasibility_policy_catalog=feasibility_policy_catalog,
+        benchmark=benchmark,
     )
 
 
@@ -204,9 +215,18 @@ async def _probe_one(
     )
 
 
-def auth_self_test_path(site: str, *, benchmark: str = "webarena_verified") -> str | None:
+def auth_self_test_path(
+    site: str,
+    *,
+    benchmark: str = "webarena_verified",
+    feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
+) -> str | None:
     """Return a cheap authenticated endpoint path for sites that need one."""
-    policy = get_feasibility_policy(benchmark, str(site or "").strip().lower())
+    policy = resolve_feasibility_policy(
+        benchmark,
+        str(site or "").strip().lower(),
+        feasibility_policy_catalog=feasibility_policy_catalog,
+    )
     return policy.auth_self_test_path() if policy is not None else None
 
 
@@ -217,6 +237,7 @@ async def self_test_preflight_auth(
     site_url: str,
     benchmark: str = "webarena_verified",
     timeout_s: float = DEFAULT_PREFLIGHT_TIMEOUT_S,
+    feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
 ) -> PreflightClassification | None:
     """Probe whether the current request context has live browser auth.
 
@@ -224,7 +245,11 @@ async def self_test_preflight_auth(
     authenticated browser state. For GitLab, ``reachable`` means the storage
     state is accepted; ``login_redirect``/``auth_missing`` means it is stale.
     """
-    path = auth_self_test_path(site, benchmark=benchmark)
+    path = auth_self_test_path(
+        site,
+        benchmark=benchmark,
+        feasibility_policy_catalog=feasibility_policy_catalog,
+    )
     if path is None:
         return None
     base = str(site_url or "").strip()
@@ -239,7 +264,11 @@ async def self_test_preflight_auth(
         request_context=request_context,
         url=resolve_start_url(path, base),
         timeout_s=timeout_s,
-        policy=get_feasibility_policy(benchmark, str(site or "").strip().lower()),
+        policy=resolve_feasibility_policy(
+            benchmark,
+            str(site or "").strip().lower(),
+            feasibility_policy_catalog=feasibility_policy_catalog,
+        ),
     )
 
 
@@ -307,6 +336,7 @@ async def preflight_benign_targets(
     concurrency: int = DEFAULT_PREFLIGHT_CONCURRENCY,
     timeout_s: float = DEFAULT_PREFLIGHT_TIMEOUT_S,
     bailout_ratio: float = DEFAULT_LOGIN_REDIRECT_BAILOUT_RATIO,
+    feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Probe every task's benign surface and split into (keep, dropped).
 
@@ -324,6 +354,12 @@ async def preflight_benign_targets(
     """
     if not tasks:
         return [], []
+
+    active_catalog = (
+        feasibility_policy_catalog
+        if feasibility_policy_catalog is not None
+        else default_feasibility_policy_catalog()
+    )
 
     sem = asyncio.Semaphore(max(1, int(concurrency)))
     keep: list[dict[str, Any]] = []
@@ -389,7 +425,7 @@ async def preflight_benign_targets(
         if benchmark is None:
             keep.append(task)
             return
-        policy = get_feasibility_policy(benchmark, site)
+        policy = active_catalog.get(benchmark, site)
         if policy is None:
             keep.append(task)
             return
