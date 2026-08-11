@@ -26,6 +26,11 @@ from worldsim.sites.contracts import (
     TargetingContext,
     TargetingFailure,
 )
+from worldsim.sites.listing_resolution import (
+    ListingItemCandidate,
+    ListingSiteAdapter,
+    materialize_listing_entry,
+)
 from worldsim.sites.task_evidence import (
     _MISSING,  # noqa: F401
     _iter_eval_urls,
@@ -182,6 +187,56 @@ class BoundSite:
             candidate=candidate,
         )
 
+    def materialize_listing_entry(
+        self,
+        candidate: ListingItemCandidate,
+    ) -> ResolvedTarget | TargetingFailure:
+        """Materialize one raw listing row through this bound Site."""
+
+        return materialize_listing_entry(
+            site=self._context.site,
+            benchmark=self._context.benchmark,
+            adapter=self._adapter,
+            context=self._context,
+            route_for_identifier=self._route_for_identifier,
+            candidate=candidate,
+        )
+
+    def is_expandable_listing_kind(self, kind: str) -> bool:
+        """Return whether ``kind`` is an adapter-approved L4 listing."""
+
+        route = self._route_for_identifier(str(kind or ""), {})
+        if route is None:
+            return False
+        if not isinstance(self._adapter, ListingSiteAdapter):
+            return False
+        return route.kind in self._adapter.expandable_listing_kinds
+
+    def supports_benchmark(self) -> bool:
+        """Return whether this bound Site declares the requested Benchmark."""
+
+        return self._context.benchmark in getattr(
+            self._adapter,
+            "supported_benchmarks",
+            frozenset(),
+        )
+
+    def has_materialization_origin(self) -> bool:
+        """Return whether canonical reconstruction has an explicit bound origin."""
+
+        return self._context.site_origin() is not None
+
+    def is_listing_kind(self, kind: str) -> bool:
+        """Compatibility alias for callers that only need route classification."""
+
+        route = self._route_for_identifier(str(kind or ""), {})
+        if route is None:
+            return False
+        try:
+            return bool(self._adapter.is_listing(route.kind))
+        except Exception:
+            return False
+
     def _resolved(
         self,
         hit: tuple[str, dict[str, Any]],
@@ -315,10 +370,39 @@ class SiteCatalog:
                 )
             validate()
             validation_benchmark = sorted(supported)[0]
-            BoundSite(
+            bound = BoundSite(
                 adapter,
                 TargetingContext(benchmark=validation_benchmark, site=site),
             )
+            listing_members = (
+                "expandable_listing_kinds",
+                "listing_item_kind",
+                "listing_item_anchors",
+            )
+            if any(hasattr(adapter, name) for name in listing_members):
+                if not isinstance(adapter, ListingSiteAdapter):
+                    missing = [name for name in listing_members if not hasattr(adapter, name)]
+                    raise SiteTargetingDefinitionError(
+                        f"Site adapter {site!r} has an incomplete L4 listing capability: "
+                        f"missing {missing!r}"
+                    )
+                expandable = adapter.expandable_listing_kinds
+                if not isinstance(expandable, frozenset) or not all(
+                    isinstance(kind, str) and kind.strip() for kind in expandable
+                ):
+                    raise SiteTargetingDefinitionError(
+                        f"Site adapter {site!r} expandable_listing_kinds must be a "
+                        "frozenset of non-empty local kinds"
+                    )
+                invalid = [
+                    kind
+                    for kind in sorted(expandable)
+                    if not bound.is_listing_kind(kind) or not bound.is_expandable_listing_kind(kind)
+                ]
+                if invalid:
+                    raise SiteTargetingDefinitionError(
+                        f"Site adapter {site!r} has invalid expandable listing kinds: {invalid!r}"
+                    )
             normalized[site] = adapter
         if not normalized:
             raise SiteTargetingDefinitionError("catalog requires at least one Site adapter")
@@ -327,6 +411,79 @@ class SiteCatalog:
     @property
     def sites(self) -> tuple[str, ...]:
         return tuple(sorted(self._adapters))
+
+    def site_for_task(
+        self,
+        task: Mapping[str, Any],
+        *,
+        fallback_kind: str | None = None,
+        benchmark: str = "webarena_verified",
+    ) -> str | None:
+        """Resolve a task Site without guessing through malformed metadata.
+
+        An explicit, valid task Site wins.  When task metadata omits a Site,
+        ``fallback_kind`` may identify one unique route owner for legacy
+        resource records.  Invalid or ambiguous task metadata returns
+        ``None`` rather than silently selecting that fallback.
+        """
+
+        if not isinstance(task, Mapping):
+            return None
+        metadata = _task_site_metadata(task)
+        if metadata.failure_reason is not None:
+            return None
+        if metadata.task_site is not None:
+            return metadata.task_site if metadata.task_site in self._adapters else None
+        if fallback_kind is None:
+            return None
+        return self.site_for_kind(fallback_kind, benchmark=benchmark)
+
+    def site_for_kind(self, kind: str, *, benchmark: str = "webarena_verified") -> str | None:
+        """Return the unique Site owner for a local or compatibility kind.
+
+        This lookup exists for direct Phase 2 compatibility callers whose
+        resource record predates explicit Site metadata.  Ambiguous or
+        unsupported kinds fail closed instead of selecting an adapter by
+        prefix.
+        """
+
+        normalized_kind = str(kind or "").strip()
+        if not normalized_kind:
+            return None
+        owners: list[str] = []
+        try:
+            normalized_benchmark = TargetingContext(
+                benchmark=benchmark,
+                site=next(iter(self._adapters)),
+            ).benchmark
+        except (StopIteration, SiteTargetingDefinitionError):
+            return None
+        for site, adapter in self._adapters.items():
+            if normalized_benchmark not in getattr(adapter, "supported_benchmarks", ()):
+                continue
+            try:
+                routes = adapter.routes(TargetingContext(benchmark=normalized_benchmark, site=site))
+            except Exception:
+                continue
+            if any(normalized_kind in {route.kind, route.compatibility_kind} for route in routes):
+                owners.append(site)
+        return owners[0] if len(owners) == 1 else None
+
+    def is_expandable_listing_kind(
+        self,
+        kind: str,
+        *,
+        benchmark: str = "webarena_verified",
+    ) -> bool:
+        """Return whether one registered Site explicitly admits ``kind`` for L4."""
+
+        site = self.site_for_kind(kind, benchmark=benchmark)
+        if site is None:
+            return False
+        try:
+            return self.bind(benchmark=benchmark, site=site).is_expandable_listing_kind(kind)
+        except SiteTargetingDefinitionError:
+            return False
 
     def bind(
         self,
@@ -365,6 +522,8 @@ def default_catalog() -> SiteCatalog:
 __all__ = [
     "BoundSite",
     "CanonicalRoute",
+    "ListingItemCandidate",
+    "ListingSiteAdapter",
     "ResolvedTarget",
     "SiteAdapter",
     "SiteCatalog",

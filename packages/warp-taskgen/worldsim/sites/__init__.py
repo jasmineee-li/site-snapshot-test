@@ -17,12 +17,15 @@ from worldsim.sites.contracts import (
     TargetingFailure,
 )
 from worldsim.sites.gitlab import GitLabSite
+from worldsim.sites.listing_resolution import ListingItemCandidate, ListingSiteAdapter
 from worldsim.sites.reddit import RedditSite
 
 __all__ = [
     "BoundSite",
     "CanonicalRoute",
     "GitLabSite",
+    "ListingItemCandidate",
+    "ListingSiteAdapter",
     "RedditSite",
     "ResolvedTarget",
     "SiteAdapter",

@@ -89,7 +89,7 @@ class SourceListing:
 def _adapter_validation(
     adapter: Any,
     kind: str,
-    probe_query: Mapping[str, Any],
+    probe_query: Mapping[str, Any] | None,
     anchors: Mapping[str, Any],
     context: Any,
 ) -> tuple[str, str] | None:
@@ -198,14 +198,50 @@ def materialize_candidate(
             f"materialize only accepts L3 candidates, got {candidate.layer!r}",
             layer=candidate.layer,
         )
+    return _materialize_route_target(
+        site=site,
+        benchmark=benchmark,
+        adapter=adapter,
+        context=context,
+        route_for_identifier=route_for_identifier,
+        kind=candidate.kind,
+        anchors=candidate.anchors,
+        probe_query=candidate.probe_query,
+        evidence_url=candidate.evidence_url,
+        layer="L3",
+    )
+
+
+def _materialize_route_target(
+    *,
+    site: str,
+    benchmark: str,
+    adapter: Any,
+    context: Any,
+    route_for_identifier: Callable[[str, Mapping[str, Any]], Any],
+    kind: str,
+    anchors: Mapping[str, Any],
+    probe_query: Mapping[str, Any],
+    evidence_url: str | None,
+    layer: str,
+) -> Any:
+    """Reconstruct one canonical target for an already projected candidate.
+
+    L3 intent candidates and L4 listing rows share the same strict route
+    checks.  Keeping this small function private lets each value-object seam
+    own its input validation while ensuring URL reconstruction has one source
+    of truth.
+    """
+
+    evidence = {"kind": kind, "anchors": dict(anchors)}
     supported = getattr(adapter, "supported_benchmarks", frozenset())
     if benchmark not in supported:
         return TargetingFailure(
             site,
             "unsupported_benchmark",
             f"benchmark {benchmark!r} is not supported by this Site",
-            layer="L3",
-            evidence={"kind": candidate.kind, "anchors": dict(candidate.anchors)},
+            layer=layer,
+            evidence=evidence,
         )
     origin = context.site_origin()
     if origin is None:
@@ -213,32 +249,33 @@ def materialize_candidate(
             site,
             "missing_origin",
             "materialize requires an explicit site origin or placeholder",
-            layer="L3",
-            evidence={"kind": candidate.kind, "anchors": dict(candidate.anchors)},
+            layer=layer,
+            evidence=evidence,
         )
-    if candidate.evidence_url is not None and (
-        not _is_absolute_http_url(candidate.evidence_url)
-        or not _matches_origin(candidate.evidence_url, origin)
+    if evidence_url is not None and (
+        not _is_absolute_http_url(evidence_url) or not _matches_origin(evidence_url, origin)
     ):
         return TargetingFailure(
             site,
             "foreign_origin",
             "candidate evidence_url is not an absolute URL on the bound Site origin",
-            layer="L3",
-            evidence={"kind": candidate.kind},
+            layer=layer,
+            evidence={"kind": kind},
         )
-    route = route_for_identifier(candidate.kind, candidate.anchors)
+    route = route_for_identifier(kind, anchors)
     if route is None:
         return TargetingFailure(
             site,
             "unknown_route",
-            f"no canonical route for resource kind {candidate.kind!r}",
-            layer="L3",
-            evidence={"kind": candidate.kind, "anchors": dict(candidate.anchors)},
-            evidence_url=candidate.evidence_url,
+            f"no canonical route for resource kind {kind!r}",
+            layer=layer,
+            evidence=evidence,
+            evidence_url=evidence_url,
         )
-    validation = _adapter_validation(
-        adapter, route.kind, candidate.probe_query, candidate.anchors, context
+    validation = (
+        _adapter_validation(adapter, route.kind, probe_query, anchors, context)
+        if layer == "L3" and probe_query is not None
+        else None
     )
     if validation is not None:
         reason, message = validation
@@ -246,64 +283,56 @@ def materialize_candidate(
             site,
             reason,
             message,
-            layer="L3",
-            evidence={
-                "kind": candidate.kind,
-                "anchors": dict(candidate.anchors),
-                "probe_query": dict(candidate.probe_query),
-            },
-            evidence_url=candidate.evidence_url,
+            layer=layer,
+            evidence={**evidence, "probe_query": dict(probe_query)},
+            evidence_url=evidence_url,
         )
     try:
-        reconstructed = adapter.reconstruct(route.kind, candidate.anchors, context)
+        reconstructed = adapter.reconstruct(route.kind, anchors, context)
     except Exception as exc:
         return TargetingFailure(
             site,
             "adapter_error",
             f"Site adapter reconstruct failed ({type(exc).__name__})",
-            layer="L3",
-            evidence={"kind": candidate.kind, "anchors": dict(candidate.anchors)},
-            evidence_url=candidate.evidence_url,
+            layer=layer,
+            evidence=evidence,
+            evidence_url=evidence_url,
         )
     if not reconstructed:
         return TargetingFailure(
             site,
             "missing_anchor",
-            f"resource kind {candidate.kind!r} has insufficient anchors for canonical route",
-            layer="L3",
-            evidence={"kind": candidate.kind, "anchors": dict(candidate.anchors)},
-            evidence_url=candidate.evidence_url,
+            f"resource kind {kind!r} has insufficient anchors for canonical route",
+            layer=layer,
+            evidence=evidence,
+            evidence_url=evidence_url,
         )
     if not _is_absolute_http_url(reconstructed):
         return TargetingFailure(
             site,
             "invalid_target_url",
             "adapter reconstruction must be an absolute http(s) URL",
-            layer="L3",
-            evidence={"kind": candidate.kind, "anchors": dict(candidate.anchors)},
-            evidence_url=candidate.evidence_url,
+            layer=layer,
+            evidence=evidence,
+            evidence_url=evidence_url,
         )
     if not _matches_origin(reconstructed, origin):
         return TargetingFailure(
             site,
             "foreign_origin",
             "adapter reconstruction did not stay on the bound Site origin",
-            layer="L3",
-            evidence={
-                "kind": candidate.kind,
-                "anchors": dict(candidate.anchors),
-                "reconstructed": reconstructed,
-            },
-            evidence_url=candidate.evidence_url,
+            layer=layer,
+            evidence={**evidence, "reconstructed": reconstructed},
+            evidence_url=evidence_url,
         )
     return ResolvedTarget(
         site=site,
         kind=route.kind,
-        anchors=dict(candidate.anchors),
+        anchors=dict(anchors),
         start_url_resolved=reconstructed,
-        layer="L3",
+        layer=layer,
         canonical_route=route,
-        evidence_url=candidate.evidence_url,
+        evidence_url=evidence_url,
     )
 
 

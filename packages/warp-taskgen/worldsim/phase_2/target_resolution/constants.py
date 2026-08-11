@@ -5,8 +5,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from worldsim.phase_2.target_resolution.types import ResourceKind
-
 VIEWPORT_BUDGET_CHARS = 600
 DEFAULT_L4_TOP_N = 3
 DEFAULT_REDDIT_MAX_EXISTING_COMMENTS = 0
@@ -216,9 +214,6 @@ _POSTMILL_COMMENT_ID_RE = re.compile(r"""id=["']comment[_-]\d+""")
 _POSTMILL_STRONG_COUNT_RE = re.compile(
     r"<strong>[\s\n]*(\d+)[\s\n]+comments?[\s\n]*</strong>",
     re.IGNORECASE,
-)
-_LISTING_KINDS: frozenset[ResourceKind] = frozenset(
-    {"gitlab_search_result", "gitlab_dashboard_list"}
 )
 DEFAULT_L3_CONCURRENCY = 8
 DEFAULT_L4_CONCURRENCY = 16

@@ -63,6 +63,25 @@ does not bypass the legacy editor compatibility registry. L4 listing
 expansion, browser/auth behavior, and editor or exposure contracts remain
 outside ST-2.
 
+## ST-3 scope (L4 listing-entry materialization)
+
+The L4 slice moves only deterministic interpretation of an already-fetched
+listing row behind the bound Site seam. `ListingItemCandidate` snapshots the
+source listing kind, row item kind, raw payload, and optional listing evidence
+URL. `materialize_listing_entry()` asks the Site adapter to validate the
+source/item-kind pair and project raw row anchors, then reuses the strict
+same-origin route reconstruction used by L3. It fails closed on unknown
+routes, malformed rows, missing anchors, adapter errors, and relative or
+foreign reconstructed URLs; evidence URLs are never promoted as fallbacks.
+
+Phase 2 retains listing HTTP/auth/visibility probes, item ordering and
+`top_n`, empty-list omission, probe-error records, concurrency, encounter and
+viewport requirements, title/DOM evidence, attach-surface composition, and
+the historical prefixed artifact kinds. Reddit forum expansion, editor and
+admission contracts, exposure/readback, and reward behavior remain outside
+this slice. `_project_item_to_record()` and the anchor reconstruction helpers
+remain thin compatibility facades for one migration cycle.
+
 ## Deferred slices
 
 The following remain separate capability migrations: L3 classifier and probe

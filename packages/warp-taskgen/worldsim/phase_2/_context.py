@@ -148,12 +148,6 @@ _validate_phase_2c_artifact_payloads = _phase_2c_artifacts._validate_phase_2c_ar
 _validate_phase_2c_instance_record = _phase_2c_config._validate_phase_2c_instance_record
 _TARGET_RESOLUTION_WRITE_LOCK = threading.Lock()
 _ELIGIBILITY_DROPS_WRITE_LOCK = threading.Lock()
-_L4_LISTING_KINDS = frozenset(
-    {
-        "gitlab_search_result",
-        "gitlab_dashboard_list",
-    }
-)
 _FRAMINGS = (
     "authority",
     "urgency",

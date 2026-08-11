@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 from worldsim.phase_2._context import install_context
+from worldsim.sites import default_catalog
 
 install_context(globals())
+
 
 def _phase_2a_resolution_signature(args: argparse.Namespace) -> dict[str, Any]:
     """Fingerprint the live inputs that affect Phase 2a L3/L4 output."""
@@ -35,6 +37,7 @@ def _phase_2a_resolution_signature(args: argparse.Namespace) -> dict[str, Any]:
     signature["instances_sha256"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12]
     return signature
 
+
 def _project_phase_2a_resolution_inputs(payload: Any) -> list[dict[str, Any]]:
     """Keep only the benign-probe inputs that can change L3/L4 output."""
     effective_by_site: dict[str, dict[str, Any]] = {}
@@ -56,6 +59,7 @@ def _project_phase_2a_resolution_inputs(payload: Any) -> list[dict[str, Any]]:
     projected = list(effective_by_site.values())
     projected.sort(key=lambda item: item["site_name"])
     return projected
+
 
 def _phase_2a_auth_identity(auth: Mapping[str, Any]) -> dict[str, Any]:
     auth_type = str(auth.get("type", "")).strip()
@@ -93,6 +97,7 @@ def _phase_2a_auth_identity(auth: Mapping[str, Any]) -> dict[str, Any]:
 
         return _cache_identity(dict(auth))
     return identity
+
 
 def _load_phase_2a_instance_by_site(
     args: argparse.Namespace,
@@ -134,6 +139,7 @@ def _load_phase_2a_instance_by_site(
         by_site[name] = inst
     return by_site or None
 
+
 def _instance_bearer_tokens_ready(instance: Mapping[str, Any] | None) -> bool:
     if instance is None:
         return True
@@ -143,6 +149,7 @@ def _instance_bearer_tokens_ready(instance: Mapping[str, Any] | None) -> bool:
         if not isinstance(token, str) or not token.strip():
             return False
     return True
+
 
 def _warm_phase_2a_instance_tokens(instance_by_site: Mapping[str, Any] | None) -> None:
     if not instance_by_site:
@@ -162,6 +169,7 @@ def _warm_phase_2a_instance_tokens(instance_by_site: Mapping[str, Any] | None) -
             "; ".join(errors),
         )
 
+
 def _instance_lacks_benign_probe_auth(instance: Mapping[str, Any] | None) -> bool:
     if instance is None:
         return False
@@ -169,10 +177,12 @@ def _instance_lacks_benign_probe_auth(instance: Mapping[str, Any] | None) -> boo
     api_auth = instance.get("api_auth")
     return isinstance(api_auth, dict) and not isinstance(auth, dict)
 
+
 def _mark_probe_dependent_resources_unresolved(
     resources: dict[str, dict[str, Any]],
     *,
     reason: str,
+    benchmark: str = "webarena_verified",
 ) -> dict[str, dict[str, Any]]:
     for task_id, record in resources.items():
         kind = record.get("kind")
@@ -189,7 +199,10 @@ def _mark_probe_dependent_resources_unresolved(
                 "reason": reason,
             }
             continue
-        if kind in _L4_LISTING_KINDS:
+        if isinstance(kind, str) and default_catalog().is_expandable_listing_kind(
+            kind,
+            benchmark=benchmark,
+        ):
             resources[task_id] = {
                 "kind": None,
                 "anchors": dict(record.get("anchors") or {}),
@@ -203,6 +216,7 @@ def _mark_probe_dependent_resources_unresolved(
             }
     return resources
 
+
 def _l1_l2_resources_with_probe_fail_closed(
     site_tasks: list[dict[str, Any]],
     *,
@@ -210,5 +224,7 @@ def _l1_l2_resources_with_probe_fail_closed(
     benchmark: str = "webarena_verified",
 ) -> dict[str, dict[str, Any]]:
     return _mark_probe_dependent_resources_unresolved(
-        _l1_l2_resources_dict(site_tasks, benchmark=benchmark), reason=reason
+        _l1_l2_resources_dict(site_tasks, benchmark=benchmark),
+        reason=reason,
+        benchmark=benchmark,
     )

@@ -63,6 +63,7 @@ def _route(
 class RedditSite:
     site = "reddit"
     supported_benchmarks = frozenset({"webarena_verified"})
+    expandable_listing_kinds = frozenset()
 
     def validate(self) -> None:
         return None
@@ -127,11 +128,7 @@ class RedditSite:
             forum = anchors.get("forum_name")
             return f"{base}/f/{forum}" if forum else None
         if local_kind == "dashboard_list":
-            user = (
-                anchors.get("user")
-                or anchors.get("username")
-                or context.profile.get("username")
-            )
+            user = anchors.get("user") or anchors.get("username") or context.profile.get("username")
             dashboard = anchors.get("dashboard")
             return f"{base}/user/{user}/{dashboard}" if user and dashboard else None
         return None
@@ -189,12 +186,49 @@ class RedditSite:
         origin = context.site_origin()
         if source_kind is None or origin is None:
             return None
-        forum_name = str(
-            probe_query.get("forum_name") or anchors.get("forum_name") or ""
-        ).strip()
+        forum_name = str(probe_query.get("forum_name") or anchors.get("forum_name") or "").strip()
         if not forum_name:
             return None
         return source_kind, f"{origin}/f/{forum_name}"
+
+    def listing_item_kind(
+        self,
+        source_kind: str,
+        item_kind: str,
+        context: TargetingContext,
+    ) -> str | None:
+        """Accept submission rows only from a Reddit listing route."""
+
+        del context
+        source_local = to_local_kind(source_kind)
+        item_local = to_local_kind(item_kind)
+        # Forum expansion remains a legacy compatibility concern. The
+        # canonical L4 dispatcher advertises only explicit dashboard rows.
+        if source_local != "dashboard_list":
+            return None
+        return "submission" if item_local == "submission" else None
+
+    def listing_item_anchors(
+        self,
+        source_kind: str,
+        item_kind: str,
+        payload: Mapping[str, Any],
+        context: TargetingContext,
+    ) -> Mapping[str, Any] | None:
+        """Project a raw Postmill row into submission route anchors."""
+
+        if self.listing_item_kind(source_kind, item_kind, context) is None:
+            return None
+        forum_name = str(
+            payload.get("forum_name") or payload.get("subreddit") or payload.get("forum") or ""
+        ).strip()
+        if not forum_name:
+            return None
+        anchors = self.anchors_from_submission(payload, forum_name)
+        submission_id = str(anchors.get("submission_id") or "").strip()
+        if not submission_id.isdigit():
+            return None
+        return anchors
 
     @staticmethod
     def anchors_from_submission(entry: Mapping[str, Any], forum_name: str) -> dict[str, Any]:

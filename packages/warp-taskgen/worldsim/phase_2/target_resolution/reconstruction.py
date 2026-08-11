@@ -4,12 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
-from worldsim.phase_2.target_resolution.constants import VIEWPORT_BUDGET_CHARS
-from worldsim.phase_2.target_resolution.encounter import (
-    _attach_surfaces_for,
-    _encounter_requirements,
-)
+from worldsim.phase_2.target_resolution.listing_records import compose_listing_record
+from worldsim.sites import ListingItemCandidate, SiteCatalog, TargetingFailure
 from worldsim.sites.catalog import TargetingContext
 from worldsim.sites.gitlab import GitLabSite
 from worldsim.sites.gitlab import to_local_kind as _gitlab_to_local
@@ -60,65 +58,71 @@ def _project_item_to_record(
     *,
     benchmark: str = "webarena_verified",
 ) -> dict[str, Any] | None:
+    if not isinstance(item, Mapping):
+        return None
     item_kind = item.get("_item_kind")
-    if item_kind not in ("gitlab_issue", "gitlab_mr", "reddit_submission"):
+    source_kind = base.get("kind")
+    if not isinstance(item_kind, str) or not isinstance(source_kind, str):
         return None
-    source_listing_kind = base.get("kind")
-    source_listing_url = base.get("start_url_resolved")
-    record = dict(base)
-    record["kind"] = item_kind
-    record["layer"] = "L4"
-    if isinstance(source_listing_kind, str) and source_listing_kind:
-        record["source_listing_kind"] = source_listing_kind
-    if isinstance(source_listing_url, str) and source_listing_url.strip():
-        record["benign_read_url"] = source_listing_url
-    site_kind: Literal["gitlab", "reddit"] = (
-        "reddit" if item_kind == "reddit_submission" else "gitlab"
-    )
-    record["attach_surfaces"] = _attach_surfaces_for(item_kind, benchmark=benchmark, site=site_kind)
-
-    anchors: dict[str, Any] = {}
-    if item_kind in {"gitlab_issue", "gitlab_mr"}:
-        anchors.update(_anchors_from_gitlab_item(item, kind_hint=item_kind))
-        title = item.get("title")
-        if isinstance(title, str) and title.strip():
-            record["l4_title"] = title.strip()
-        visible_href = item.get("_entry_visible_href")
-        if isinstance(visible_href, str) and visible_href.strip():
-            record["entry_visibility_evidence"] = {
-                "entry_url": record.get("benign_read_url"),
-                "href_path": visible_href.strip(),
-                "source": "dashboard_dom_href",
-            }
-    else:
-        forum_name = str(
-            item.get("forum_name") or (base.get("anchors") or {}).get("forum_name") or ""
-        )
-        anchors.update(_anchors_from_reddit_submission(item, forum_name))
-        if "submission_id" not in anchors:
-            return None
-        title = item.get("title")
-        if isinstance(title, str) and title.strip():
-            record["l4_title"] = title.strip()
-
-    if not anchors:
+    catalog = SiteCatalog()
+    site_kind = catalog.site_for_kind(source_kind, benchmark=benchmark)
+    if site_kind is None:
         return None
-    record["anchors"] = anchors
-    # encounter_requirements are recomputed for the concrete item kind.
-    record["encounter_requirements"] = _encounter_requirements(item_kind, {}, anchors)
-    # Viewport budget stays constant.
-    record["encounter_requirements"].setdefault("viewport_budget_chars", VIEWPORT_BUDGET_CHARS)
-    # Keep both URLs. The concrete item URL is where the seed is attached;
-    # the benign_read_url is the page the benign task actually asks the
-    # agent to observe. Phase 2c's exposure contract must verify the latter.
-    if placeholders is not None:
-        reconstructed = _reconstruct_start_url_from_anchors(
-            site_kind, item_kind, anchors, placeholders
+    source_url = base.get("start_url_resolved")
+    seam_source_kind = source_kind
+    payload: Mapping[str, Any] = item
+    # Reddit forum expansion remains disabled in the live L4 dispatcher, but
+    # historical direct callers of this facade may still project a row.  Use
+    # the Site's existing dashboard-list route solely for that compatibility
+    # call and restore the original artifact provenance below.
+    if site_kind == "reddit" and source_kind == "reddit_forum":
+        seam_source_kind = "reddit_dashboard_list"
+        base_anchors = base.get("anchors")
+        forum_name = base_anchors.get("forum_name") if isinstance(base_anchors, Mapping) else None
+        if forum_name and "forum_name" not in item:
+            payload = {**item, "forum_name": forum_name}
+    origin = _origin_from_url(source_url)
+    effective_placeholders = dict(placeholders or {})
+    try:
+        bound = catalog.bind(
+            benchmark=benchmark,
+            site=site_kind,
+            origin=origin,
+            placeholders=effective_placeholders,
         )
-        if reconstructed:
-            record["start_url_resolved"] = reconstructed
-            record["seeded_detail_url"] = reconstructed
+        candidate = ListingItemCandidate(
+            source_kind=seam_source_kind,
+            item_kind=item_kind,
+            payload=payload,
+            evidence_url=source_url if isinstance(source_url, str) else None,
+        )
+    except (TypeError, ValueError):
+        return None
+    target = bound.materialize_listing_entry(candidate)
+    if isinstance(target, TargetingFailure):
+        return None
+    record = compose_listing_record(base, candidate, target, benchmark=benchmark)
+    if record is None:
+        return None
+    # Preserve the old facade's artifact-only behavior for callers that did
+    # not provide placeholder context.  The canonical L4 path always emits
+    # the reconstructed detail URL; this compatibility wrapper does not.
+    if placeholders is None:
+        if isinstance(source_url, str):
+            record["start_url_resolved"] = source_url
+        record.pop("seeded_detail_url", None)
+    if seam_source_kind != source_kind:
+        record["source_listing_kind"] = source_kind
     return record
+
+
+def _origin_from_url(value: object) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    parsed = urlsplit(value.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}"
 
 
 def _clean_project_path(project_path: str) -> str:

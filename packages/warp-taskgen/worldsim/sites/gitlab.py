@@ -171,6 +171,7 @@ def _route(
 class GitLabSite:
     site = "gitlab"
     supported_benchmarks = frozenset({"webarena_verified"})
+    expandable_listing_kinds = frozenset({"search_result", "dashboard_list"})
 
     def validate(self) -> None:
         # Route construction is deterministic and validated by BoundSite.
@@ -404,6 +405,48 @@ class GitLabSite:
             scope = "merge_requests" if compatibility_kind == "gitlab_mr" else "issues"
             return source_kind, f"{origin}/{project_path}/-/{scope}"
         return source_kind, f"{origin}/search"
+
+    def listing_item_kind(
+        self,
+        source_kind: str,
+        item_kind: str,
+        context: TargetingContext,
+    ) -> str | None:
+        """Accept only GitLab issue/MR rows from expandable listings."""
+
+        del context
+        source_local = to_local_kind(source_kind)
+        item_local = to_local_kind(item_kind)
+        if source_local not in {"search_result", "dashboard_list"}:
+            return None
+        if item_local not in {"issue", "merge_request"}:
+            return None
+        return item_local
+
+    def listing_item_anchors(
+        self,
+        source_kind: str,
+        item_kind: str,
+        payload: Mapping[str, Any],
+        context: TargetingContext,
+    ) -> Mapping[str, Any] | None:
+        """Project a raw GitLab API row into item route anchors."""
+
+        if self.listing_item_kind(source_kind, item_kind, context) is None:
+            return None
+        anchors = self.anchors_from_item(payload, kind_hint=to_legacy_kind(item_kind))
+        iid_key = "mr_iid" if to_local_kind(item_kind) == "merge_request" else "issue_iid"
+        iid = str(anchors.get(iid_key) or "").strip()
+        project_id = str(anchors.get("project_id") or "").strip()
+        if not iid.isdigit() or (project_id and not project_id.isdigit()):
+            return None
+        project_path = anchors.get("project_path")
+        if not project_path:
+            return None
+        anchors["project_path"] = _clean_project_path(str(project_path))
+        if not anchors["project_path"]:
+            return None
+        return anchors
 
     @staticmethod
     def canonicalize_project_path(project_path: str) -> str:
