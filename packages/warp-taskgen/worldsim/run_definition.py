@@ -333,11 +333,7 @@ def _project_requested_definition(
 
     if not isinstance(source, RunDefinition) or not isinstance(effective_inputs, Mapping):
         raise ValueError("source and effective_inputs must be Run Definition values")
-    source_inputs = {
-        field: _thaw(value)
-        for values in source.contributions.values()
-        for field, value in values.items()
-    }
+    source_inputs = source.input_projection()
     if persisted_state is not None and not source.legacy:
         projected_state = define_run(
             {

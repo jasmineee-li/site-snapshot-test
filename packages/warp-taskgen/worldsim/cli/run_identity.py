@@ -12,6 +12,7 @@ from worldsim.phase_4.options import (
     DEFAULT_PHASE_4_VARIANT_SYSTEM,
 )
 from worldsim.phases.phase_1_generate_new_tasks import DEFAULT_NOVEL_TASKS_PER_SITE
+from worldsim.run_definition import define_run
 from worldsim.run_definition_contracts import RunTransition
 from worldsim.run_transition import resolve_run_request
 from worldsim.state import get_state_dir, get_state_file, load_state_for_current_root
@@ -55,6 +56,15 @@ def _existing_state_for_root() -> dict[str, Any] | None:
     return state
 
 
+def resume_state_inputs(state: dict[str, Any]) -> dict[str, Any]:
+    """Overlay persisted definition inputs beneath checkpoint-local metadata."""
+
+    definition = define_run(state)
+    if definition.legacy:
+        return dict(state)
+    return {**definition.input_projection(), **state}
+
+
 def resolve_cli_run_transition(
     args: argparse.Namespace,
     *,
@@ -72,4 +82,4 @@ def resolve_cli_run_transition(
     )
 
 
-__all__ = ["resolve_cli_run_transition"]
+__all__ = ["resolve_cli_run_transition", "resume_state_inputs"]

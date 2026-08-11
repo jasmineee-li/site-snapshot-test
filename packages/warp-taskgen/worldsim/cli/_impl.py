@@ -1531,21 +1531,34 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     if state is None:
         print("No pipeline state found; run a phase first.", file=sys.stderr)
         return 1
+    from worldsim.cli.run_identity import resume_state_inputs
+
+    try:
+        state = resume_state_inputs(state)
+    except ValueError as exc:
+        print(f"Resume rejected by Run Definition: {exc}", file=sys.stderr)
+        return 2
 
     last_step = state.get("step", "")
     status = state.get("status", "")
     logs_dir = state.get("logs_dir")
 
-    if logs_dir and not os.environ.get("WORLDSIM_STATE_DIR"):
+    if (
+        logs_dir
+        and not os.environ.get("WARP_TASKGEN_STATE_DIR")
+        and not os.environ.get("WORLDSIM_STATE_DIR")
+    ):
         os.environ["WORLDSIM_STATE_DIR"] = str(logs_dir)
 
+    pipeline_finished = False
     if status in {"complete", "partial_complete"}:
         target = _next_step(last_step)
         if target is None:
-            print(f"Last checkpoint: {last_step} complete. Pipeline finished — nothing to resume.")
-            return 0
-        qualifier = "partial and " if status == "partial_complete" else ""
-        print(f"Last checkpoint: {last_step} {qualifier}complete. Resuming from {target}.")
+            pipeline_finished = True
+            target = last_step
+        else:
+            qualifier = "partial and " if status == "partial_complete" else ""
+            print(f"Last checkpoint: {last_step} {qualifier}complete. Resuming from {target}.")
     elif status == "running":
         target = last_step
         print(f"Last checkpoint: {last_step} was running (likely crashed). Re-running {target}.")
@@ -1757,14 +1770,32 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         print(f"Resume rejected by Run Definition: {exc}", file=sys.stderr)
         return 2
     if transition.kind == "derived_required":
+        import shlex
+
+        from worldsim.run_materialization import materialize_derived_run
+        from worldsim.state import RESUME_POINTER_ENV, STATE_DIR_ENV, get_state_dir
+
+        source_root = Path(str(state.get("logs_dir") or get_state_dir()))
+        try:
+            child = materialize_derived_run(source_root, transition)
+        except (OSError, ValueError) as exc:
+            print(f"Derived Run materialization failed: {exc}", file=sys.stderr)
+            return 2
+        action = "Created" if child.created else "Reused"
         fields = ", ".join(transition.drift_fields) or "unknown inputs"
+        child_root = shlex.quote(str(child.child_root))
+        child_pointer = shlex.quote(str(child.child_root / "last_run_state.json"))
         print(
-            "Resume requires an isolated Derived Run before execution "
-            f"({transition.reason_code}; changed: {fields}). "
-            "This migration slice leaves the source Run unchanged.",
-            file=sys.stderr,
+            f"{action} isolated Derived Run {child.definition.run_id} "
+            f"for changed inputs: {fields}.\n"
+            f"Restart conservatively from Phase 0a with:\n"
+            f"  {STATE_DIR_ENV}={child_root} {RESUME_POINTER_ENV}={child_pointer} "
+            "warp-taskgen resume"
         )
-        return 2
+        return 0
+    if pipeline_finished:
+        print(f"Last checkpoint: {last_step} complete. Pipeline finished — nothing to resume.")
+        return 0
     synthetic._run_transition = transition
 
     try:

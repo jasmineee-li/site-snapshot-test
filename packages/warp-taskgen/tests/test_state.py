@@ -588,7 +588,7 @@ def test_identity_aware_resume_refuses_definition_drift_without_writing(
     assert rc == 2
     assert called is False
     assert state_path.read_bytes() == before
-    assert "isolated Derived Run" in capsys.readouterr().err
+    assert "materialization failed" in capsys.readouterr().err
 
 
 def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(monkeypatch, tmp_path):

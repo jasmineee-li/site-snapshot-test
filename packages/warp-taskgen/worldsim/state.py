@@ -30,6 +30,7 @@ _RESUME_POINTER = _DEFAULT_STATE_DIR / "last_run_state.json"
 _PATHISH_METADATA_KEYS = {"feasibility_instances"}
 STATE_DIR_ENV = "WARP_TASKGEN_STATE_DIR"
 LEGACY_STATE_DIR_ENV = "WORLDSIM_STATE_DIR"
+RESUME_POINTER_ENV = "WARP_TASKGEN_RESUME_POINTER"
 _RESERVED_STATE_KEYS = frozenset(
     {
         "step",
@@ -147,6 +148,39 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
     # Atomic write: write to a temp file in the same directory, then rename.
     # os.replace is atomic on POSIX when src and dst are on the same filesystem.
     write_json_atomic(state_file, state, failpoint_base=f"state.save_state.{step}.{status}")
+
+
+def initialize_isolated_run_state(
+    state_dir: Path,
+    definition: RunDefinition,
+    *,
+    step: str,
+    status: str,
+    reason: str,
+) -> None:
+    """Create one authoritative checkpoint without changing discovery state."""
+
+    if not isinstance(definition, RunDefinition) or definition.legacy:
+        raise ValueError("isolated state initialization requires an identified Run Definition")
+    root = _canonical_path(state_dir)
+    state_file = root / "pipeline_state.json"
+    if state_file.exists():
+        raise ValueError("isolated state root already has an authoritative checkpoint")
+    root.mkdir(parents=True, exist_ok=True)
+    state = {
+        "step": step,
+        "iteration": 0,
+        "timestamp": datetime.now(UTC).isoformat(),
+        "logs_dir": str(root),
+        "status": status,
+        "reason": reason,
+        "run_definition": definition.to_dict(),
+    }
+    write_json_atomic(
+        state_file,
+        state,
+        failpoint_base="run_materialization.child_state",
+    )
 
 
 def _validate_existing_definition(path: Path, expected: RunDefinition) -> None:
@@ -403,7 +437,7 @@ def _canonical_path(value: str | os.PathLike[str] | Path) -> Path:
 
 
 def _resume_pointer_path() -> Path:
-    return _canonical_path(_RESUME_POINTER)
+    return _canonical_path(os.environ.get(RESUME_POINTER_ENV) or _RESUME_POINTER)
 
 
 # Backwards-compatible aliases. Internal code should prefer ``get_state_dir()``

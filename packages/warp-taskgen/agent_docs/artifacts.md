@@ -14,6 +14,18 @@ Before relying on an artifact, check the active host or run archive. Live state
 is often newer than the checkout, but a remote host is operational state rather
 than canonical source. Use `remote-runs.md` wrappers for active jobs.
 
+Derived Runs are initialized under the source root's sibling
+`.warp-derived-runs/<request-key>/<run-id>/` collection. The request key is an
+internal idempotency key, not a public Run ID. The atomic reservation lives at
+`.warp-derived-runs/.reservations/<request-key>.json`; `derived_run.json`
+records the same immutable source/child lineage and requested Definition
+Digest, and `pipeline_state.json` is the child's authoritative resume
+checkpoint. Do not merge these roots recursively into their source Run or treat
+the collection lock as a run artifact. HF exports project `source_run_id` and
+`definition_digest` when the persisted Run Definition is valid. Archive one
+child by passing its request-key directory as the existing archive wrapper's
+`--logs-dir` and its opaque child ID as `<run_id>`.
+
 ## Promotion record
 
 A promoted fixture or long-lived report records:

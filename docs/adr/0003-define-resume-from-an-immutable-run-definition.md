@@ -26,3 +26,17 @@ runner remain owned by that feature's existing checkpoint fingerprint and do
 not retroactively mutate the persisted definition. Bringing those contributors
 to a pre-dispatch resolver is a future deepening step, not permission for the
 top-level digest to accept a feature checkpoint.
+
+The third slice materializes result-affecting drift as an isolated child Run.
+For one identified source root and requested Definition Digest, WARP atomically
+reserves one sibling child root and persists a random opaque child Run ID in
+that reservation. Retries recover the same reservation and ID. The child
+definition records the source Run ID, starts from the existing `phase_0a`
+failed/rerun lifecycle state, and contains no copied phase or task artifacts;
+the owning Phase 2 and Phase 4 validators therefore remain the only checkpoint
+reuse authorities. Materialization re-reads the authoritative source state,
+fails closed on source or reservation drift, and never writes the source state
+or the process-wide resume pointer. The CLI prints an explicit child-root
+resume command with a child-local resume pointer instead of automatically
+dispatching it. Automatic child
+execution, checkpoint transfer, and pause/lease semantics remain later slices.

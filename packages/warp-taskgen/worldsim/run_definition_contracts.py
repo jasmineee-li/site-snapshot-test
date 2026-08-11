@@ -127,6 +127,15 @@ class RunDefinition:
             "legacy": self.legacy,
         }
 
+    def input_projection(self) -> dict[str, object]:
+        """Return normalized effective inputs without identity metadata."""
+
+        return {
+            str(field): _thaw(value)
+            for values in self.contributions.values()
+            for field, value in values.items()
+        }
+
 
 @dataclass(frozen=True)
 class CheckpointDecision:

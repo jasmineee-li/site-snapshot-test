@@ -321,9 +321,16 @@ remain under the existing Phase 2/4 fingerprint policies and do not mutate the
 Run Definition retroactively.
 Envelope-less legacy runs preserve their historical behavior and receive no
 inferred identity. A result-affecting override on an identified Run is reported
-as requiring an isolated Derived Run and stops before runner dispatch or state
-writes. Materializing that child root and transferring validator-approved
-checkpoints, plus any lifecycle/pause changes, remain later slices.
+as requiring an isolated Derived Run. WARP atomically reserves an idempotent
+sibling child root, persists a random opaque child Run ID with
+`source_run_id=<parent>`, and initializes a `phase_0a` failed checkpoint so the
+existing resume lifecycle reruns Phase 0a. The child receives no copied phase or
+task artifacts, and the source state, source artifacts, and global resume
+pointer remain unchanged. The CLI prints an explicit
+`WARP_TASKGEN_STATE_DIR=<child>
+WARP_TASKGEN_RESUME_POINTER=<child>/last_run_state.json warp-taskgen resume`
+command; it does not automatically dispatch the child. Checkpoint transfer, automatic child
+execution, and lifecycle/pause changes remain later slices.
 
 ### CLI Flags
 
