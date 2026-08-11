@@ -7,7 +7,8 @@ from collections.abc import Mapping
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
-from worldsim.sites.catalog import CanonicalRoute, TargetingContext, _path_and_query
+from worldsim.sites.contracts import CanonicalRoute, TargetingContext
+from worldsim.sites.task_evidence import _path_and_query
 
 RedditResourceKind = Literal["submission", "forum", "dashboard_list"]
 

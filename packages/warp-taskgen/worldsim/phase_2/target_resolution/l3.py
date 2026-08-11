@@ -42,7 +42,7 @@ from worldsim.sites import (
     TargetingFailure,
     default_catalog,
 )
-from worldsim.sites.catalog import _site_kind_for_task as _catalog_site_kind_for_task
+from worldsim.sites.task_evidence import _site_kind_for_task
 
 logger = logging.getLogger(__name__)
 _l3_failure_class_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
@@ -210,7 +210,7 @@ async def resolve_l3(
     implementations; tests inject stubs to avoid live calls.
     """
     catalog = catalog or default_catalog()
-    declared_site = _catalog_site_kind_for_task(task)
+    declared_site = _site_kind_for_task(task)
     # Production L3 remains limited to active WASP Sites. An injected catalog
     # can substitute a test adapter for an active Site to prove this seam;
     # editor compatibility remains a separate downstream contract.

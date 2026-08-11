@@ -6,17 +6,15 @@ route descriptors or a deterministic target.  Authentication, browser
 reachability, editors, exposure, and scoring remain outside this package.
 """
 
-from worldsim.sites.catalog import (
-    BoundSite,
+from worldsim.sites.candidate_resolution import SourceListing, TargetCandidate
+from worldsim.sites.catalog import BoundSite, SiteCatalog, default_catalog
+from worldsim.sites.contracts import (
     CanonicalRoute,
     ResolvedTarget,
-    SiteCatalog,
+    SiteAdapter,
     SiteTargetingDefinitionError,
-    SourceListing,
-    TargetCandidate,
     TargetingContext,
     TargetingFailure,
-    default_catalog,
 )
 from worldsim.sites.gitlab import GitLabSite
 from worldsim.sites.reddit import RedditSite
@@ -27,6 +25,7 @@ __all__ = [
     "GitLabSite",
     "RedditSite",
     "ResolvedTarget",
+    "SiteAdapter",
     "SiteCatalog",
     "SiteTargetingDefinitionError",
     "SourceListing",

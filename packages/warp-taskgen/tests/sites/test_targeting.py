@@ -23,6 +23,48 @@ PLACEHOLDERS = {
 }
 
 
+def test_site_facade_and_feature_modules_preserve_contract_identity():
+    import worldsim.sites as sites
+    import worldsim.sites.catalog as catalog
+    import worldsim.sites.contracts as contracts
+    import worldsim.sites.task_evidence as task_evidence
+
+    for name in (
+        "CanonicalRoute",
+        "ResolvedTarget",
+        "SiteAdapter",
+        "SiteTargetingDefinitionError",
+        "TargetingContext",
+        "TargetingFailure",
+    ):
+        assert getattr(sites, name) is getattr(catalog, name)
+        assert getattr(catalog, name) is getattr(contracts, name)
+
+    for name in (
+        "_iter_eval_urls",
+        "_iter_start_urls",
+        "_matches_origin",
+        "_normalise_url",
+        "_path_and_query",
+        "_site_kind_for_task",
+    ):
+        assert getattr(catalog, name) is getattr(task_evidence, name)
+
+
+def test_catalog_compatibility_private_imports_remain_available():
+    import worldsim.sites.catalog as catalog
+    import worldsim.sites.gitlab as gitlab
+    import worldsim.sites.reddit as reddit
+
+    assert gitlab.CanonicalRoute is catalog.CanonicalRoute
+    assert gitlab.TargetingContext is catalog.TargetingContext
+    assert gitlab._path_and_query is catalog._path_and_query
+    assert reddit.CanonicalRoute is catalog.CanonicalRoute
+    assert reddit.TargetingContext is catalog.TargetingContext
+    assert reddit._path_and_query is catalog._path_and_query
+    assert callable(catalog._site_kind_for_task)
+
+
 def _task(site: str, expected_url: str, *, start_url: str | None = None) -> dict[str, Any]:
     return {
         "sites": [site],
