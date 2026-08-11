@@ -4,33 +4,50 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any, Literal
-from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 from worldsim.phase_2.target_resolution.constants import (
-    _GITLAB_PATTERNS,
-    _HOSTPREFIX_RE,
-    _REDDIT_PATTERNS,
     _REGEX_META_RE,
     VIEWPORT_BUDGET_CHARS,
 )
 from worldsim.phase_2.target_resolution.types import ResourceKind
-from worldsim.placeholders import apply_placeholders
+from worldsim.sites.catalog import (
+    TargetingContext,
+)
+from worldsim.sites.catalog import (
+    _iter_eval_urls as _catalog_iter_eval_urls,
+)
+from worldsim.sites.catalog import (
+    _iter_start_urls as _catalog_iter_start_urls,
+)
+from worldsim.sites.catalog import (
+    _normalise_url as _catalog_normalise_url,
+)
+from worldsim.sites.catalog import (
+    _path_and_query as _catalog_path_and_query,
+)
+from worldsim.sites.catalog import (
+    _site_kind_for_task as _catalog_site_kind_for_task,
+)
+from worldsim.sites.catalog import (
+    _strip_json_suffix as _catalog_strip_json_suffix,
+)
+from worldsim.sites.catalog import (
+    _strip_regex_anchors as _catalog_strip_regex_anchors,
+)
+from worldsim.sites.catalog import (
+    _url_with_expected_query_params as _catalog_url_with_expected_query_params,
+)
+from worldsim.sites.gitlab import GitLabSite
+from worldsim.sites.reddit import RedditSite
+
+_GITLAB_SITE = GitLabSite()
+_REDDIT_SITE = RedditSite()
 
 
 def _strip_regex_anchors(url: str) -> str:
-    """Normalise an eval URL that may carry `^` / `$` / `.*$` regex anchors."""
-    if not url:
-        return ""
-    stripped = url.strip()
-    if stripped.startswith("^"):
-        stripped = stripped[1:]
-    if stripped.endswith(".*$"):
-        stripped = stripped[:-3]
-    elif stripped.endswith("$"):
-        stripped = stripped[:-1]
-    if stripped.endswith(".*"):
-        stripped = stripped[:-2]
-    return stripped
+    """Compatibility delegate for the generic Site Targeting normalizer."""
+
+    return _catalog_strip_regex_anchors(url)
 
 
 def _literalize_regex_value(value: str | None) -> str | None:
@@ -76,9 +93,7 @@ def _literalize_regex_value(value: str | None) -> str | None:
 
 def _strip_json_suffix(url: str) -> str:
     """Drop a trailing `.json` so UI-form URLs match the HTML-page regex."""
-    if url.endswith(".json"):
-        return url[: -len(".json")]
-    return url
+    return _catalog_strip_json_suffix(url)
 
 
 def _normalise_url(url: str, placeholders: Mapping[str, str]) -> str | None:
@@ -88,38 +103,21 @@ def _normalise_url(url: str, placeholders: Mapping[str, str]) -> str | None:
     ``__FOO__`` tokens — caller decides whether that's L3-pending or an
     outright non-match.
     """
-    if not url:
-        return None
-    stripped = _strip_json_suffix(_strip_regex_anchors(url))
-    try:
-        return apply_placeholders(stripped, dict(placeholders), strict=True)
-    except ValueError:
-        return None
+    return _catalog_normalise_url(url, placeholders)
 
 
 def _path_and_query(url: str) -> str:
     """Return just the path+query portion of a URL, so hostname components
     can't leak into ``project_path`` captures via greedy matching."""
-    if not url:
-        return ""
-    if "://" not in url:
-        # Bare path (eval URLs sometimes arrive without scheme).
-        return url if url.startswith("/") else "/" + url
-    parts = urlsplit(url)
-    path = parts.path or "/"
-    if parts.query:
-        path = f"{path}?{parts.query}"
-    return path
+    return _catalog_path_and_query(url)
 
 
 def _is_listing_kind(kind: str) -> bool:
-    return kind in {
-        "gitlab_search_result",
-        "gitlab_dashboard_list",
-        "gitlab_snippets_index",
-        "gitlab_project_labels",
-        "reddit_dashboard_list",
-    }
+    if kind.startswith("gitlab_"):
+        return _GITLAB_SITE.is_listing(kind)
+    if kind.startswith("reddit_"):
+        return _REDDIT_SITE.is_listing(kind)
+    return False
 
 
 def _disambiguate_root_segment(task: Mapping[str, Any], segment: str) -> str | None:
@@ -133,73 +131,46 @@ def _disambiguate_root_segment(task: Mapping[str, Any], segment: str) -> str | N
     missing. The resolver does not guess: ambiguous cases fall through to
     ``kind=None`` with a categorized drop reason.
     """
-    if not isinstance(segment, str) or not segment:
-        return None
-    gl = (task.get("agent_context") or {}).get("gitlab")
-    if not isinstance(gl, Mapping):
-        return None
-    raw_users = gl.get("user_handles") or []
-    raw_groups = gl.get("group_handles") or []
-    users = {str(u).strip() for u in raw_users if isinstance(u, str)}
-    groups = {str(g).strip() for g in raw_groups if isinstance(g, str)}
-    in_users = segment in users
-    in_groups = segment in groups
-    if in_users and not in_groups:
-        return "user"
-    if in_groups and not in_users:
-        return "group"
-    return None
+    return _GITLAB_SITE.disambiguate_root_segment(task, segment)
 
 
 def _listing_start_url(kind: str, resolved_url: str, fallback_url: str | None) -> str | None:
-    if not _is_listing_kind(kind):
-        return fallback_url
-    path = urlsplit(resolved_url).path or ""
-    if path.startswith("/api/"):
-        return fallback_url
-    return resolved_url
+    if kind.startswith("gitlab_"):
+        return _GITLAB_SITE.listing_start_url(kind, resolved_url, fallback_url)
+    if kind.startswith("reddit_"):
+        return _REDDIT_SITE.listing_start_url(kind, resolved_url, fallback_url)
+    return fallback_url
 
 
 def _match_gitlab(
     url: str,
     task: Mapping[str, Any] | None = None,
 ) -> tuple[ResourceKind, dict[str, str]] | None:
-    path_and_query = _path_and_query(url)
-    for kind, pattern in _GITLAB_PATTERNS:
-        match = pattern.search(path_and_query)
-        if not match:
-            continue
-        anchors = {k: v for k, v in match.groupdict().items() if v}
-        if kind == "gitlab_dashboard_list":
-            anchors["dashboard"] = anchors.pop("dash", "")
-        if kind == "gitlab_search_result" and "q" in anchors:
-            anchors["query"] = anchors.pop("q")
-        # The root-segment regex emits "segment"; resolve it to user vs
-        # group via the Phase 0c handle lists. Unresolved → continue
-        # searching (no other gitlab pattern will match a bare /<word>,
-        # so this becomes kind=None).
-        if "segment" in anchors:
-            segment = anchors.pop("segment")
-            resolved = _disambiguate_root_segment(task or {}, segment)
-            if resolved == "user":
-                return "gitlab_user_profile", {"username": segment}
-            if resolved == "group":
-                return "gitlab_group", {"group_path": segment}
-            continue
-        return kind, anchors
-    return None
+    hit = _GITLAB_SITE.match(
+        url,
+        task or {},
+        TargetingContext(benchmark="webarena_verified", site="gitlab"),
+    )
+    if hit is None:
+        return None
+    kind, anchors = hit
+    from worldsim.sites.gitlab import to_legacy_kind
+
+    return to_legacy_kind(kind), anchors
 
 
 def _match_reddit(url: str) -> tuple[ResourceKind, dict[str, str]] | None:
-    path_and_query = _path_and_query(url)
-    for kind, pattern in _REDDIT_PATTERNS:
-        match = pattern.search(path_and_query)
-        if match:
-            anchors = {k: v for k, v in match.groupdict().items() if v}
-            if kind == "reddit_dashboard_list":
-                anchors["dashboard"] = anchors.pop("dash", "")
-            return kind, anchors
-    return None
+    hit = _REDDIT_SITE.match(
+        url,
+        {},
+        TargetingContext(benchmark="webarena_verified", site="reddit"),
+    )
+    if hit is None:
+        return None
+    kind, anchors = hit
+    from worldsim.sites.reddit import to_legacy_kind
+
+    return to_legacy_kind(kind), anchors
 
 
 def _iter_eval_urls(task: Mapping[str, Any]) -> list[str]:
@@ -209,76 +180,21 @@ def _iter_eval_urls(task: Mapping[str, Any]) -> list[str]:
     agent must hit); AgentResponseEvaluator entries rarely carry URLs
     but are included as fallback.
     """
-    reward = task.get("reward_function") or {}
-    evals = reward.get("eval") or []
-    ranked: list[tuple[int, str]] = []
-    for ev in evals:
-        if not isinstance(ev, dict):
-            continue
-        evaluator = str(ev.get("evaluator") or "")
-        priority = 0 if "NetworkEvent" in evaluator else 1
-        expected = ev.get("expected") or {}
-        raw = expected.get("url") or expected.get("reference_url")
-        if raw is None:
-            continue
-        if isinstance(raw, str):
-            candidates = [raw]
-        elif isinstance(raw, list):
-            candidates = [c for c in raw if isinstance(c, str)]
-        else:
-            continue
-        for candidate in candidates:
-            ranked.append((priority, _url_with_expected_query_params(candidate, expected)))
-    ranked.sort(key=lambda pair: pair[0])
-    return [url for _, url in ranked]
+    return _catalog_iter_eval_urls(task)
 
 
 def _url_with_expected_query_params(url: str, expected: Mapping[str, Any]) -> str:
-    query_params = expected.get("query_params")
-    if not isinstance(query_params, Mapping) or not query_params:
-        return url
-    try:
-        parts = urlsplit(url)
-    except ValueError:
-        return url
-    merged = parse_qs(parts.query, keep_blank_values=True)
-    for key, raw in query_params.items():
-        if not isinstance(key, str) or not key.strip():
-            continue
-        if isinstance(raw, list):
-            values = [str(value) for value in raw if value is not None]
-        elif raw is None:
-            values = []
-        else:
-            values = [str(raw)]
-        if values:
-            merged[key] = values
-    query = urlencode(merged, doseq=True)
-    return urlunsplit(parts._replace(query=query))
+    return _catalog_url_with_expected_query_params(url, expected)
 
 
 def _iter_start_urls(task: Mapping[str, Any]) -> list[str]:
-    start = task.get("start_urls") or []
-    if isinstance(start, str):
-        return [start]
-    return [u for u in start if isinstance(u, str)]
+    return _catalog_iter_start_urls(task)
 
 
 def _site_kind_for_task(task: Mapping[str, Any]) -> Literal["gitlab", "reddit"] | None:
-    sites = task.get("sites") or []
-    for site in sites:
-        if not isinstance(site, str):
-            continue
-        lower = site.strip().lower()
-        if lower == "gitlab":
-            return "gitlab"
-        if lower == "reddit":
-            return "reddit"
-    primary = str(task.get("site") or "").strip().lower()
-    if primary == "gitlab":
-        return "gitlab"
-    if primary == "reddit":
-        return "reddit"
+    site = _catalog_site_kind_for_task(task)
+    if site in {"gitlab", "reddit"}:
+        return site  # type: ignore[return-value]
     return None
 
 
@@ -311,12 +227,4 @@ def _canonicalize_project_path(project_path: str) -> str:
     Idempotent: already-canonical inputs return unchanged. Empty input
     returns the empty string.
     """
-    if not project_path:
-        return ""
-    path = project_path.strip()
-    while True:
-        stripped = _HOSTPREFIX_RE.sub("", path, count=1)
-        if stripped == path:
-            break
-        path = stripped
-    return path.strip("/")
+    return _GITLAB_SITE.canonicalize_project_path(project_path)

@@ -86,6 +86,8 @@ def test_gitlab_search_result_via_project_issues_api():
     task = _gitlab_task(eval_url="__GITLAB__/api/v4/projects/138/issues")
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["kind"] == "gitlab_search_result"
+    assert result["layer"] == "L1"
+    assert "resolver_note" not in result
     assert result["anchors"]["project_id"] == "138"
     # L4 can still expand to concrete issue/MR notes, but project issue
     # listings also support a created child title row as a visible core surface.
