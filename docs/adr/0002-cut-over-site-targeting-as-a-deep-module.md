@@ -10,10 +10,11 @@ Migrate site-varying behavior one coherent capability at a time across every
 active Site, beginning with a bounded, pure Site Targeting slice. An explicit
 fail-closed `SiteCatalog` binds a normalized `TargetingContext`—benchmark,
 profile projection, Site identity, and an explicit origin or placeholder—to a
-Site-owned targeting module. Callers obtain a bound Site and use only its
-`routes()` and `resolve()` operations. GitLab and Reddit feature modules own
-their route grammar, local Resource Kinds, anchor extraction, and canonical
-route descriptors. Catalog definition defects raise during construction;
+Site-owned targeting module. Callers obtain a bound Site and use its small,
+explicit route and candidate operations instead of reaching into Site
+adapters. GitLab and Reddit feature modules own their route grammar, local
+Resource Kinds, anchor extraction, and canonical route descriptors. Catalog
+definition defects raise during construction;
 malformed, foreign, or unsupported task evidence produces a structured
 `TargetingFailure` rather than a guessed host or route.
 
@@ -21,9 +22,9 @@ Site Targeting maps deterministic task evidence to a `ResolvedTarget`. It does
 not prove authentication, browser reachability, visibility, admission,
 mutation, or scoring.
 
-## ST-1 scope (current slice)
+## ST-1 scope (deterministic evidence)
 
-The current slice owns only the following contracts:
+The first slice owns only the following contracts:
 
 - the explicit catalog and immutable targeting context;
 - GitLab and Reddit feature-local route descriptors and local-to-compatibility
@@ -37,14 +38,40 @@ their migrated L1/L2 paths delegate to this seam. A narrow listing-intent
 compatibility call may consume GitLab route grammar for that path, but ST-1
 does not claim ownership of listing probing or transition policy.
 
+## ST-2 scope (L3 candidate materialization)
+
+The L3 slice extends the bound Site seam with a small, typed candidate
+operation. Phase 2 retains intent classification, HTTP/auth probe execution,
+retry and concurrency controls, admission, encounter requirements, and
+transition policy. Site Targeting owns only the deterministic parts of the
+handoff:
+
+- `TargetCandidate` accepts local or legacy Resource Kinds, probe metadata, and
+  validated anchors without importing Phase 2 policy;
+- `validate_probe()` rejects a Site-incoherent API/Resource Kind pair before a
+  probe runs; and
+- `materialize()` maps the candidate to a canonical route, reconstructs a URL
+  on the bound origin, and fails closed on unknown kinds, missing anchors,
+  foreign origins, or adapter errors. A caller-supplied fallback URL is never
+  promoted to a target.
+
+Active Site modules may provide source-listing route facts through the same
+candidate seam. The resulting artifact may continue to expose the historical
+prefixed compatibility kind; the local canonical kind remains an internal
+Site contract. Tests may inject an adapter for this bounded seam, but that
+does not bypass the legacy editor compatibility registry. L4 listing
+expansion, browser/auth behavior, and editor or exposure contracts remain
+outside ST-2.
+
 ## Deferred slices
 
-The following remain separate capability migrations: L3 intent resolution, L4
-listing/detail transitions and listing probes, authentication and browser
-reachability, editors and mutation/seeding, exposure and admission policy,
-visibility/readback, and reward/scoring. Legacy facade and import deletion is
-also deferred until the callers and compatibility surfaces for the relevant
-capability have been audited and cut over.
+The following remain separate capability migrations: L3 classifier and probe
+execution policy, L4 listing/detail transitions and listing probes,
+authentication and browser reachability, editors and mutation/seeding,
+exposure and admission policy, visibility/readback, and reward/scoring. Legacy
+facade and import deletion is also deferred until the callers and
+compatibility surfaces for the relevant capability have been audited and cut
+over.
 
 ## Final cutover and deletion criteria
 

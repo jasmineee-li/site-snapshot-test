@@ -70,6 +70,45 @@ _HOSTPREFIX_RE = re.compile(
 
 _LISTING_KINDS = frozenset({"search_result", "dashboard_list", "snippets_index", "project_labels"})
 
+_L3_PROBE_KINDS_FOR_API: dict[str, frozenset[str]] = {
+    "list_user_todos": frozenset({"gitlab_dashboard_list"}),
+    "list_user_merge_requests": frozenset({"gitlab_dashboard_list", "gitlab_mr"}),
+    "list_user_issues": frozenset({"gitlab_dashboard_list", "gitlab_issue"}),
+    "search_user_issues": frozenset({"gitlab_issue", "gitlab_search_result"}),
+    "search_user_mrs": frozenset({"gitlab_mr", "gitlab_search_result"}),
+    "search_project_issues": frozenset({"gitlab_issue", "gitlab_search_result"}),
+    "search_project_mrs": frozenset({"gitlab_mr", "gitlab_search_result"}),
+    "list_project_issues_recent": frozenset({"gitlab_issue", "gitlab_search_result"}),
+    "list_project_mrs_recent": frozenset({"gitlab_mr", "gitlab_search_result"}),
+    "find_project_by_path": frozenset(
+        {
+            "gitlab_issue",
+            "gitlab_mr",
+            "gitlab_search_result",
+            "gitlab_user_profile",
+            "gitlab_snippet",
+            "gitlab_project_milestone",
+            "gitlab_group",
+            "gitlab_snippets_index",
+            "gitlab_project_labels",
+        }
+    ),
+    "none": frozenset(),
+}
+_L3_LISTING_SOURCE_FOR_API: dict[str, dict[str, str]] = {
+    "list_user_issues": {"gitlab_issue": "gitlab_dashboard_list"},
+    "list_user_merge_requests": {
+        "gitlab_issue": "gitlab_dashboard_list",
+        "gitlab_mr": "gitlab_dashboard_list",
+    },
+    "search_user_issues": {"gitlab_issue": "gitlab_search_result"},
+    "search_user_mrs": {"gitlab_mr": "gitlab_search_result"},
+    "search_project_issues": {"gitlab_issue": "gitlab_search_result"},
+    "search_project_mrs": {"gitlab_mr": "gitlab_search_result"},
+    "list_project_issues_recent": {"gitlab_issue": "gitlab_search_result"},
+    "list_project_mrs_recent": {"gitlab_mr": "gitlab_search_result"},
+}
+
 
 def to_local_kind(kind: str) -> str:
     return _LEGACY_TO_LOCAL.get(kind, kind)
@@ -313,6 +352,61 @@ class GitLabSite:
             return fallback_url
         path = urlsplit(resolved_url).path or ""
         return fallback_url if path.startswith("/api/") else resolved_url
+
+    def validate_candidate(
+        self,
+        kind: str,
+        probe_query: Mapping[str, Any],
+        anchors: Mapping[str, Any],
+        context: TargetingContext,
+    ) -> tuple[str, str] | None:
+        del anchors, context
+        api = str(probe_query.get("api") or "").strip()
+        if not api:
+            return None
+        allowed = _L3_PROBE_KINDS_FOR_API.get(api)
+        if allowed is None:
+            return None
+        compatibility_kind = to_legacy_kind(to_local_kind(kind))
+        if not allowed:
+            return (
+                "probe_kind_mismatch",
+                f"api={api!r} is not a real probe; pair it with kind=null or "
+                "kind=out_of_scope_for_option_a",
+            )
+        if compatibility_kind not in allowed:
+            return (
+                "probe_kind_mismatch",
+                f"api={api!r} cannot fill anchors for kind={compatibility_kind!r}; "
+                f"allowed kinds: {sorted(allowed)}",
+            )
+        return None
+
+    def source_listing(
+        self,
+        kind: str,
+        probe_query: Mapping[str, Any],
+        anchors: Mapping[str, Any],
+        context: TargetingContext,
+    ) -> tuple[str, str] | None:
+        api = str(probe_query.get("api") or "").strip()
+        compatibility_kind = to_legacy_kind(to_local_kind(kind))
+        source_kind = _L3_LISTING_SOURCE_FOR_API.get(api, {}).get(compatibility_kind)
+        origin = context.site_origin()
+        if source_kind is None or origin is None:
+            return None
+        if source_kind == "gitlab_dashboard_list":
+            dashboard = "merge_requests" if compatibility_kind == "gitlab_mr" else "issues"
+            if compatibility_kind == "gitlab_dashboard_list":
+                dashboard = str(anchors.get("dashboard") or "issues")
+            return source_kind, f"{origin}/dashboard/{dashboard}"
+        project_path = _clean_project_path(
+            str(probe_query.get("project_path") or anchors.get("project_path") or "")
+        )
+        if project_path:
+            scope = "merge_requests" if compatibility_kind == "gitlab_mr" else "issues"
+            return source_kind, f"{origin}/{project_path}/-/{scope}"
+        return source_kind, f"{origin}/search"
 
     @staticmethod
     def canonicalize_project_path(project_path: str) -> str:

@@ -16,6 +16,13 @@ from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 from worldsim.benchmark_capabilities import normalize_benchmark_name
 from worldsim.placeholders import apply_placeholders
+from worldsim.sites.candidate_resolution import (
+    SourceListing,
+    TargetCandidate,
+    materialize_candidate,
+    source_listing_for_candidate,
+    validate_probe,
+)
 
 
 class SiteTargetingDefinitionError(ValueError):
@@ -288,7 +295,6 @@ class SiteAdapter(Protocol):
     def listing_start_url(
         self, kind: str, resolved_url: str, fallback_url: str | None
     ) -> str | None: ...
-
 
 def _strip_regex_anchors(url: str) -> str:
     if not url:
@@ -627,9 +633,13 @@ class BoundSite:
             )
         self._routes = tuple(sorted(routes, key=lambda route: route.id))
         self._routes_by_kind: dict[str, tuple[CanonicalRoute, ...]] = {}
+        self._routes_by_compatibility_kind: dict[str, tuple[CanonicalRoute, ...]] = {}
         for route in self._routes:
             self._routes_by_kind.setdefault(route.kind, ())
             self._routes_by_kind[route.kind] += (route,)
+            if route.compatibility_kind:
+                self._routes_by_compatibility_kind.setdefault(route.compatibility_kind, ())
+                self._routes_by_compatibility_kind[route.compatibility_kind] += (route,)
 
     def routes(self) -> tuple[CanonicalRoute, ...]:
         return self._routes
@@ -707,6 +717,42 @@ class BoundSite:
             evidence_url=resolved_start,
         )
 
+    def validate_probe(
+        self,
+        kind: str,
+        probe_query: Mapping[str, Any],
+    ) -> TargetingFailure | None:
+        return validate_probe(
+            site=self._context.site,
+            adapter=self._adapter,
+            context=self._context,
+            route_for_identifier=self._route_for_identifier,
+            kind=kind,
+            probe_query=probe_query,
+        )
+
+    def materialize(self, candidate: TargetCandidate) -> ResolvedTarget | TargetingFailure:
+        return materialize_candidate(
+            site=self._context.site,
+            benchmark=self._context.benchmark,
+            adapter=self._adapter,
+            context=self._context,
+            route_for_identifier=self._route_for_identifier,
+            candidate=candidate,
+        )
+
+    def source_listing(
+        self,
+        candidate: TargetCandidate,
+    ) -> SourceListing | TargetingFailure | None:
+        return source_listing_for_candidate(
+            site=self._context.site,
+            adapter=self._adapter,
+            context=self._context,
+            route_for_identifier=self._route_for_identifier,
+            candidate=candidate,
+        )
+
     def _resolved(
         self,
         hit: tuple[str, dict[str, Any]],
@@ -751,6 +797,31 @@ class BoundSite:
 
     def _route_for(self, kind: str, anchors: Mapping[str, Any]) -> CanonicalRoute | None:
         routes = self._routes_by_kind.get(kind, ())
+        if len(routes) == 1:
+            return routes[0]
+        if not routes:
+            return None
+        matches: list[CanonicalRoute] = []
+        for route in routes:
+            required = {
+                key
+                for example in route.anchor_examples
+                for key in example
+                if key not in {"start_url", "route_variant", "existing_comment_count"}
+            }
+            if required and required.issubset(anchors):
+                matches.append(route)
+        return matches[0] if len(matches) == 1 else None
+
+    def _route_for_identifier(
+        self, kind: str, anchors: Mapping[str, Any]
+    ) -> CanonicalRoute | None:
+        """Resolve either a local or compatibility kind without guessing."""
+
+        local = self._route_for(kind, anchors)
+        if local is not None:
+            return local
+        routes = self._routes_by_compatibility_kind.get(kind, ())
         if len(routes) == 1:
             return routes[0]
         if not routes:
@@ -871,6 +942,8 @@ __all__ = [
     "SiteAdapter",
     "SiteCatalog",
     "SiteTargetingDefinitionError",
+    "SourceListing",
+    "TargetCandidate",
     "TargetingContext",
     "TargetingFailure",
     "_iter_eval_urls",

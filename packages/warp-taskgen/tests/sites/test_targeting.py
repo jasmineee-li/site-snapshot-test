@@ -9,6 +9,8 @@ from worldsim.sites import (
     CanonicalRoute,
     SiteCatalog,
     SiteTargetingDefinitionError,
+    SourceListing,
+    TargetCandidate,
     TargetingContext,
     TargetingFailure,
 )
@@ -382,3 +384,204 @@ def test_legacy_matchers_preserve_prefixed_resource_kinds():
         "reddit_submission",
         {"forum_name": "books", "submission_id": "12"},
     )
+
+
+def test_l3_candidate_accepts_legacy_kind_and_preserves_local_route():
+    bound = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS)
+    target = bound.materialize(
+        TargetCandidate(
+            kind="gitlab_issue",
+            anchors={"project_path": "namespace/project", "issue_iid": "7"},
+            probe_query={"api": "search_user_issues"},
+        )
+    )
+
+    assert target.kind == "issue"
+    assert target.canonical_route is not None
+    assert target.canonical_route.compatibility_kind == "gitlab_issue"
+    assert target.start_url_resolved == "https://gitlab.local/namespace/project/-/issues/7"
+
+
+def test_l3_candidate_fails_closed_instead_of_using_fallback_url():
+    bound = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS)
+    failure = bound.materialize(
+        TargetCandidate(
+            kind="gitlab_issue",
+            anchors={"project_path": "namespace/project"},
+            probe_query={"api": "search_user_issues"},
+            fallback_url="https://gitlab.local/namespace/project",
+        )
+    )
+
+    assert isinstance(failure, TargetingFailure)
+    assert failure.reason == "missing_anchor"
+    assert failure.as_record()["start_url_resolved"] is None
+
+
+def test_l3_candidate_mappings_are_immutable_snapshots():
+    anchors = {"project_path": "namespace/project", "issue_iid": "7"}
+    probe_query = {"api": "search_user_issues"}
+    candidate = TargetCandidate(
+        kind="gitlab_issue",
+        anchors=anchors,
+        probe_query=probe_query,
+    )
+
+    anchors["issue_iid"] = "99"
+    probe_query["query"] = "changed"
+    assert candidate.anchors["issue_iid"] == "7"
+    assert "query" not in candidate.probe_query
+    with pytest.raises(TypeError):
+        candidate.anchors["issue_iid"] = "8"  # type: ignore[index]
+    with pytest.raises(TypeError):
+        candidate.probe_query["api"] = "changed"  # type: ignore[index]
+
+
+def test_l3_candidate_rejects_foreign_evidence_url():
+    bound = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS)
+    failure = bound.materialize(
+        TargetCandidate(
+            kind="gitlab_issue",
+            anchors={"project_path": "namespace/project", "issue_iid": "7"},
+            probe_query={"api": "search_user_issues"},
+            evidence_url="https://attacker.invalid/issue/7",
+        )
+    )
+
+    assert isinstance(failure, TargetingFailure)
+    assert failure.reason == "foreign_origin"
+    assert failure.evidence_url is None
+
+
+def test_l3_candidate_requires_absolute_reconstructed_url():
+    class RelativeGitLab(GitLabSite):
+        def reconstruct(self, kind, anchors, context):  # type: ignore[no-untyped-def]
+            del kind, anchors, context
+            return "/relative/issues/7"
+
+    bound = SiteCatalog([RelativeGitLab(), RedditSite()]).bind(
+        site="gitlab", placeholders=PLACEHOLDERS
+    )
+    failure = bound.materialize(
+        TargetCandidate(
+            kind="gitlab_issue",
+            anchors={"project_path": "namespace/project", "issue_iid": "7"},
+            probe_query={"api": "search_user_issues"},
+        )
+    )
+
+    assert isinstance(failure, TargetingFailure)
+    assert failure.reason == "invalid_target_url"
+
+
+def test_l3_adapter_hook_exceptions_return_structured_failures():
+    class RaisingValidationGitLab(GitLabSite):
+        def validate_candidate(self, kind, probe_query, anchors, context):  # type: ignore[no-untyped-def]
+            raise RuntimeError("validation boom")
+
+    validation_bound = SiteCatalog([RaisingValidationGitLab(), RedditSite()]).bind(
+        site="gitlab", placeholders=PLACEHOLDERS
+    )
+    validation_failure = validation_bound.materialize(
+        TargetCandidate(
+            kind="gitlab_issue",
+            anchors={"project_path": "namespace/project", "issue_iid": "7"},
+            probe_query={"api": "search_user_issues"},
+        )
+    )
+    assert isinstance(validation_failure, TargetingFailure)
+    assert validation_failure.reason == "adapter_error"
+
+    class RaisingReconstructionGitLab(GitLabSite):
+        def reconstruct(self, kind, anchors, context):  # type: ignore[no-untyped-def]
+            raise RuntimeError("reconstruction boom")
+
+    reconstruction_bound = SiteCatalog([RaisingReconstructionGitLab(), RedditSite()]).bind(
+        site="gitlab", placeholders=PLACEHOLDERS
+    )
+    reconstruction_failure = reconstruction_bound.materialize(
+        TargetCandidate(
+            kind="gitlab_issue",
+            anchors={"project_path": "namespace/project", "issue_iid": "7"},
+            probe_query={"api": "search_user_issues"},
+        )
+    )
+    assert isinstance(reconstruction_failure, TargetingFailure)
+    assert reconstruction_failure.reason == "adapter_error"
+
+    class RaisingSourceListingGitLab(GitLabSite):
+        def source_listing(self, kind, probe_query, anchors, context):  # type: ignore[no-untyped-def]
+            raise RuntimeError("listing boom")
+
+    listing_bound = SiteCatalog([RaisingSourceListingGitLab(), RedditSite()]).bind(
+        site="gitlab", placeholders=PLACEHOLDERS
+    )
+    listing_failure = listing_bound.source_listing(
+        TargetCandidate(
+            kind="gitlab_issue",
+            anchors={"project_path": "namespace/project", "issue_iid": "7"},
+            probe_query={"api": "search_user_issues"},
+        )
+    )
+    assert isinstance(listing_failure, TargetingFailure)
+    assert listing_failure.reason == "adapter_error"
+
+    class RelativeSourceGitLab(GitLabSite):
+        def source_listing(self, kind, probe_query, anchors, context):  # type: ignore[no-untyped-def]
+            del kind, probe_query, anchors, context
+            return "search_result", "/relative/issues"
+
+    relative_bound = SiteCatalog([RelativeSourceGitLab(), RedditSite()]).bind(
+        site="gitlab", placeholders=PLACEHOLDERS
+    )
+    relative_failure = relative_bound.source_listing(
+        TargetCandidate(
+            kind="gitlab_issue",
+            anchors={"project_path": "namespace/project", "issue_iid": "7"},
+            probe_query={"api": "search_user_issues"},
+        )
+    )
+    assert isinstance(relative_failure, TargetingFailure)
+    assert relative_failure.reason == "invalid_source_listing"
+
+
+def test_l3_candidate_api_kind_mismatch_is_site_owned():
+    bound = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS)
+    failure = bound.materialize(
+        TargetCandidate(
+            kind="gitlab_dashboard_list",
+            anchors={"dashboard": "issues"},
+            probe_query={"api": "list_project_issues_recent"},
+        )
+    )
+
+    assert isinstance(failure, TargetingFailure)
+    assert failure.reason == "probe_kind_mismatch"
+
+
+def test_l3_candidate_exposes_site_owned_source_listing_facts():
+    bound = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS)
+    listing = bound.source_listing(
+        TargetCandidate(
+            kind="gitlab_issue",
+            anchors={"project_path": "namespace/project", "issue_iid": "7"},
+            probe_query={"api": "search_user_issues", "project_path": "namespace/project"},
+        )
+    )
+
+    assert isinstance(listing, SourceListing)
+    assert listing.kind == "gitlab_search_result"
+    assert listing.start_url == "https://gitlab.local/namespace/project/-/issues"
+
+
+def test_injected_fake_site_proves_candidate_seam_without_editor_contract():
+    class FakeCandidateSite(FakeSite):
+        pass
+
+    catalog = SiteCatalog([GitLabSite(), RedditSite(), FakeCandidateSite()])
+    target = catalog.bind(site="fake", origin="https://fake.local").materialize(
+        TargetCandidate(kind="message", anchors={"message_id": "9"})
+    )
+
+    assert target.kind == "message"
+    assert target.start_url_resolved == "https://fake.local/messages/9"

@@ -2,6 +2,8 @@
 # Auto-split from tests/test_phase_2_target_resolver.py; shared helpers live in tests/phase_2/target_resolution/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+from worldsim.sites import GitLabSite, RedditSite, SiteCatalog
+
 def test_l3_happy_path_gitlab_issue():
     task = _gitlab_task(
         eval_url=None,
@@ -439,6 +441,38 @@ def test_l3_coherence_blocks_none_api_with_concrete_kind():
     assert result["kind"] is None
     assert "probe-kind mismatch" in result["reason"]
 
+
+def test_l3_malformed_probe_query_fails_closed_before_probe():
+    task = _gitlab_task(eval_url=None, start_urls=["__GITLAB__"], instruction="Find my issue")
+    classifier = _make_classifier(
+        {
+            "kind": "gitlab_issue",
+            "probe_query": "not-a-mapping",
+            "confidence": 0.5,
+        }
+    )
+    probe_called = False
+
+    async def _probe_should_not_run(*args, **kwargs):
+        nonlocal probe_called
+        probe_called = True
+        raise AssertionError("malformed probe_query must not reach the probe")
+
+    result = asyncio.run(
+        resolve_l3(
+            task,
+            PLACEHOLDERS,
+            {"site_url": "https://gitlab.local"},
+            classifier=classifier,
+            probe_fn=_probe_should_not_run,
+        )
+    )
+
+    assert result["kind"] is None
+    assert result["targeting_failure"] == "invalid_probe_query"
+    assert result["l3_probe_query"] == {}
+    assert probe_called is False
+
 def test_l3_classifier_failure_records_exception_class_name():
     """When the classifier returns None, resolve_l3 reads the contextvar
     and includes the exception class name in the reason for triage."""
@@ -466,3 +500,35 @@ def test_l3_classifier_failure_records_exception_class_name():
     assert "BadRequestError" in result["reason"]
     assert result.get("l3_failure_class") == "BadRequestError"
     assert result.get("pending_layer") == "L3"
+
+
+def test_l3_uses_injected_site_catalog_for_candidate_materialization():
+    class InjectedGitLab(GitLabSite):
+        def reconstruct(self, kind, anchors, context):  # type: ignore[no-untyped-def]
+            if kind == "issue" and anchors.get("issue_iid"):
+                origin = context.site_origin()
+                return f"{origin}/injected/issues/{anchors['issue_iid']}" if origin else None
+            return super().reconstruct(kind, anchors, context)
+
+    task = _gitlab_task(eval_url=None, start_urls=["__GITLAB__"], instruction="Find my issue")
+    classifier = _make_classifier(
+        {
+            "kind": "gitlab_issue",
+            "probe_query": {"api": "search_user_issues", "query": "issue"},
+            "confidence": 0.9,
+        }
+    )
+    probe = _make_probe({"project_path": "namespace/project", "issue_iid": "7"})
+    result = asyncio.run(
+        resolve_l3(
+            task,
+            PLACEHOLDERS,
+            {"site_url": "https://gitlab.local"},
+            classifier=classifier,
+            probe_fn=probe,
+            catalog=SiteCatalog([InjectedGitLab(), RedditSite()]),
+        )
+    )
+
+    assert result["kind"] == "gitlab_issue"
+    assert result["start_url_resolved"] == "https://gitlab.local/injected/issues/7"
