@@ -1,8 +1,8 @@
 """Pure L3 candidate contracts for the Site Targeting seam.
 
 This module owns the value objects and fail-closed bridge from intent/probe
-evidence to a bound Site target.  It intentionally imports the catalog result
-types lazily so the catalog can expose the contracts without a module cycle.
+evidence to a bound Site target.  Contract and evidence helpers live in their
+feature-owned modules so the catalog remains a thin registry facade.
 """
 
 from __future__ import annotations
@@ -13,12 +13,15 @@ from types import MappingProxyType
 from typing import Any
 from urllib.parse import urlsplit
 
+from worldsim.sites.contracts import (
+    ResolvedTarget,
+    SiteTargetingDefinitionError,
+    TargetingFailure,
+)
+from worldsim.sites.task_evidence import _matches_origin
+
 
 def _definition_error(message: str) -> ValueError:
-    # Keep invalid value objects consistent with the catalog's public error
-    # type without importing the catalog while it is defining that type.
-    from worldsim.sites.catalog import SiteTargetingDefinitionError
-
     return SiteTargetingDefinitionError(message)
 
 
@@ -132,8 +135,6 @@ def validate_probe(
 ) -> Any:
     """Return a structured failure for an incoherent API/kind pair."""
 
-    from worldsim.sites.catalog import TargetingFailure
-
     if not isinstance(probe_query, Mapping):
         return TargetingFailure(
             site,
@@ -182,8 +183,6 @@ def materialize_candidate(
     candidate: TargetCandidate,
 ) -> Any:
     """Materialize a candidate using only the bound Site's route grammar."""
-
-    from worldsim.sites.catalog import ResolvedTarget, TargetingFailure, _matches_origin
 
     if not isinstance(candidate, TargetCandidate):
         return TargetingFailure(
@@ -317,8 +316,6 @@ def source_listing_for_candidate(
     candidate: TargetCandidate,
 ) -> Any:
     """Resolve adapter-owned source-listing facts for a candidate."""
-
-    from worldsim.sites.catalog import TargetingFailure, _matches_origin
 
     if not isinstance(candidate, TargetCandidate):
         return TargetingFailure(
