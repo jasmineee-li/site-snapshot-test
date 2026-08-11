@@ -26,6 +26,14 @@ immutable benign fields and the exposure contract are merged. Keep endpoint,
 body, status, binary-label, and final-state semantics in host code so prompts
 stay benchmark-neutral.
 
+Phase 2a planning may pause only between shard claims. A pause request stops
+new claims, lets admitted target-resolution/API/validation work finish, and
+writes each completed shard plus its Run-bound manifest atomically before the
+runner records `paused`. Resume accepts a shard only when its Run ID,
+Definition Digest, payload hash, and existing Phase 2 validators match; other
+shards rerun. No partial plan merge is promoted. Phase 2b text fill and Phase
+2c feasibility do not yet accept cooperative pause.
+
 Carrier exposure and action objective are separate contracts. A payload may be
 admitted on a WASP carrier while asking the agent to perform a different
 workflow; benchmark-specific endpoints, selectors, fixture setup, readback,

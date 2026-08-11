@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 class TestRecoverOrphanedShards:
     """Regression tests for the orphan-shard recovery folded into the
     Phase 2 aggregator — prevents repeat of the 49-orphan drop on the
@@ -91,6 +92,105 @@ class TestRecoverOrphanedShards:
         )
         assert {plan["id"] for plan in merged} == {"adv-100", "adv-101", "adv-200"}
         assert recovered == sorted(["adv-100", "adv-101", "adv-200"])
+
+    def test_paused_recovery_requires_exact_run_bound_manifest(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        from worldsim.phase_2.pause_control import write_planning_shard_checkpoint
+        from worldsim.run_transition import resolve_run_request
+
+        monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
+        definition = resolve_run_request(
+            {"sandbox_model": "model-a"},
+            existing_state=None,
+            new_run_id="run-phase2-recovery",
+        ).definition
+        state = {
+            "step": "phase_2",
+            "status": "paused",
+            "logs_dir": str(tmp_path),
+            "phase_2_stage": "planning",
+            "run_definition": definition.to_dict(),
+        }
+        (tmp_path / "pipeline_state.json").write_text(json.dumps(state))
+        shards_dir = tmp_path / "phase_2" / "shards"
+        shard_path = shards_dir / "shopping-shard-0.json"
+        payload = [self._plan("adv-bound", site="shopping")]
+        write_planning_shard_checkpoint(
+            shard_path,
+            payload,
+            label="shopping-shard-0",
+            input_task_ids=["benign-bound"],
+        )
+
+        merged, recovered = phase_2_injections._recover_orphaned_shards(
+            shards_dir,
+            [],
+            allowed_sites={"shopping"},
+            required_checkpoint_definition=definition,
+        )
+        assert [task["id"] for task in merged] == ["adv-bound"]
+        assert recovered == ["adv-bound"]
+
+        manifest_path = shard_path.with_suffix(".manifest.json")
+        manifest = json.loads(manifest_path.read_text())
+        manifest["definition_digest"] = "0" * 64
+        manifest_path.write_text(json.dumps(manifest))
+
+        merged, recovered = phase_2_injections._recover_orphaned_shards(
+            shards_dir,
+            [],
+            allowed_sites={"shopping"},
+            required_checkpoint_definition=definition,
+        )
+        assert merged == []
+        assert recovered == []
+
+    def test_exact_paused_option_a_shard_rejects_unknown_benign_parent(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        from worldsim.phase_2.pause_control import write_planning_shard_checkpoint
+        from worldsim.phase_2.shards import _load_reusable_planning_shard
+        from worldsim.run_transition import resolve_run_request
+
+        monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
+        definition = resolve_run_request(
+            {"sandbox_model": "model-a"},
+            existing_state=None,
+            new_run_id="run-phase2-parent-check",
+        ).definition
+        state = {
+            "step": "phase_2",
+            "status": "paused",
+            "logs_dir": str(tmp_path),
+            "phase_2_stage": "planning",
+            "run_definition": definition.to_dict(),
+        }
+        (tmp_path / "pipeline_state.json").write_text(json.dumps(state))
+        shard_path = tmp_path / "phase_2" / "shards" / "gitlab.json"
+        payload = [{**self._plan("adv-unknown-parent"), "benign_task_id": "missing"}]
+        write_planning_shard_checkpoint(
+            shard_path,
+            payload,
+            label="gitlab",
+            input_task_ids=["benign-current"],
+        )
+
+        assert (
+            _load_reusable_planning_shard(
+                shard_path,
+                expected_site="gitlab",
+                expected_input_task_ids=["benign-current"],
+                definition=definition,
+                benign_by_id={},
+                site_profiles={"gitlab": {}},
+            )
+            is None
+        )
 
     def test_existing_inmemory_plan_wins_over_shard_copy(self, tmp_path: Path):
         shards_dir = tmp_path / "shards"

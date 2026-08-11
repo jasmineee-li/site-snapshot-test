@@ -350,11 +350,20 @@ unsuccessful assignments pending, writes no canonical merged result, and
 persists a root-local `paused` checkpoint. Its saved wrapper `--resume` command
 reruns every assignment in an isolated attempt root; generic `warp-taskgen
 resume` fails closed for a
-pool root. Process-pool SIGTERM/crash recovery and Phases 0-3 do not accept
-cooperative pause semantics in this slice.
+pool root. Process-pool SIGTERM/crash recovery and Phases 0, 1, and 3 do not
+accept cooperative pause semantics in this slice.
 The handler is installed after the Phase 4 run lock is acquired; termination
 during pre-ownership setup remains a normal crash. Once lifecycle persistence
 starts, further SIGINT/SIGTERM delivery is ignored for that short atomic write.
+
+Phase 2a planning separately supports cooperative pause between shard claims.
+The scheduler stops claiming new shards, drains admitted target resolution,
+API retries, validation, and atomic shard writes, then records `paused` before
+Phase 2b begins. Each shard has a non-secret manifest bound to the Run ID,
+Definition Digest, and payload hash; exact resume still applies the existing
+Phase 2 validators and reruns missing, legacy, stale, malformed, or unbound
+shards. Phase 2b text fill and Phase 2c feasibility remain unsupported, as do
+Phase 2 signal interruption and cooperative pause for Phases 0, 1, and 3.
 
 ### CLI Flags
 

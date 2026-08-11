@@ -14,6 +14,13 @@ Before relying on an artifact, check the active host or run archive. Live state
 is often newer than the checkout, but a remote host is operational state rather
 than canonical source. Use `remote-runs.md` wrappers for active jobs.
 
+Phase 2a planning checkpoints live under `phase_2/shards/`. Each shard JSON is
+paired with a `.manifest.json` carrying only its label, input/output task IDs,
+payload hash, Run ID, and Definition Digest. The manifest is resume evidence,
+not a replacement for Phase 2 validation: paused resume rejects legacy,
+missing, malformed, stale, or unbound manifests and reruns that shard. Partial
+shards never promote `adversarial_plans.json`.
+
 Derived Runs are initialized under the source root's sibling
 `.warp-derived-runs/<request-key>/<run-id>/` collection. The request key is an
 internal idempotency key, not a public Run ID. The atomic reservation lives at

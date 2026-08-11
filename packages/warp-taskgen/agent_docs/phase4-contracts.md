@@ -89,6 +89,9 @@ Single-process SIGINT/SIGTERM may persist `interrupted` after stack unwind;
 process-pool termination remains crash-compatible, and SIGKILL cannot be
 relabeled because no handler ran.
 
+Phase 2a has a separate planning-shard pause contract owned by Phase 2. It does
+not change Phase 4 admission, artifact acceptance, or worker scheduling.
+
 Completion means gate classification, awareness branch, variant budget,
 immutable contracts, ASR denominator, and artifact evidence are all explicit in
 the changed code or report, with `phase4-reporting-metrics.md` used for labels.

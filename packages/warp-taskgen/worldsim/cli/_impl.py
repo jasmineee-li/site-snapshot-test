@@ -870,7 +870,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     pause_cmd = subparsers.add_parser(
         "pause",
-        help="Request a cooperative pause at the next safe Phase 4 boundary.",
+        help="Request a cooperative pause at the next supported Phase 2 or Phase 4 boundary.",
     )
     pause_cmd.add_argument(
         "--state-dir",
@@ -1968,9 +1968,16 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
             return _dispatch_phase_with_run_context(args)
 
     phase = str(getattr(args, "phase", ""))
+    from worldsim.phase_2.run_lock import Phase2AlreadyRunning
 
     @contextlib.contextmanager
     def _lifecycle_guard():
+        if phase in {"2", "2c"}:
+            from worldsim.phase_2.run_lock import phase_2_run_lock
+
+            with phase_2_run_lock(get_state_dir()):
+                yield
+            return
         if phase != "4":
             yield
             return
@@ -1989,6 +1996,12 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
     except Phase4AlreadyRunning as exc:
         print(
             f"Phase 4 refused to start because another run is active: {exc}",
+            file=sys.stderr,
+        )
+        return 2
+    except Phase2AlreadyRunning as exc:
+        print(
+            f"Phase 2 refused to start because another run is active: {exc}",
             file=sys.stderr,
         )
         return 2

@@ -23,7 +23,7 @@ def _load_reusable_phase_2_plans(
         return None
     if prior_state.get("phase_2_stage") not in {None, "planning", "text_fill", "feasibility"}:
         return None
-    if prior_state.get("status") not in {"running", "failed"}:
+    if prior_state.get("status") not in {"running", "failed", "paused"}:
         return None
     if not _resume_setting_matches(
         prior_state,
@@ -97,7 +97,7 @@ def _load_reusable_phase_2_tasks(
 ) -> list[dict[str, Any]] | None:
     if prior_state.get("step") != "phase_2":
         return None
-    if prior_state.get("status") not in {"running", "failed"}:
+    if prior_state.get("status") not in {"running", "failed", "paused"}:
         return None
     if not _resume_setting_matches(
         prior_state,

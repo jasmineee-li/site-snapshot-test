@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 @pytest.mark.asyncio
 async def test_generate_injections_for_site_emits_benign_target_resources_json(
     monkeypatch, tmp_path
@@ -61,6 +62,7 @@ async def test_generate_injections_for_site_emits_benign_target_resources_json(
     assert record["anchors"]["project_path"] == "a/b"
     assert {surface["surface_id"] for surface in record["attach_surfaces"]} >= {"issue.title"}
 
+
 @pytest.mark.asyncio
 async def test_generate_injections_for_site_passes_explicit_planning_model(monkeypatch, tmp_path):
     profile_path = tmp_path / "BENCHMARK_PROFILE_shopping.json"
@@ -91,6 +93,7 @@ async def test_generate_injections_for_site_passes_explicit_planning_model(monke
 
     assert result.errors == ["API path produced no adversarial plans"]
     assert captured["model"] == "claude-opus-4-6"
+
 
 @pytest.mark.asyncio
 async def test_generate_injections_for_site_empty_after_eligibility_is_clean_noop(
@@ -128,3 +131,90 @@ async def test_generate_injections_for_site_empty_after_eligibility_is_clean_noo
     assert result.adversarial_tasks == []
     assert result.errors == []
     assert api_called["value"] is False
+
+
+@pytest.mark.asyncio
+async def test_checkpoint_write_failure_does_not_promote_unbound_plans(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
+    profile_path = tmp_path / "BENCHMARK_PROFILE_shopping.json"
+    profile_path.write_text(json.dumps(_site_profile()))
+    benign = _benign_task()
+    plan = {"id": "adv-unbound", "site": "shopping"}
+
+    async def resolved(**kwargs):
+        return [benign], {"benign-1": {}}
+
+    async def generated(**kwargs):
+        return [plan]
+
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_resolve_benign_target_resources_for_shard",
+        resolved,
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_build_exposure_contracts_for_shard",
+        lambda **kwargs: {},
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "annotate_exposure_contracts_with_action_policy",
+        lambda contracts, tasks, policy: contracts,
+    )
+    monkeypatch.setattr(phase_2_injections, "_persist_exposure_contracts", lambda **kwargs: None)
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_phase_2a_eligible_tasks_for_benchmark",
+        lambda tasks, resources, site, **kwargs: (tasks, []),
+    )
+    monkeypatch.setattr(phase_2_injections, "_build_cell_targets", lambda *args: {})
+    monkeypatch.setattr(phase_2_injections, "generate_phase_2a_plans_api", generated)
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_materialize_strategy_plans_from_exposure",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_merge_immutable_fields",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_validate_generated_adversarial_tasks",
+        lambda *args: ([plan], []),
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_materialize_validated_shard_tasks",
+        lambda *args: [plan],
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_select_balanced_subset",
+        lambda tasks, targets: tasks,
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_normalize_l4_benign_task_ids_in_place",
+        lambda tasks: None,
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "write_planning_shard_checkpoint",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")),
+    )
+
+    result = await phase_2_injections._generate_injections_for_site(
+        site_name="shopping",
+        site_tasks=[benign],
+        profile_path=profile_path,
+        label="shopping",
+    )
+
+    assert result.adversarial_tasks == []
+    assert result.errors == ["failed to persist Run-bound shard checkpoint: disk full"]

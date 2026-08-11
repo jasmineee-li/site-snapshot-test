@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 from worldsim.phase_2._context import install_context
+from worldsim.phase_2.pause_control import run_planning_shards
+from worldsim.run_definition import define_run
 
 install_context(globals())
 
@@ -283,6 +285,8 @@ async def run(args: argparse.Namespace) -> int:
         current_phase_2a_resolution_signature=state_metadata["phase_2a_resolution_signature"],
     )
     reusable_final_tasks = None
+    planning_completed_now = False
+    paused_definition = define_run(prior_state) if prior_state.get("status") == "paused" else None
     if reusable_plans is None and sites_filter is None:
         reusable_final_tasks = _load_reusable_phase_2_tasks(
             prior_state=prior_state,
@@ -311,29 +315,51 @@ async def run(args: argparse.Namespace) -> int:
         # Shard each site's tasks into chunks of TASKS_PER_SHARD and launch
         # bounded host-side API calls. Shopping (192 tasks) becomes ~8 shorter
         # strategy calls instead of one huge request.
-        shard_coros = []
+        shard_specs: list[dict[str, Any]] = []
+        reusable_shard_results: list[SiteInjectionResult] = []
         shard_limiter = asyncio.Semaphore(DEFAULT_PHASE_2A_SHARD_CONCURRENCY)
         for site, tasks in tasks_by_site.items():
             shards = _shard_tasks(tasks, TASKS_PER_SHARD)
             per_site_instance = instance_by_site.get(site) if instance_by_site is not None else None
             for shard_idx, shard in enumerate(shards):
                 label = f"{site}-shard-{shard_idx}" if len(shards) > 1 else site
-                shard_coros.append(
-                    _run_shard_with_limit(
-                        shard_limiter,
-                        site_name=site,
-                        site_tasks=shard,
-                        all_site_tasks=tasks,
-                        profile_path=site_profiles[site],
-                        site_profile_override=site_profile_payloads.get(site),
-                        label=label,
-                        sandbox_model=sandbox_model,
-                        instance=per_site_instance,
-                        benchmark=benchmark_name,
-                        action_policy=phase_2a_action_policy,
+                if paused_definition is not None:
+                    reusable_shard = _load_reusable_planning_shard(
+                        output_dir / "shards" / f"{label}.json",
+                        expected_site=site,
+                        expected_input_task_ids=[str(task.get("id") or "") for task in shard],
+                        definition=paused_definition,
+                        benign_by_id=benign_by_id,
+                        site_profiles=site_profile_payloads,
                     )
+                    if reusable_shard is not None:
+                        reusable_shard_results.append(SiteInjectionResult(site, reusable_shard, []))
+                        continue
+                shard_specs.append(
+                    {
+                        "site_name": site,
+                        "site_tasks": shard,
+                        "all_site_tasks": tasks,
+                        "profile_path": site_profiles[site],
+                        "site_profile_override": site_profile_payloads.get(site),
+                        "label": label,
+                        "sandbox_model": sandbox_model,
+                        "instance": per_site_instance,
+                        "benchmark": benchmark_name,
+                        "action_policy": phase_2a_action_policy,
+                    }
                 )
-        shard_results = await asyncio.gather(*shard_coros, return_exceptions=True)
+
+        async def _run_planning_shard(spec: dict[str, Any]) -> SiteInjectionResult:
+            return await _run_shard_with_limit(shard_limiter, **spec)
+
+        pending_shard_results = await run_planning_shards(
+            shard_specs,
+            _run_planning_shard,
+            concurrency=DEFAULT_PHASE_2A_SHARD_CONCURRENCY,
+            state_dir=state_dir,
+        )
+        shard_results = [*reusable_shard_results, *pending_shard_results]
 
         # Merge per-shard results back into per-site results.
         results = _merge_shard_results(shard_results, tasks_by_site)
@@ -391,13 +417,19 @@ async def run(args: argparse.Namespace) -> int:
         active_sites = set(tasks_by_site.keys())
         if sites_filter is not None:
             active_sites &= sites_filter
-        all_plans, recovered_ids = _recover_orphaned_shards(
-            output_dir / "shards",
-            all_plans,
-            allowed_sites=active_sites,
-            benign_by_id=benign_by_id,
-            site_profiles=site_profile_payloads,
-        )
+        if paused_definition is None:
+            all_plans, recovered_ids = _recover_orphaned_shards(
+                output_dir / "shards",
+                all_plans,
+                allowed_sites=active_sites,
+                benign_by_id=benign_by_id,
+                site_profiles=site_profile_payloads,
+            )
+        else:
+            # Paused checkpoints were matched to their current shard input
+            # before admission. A broad orphan scan cannot prove that binding
+            # and must not reintroduce a sidecar rejected at that boundary.
+            recovered_ids = []
         if recovered_ids:
             logger.warning(
                 "Phase 2 aggregation: recovered %d orphan shard task(s) from disk: %s",
@@ -410,6 +442,17 @@ async def run(args: argparse.Namespace) -> int:
             all_plans,
             sites_filter=sites_filter,
         )
+        # Cross the pause boundary before promoting the canonical planning
+        # merge. The state-owned lock makes an accepted planning request win;
+        # once text_fill is persisted, later pause requests are rejected.
+        save_state(
+            "phase_2",
+            status="running",
+            phase_2_stage="text_fill",
+            generation_failures=site_failures,
+            **state_metadata,
+        )
+        planning_completed_now = True
         write_json_atomic(
             plans_path,
             merged_plans,
@@ -453,13 +496,14 @@ async def run(args: argparse.Namespace) -> int:
             current_phase_2a_resolution_signature=state_metadata["phase_2a_resolution_signature"],
         )
         if reusable_final_tasks is None:
-            save_state(
-                "phase_2",
-                status="running",
-                phase_2_stage="text_fill",
-                generation_failures=site_failures,
-                **state_metadata,
-            )
+            if not planning_completed_now:
+                save_state(
+                    "phase_2",
+                    status="running",
+                    phase_2_stage="text_fill",
+                    generation_failures=site_failures,
+                    **state_metadata,
+                )
 
             prefilled_tasks = [task for task in candidate_plans if "seed_template" not in task]
             plans_to_fill = [task for task in candidate_plans if "seed_template" in task]

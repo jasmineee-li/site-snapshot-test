@@ -43,6 +43,23 @@ def _write_running_phase_4(root: Path, *, stage: str = "initial_evaluation") -> 
     progress.write_text(json.dumps({"stage": stage}), encoding="utf-8")
 
 
+def _write_running_phase_2(root: Path, *, stage: str = "planning") -> None:
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "pipeline_state.json").write_text(
+        json.dumps(
+            {
+                "step": "phase_2",
+                "status": "running",
+                "timestamp": "2026-08-11T00:00:00+00:00",
+                "logs_dir": str(root),
+                "sandbox_model": "model-a",
+                "phase_2_stage": stage,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_pause_request_is_atomic_nonsecret_and_idempotent(tmp_path: Path) -> None:
     _write_running_phase_4(tmp_path)
 
@@ -90,7 +107,7 @@ def test_pause_request_loses_terminal_race_without_leaving_stale_marker(
 
     monkeypatch.setattr(run_control, "write_json_atomic", finish_after_marker)
 
-    with pytest.raises(ValueError, match="running Phase 4"):
+    with pytest.raises(ValueError, match="running pipeline phase"):
         request_pause(tmp_path)
 
     assert not (tmp_path / "pause_request.json").exists()
@@ -125,7 +142,7 @@ def test_status_does_not_project_stale_terminal_marker_as_pausing(tmp_path: Path
 
     assert "lifecycle_status" not in payload
     assert payload["pipeline_state"]["status"] == "complete"
-    assert "active Phase 4 Run" in payload["pause_request_error"]
+    assert "running pipeline phase" in payload["pause_request_error"]
     assert "status=complete" in format_status_payload(payload)
 
 
@@ -146,8 +163,8 @@ def test_status_rejects_marker_with_wrong_step(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     ("step", "status", "stage", "process_pool", "message"),
     [
-        ("phase_3", "running", "initial_evaluation", False, "running Phase 4"),
-        ("phase_4", "complete", "initial_evaluation", False, "running Phase 4"),
+        ("phase_3", "running", "initial_evaluation", False, "not pause-aware"),
+        ("phase_4", "complete", "initial_evaluation", False, "running pipeline phase"),
         ("phase_4", "running", "finalizing", False, "not pause-aware"),
         ("phase_4", "running", "initial_evaluation", True, "process-pool"),
     ],
@@ -193,6 +210,77 @@ def test_pause_acknowledgement_preserves_checkpoint_and_definition(
     assert not (tmp_path / "pause_request.json").exists()
     assert json.loads(pointer.read_text(encoding="utf-8"))["status"] == "paused"
     assert json.loads((tmp_path / "pipeline_state.json").read_text())["status"] == "paused"
+
+
+def test_phase_2_planning_pause_is_atomic_idempotent_and_visible(
+    tmp_path: Path,
+) -> None:
+    _write_running_phase_2(tmp_path)
+    before = (tmp_path / "pipeline_state.json").read_bytes()
+
+    first = request_pause(tmp_path)
+    second = request_pause(tmp_path)
+    status = build_status_payload(tmp_path)
+
+    assert first == second
+    assert first.step == "phase_2"
+    assert status["lifecycle_status"] == "pausing"
+    assert status["pause_request"]["step"] == "phase_2"
+    assert (tmp_path / "pipeline_state.json").read_bytes() == before
+
+
+@pytest.mark.parametrize("stage", ["text_fill", "feasibility", "complete"])
+def test_phase_2_pause_rejects_nonplanning_stages(tmp_path: Path, stage: str) -> None:
+    _write_running_phase_2(tmp_path, stage=stage)
+
+    with pytest.raises(ValueError, match="not pause-aware"):
+        request_pause(tmp_path)
+
+    assert not (tmp_path / "pause_request.json").exists()
+
+
+def test_phase_2_running_checkpoint_raises_only_after_atomic_write(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
+    monkeypatch.setenv("WARP_TASKGEN_RESUME_POINTER", str(tmp_path / "pointer.json"))
+    _write_running_phase_2(tmp_path)
+    request_pause(tmp_path)
+
+    with pytest.raises(PauseBoundaryReached):
+        save_state(
+            "phase_2",
+            status="running",
+            phase_2_stage="planning",
+            checkpoint="safe",
+        )
+
+    persisted = json.loads((tmp_path / "pipeline_state.json").read_text(encoding="utf-8"))
+    assert persisted["status"] == "running"
+    assert persisted["checkpoint"] == "safe"
+
+
+def test_phase_2_pause_wins_before_text_fill_transition(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
+    monkeypatch.setenv("WARP_TASKGEN_RESUME_POINTER", str(tmp_path / "pointer.json"))
+    _write_running_phase_2(tmp_path)
+    request_pause(tmp_path)
+
+    with pytest.raises(PauseBoundaryReached):
+        save_state(
+            "phase_2",
+            status="running",
+            phase_2_stage="text_fill",
+            checkpoint="must-not-promote",
+        )
+
+    persisted = json.loads((tmp_path / "pipeline_state.json").read_text(encoding="utf-8"))
+    assert persisted["phase_2_stage"] == "planning"
+    assert "checkpoint" not in persisted
 
 
 def test_running_checkpoint_raises_boundary_only_after_atomic_write(
@@ -271,6 +359,27 @@ def test_phase_boundary_adapter_persists_pause_after_operation_unwinds(
     assert rc == 0
     assert unwound is True
     assert json.loads((tmp_path / "pipeline_state.json").read_text())["status"] == "paused"
+
+
+def test_phase_2_boundary_adapter_persists_pause_after_operation_unwinds(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("WARP_TASKGEN_RESUME_POINTER", str(tmp_path / "pointer.json"))
+    _write_running_phase_2(tmp_path)
+    request_pause(tmp_path)
+
+    rc = dispatch_phase_with_run_control(
+        phase="2",
+        state_dir=tmp_path,
+        operation=lambda: (_ for _ in ()).throw(PauseBoundaryReached()),
+        lifecycle_guard=nullcontext,
+    )
+
+    assert rc == 0
+    state = json.loads((tmp_path / "pipeline_state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "paused"
+    assert state["phase_2_stage"] == "planning"
 
 
 def test_phase_boundary_adapter_records_keyboard_interrupt(

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from worldsim.phase_2._context import install_context
+from worldsim.phase_2.pause_control import write_planning_shard_checkpoint
 
 install_context(globals())
 
@@ -44,6 +45,7 @@ async def _generate_injections_for_site(
     """
     if all_site_tasks is None:
         all_site_tasks = site_tasks
+    input_task_ids = [str(task.get("id") or "") for task in site_tasks]
     if label is None:
         label = site_name
 
@@ -194,15 +196,22 @@ async def _generate_injections_for_site(
         shards_dir.mkdir(parents=True, exist_ok=True)
         shard_path = shards_dir / f"{label}.json"
         try:
-            shard_path.write_text(json.dumps(enriched, indent=2))
+            write_planning_shard_checkpoint(
+                shard_path,
+                enriched,
+                label=label,
+                input_task_ids=input_task_ids,
+            )
             logger.info(
                 "Phase 2: persisted shard %r output (%d tasks) to %s",
                 label,
                 len(enriched),
                 shard_path,
             )
-        except OSError as exc:
-            logger.warning("Phase 2: failed to persist shard %r output: %s", label, exc)
+        except (OSError, ValueError) as exc:
+            checkpoint_error = f"failed to persist Run-bound shard checkpoint: {exc}"
+            logger.error("Phase 2: shard %r %s", label, checkpoint_error)
+            return SiteInjectionResult(site_name, [], [*errors, checkpoint_error])
 
     return SiteInjectionResult(site_name, enriched, errors)
 

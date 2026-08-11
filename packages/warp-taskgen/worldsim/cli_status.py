@@ -203,22 +203,19 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
             else:
                 payload["run_definition"] = run_definition.to_dict()
                 payload["resume_plan"] = resume_plan.to_dict()
-        from worldsim.run_control import load_pause_request, pause_request_path
+        from worldsim.run_control import (
+            load_pause_request,
+            pause_request_path,
+            validate_active_pause_request,
+        )
 
         marker = pause_request_path(run_root)
         if marker.exists():
             try:
                 pause_request = load_pause_request(run_root)
-                pause_definition = define_run(state)
-                if (
-                    state.get("status") != "running"
-                    or state.get("step") != "phase_4"
-                    or pause_request is None
-                    or pause_request.step != "phase_4"
-                    or pause_request.run_id != pause_definition.run_id
-                    or pause_request.definition_digest != pause_definition.definition_digest
-                ):
-                    raise ValueError("pause request does not match an active Phase 4 Run")
+                if pause_request is None:
+                    raise ValueError("pause request marker is missing")
+                validate_active_pause_request(state, pause_request)
             except ValueError as exc:
                 payload["pause_request_error"] = str(exc)
             else:

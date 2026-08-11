@@ -42,6 +42,7 @@ from worldsim.editors._registry import (
     method_spec,
 )
 from worldsim.phase_2 import output as _phase_2_output
+from worldsim.phase_2.pause_control import planning_shard_checkpoint_matches
 from worldsim.phase_2.phase_2c import artifacts as _phase_2c_artifacts
 from worldsim.phase_2.phase_2c import config as _phase_2c_config
 from worldsim.phases.phase_2_core_surfaces import CORE_SURFACES, canonical_core_surface
@@ -126,6 +127,7 @@ from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_loading import load_prompt
 from worldsim.seeding import self_contained_adversarial_seed_error, validate_data_seed
 from worldsim.state import get_state_dir, load_state, save_state
+from worldsim.run_definition_contracts import RunDefinition
 
 logger = logging.getLogger(__name__)
 TASKS_PER_SHARD = 20

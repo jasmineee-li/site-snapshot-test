@@ -83,11 +83,14 @@ Current and target ownership should stay explicit:
   the atomic reservation and isolated child-root initialization for definition
   drift. It must not copy or accept feature checkpoints, mutate the source Run,
   update the shared discovery pointer, or dispatch the child automatically.
-- `worldsim.run_control`: non-secret cooperative pause requests, Phase 4
-  admission-boundary scheduling, and paused/interrupted lifecycle transitions.
+- `worldsim.run_control`: non-secret cooperative pause requests and
+  paused/interrupted lifecycle transitions. Normal Phase 4 scheduling remains
+  here; `worldsim.phase_2.pause_control` owns the Phase 2a planning queue and
+  its Run-bound shard manifests. Phase 2b text fill and Phase 2c feasibility do
+  not yet accept pause.
   It must not cancel admitted browser/API work, accept feature checkpoints,
   reinterpret `progress.json` as routing authority, or silently extend pause to
-  Phases 0-3. `worldsim.phase_4.process_pool` owns its supervisor-specific
+  Phases 0, 1, or 3. `worldsim.phase_4.process_pool` owns its supervisor-specific
   claim/launch boundary and worker/result orchestration;
   `worldsim.phase_4.process_pool_control` owns root-local lifecycle metadata,
   output ownership, and the explicit wrapper continuation contract. Child
