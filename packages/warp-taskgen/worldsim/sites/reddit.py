@@ -13,6 +13,7 @@ from worldsim.sites.contracts import (
     SiteRouteContractFacts,
     TargetingContext,
 )
+from worldsim.sites.reddit_read_surface import RedditReadSurfaceCapability
 from worldsim.sites.task_evidence import _path_and_query
 
 RedditResourceKind = Literal["submission", "forum", "dashboard_list"]
@@ -65,7 +66,7 @@ def _route(
     )
 
 
-class RedditSite(reddit_profile.RedditProfileIdentity):
+class RedditSite(reddit_profile.RedditProfileIdentity, RedditReadSurfaceCapability):
     site = "reddit"
     supported_benchmarks = frozenset({"webarena_verified"})
     expandable_listing_kinds = frozenset()

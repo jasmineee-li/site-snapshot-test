@@ -84,7 +84,13 @@ from worldsim.phases.phase_2_reachability import (
 from worldsim.phases.phase_2_render_check import (
     RenderOutcome,
 )
-from worldsim.seeding import SeedCleanupHandle, UnboundTokenError, apply_data_seed_async
+from worldsim.seeding import (
+    SeedCleanupHandle,
+    SeedSiteRegistry,
+    UnboundTokenError,
+    apply_data_seed_async,
+)
+from worldsim.sites import SiteCatalog
 
 cookie_domain_matches_host = _auth_preflight.cookie_domain_matches_host
 playwright_storage_state = _auth_preflight.playwright_storage_state
@@ -326,6 +332,8 @@ async def verify_feasibility(
     phase_2_status: str | None = None,
     stagger_delay: float = 0.0,
     feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
+    seed_registry: SeedSiteRegistry | None = None,
+    site_catalog: SiteCatalog | None = None,
 ) -> FeasibilityReport:
     """Verify each adversarial task in ``tasks_path`` against a dev instance.
 
@@ -348,6 +356,12 @@ async def verify_feasibility(
         feasibility_policy_catalog: Optional immutable per-run policy snapshot
             for source-data preflight. When omitted, the explicit WebArena
             default catalog is assembled for that run.
+        seed_registry: Optional immutable per-run Site editor snapshot. When
+            omitted, the historical editor registry remains the compatibility
+            source.
+        site_catalog: Optional immutable per-run Site capability catalog used
+            to plan read-surface verification. When omitted, the production
+            GitLab/Reddit catalog is assembled for each check.
     """
     raw = json.loads(tasks_path.read_text())
     if not isinstance(raw, list):
@@ -427,7 +441,11 @@ async def verify_feasibility(
         # head so the representative is reproducible across runs.
         representative = _ordered_instance_dicts(site_instances)[0]
         benchmark = normalize_benchmark_name(representative.get("benchmark") or task_benchmark)
-        editor_cls = EDITOR_REGISTRY.get((benchmark, site))
+        if seed_registry is None:
+            editor_cls = EDITOR_REGISTRY.get((benchmark, site))
+        else:
+            registration = seed_registry.get(benchmark, site)
+            editor_cls = registration.editor_factory if registration is not None else None
         if editor_cls is None:
             raise RuntimeError(
                 f"phase 2c pre-flight: no editor registered for (benchmark={benchmark!r}, site={site!r})"
@@ -637,16 +655,23 @@ async def verify_feasibility(
                         )
                     try:
                         async with replica_sem:
+                            verify_kwargs: dict[str, Any] = {
+                                "retry_count": retry_count,
+                                "fingerprint_base": fingerprint_base,
+                                "ttl_hours": ttl_hours,
+                                "force_reverify": force_reverify,
+                                "cleanup_warnings": cleanup_warnings,
+                                "browser": browser,
+                                "render_semaphore": None,
+                            }
+                            if seed_registry is not None:
+                                verify_kwargs["seed_registry"] = seed_registry
+                            if site_catalog is not None:
+                                verify_kwargs["site_catalog"] = site_catalog
                             result = await _verify_one(
                                 task,
                                 instance,
-                                retry_count=retry_count,
-                                fingerprint_base=fingerprint_base,
-                                ttl_hours=ttl_hours,
-                                force_reverify=force_reverify,
-                                cleanup_warnings=cleanup_warnings,
-                                browser=browser,
-                                render_semaphore=None,
+                                **verify_kwargs,
                             )
                         # Any ``infeasible`` we reach here came from an
                         # editor-level refusal (e.g. 4xx, schema mismatch)
@@ -752,6 +777,8 @@ async def _verify_one(
     cleanup_warnings: list[str],
     browser: Any = None,
     render_semaphore: asyncio.Semaphore | None = None,
+    seed_registry: SeedSiteRegistry | None = None,
+    site_catalog: SiteCatalog | None = None,
 ) -> dict[str, Any]:
     seed = task.get("adversarial_data_seed") or {}
     editor_calls = seed.get("editor_calls") if isinstance(seed, dict) else None
@@ -815,7 +842,13 @@ async def _verify_one(
     metadata: dict[str, Any] = {}
 
     async def _apply_and_keep_metadata() -> tuple[SeedCleanupHandle | None, dict[str, Any]]:
-        return await apply_data_seed_async(seed, bound_instance)
+        if seed_registry is None:
+            return await apply_data_seed_async(seed, bound_instance)
+        return await apply_data_seed_async(
+            seed,
+            bound_instance,
+            seed_registry=seed_registry,
+        )
 
     try:
         handle, metadata = await retrying(
@@ -894,12 +927,17 @@ async def _verify_one(
     reachability_outcome: ReachabilityOutcome | None = None
     try:
         if browser is not None:
+            render_kwargs: dict[str, Any] = {
+                "browser": browser,
+                "render_semaphore": render_semaphore,
+                "seed": seed,
+                "metadata": metadata,
+                "instance": instance,
+            }
+            if site_catalog is not None:
+                render_kwargs["site_catalog"] = site_catalog
             render_outcome = await _run_render_check(
-                browser=browser,
-                render_semaphore=render_semaphore,
-                seed=seed,
-                metadata=metadata,
-                instance=instance,
+                **render_kwargs,
             )
             # Render-unverified means the seed wrote successfully but the
             # signature did not appear in any read-surface URL within the
@@ -916,13 +954,7 @@ async def _verify_one(
                 and render_outcome.kind == _RENDER_UNVERIFIED_KIND
             ):
                 await phase_2c_retry_sleep(_RENDER_UNVERIFIED_RETRY_DELAY_S)
-                render_outcome = await _run_render_check(
-                    browser=browser,
-                    render_semaphore=render_semaphore,
-                    seed=seed,
-                    metadata=metadata,
-                    instance=instance,
-                )
+                render_outcome = await _run_render_check(**render_kwargs)
             if render_outcome is not None and render_outcome.ok:
                 # Option A reachability only applies to tasks whose benign
                 # target resource is known — legacy datasets without the

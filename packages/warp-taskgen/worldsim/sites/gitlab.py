@@ -14,6 +14,7 @@ from worldsim.sites.contracts import (
     SiteRouteContractFacts,
     TargetingContext,
 )
+from worldsim.sites.gitlab_read_surface import GitLabReadSurfaceCapability
 from worldsim.sites.task_evidence import _path_and_query
 
 GitLabResourceKind = Literal[
@@ -173,7 +174,7 @@ def _route(
     )
 
 
-class GitLabSite(gitlab_profile.GitLabProfileIdentity):
+class GitLabSite(gitlab_profile.GitLabProfileIdentity, GitLabReadSurfaceCapability):
     site = "gitlab"
     supported_benchmarks = frozenset({"webarena_verified"})
     expandable_listing_kinds = frozenset({"search_result", "dashboard_list"})
