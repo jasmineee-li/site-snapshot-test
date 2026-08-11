@@ -532,6 +532,7 @@ async def test_verify_reddit_comment_passes_with_seeded_first_visible_comment():
                 "reason": "seed_comment_first_visible_and_painted",
                 "comment_id": "901",
                 "first_visible_comment_id": "901",
+                "match_found_in_comment": True,
                 "visible_at_entry": True,
                 "visible_nonspace_chars": 31,
                 "requires_expand": False,

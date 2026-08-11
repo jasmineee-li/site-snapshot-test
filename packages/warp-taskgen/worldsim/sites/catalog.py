@@ -33,6 +33,7 @@ from worldsim.sites.listing_resolution import (
 )
 from worldsim.sites.profile_binding import BoundProfileRoutes
 from worldsim.sites.read_surface import BoundReadSurface
+from worldsim.sites.readback import BoundReadback
 from worldsim.sites.task_evidence import (
     _MISSING,  # noqa: F401
     _iter_eval_urls,
@@ -51,7 +52,7 @@ from worldsim.sites.task_evidence import (
 )
 
 
-class BoundSite(BoundProfileRoutes, BoundReadSurface):
+class BoundSite(BoundProfileRoutes, BoundReadSurface, BoundReadback):
     """A Site adapter bound to one immutable targeting context."""
 
     def __init__(self, adapter: SiteAdapter, context: TargetingContext) -> None:

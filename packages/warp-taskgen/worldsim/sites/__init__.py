@@ -26,6 +26,7 @@ from worldsim.sites.read_surface import (
     ReadSurfaceVerificationPlan,
     SiteReadSurfaceCapability,
 )
+from worldsim.sites.readback import ReadbackDecision, ReadbackFailure, ReadbackObservation
 from worldsim.sites.reddit import RedditSite
 
 __all__ = [
@@ -36,6 +37,9 @@ __all__ = [
     "ListingSiteAdapter",
     "ReadSurfacePlanFailure",
     "ReadSurfaceVerificationPlan",
+    "ReadbackDecision",
+    "ReadbackFailure",
+    "ReadbackObservation",
     "RedditSite",
     "ResolvedTarget",
     "SiteAdapter",
