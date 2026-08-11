@@ -225,6 +225,39 @@ valid discussion payloads do not always include it.
 Transport descriptors, generic selector languages, reachability,
 exposure/admission, reward/scoring, and facade deletion remain deferred.
 
+## ST-9 scope (reward-local final-state evaluator composition)
+
+The ninth bounded slice completes the fake-Site safety chain without adding
+reward or scoring methods to Site Targeting. Local, task-id-less
+`FinalStateEvaluator` behavior is composed through an immutable
+`FinalStateEvaluatorCatalog` owned by `worldsim.rewards` and keyed by normalized
+Benchmark and Site identity. The catalog exposes one evaluation operation and
+defaults explicitly to WebArena Verified GitLab and Reddit adapters. A
+test-only evaluator can be injected for one reward call without process-global
+registration; deleting it leaves active bindings unchanged and makes the
+removed Site fail closed.
+
+The generic final-state facade continues to validate the persisted reward
+shape, evidence policy, task/instance Site agreement, Benchmark metadata, and
+source network event before delegating. GitLab and Reddit reward-local adapters
+own their existing source-event fallback and exact persisted-state readback
+orchestration. Existing low-level evaluator modules and result messages remain
+compatibility surfaces.
+
+Explicit catalogs require explicit WebArena Verified Benchmark metadata.
+Historical WARP-local artifacts that predate persisted Benchmark identity keep
+one compatibility reader through the default WebArena Verified composition;
+they cannot select an injected evaluator. Comparison-only Benchmark bindings
+are rejected until the Benchmark Contract program assigns evaluator authority.
+
+Canonical WebArena tasks carrying `task_id` remain exclusively under the
+vendor evaluator and never consult the local catalog. This slice does not
+change action-attempt telemetry, Phase 4 reward booleans or artifact fields,
+PVPO, TP/VEA, variants, outcome taxonomy, admission, browser/auth transport,
+read-surface/readback collection, compiler behavior, or final-state facade
+deletion. Benchmark evaluator authority and comparison-only benchmark support
+remain a separate Benchmark Contract program.
+
 ## Final cutover and deletion criteria
 
 Site Targeting is fully cut over only when all intended callers use the bound

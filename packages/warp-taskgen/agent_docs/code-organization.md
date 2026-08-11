@@ -69,8 +69,11 @@ Current and target ownership should stay explicit:
 - `worldsim.rewards`: reward dispatch and scoring behavior. Keep the public
   facade thin; put behavior in reward-local modules by evidence type and
   benchmark surface. Request-level evidence belongs in `network_event.py` and
-  `network_trace.py`; persisted readback dispatch belongs in `final_state.py`;
-  WebArena Verified GitLab and Reddit/Postmill readback behavior belongs in
+  `network_trace.py`; generic persisted-readback validation and catalog
+  dispatch belongs in `final_state.py`, immutable local evaluator composition
+  belongs in `final_state_catalog.py`, and Benchmark/Site orchestration belongs
+  in the corresponding `final_state_*_adapter.py` module. WebArena Verified
+  GitLab and Reddit/Postmill transport and exact readback behavior remains in
   `final_state_webarena_verified_gitlab.py` and
   `final_state_webarena_verified_reddit.py`; vendor adapter shims belong in
   `vendor_webarena.py`; non-scoring attempt telemetry belongs in

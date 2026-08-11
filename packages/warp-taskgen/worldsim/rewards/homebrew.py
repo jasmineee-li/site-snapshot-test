@@ -4,6 +4,7 @@ from typing import Any
 
 from worldsim.rewards.agent_response import _build_agent_response, _eval_agent_response
 from worldsim.rewards.final_state import _eval_final_state
+from worldsim.rewards.final_state_catalog import FinalStateEvaluatorCatalog
 from worldsim.rewards.network_event import _eval_network_event
 
 _FINAL_STATE_REWARD_TYPES = frozenset({"FinalStateEvaluator", "final_state"})
@@ -18,6 +19,8 @@ def _run_homebrew_eval(
     instance: dict[str, Any],
     agent_result: Any | None,
     network_trace: list[dict] | None,
+    *,
+    final_state_catalog: FinalStateEvaluatorCatalog | None = None,
 ) -> tuple[bool, str]:
     """Evaluate novel, non-canonical rewards emitted by WorldSim compilers.
 
@@ -41,7 +44,15 @@ def _run_homebrew_eval(
         elif _is_network_event_evaluator_name(evaluator_type):
             passed, msg = _eval_network_event(config, network_trace, instance)
         elif evaluator_type in _FINAL_STATE_REWARD_TYPES:
-            passed, msg = _eval_final_state(config, network_trace, instance)
+            if final_state_catalog is None:
+                passed, msg = _eval_final_state(config, network_trace, instance)
+            else:
+                passed, msg = _eval_final_state(
+                    config,
+                    network_trace,
+                    instance,
+                    final_state_catalog=final_state_catalog,
+                )
         else:
             passed, msg = False, f"Unknown evaluator type: {evaluator_type}"
 
