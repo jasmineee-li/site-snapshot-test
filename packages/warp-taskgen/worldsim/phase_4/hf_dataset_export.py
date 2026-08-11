@@ -24,6 +24,7 @@ from worldsim.phase_4.artifact_audit import (
     resolve_phase4_results_path,
 )
 from worldsim.phase_4.variant_accounting import semantic_variant_accounting
+from worldsim.run_definition import define_run
 
 DATASET_SCHEMA_VERSION = "warp_taskgen_phase4_hf_dataset_v1"
 DEFAULT_DATASET_ID = "warp-taskgen-generated-ipi-tasks-50"
@@ -100,6 +101,7 @@ def export_hf_dataset(
         summary = result_summary.summarize_results(results, task_lookup=task_lookup)
         pipeline_state = _load_json_or_empty(run_root / "pipeline_state.json")
         progress = _load_json_or_empty(run_root / "phase_4" / "progress.json")
+        run_identity = _run_identity_metadata(pipeline_state)
         model_key = spec.model_key
         run_id = _run_id(run_root)
         agent_metadata = _agent_metadata(
@@ -112,6 +114,7 @@ def export_hf_dataset(
             {
                 "model_key": model_key,
                 "run_dir": _relpath(run_root, root),
+                **run_identity,
                 **agent_metadata,
             }
         )
@@ -125,6 +128,7 @@ def export_hf_dataset(
                 summary=summary,
                 pipeline_state=pipeline_state,
                 progress=progress,
+                run_identity=run_identity,
                 agent_metadata=agent_metadata,
             )
         )
@@ -184,6 +188,7 @@ def _run_row(
     summary: dict[str, Any],
     pipeline_state: dict[str, Any],
     progress: dict[str, Any],
+    run_identity: dict[str, str | None],
     agent_metadata: dict[str, str | None],
 ) -> dict[str, Any]:
     return {
@@ -191,6 +196,7 @@ def _run_row(
         "model_key": model_key,
         "run_id": run_id,
         "run_dir": _relpath(run_root, root),
+        **run_identity,
         "runner": pipeline_state.get("runner") or _maybe(progress, "runner") or "agentlab",
         **agent_metadata,
         "phase_4_variant_system": pipeline_state.get("phase_4_variant_system")
@@ -215,6 +221,19 @@ def _run_row(
         "outcome_fine_counts": summary.get("outcome_fine_counts", {}),
         "pvpo_observation_counts": summary.get("pvpo_observation_counts", {}),
         "variant_regeneration_audit": summary.get("variant_regeneration_audit", {}),
+    }
+
+
+def _run_identity_metadata(pipeline_state: dict[str, Any]) -> dict[str, str | None]:
+    try:
+        definition = define_run(pipeline_state)
+    except ValueError:
+        return {"source_run_id": None, "definition_digest": None}
+    if definition.legacy:
+        return {"source_run_id": None, "definition_digest": None}
+    return {
+        "source_run_id": definition.source_run_id,
+        "definition_digest": definition.definition_digest,
     }
 
 
@@ -744,6 +763,8 @@ adversarial judgment, instead of silently dropping those rows.
 | `model_key` | Short model key used by this export, such as `gpt52` or `sonnet46`. |
 | `run_id` | Source run identifier. |
 | `run_dir` | Source run directory path used for provenance. |
+| `source_run_id` | Parent Run ID for a Derived Run, otherwise null. |
+| `definition_digest` | Deterministic digest of the persisted Run Definition, when present. |
 | `runner` | Browser-agent runner used for the run. |
 | `agent_model` | Agent model configured for the browser-agent run. |
 | `agent_provider` | Provider configured for the agent model, when recorded. |
@@ -923,8 +944,7 @@ def _parse_run_metadata(raw_path: str) -> tuple[str, dict[str, str]]:
     for part in parts[1:]:
         if "=" not in part:
             raise ValueError(
-                "optional --run metadata must use key=value after the run dir, "
-                f"got {part!r}"
+                f"optional --run metadata must use key=value after the run dir, got {part!r}"
             )
         key, value = [item.strip() for item in part.split("=", 1)]
         if key not in allowed:

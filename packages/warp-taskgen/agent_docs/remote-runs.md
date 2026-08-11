@@ -130,6 +130,21 @@ After compaction or a pause, verify the instance pool before reusing state:
 - host-unreachable, public-IP navigation, and host-bound cookie errors are
   investigated as topology symptoms first.
 
+A result-affecting resume override on an identified Run materializes an
+isolated child and prints its exact resume command. Preserve both environment
+assignments so the child state and discovery mirror stay inside that child:
+
+```bash
+WARP_TASKGEN_STATE_DIR=<child-root> \
+WARP_TASKGEN_RESUME_POINTER=<child-root>/last_run_state.json \
+uv run warp-taskgen resume
+```
+
+The child restarts conservatively from Phase 0a and does not inherit parent
+Phase 2/4 artifacts. To archive it with the existing wrapper, use the opaque
+child ID with `--logs-dir <child-root-parent>`; do not archive the whole
+`.warp-derived-runs` collection recursively.
+
 Remote metadata is under `<remote-dir>/logs/remote_jobs/<job_id>/`. Audit the
 active host or archive before trusting checked-in task JSON, then apply
 `agent_docs/artifacts.md` promotion rules. A setup/launch failure gets a fresh

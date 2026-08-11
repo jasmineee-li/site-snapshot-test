@@ -79,8 +79,10 @@ Current and target ownership should stay explicit:
   decisions to dispatch. `worldsim.state` owns the state-root-scoped context
   that persists an exact Run Definition into each atomic checkpoint, while the
   CLI consumes transition decisions. This seam must not accept checkpoints or
-  replace Phase 2/4 fingerprint policies. Isolated Derived Run materialization
-  remains a later migration; current definition drift stops before dispatch.
+  replace Phase 2/4 fingerprint policies. `worldsim.run_materialization` owns
+  the atomic reservation and isolated child-root initialization for definition
+  drift. It must not copy or accept feature checkpoints, mutate the source Run,
+  update the shared discovery pointer, or dispatch the child automatically.
 - `worldsim.seeding`: host-side seed validation, context rendering, editor-call
   execution, read-surface/result metadata, reddit/map context resolution,
   runtime error validation, DB helpers, and editor-argument compatibility. This
