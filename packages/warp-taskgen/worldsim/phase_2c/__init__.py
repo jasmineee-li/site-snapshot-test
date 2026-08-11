@@ -1,5 +1,5 @@
 """Phase 2c helpers."""
 
-# Import built-in policies for registry side effects. Additional benchmarks
-# register their own policies from their local modules.
-from worldsim.phase_2c import webarena as _webarena  # noqa: F401
+# Built-in feasibility policies are assembled explicitly by callers through
+# ``default_feasibility_policy_catalog``; importing this package has no global
+# registration side effect.

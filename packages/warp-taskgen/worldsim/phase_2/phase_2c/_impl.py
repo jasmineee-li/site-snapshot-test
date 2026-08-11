@@ -65,6 +65,7 @@ from worldsim.phase_2.phase_2c.outcomes import (
     _resolve_seed_site,
     skipped_task_stanza,
 )
+from worldsim.phase_2.phase_2c.policy import FeasibilityPolicyCatalog
 from worldsim.phase_2.phase_2c.reddit_attribution import (
     _attach_gitlab_issue_note_state_probe_anchors,
     _attach_reddit_comment_attribution_contract,
@@ -324,6 +325,7 @@ async def verify_feasibility(
     force_reverify: bool = False,
     phase_2_status: str | None = None,
     stagger_delay: float = 0.0,
+    feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
 ) -> FeasibilityReport:
     """Verify each adversarial task in ``tasks_path`` against a dev instance.
 
@@ -343,6 +345,9 @@ async def verify_feasibility(
             (``"complete"`` or ``"partial_complete"``). Recorded in the report
             header so reviewers see the upstream qualifier.
         stagger_delay: Optional startup spread between workers.
+        feasibility_policy_catalog: Optional immutable per-run policy snapshot
+            for source-data preflight. When omitted, the explicit WebArena
+            default catalog is assembled for that run.
     """
     raw = json.loads(tasks_path.read_text())
     if not isinstance(raw, list):
@@ -445,11 +450,13 @@ async def verify_feasibility(
         len(raw),
         len(instances_by_site),
     )
-    dropped_source_data = await _run_preflight_and_filter_raw(
-        raw,
-        instances_by_site=instances_by_site,
-        benchmark_root=benchmark_root,
-    )
+    preflight_kwargs: dict[str, Any] = {
+        "instances_by_site": instances_by_site,
+        "benchmark_root": benchmark_root,
+    }
+    if feasibility_policy_catalog is not None:
+        preflight_kwargs["feasibility_policy_catalog"] = feasibility_policy_catalog
+    dropped_source_data = await _run_preflight_and_filter_raw(raw, **preflight_kwargs)
     logger.info(
         "phase 2c preflight: complete — dropped %d task(s); %d remain for the probe (elapsed=%.1fs)",
         len(dropped_source_data),
@@ -1223,15 +1230,18 @@ async def _run_preflight_and_filter_raw(
     *,
     instances_by_site: dict[str, list[dict[str, Any]]],
     benchmark_root: Path | None = None,
+    feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
 ) -> list[dict[str, Any]]:
     source_data_state = _source_data_preflight._patchable_globals()
     _sync_source_data_preflight_patches()
     try:
-        return await _source_data_preflight._run_preflight_and_filter_raw(
-            raw,
-            instances_by_site=instances_by_site,
-            benchmark_root=benchmark_root,
-        )
+        kwargs: dict[str, Any] = {
+            "instances_by_site": instances_by_site,
+            "benchmark_root": benchmark_root,
+        }
+        if feasibility_policy_catalog is not None:
+            kwargs["feasibility_policy_catalog"] = feasibility_policy_catalog
+        return await _source_data_preflight._run_preflight_and_filter_raw(raw, **kwargs)
     finally:
         _source_data_preflight._restore_patchable_globals(source_data_state)
 
