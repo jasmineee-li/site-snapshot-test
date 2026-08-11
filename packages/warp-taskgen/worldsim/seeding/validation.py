@@ -6,9 +6,15 @@ from typing import Any
 
 from worldsim.benchmark_capabilities import normalize_benchmark_name
 from worldsim.editors import EDITOR_REGISTRY
+from worldsim.seeding.site_contracts import SeedSiteRegistry
 
 
-def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> None:
+def validate_data_seed(
+    seed: dict[str, Any],
+    *,
+    allow_none: bool = False,
+    seed_registry: SeedSiteRegistry | None = None,
+) -> None:
     """Validate a seed payload before it is persisted or executed."""
     if not isinstance(seed, dict):
         raise ValueError("data seed must be an object")
@@ -18,7 +24,10 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
     has_editor_calls = isinstance(editor_calls, list) and bool(editor_calls)
     if mechanism is None:
         if has_editor_calls:
-            _validate_editor_calls(editor_calls)
+            if seed_registry is None:
+                _validate_editor_calls(editor_calls)
+            else:
+                _validate_editor_calls(editor_calls, seed_registry=seed_registry)
             return
         if allow_none:
             return
@@ -27,8 +36,7 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
     if mechanism == "none":
         if has_editor_calls:
             raise ValueError(
-                "data_seed.mechanism='none' must not include editor_calls; "
-                "use mechanism='editor'"
+                "data_seed.mechanism='none' must not include editor_calls; use mechanism='editor'"
             )
         if allow_none:
             return
@@ -39,7 +47,10 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
             raise ValueError("editor data seed must include a non-empty editor_calls list")
         if seed.get("api_calls") is not None:
             raise ValueError("editor data seed must not include api_calls")
-        _validate_editor_calls(editor_calls)
+        if seed_registry is None:
+            _validate_editor_calls(editor_calls)
+        else:
+            _validate_editor_calls(editor_calls, seed_registry=seed_registry)
         return
 
     if mechanism in {"api", "form", "state_push"}:
@@ -53,7 +64,11 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
     raise ValueError(f"unknown data seed mechanism: {mechanism!r}")
 
 
-def _validate_editor_calls(editor_calls: Any) -> None:
+def _validate_editor_calls(
+    editor_calls: Any,
+    *,
+    seed_registry: SeedSiteRegistry | None = None,
+) -> None:
     if not isinstance(editor_calls, list) or not editor_calls:
         raise ValueError("editor data seed must include a non-empty editor_calls list")
     for call in editor_calls:
@@ -76,8 +91,17 @@ def _validate_editor_calls(editor_calls: Any) -> None:
         if method_name.startswith("_"):
             raise ValueError("editor_calls method must not be private")
         benchmark_key = normalize_benchmark_name(benchmark or "webarena_verified")
-        editor_cls = EDITOR_REGISTRY.get((benchmark_key, site.strip().lower()))
-        if editor_cls is not None and method_name not in editor_cls.supported_methods:
+        if seed_registry is None:
+            editor_cls = EDITOR_REGISTRY.get((benchmark_key, site.strip().lower()))
+            supported_methods = getattr(editor_cls, "supported_methods", ())
+        else:
+            registration = seed_registry.get(benchmark_key, site.strip().lower())
+            supported_methods = getattr(
+                registration.editor_factory if registration is not None else None,
+                "supported_methods",
+                (),
+            )
+        if supported_methods and method_name not in supported_methods:
             raise ValueError(
                 f"editor_calls method {method_name!r} is not supported for {(benchmark_key, site.strip().lower())!r}"
             )
@@ -105,6 +129,7 @@ def _validate_untrusted_selector_args(site_name: str, args: dict[str, Any]) -> N
         raise ValueError(
             f"editor_calls gitlab selector {selector!r} must come from prior seed context, not a literal value"
         )
+
 
 __all__ = [
     "_validate_editor_calls",

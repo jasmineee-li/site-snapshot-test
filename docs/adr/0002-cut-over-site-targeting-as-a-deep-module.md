@@ -117,6 +117,36 @@ Site that does not implement the profile-route capability fails closed for
 profile resolution and contributes no route facts; generic callers must not
 guess aliases, hosts, or inventory anchors.
 
+## ST-5 scope (explicit Site seed registry and generic seed evidence)
+
+The fifth bounded slice introduces an immutable, per-run
+`SeedSiteRegistry`. The default compatibility path continues to adapt the
+legacy editor mapping, while a caller may explicitly snapshot that mapping or
+provide an isolated `SeedSiteRegistration` without mutating the process-wide
+`EDITOR_REGISTRY`. `apply_data_seed` and its async/preflight entrypoints accept
+the registry explicitly; the existing `worldsim.seeding` and editor import
+surfaces remain patchable compatibility facades.
+
+Editor return dictionaries are normalized at the seam into generic,
+site-neutral created-resource and read-surface facts before being projected
+back to the existing metadata shape. The registry owns only editor-factory
+selection and this result normalization. Site-specific HTTP/auth/mutation,
+browser rendering, exposure/visibility, admission, readback, cleanup policy,
+and reward behavior remain in their existing owners.
+
+Seed cleanup is an idempotent LIFO boundary. On a partial seed failure every
+constructed editor is attempted and the session is closed even when an
+individual cleanup operation fails; the original seed exception remains the
+primary raised error and cleanup failures are attached as diagnostic notes.
+Adding or removing a test Site therefore cannot alter active GitLab or Reddit
+registrations, and an unregistered Site fails closed.
+
+The legacy execution orchestrator remains in the patchable seeding
+compatibility module for this slice. Moving that orchestration into the
+behavior-owned execution sibling is deferred until its monkeypatch callers are
+cut over; the new registry and evidence behavior has a single implementation
+in `site_contracts.py`.
+
 ## Final cutover and deletion criteria
 
 Site Targeting is fully cut over only when all intended callers use the bound

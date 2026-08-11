@@ -40,6 +40,10 @@ from worldsim.seeding.contracts import (
     seed_requires_reset,
     self_contained_adversarial_seed_error,
 )
+from worldsim.seeding.site_contracts import (
+    EditorSeedResult,
+    SeedSiteRegistry,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -97,18 +101,42 @@ class SeedCleanupHandle:
         if self._cleaned:
             return
         failures: list[str] = []
+        for editor in reversed(list(self._editor_instances.values())):
+            try:
+                editor.cleanup()
+            except Exception as exc:
+                logger.exception("seed editor cleanup failed")
+                failures.append(str(exc) or exc.__class__.__name__)
         try:
-            for editor in reversed(list(self._editor_instances.values())):
-                try:
-                    editor.cleanup()
-                except Exception as exc:
-                    logger.exception("seed editor cleanup failed")
-                    failures.append(str(exc) or exc.__class__.__name__)
-        finally:
             self._session.close()
+        except Exception as exc:
+            logger.exception("seed session cleanup failed")
+            failures.append(str(exc) or exc.__class__.__name__)
+        finally:
             self._cleaned = True
         if failures:
             raise RuntimeError("seed cleanup failed: " + "; ".join(failures))
+
+
+class _EditorInstanceCache(dict[tuple[str, str], Any]):
+    """Per-run editor instances plus the immutable registry they were bound to."""
+
+    def __init__(self, seed_registry: SeedSiteRegistry) -> None:
+        super().__init__()
+        self.seed_registry = seed_registry
+
+
+def _legacy_seed_registry() -> SeedSiteRegistry:
+    """Snapshot the patchable production editor mapping at a run boundary."""
+    return SeedSiteRegistry.from_editor_registry(EDITOR_REGISTRY)
+
+
+def _coerce_seed_registry(seed_registry: SeedSiteRegistry | None) -> SeedSiteRegistry:
+    if seed_registry is None:
+        return _legacy_seed_registry()
+    if not isinstance(seed_registry, SeedSiteRegistry):
+        raise TypeError("seed_registry must be a SeedSiteRegistry")
+    return seed_registry
 
 
 def _sync_validation_patches() -> None:
@@ -122,9 +150,20 @@ def _sync_validation_patches() -> None:
             setattr(_validation, name, current)
 
 
-def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> None:
+def validate_data_seed(
+    seed: dict[str, Any],
+    *,
+    allow_none: bool = False,
+    seed_registry: SeedSiteRegistry | None = None,
+) -> None:
     _sync_validation_patches()
-    return _validation.validate_data_seed(seed, allow_none=allow_none)
+    if seed_registry is None:
+        return _validation.validate_data_seed(seed, allow_none=allow_none)
+    return _validation.validate_data_seed(
+        seed,
+        allow_none=allow_none,
+        seed_registry=seed_registry,
+    )
 
 
 def _validate_editor_calls(editor_calls: Any) -> None:
@@ -148,7 +187,10 @@ _VALIDATION_WRAPPERS = {
 
 
 def apply_data_seed(
-    seed: dict[str, Any], instance: dict[str, Any]
+    seed: dict[str, Any],
+    instance: dict[str, Any],
+    *,
+    seed_registry: SeedSiteRegistry | None = None,
 ) -> tuple[SeedCleanupHandle | None, dict[str, Any]]:
     """Apply a data seed to a running benchmark instance.
 
@@ -172,10 +214,15 @@ def apply_data_seed(
     """
     from worldsim.editors._read_surface import normalize_surface_urls
 
-    validate_data_seed(seed, allow_none=True)
+    resolved_registry = _coerce_seed_registry(seed_registry) if seed_registry is not None else None
+    if resolved_registry is None:
+        validate_data_seed(seed, allow_none=True)
+    else:
+        validate_data_seed(seed, allow_none=True, seed_registry=resolved_registry)
 
     seed_context = _build_seed_context(seed, instance)
-    editor_instances: dict[tuple[str, str], Any] = {}
+    run_registry = resolved_registry or _legacy_seed_registry()
+    editor_instances: dict[tuple[str, str], Any] = _EditorInstanceCache(run_registry)
     session = requests.Session()
     cleanup_handle: SeedCleanupHandle | None = None
     read_surface_accumulator: list[str] = []
@@ -184,17 +231,22 @@ def apply_data_seed(
     editor_call_result_accumulator: list[dict[str, Any]] = []
     try:
         for call_index, call in enumerate(seed.get("editor_calls", [])):
+            call_kwargs = {
+                "call_index": call_index,
+                "seed_context": seed_context,
+                "editor_instances": editor_instances,
+                "read_surface_accumulator": read_surface_accumulator,
+                "read_surface_provenance": read_surface_provenance,
+                "created_resource_accumulator": created_resource_accumulator,
+                "editor_call_result_accumulator": editor_call_result_accumulator,
+            }
+            if resolved_registry is not None:
+                call_kwargs["seed_registry"] = resolved_registry
             _apply_editor_seed_call(
                 session,
                 call,
                 instance,
-                call_index=call_index,
-                seed_context=seed_context,
-                editor_instances=editor_instances,
-                read_surface_accumulator=read_surface_accumulator,
-                read_surface_provenance=read_surface_provenance,
-                created_resource_accumulator=created_resource_accumulator,
-                editor_call_result_accumulator=editor_call_result_accumulator,
+                **call_kwargs,
             )
         metadata: dict[str, Any] = {}
         # Handoff §5.5: task-author explicit override unions with editor
@@ -260,21 +312,35 @@ def apply_data_seed(
             return cleanup_handle, metadata
         session.close()
         return None, metadata
-    except Exception:
-        if cleanup_handle is not None:
-            cleanup_handle.cleanup()
-        else:
-            for editor in reversed(list(editor_instances.values())):
-                editor.cleanup()
-            session.close()
+    except Exception as seed_error:
+        cleanup = cleanup_handle or SeedCleanupHandle(
+            session=session,
+            editor_instances=editor_instances,
+        )
+        try:
+            cleanup.cleanup()
+        except Exception as cleanup_error:
+            # Never replace the seed failure with cleanup noise.  The note is
+            # visible to callers while the original exception remains the
+            # raised failure and all cleanup operations have still run.
+            logger.exception("seed cleanup failed after seed execution error")
+            seed_error.add_note(f"seed cleanup also failed: {cleanup_error}")
         raise
 
 
 async def apply_data_seed_async(
-    seed: dict[str, Any], instance: dict[str, Any]
+    seed: dict[str, Any],
+    instance: dict[str, Any],
+    *,
+    seed_registry: SeedSiteRegistry | None = None,
 ) -> tuple[SeedCleanupHandle | None, dict[str, Any]]:
     """Apply a data seed without blocking the event loop."""
-    return await asyncio.to_thread(apply_data_seed, seed, instance)
+    return await asyncio.to_thread(
+        apply_data_seed,
+        seed,
+        instance,
+        seed_registry=seed_registry,
+    )
 
 
 def _build_seed_context(seed: dict[str, Any], instance: dict[str, Any]) -> dict[str, Any]:
@@ -434,73 +500,84 @@ def _merge_seed_context(target: dict[str, Any], update: dict[str, Any]) -> None:
 def preflight_editor_seed_calls(
     seed: dict[str, Any],
     instance: dict[str, Any],
+    *,
+    seed_registry: SeedSiteRegistry | None = None,
 ) -> list[dict[str, Any]]:
     """Render and validate editor calls without firing mutations."""
-    validate_data_seed(seed, allow_none=False)
+    resolved_registry = _coerce_seed_registry(seed_registry) if seed_registry is not None else None
+    if resolved_registry is None:
+        validate_data_seed(seed, allow_none=False)
+    else:
+        validate_data_seed(seed, allow_none=False, seed_registry=resolved_registry)
     seed_context = _build_seed_context(seed, instance)
     errors: list[dict[str, Any]] = []
-    with requests.Session() as session:
-        editor_instances: dict[tuple[str, str], Any] = {}
-        try:
-            for index, call in enumerate(seed.get("editor_calls", [])):
-                if not isinstance(call, dict):
-                    continue
-                try:
-                    rendered = _render_editor_seed_call(call, seed_context)
-                    editor = _get_editor_for_seed_call(
-                        rendered,
-                        instance,
-                        session=session,
-                        editor_instances=editor_instances,
+    session = requests.Session()
+    run_registry = resolved_registry or _legacy_seed_registry()
+    editor_instances: dict[tuple[str, str], Any] = _EditorInstanceCache(run_registry)
+    try:
+        for index, call in enumerate(seed.get("editor_calls", [])):
+            if not isinstance(call, dict):
+                continue
+            try:
+                rendered = _render_editor_seed_call(call, seed_context)
+                editor_kwargs = {
+                    "session": session,
+                    "editor_instances": editor_instances,
+                }
+                if resolved_registry is not None:
+                    editor_kwargs["seed_registry"] = resolved_registry
+                editor = _get_editor_for_seed_call(rendered, instance, **editor_kwargs)
+                method_name = rendered["method"]
+                args = rendered["args"]
+                editor_method = getattr(editor, method_name, None)
+                if callable(editor_method):
+                    args = _filter_editor_method_args(
+                        editor_method,
+                        args,
+                        editor_site_name=str(call.get("site", "")).strip() or "unknown",
+                        method_name=str(method_name),
                     )
-                    method_name = rendered["method"]
-                    args = rendered["args"]
-                    editor_method = getattr(editor, method_name, None)
-                    if callable(editor_method):
-                        args = _filter_editor_method_args(
-                            editor_method,
+                    unresolved = sorted(
+                        _unresolved_structural_seed_placeholder_names(
                             args,
-                            editor_site_name=str(call.get("site", "")).strip() or "unknown",
-                            method_name=str(method_name),
+                            free_text_arg_names=_editor_free_text_arg_names(editor_method),
                         )
-                        unresolved = sorted(
-                            _unresolved_structural_seed_placeholder_names(
-                                args,
-                                free_text_arg_names=_editor_free_text_arg_names(editor_method),
-                            )
+                    )
+                    if unresolved:
+                        raise RuntimeError(
+                            "editor call has unresolved template placeholders: "
+                            + ", ".join(unresolved)
                         )
-                        if unresolved:
-                            raise RuntimeError(
-                                "editor call has unresolved template placeholders: "
-                                + ", ".join(unresolved)
-                            )
-                    editor.validate_args(method_name, args)
-                    preview = editor.preview_context(method_name, args)
-                    if isinstance(preview, dict):
-                        _merge_seed_context(seed_context, preview)
-                except EditorError as exc:
-                    errors.append(
-                        {
-                            "call_index": index,
-                            "site": str(call.get("site", "")).strip() or "unknown",
-                            "kind": exc.kind,
-                            "detail": exc.detail,
-                            "method": str(call.get("method", "")).strip() or "unknown",
-                        }
-                    )
-                except Exception as exc:
-                    errors.append(
-                        {
-                            "call_index": index,
-                            "site": str(call.get("site", "")).strip() or "unknown",
-                            "kind": "editor_error",
-                            "detail": str(exc),
-                            "method": str(call.get("method", "")).strip() or "unknown",
-                        }
-                    )
-        finally:
-            for editor in reversed(list(editor_instances.values())):
-                editor.cleanup()
+                editor.validate_args(method_name, args)
+                preview = editor.preview_context(method_name, args)
+                if isinstance(preview, dict):
+                    _merge_seed_context(seed_context, preview)
+            except EditorError as exc:
+                errors.append(
+                    {
+                        "call_index": index,
+                        "site": str(call.get("site", "")).strip() or "unknown",
+                        "kind": exc.kind,
+                        "detail": exc.detail,
+                        "method": str(call.get("method", "")).strip() or "unknown",
+                    }
+                )
+            except Exception as exc:
+                errors.append(
+                    {
+                        "call_index": index,
+                        "site": str(call.get("site", "")).strip() or "unknown",
+                        "kind": "editor_error",
+                        "detail": str(exc),
+                        "method": str(call.get("method", "")).strip() or "unknown",
+                    }
+                )
+    finally:
+        cleanup = SeedCleanupHandle(
+            session=session,
+            editor_instances=editor_instances,
+        )
+        cleanup.cleanup()
     return errors
 
 
@@ -676,6 +753,7 @@ def _get_editor_for_seed_call(
     *,
     session: requests.Session,
     editor_instances: dict[tuple[str, str], Any],
+    seed_registry: SeedSiteRegistry | None = None,
 ) -> Any:
     benchmark = _infer_editor_call_benchmark(call, instance)
     site = str(call.get("site") or instance.get("site_name") or "").strip().lower()
@@ -688,16 +766,32 @@ def _get_editor_for_seed_call(
     key = (benchmark, site)
     editor = editor_instances.get(key)
     if editor is not None:
+        _assert_seed_editor_site(editor, site)
         return editor
-    editor_cls = EDITOR_REGISTRY.get(key)
-    if editor_cls is None:
+    registry = seed_registry or getattr(editor_instances, "seed_registry", None)
+    if registry is None:
+        registry = _legacy_seed_registry()
+    registration = registry.get(benchmark, site)
+    if registration is None:
         raise EditorError(
             "unsupported_site",
             f"no editor registered for benchmark={benchmark!r} site={site!r}",
         )
-    editor = editor_cls(instance, session)
+    editor = registration.create(instance, session)
+    # Retain the instance before validating the factory result so a malformed
+    # registration still participates in the common rollback boundary.
     editor_instances[key] = editor
+    _assert_seed_editor_site(editor, site)
     return editor
+
+
+def _assert_seed_editor_site(editor: Any, site: str) -> None:
+    editor_site = str(getattr(editor, "site_name", site) or "").strip().lower()
+    if editor_site != site:
+        raise EditorError(
+            "site_mismatch",
+            f"seed editor factory for site {site!r} produced editor for {editor_site!r}",
+        )
 
 
 def _infer_editor_call_benchmark(call: dict[str, Any], instance: dict[str, Any]) -> str:
@@ -753,6 +847,7 @@ def _apply_editor_seed_call(
     read_surface_provenance: dict[str, Any] | None = None,
     created_resource_accumulator: list[dict[str, Any]] | None = None,
     editor_call_result_accumulator: list[dict[str, Any]] | None = None,
+    seed_registry: SeedSiteRegistry | None = None,
 ) -> None:
     from datetime import UTC, datetime
 
@@ -767,12 +862,13 @@ def _apply_editor_seed_call(
         time.sleep(delay_s)
 
     rendered = _render_editor_seed_call(call, seed_context)
-    editor = _get_editor_for_seed_call(
-        rendered,
-        instance,
-        session=session,
-        editor_instances=editor_instances,
-    )
+    editor_kwargs = {
+        "session": session,
+        "editor_instances": editor_instances,
+    }
+    if seed_registry is not None:
+        editor_kwargs["seed_registry"] = seed_registry
+    editor = _get_editor_for_seed_call(rendered, instance, **editor_kwargs)
     method_name = str(rendered["method"]).strip()
     args = rendered["args"]
     editor_site_name = str(getattr(editor, "site_name", rendered.get("site") or "")).strip()
@@ -803,6 +899,10 @@ def _apply_editor_seed_call(
     editor.validate_args(method_name, args)
     result = editor_method(**args)
     if isinstance(result, dict):
+        normalized_result = EditorSeedResult.from_mapping(
+            result,
+            editor_method=f"{editor_site_name}.{method_name}",
+        )
         if editor_call_result_accumulator is not None and call_index is not None:
             editor_call_result_accumulator.append(
                 _editor_call_result_record(
@@ -814,26 +914,21 @@ def _apply_editor_seed_call(
             )
         if created_resource_accumulator is not None:
             created_resource_accumulator.extend(
-                _created_resources_from_editor_result(
-                    result,
-                    editor_method=f"{editor_site_name}.{method_name}",
-                )
+                resource.as_mapping() for resource in normalized_result.created_resources
             )
         # C1b read-surface URLs must NOT round-trip through seed_context
         # (namespace-flat; multi-call seeds would clobber each other — §12.9).
-        surface_urls = result.get("read_surface_urls")
-        if read_surface_accumulator is not None and isinstance(surface_urls, list):
-            for url in surface_urls:
-                if isinstance(url, str) and url.strip():
-                    read_surface_accumulator.append(url.strip())
-        if read_surface_provenance is not None and isinstance(surface_urls, list) and surface_urls:
+        surface_urls = normalized_result.read_surface_urls
+        if read_surface_accumulator is not None:
+            read_surface_accumulator.extend(surface_urls)
+        if read_surface_provenance is not None and surface_urls:
             # Handoff §12.9: multi-call seeds (e.g. gitlab.create_project +
             # gitlab.create_issue) each contribute a method. Accumulate the
             # methods as a list (first-occurrence order, deduped); keep the
             # most-specific source seen so far (api_response beats
             # constructed); stamp captured_at only once on first contribution.
-            provenance_source = str(
-                result.get("read_surface_provenance_source") or "editor_api_response"
+            provenance_source = (
+                normalized_result.read_surface_provenance_source or "editor_api_response"
             )
             editor_method_str = f"{editor_site_name}.{method_name}"
             if not read_surface_provenance:
@@ -933,31 +1028,8 @@ def _created_resources_from_editor_result(
     editor-declared, generic transition targets that Phase 2c can later use
     for exposure verification.
     """
-    raw_items: list[Any] = []
-    raw_single = result.get("created_resource")
-    if isinstance(raw_single, dict):
-        raw_items.append(raw_single)
-    raw_many = result.get("created_resources")
-    if isinstance(raw_many, list):
-        raw_items.extend(raw_many)
-
-    resources: list[dict[str, Any]] = []
-    for item in raw_items:
-        if not isinstance(item, dict):
-            continue
-        resource: dict[str, Any] = {}
-        for key in ("role", "kind", "id", "url", "parent_url"):
-            value = item.get(key)
-            if isinstance(value, str) and value.strip():
-                resource[key] = value.strip()
-            elif key == "id" and value not in (None, ""):
-                resource[key] = str(value)
-        if not isinstance(resource.get("url"), str):
-            continue
-        resource.setdefault("role", "created_resource")
-        resource["editor_method"] = editor_method
-        resources.append(resource)
-    return resources
+    normalized = EditorSeedResult.from_mapping(result, editor_method=editor_method)
+    return [resource.as_mapping() for resource in normalized.created_resources]
 
 
 def _editor_call_result_record(
@@ -981,35 +1053,20 @@ def _editor_call_result_record(
         "method": method_name,
         "editor_method": f"{editor_site_name}.{method_name}",
     }
-    surface_urls = result.get("read_surface_urls")
-    if isinstance(surface_urls, list):
-        urls = [url.strip() for url in surface_urls if isinstance(url, str) and url.strip()]
-        if urls:
-            record["read_surface_urls"] = urls
-    provenance_source = result.get("read_surface_provenance_source")
-    if isinstance(provenance_source, str) and provenance_source.strip():
-        record["read_surface_provenance_source"] = provenance_source.strip()
-    created_resources = _created_resources_from_editor_result(
+    normalized = EditorSeedResult.from_mapping(
         result,
         editor_method=f"{editor_site_name}.{method_name}",
     )
+    if normalized.read_surface_urls:
+        record["read_surface_urls"] = list(normalized.read_surface_urls)
+    if normalized.read_surface_provenance_source is not None:
+        record["read_surface_provenance_source"] = normalized.read_surface_provenance_source
+    created_resources = [resource.as_mapping() for resource in normalized.created_resources]
     if created_resources:
         record["created_resources"] = created_resources
         record["created_resource"] = _primary_created_resource(created_resources)
-    write_tokens: dict[str, Any] = {}
-    for token_key in (
-        "note_id",
-        "issue_iid",
-        "project_id",
-        "comment_id",
-        "submission_id",
-        "review_id",
-    ):
-        token_value = result.get(token_key)
-        if token_value not in (None, ""):
-            write_tokens[token_key] = token_value
-    if write_tokens:
-        record["write_tokens"] = write_tokens
+    if normalized.write_tokens:
+        record["write_tokens"] = dict(normalized.write_tokens)
     return record
 
 
