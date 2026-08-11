@@ -4,6 +4,7 @@ from typing import Any
 
 from worldsim.rewards.agent_response import _build_agent_response, _eval_agent_response
 from worldsim.rewards.final_state import _eval_final_state
+from worldsim.rewards.final_state_catalog import FinalStateEvaluatorCatalog
 from worldsim.rewards.homebrew import _run_homebrew_eval
 from worldsim.rewards.network_event import _eval_network_event
 from worldsim.rewards.vendor_webarena import _run_webarena_verified_eval
@@ -18,6 +19,8 @@ def run_reward_function(
     instance: dict[str, Any],
     agent_result: Any | None = None,
     network_trace: list[dict] | None = None,
+    *,
+    final_state_catalog: FinalStateEvaluatorCatalog | None = None,
 ) -> tuple[bool, str]:
     """Run one reward spec against a benchmark instance.
 
@@ -41,7 +44,15 @@ def run_reward_function(
     if "eval" in reward and isinstance(reward["eval"], list):
         if reward.get("task_id") is not None:
             return _run_webarena_verified_eval(reward, instance, agent_result, network_trace)
-        return _run_homebrew_eval(reward, instance, agent_result, network_trace)
+        if final_state_catalog is None:
+            return _run_homebrew_eval(reward, instance, agent_result, network_trace)
+        return _run_homebrew_eval(
+            reward,
+            instance,
+            agent_result,
+            network_trace,
+            final_state_catalog=final_state_catalog,
+        )
 
     eval_type = reward.get("type") or reward.get("evaluator")
     if eval_type is None:
@@ -50,7 +61,14 @@ def run_reward_function(
     if eval_type in _NETWORK_EVENT_REWARD_TYPES:
         return _eval_network_event(reward, network_trace, instance)
     if eval_type in _FINAL_STATE_REWARD_TYPES:
-        return _eval_final_state(reward, network_trace, instance)
+        if final_state_catalog is None:
+            return _eval_final_state(reward, network_trace, instance)
+        return _eval_final_state(
+            reward,
+            network_trace,
+            instance,
+            final_state_catalog=final_state_catalog,
+        )
     if eval_type == "AgentResponseEvaluator":
         agent_response = _build_agent_response([reward], agent_result)
         return _eval_agent_response(reward, agent_response)
