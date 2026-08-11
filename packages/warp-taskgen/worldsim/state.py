@@ -173,7 +173,9 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
         state["run_definition"] = binding.definition.to_dict()
     state_dir.mkdir(parents=True, exist_ok=True)
     status = str(normalized_metadata.get("status", "unknown")).strip() or "unknown"
-    pause_capable = step == "phase_4" and not bool(normalized_metadata.get("process_pool"))
+    pause_capable = step in {"phase_2", "phase_4"} and not bool(
+        normalized_metadata.get("process_pool")
+    )
     if pause_capable:
         from worldsim.run_control import (
             PauseBoundaryReached,
@@ -186,6 +188,17 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
     else:
         control = nullcontext()
     with control:
+        if (
+            step == "phase_2"
+            and status == "running"
+            and pause_requested(state_dir)
+            and (load_state_for_current_root() or {}).get("phase_2_stage")
+            != normalized_metadata.get("phase_2_stage")
+        ):
+            # An accepted planning pause wins over entry into unsupported
+            # Phase 2b/2c stages. Keep the authoritative checkpoint at the
+            # last pause-aware boundary so the outer adapter can acknowledge it.
+            raise PauseBoundaryReached()
         # Discovery pointer first: if a crash lands between the two writes for a
         # brand-new custom logs dir, ``resume`` can still recover from the mirrored
         # snapshot instead of losing the run entirely.

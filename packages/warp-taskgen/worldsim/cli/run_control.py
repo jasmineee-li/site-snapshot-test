@@ -44,7 +44,7 @@ def dispatch_phase_with_run_control(
             with _phase_interrupt_signals(enabled=phase == "4"):
                 return operation()
         except PauseBoundaryReached:
-            if phase != "4":
+            if phase not in {"2", "4"}:
                 raise
             try:
                 with _ignore_lifecycle_transition_signals(enabled=True):
@@ -52,7 +52,7 @@ def dispatch_phase_with_run_control(
             except (OSError, ValueError) as exc:
                 print(f"Pause acknowledgement failed: {exc}", file=sys.stderr)
                 return 2
-            print("Phase 4 paused after admitted work reached a safe checkpoint.")
+            print(f"Phase {phase} paused after admitted work reached a safe checkpoint.")
             return 0
         except RunInterrupted as exc:
             try:

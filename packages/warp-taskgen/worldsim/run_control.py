@@ -1,4 +1,4 @@
-"""Cooperative Phase 4 pause requests and lifecycle acknowledgements."""
+"""Cooperative pause requests and lifecycle acknowledgements."""
 
 from __future__ import annotations
 
@@ -20,8 +20,10 @@ from worldsim.state import get_state_dir, transition_pipeline_status
 _SCHEMA_VERSION = 1
 _REQUEST_FILE = "pause_request.json"
 _REQUEST_LOCK_FILE = ".pause_request.lock"
-_SUPPORTED_STEP = "phase_4"
-_SUPPORTED_PAUSE_STAGES = {"initial_evaluation", "postprocessing"}
+_SUPPORTED_PAUSE_STAGES = {
+    "phase_2": frozenset({"planning"}),
+    "phase_4": frozenset({"initial_evaluation", "postprocessing"}),
+}
 _PROCESS_POOL_PAUSE_STAGE = "process_pool_dispatch"
 
 
@@ -89,7 +91,7 @@ def _parse_request(payload: dict[str, object]) -> PauseRequest:
         raise ValueError("pause request timestamp is malformed") from exc
     if parsed_requested_at.tzinfo is None:
         raise ValueError("pause request timestamp must include a timezone")
-    if step != _SUPPORTED_STEP:
+    if step not in _SUPPORTED_PAUSE_STAGES:
         raise ValueError("pause request step is unsupported")
     run_id = payload.get("run_id")
     digest = payload.get("definition_digest")
@@ -129,17 +131,56 @@ def pause_requested(state_dir: Path | None = None) -> bool:
 def _pauseable_definition(root: Path):
     state_path = root / "pipeline_state.json"
     state = _load_json_object(state_path)
-    if state.get("status") != "running" or state.get("step") != _SUPPORTED_STEP:
-        raise ValueError("cooperative pause currently supports only a running Phase 4")
-    stage = state.get("pause_stage")
-    if state.get("process_pool") and stage != _PROCESS_POOL_PAUSE_STAGE:
-        raise ValueError(f"Phase 4 process-pool stage {stage!r} is not pause-aware")
+    if state.get("status") != "running":
+        raise ValueError("cooperative pause requires a running pipeline phase")
+    step = state.get("step")
+    if step not in _SUPPORTED_PAUSE_STAGES:
+        raise ValueError(f"pipeline step {step!r} is not pause-aware")
+    if step == "phase_2":
+        stage = state.get("phase_2_stage")
+    else:
+        stage = state.get("pause_stage")
+    if step == "phase_4" and state.get("process_pool"):
+        if stage != _PROCESS_POOL_PAUSE_STAGE:
+            raise ValueError(f"Phase 4 process-pool stage {stage!r} is not pause-aware")
+        supported_stages = {_PROCESS_POOL_PAUSE_STAGE}
+    else:
+        supported_stages = _SUPPORTED_PAUSE_STAGES[str(step)]
+    if stage not in supported_stages:
+        raise ValueError(f"{step} stage {stage!r} is not pause-aware")
+    return define_run(state)
+
+
+def validate_active_pause_request(
+    state: dict[str, object],
+    request: PauseRequest,
+) -> None:
+    """Validate a marker against one active, pause-aware checkpoint."""
+
+    if not isinstance(state, dict):
+        raise ValueError("pause request state must contain an object")
+    if state.get("status") != "running":
+        raise ValueError("pause request does not match a running pipeline phase")
+    step = state.get("step")
+    if request.step != step or step not in _SUPPORTED_PAUSE_STAGES:
+        raise ValueError("pause request does not match an active pause-aware Run")
+    if step == "phase_2":
+        stage = state.get("phase_2_stage")
+    else:
+        stage = state.get("pause_stage")
     supported_stages = (
-        {_PROCESS_POOL_PAUSE_STAGE} if state.get("process_pool") else _SUPPORTED_PAUSE_STAGES
+        {_PROCESS_POOL_PAUSE_STAGE}
+        if step == "phase_4" and state.get("process_pool")
+        else _SUPPORTED_PAUSE_STAGES[str(step)]
     )
     if stage not in supported_stages:
-        raise ValueError(f"Phase 4 stage {stage!r} is not pause-aware")
-    return define_run(state)
+        raise ValueError("pause request does not match an active pause-aware Run")
+    definition = define_run(state)
+    if (
+        request.run_id != definition.run_id
+        or request.definition_digest != definition.definition_digest
+    ):
+        raise ValueError("pause request does not match an active pause-aware Run")
 
 
 @contextmanager
@@ -168,7 +209,7 @@ def request_pause(state_dir: Path | None = None) -> PauseRequest:
         existing = load_pause_request(root)
         if existing is not None:
             if (
-                existing.step != _SUPPORTED_STEP
+                existing.step != state.get("step")
                 or existing.run_id != definition.run_id
                 or existing.definition_digest != definition.definition_digest
             ):
@@ -179,7 +220,7 @@ def request_pause(state_dir: Path | None = None) -> PauseRequest:
             requested_at=datetime.now(UTC).isoformat(),
             run_id=definition.run_id,
             definition_digest=definition.definition_digest,
-            step=_SUPPORTED_STEP,
+            step=str(state.get("step")),
         )
         write_json_atomic(
             pause_request_path(root),
@@ -214,6 +255,7 @@ def acknowledge_pause(state_dir: Path | None = None) -> dict[str, object]:
         if state.get("status") == "paused" and state.get("pause_request_id") == request.request_id:
             clear_pause_request(root)
             return state
+        validate_active_pause_request(state, request)
         updated = transition_pipeline_status(
             "paused",
             expected_statuses={"running"},

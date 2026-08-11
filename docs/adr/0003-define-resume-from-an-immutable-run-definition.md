@@ -73,3 +73,16 @@ uses the explicit process-pool wrapper command persisted in state; generic
 Process-pool SIGTERM/crash recovery and Phases 0-3 remain outside cooperative
 pause, and the existing process-pool merge and partial-repair rules remain the
 only artifact-acceptance paths.
+
+The sixth slice extends cooperative pause only to Phase 2a planning. Shard
+claims are serialized with the pause request, already-admitted target
+resolution, API retries, validation, and checkpoint writes drain as one atomic
+unit, and queued shards remain pending. Each completed shard is written
+atomically with a non-secret manifest bound to the Run ID and Definition
+Digest. A paused resume accepts only exact manifests before applying the
+existing Phase 2 shard validators; missing, legacy, stale, malformed, or
+unbound shards rerun. The runner records `paused` before Phase 2b begins and
+does not promote a partial planning merge. Phase 2b text fill and Phase 2c
+feasibility remain unsupported because their eager task schedulers do not yet
+have task-local checkpoint contracts. Phase 2 signal interruption and Phases
+0, 1, and 3 also remain outside this slice.

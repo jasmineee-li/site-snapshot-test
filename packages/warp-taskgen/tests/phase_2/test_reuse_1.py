@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 def test_collect_site_profiles_returns_reusable_mapping(tmp_path):
     profiles_dir = tmp_path / "phase_0c"
     profiles_dir.mkdir()
@@ -51,6 +52,7 @@ def test_collect_site_profiles_returns_reusable_mapping(tmp_path):
     assert errors == []
     assert site_profiles == {"shopping": profile_path}
 
+
 def test_load_reusable_phase_2_plans_rejects_stale_benign_selection(tmp_path):
     plans_path = tmp_path / "adversarial_plans.json"
     plans_path.write_text(json.dumps([_plan_task()], indent=2))
@@ -66,6 +68,25 @@ def test_load_reusable_phase_2_plans_rejects_stale_benign_selection(tmp_path):
     )
 
     assert reusable is None
+
+
+def test_load_reusable_phase_2_plans_accepts_paused_checkpoint(tmp_path):
+    plans_path = tmp_path / "adversarial_plans.json"
+    plans_path.write_text(json.dumps([_plan_task()], indent=2))
+
+    reusable = phase_2_injections._load_reusable_phase_2_plans(
+        prior_state={"step": "phase_2", "status": "paused", "phase_2_stage": "text_fill"},
+        plans_path=plans_path,
+        sites_filter=None,
+        expected_benign_task_ids={"benign-1"},
+        benign_by_id={"benign-1": _benign_task()},
+        site_profiles={"shopping": _single_surface_profile()},
+        current_sandbox_model="claude-sonnet-4-6",
+    )
+
+    assert reusable is not None
+    assert [plan["id"] for plan in reusable] == ["adv-1"]
+
 
 def test_load_reusable_phase_2_plans_rejects_sandbox_model_drift(tmp_path):
     plans_path = tmp_path / "adversarial_plans.json"
@@ -87,6 +108,7 @@ def test_load_reusable_phase_2_plans_rejects_sandbox_model_drift(tmp_path):
     )
 
     assert reusable is None
+
 
 def test_load_reusable_phase_2_plans_rejects_phase_2a_resolution_signature_drift(tmp_path):
     plans_path = tmp_path / "adversarial_plans.json"
@@ -118,6 +140,7 @@ def test_load_reusable_phase_2_plans_rejects_phase_2a_resolution_signature_drift
 
     assert reusable is None
 
+
 def test_load_reusable_phase_2_plans_rejects_missing_resolution_signature(tmp_path):
     plans_path = tmp_path / "adversarial_plans.json"
     plans_path.write_text(json.dumps([_plan_task()], indent=2))
@@ -141,6 +164,7 @@ def test_load_reusable_phase_2_plans_rejects_missing_resolution_signature(tmp_pa
     )
 
     assert reusable is None
+
 
 def test_phase_2a_resolution_signature_ignores_api_auth_only_drift(tmp_path):
     path = tmp_path / "instances.json"
@@ -183,6 +207,7 @@ def test_phase_2a_resolution_signature_ignores_api_auth_only_drift(tmp_path):
 
     assert first["instances_sha256"] == second["instances_sha256"]
 
+
 def test_phase_2a_resolution_signature_detects_benign_auth_drift(tmp_path):
     path = tmp_path / "instances.json"
     path.write_text(
@@ -220,6 +245,7 @@ def test_phase_2a_resolution_signature_detects_benign_auth_drift(tmp_path):
 
     assert first["instances_sha256"] != second["instances_sha256"]
 
+
 def test_phase_2a_resolution_signature_detects_api_auth_only_mode_change(tmp_path):
     path = tmp_path / "instances.json"
     path.write_text(
@@ -256,6 +282,7 @@ def test_phase_2a_resolution_signature_detects_api_auth_only_mode_change(tmp_pat
 
     assert first["instances_sha256"] != second["instances_sha256"]
 
+
 def test_phase_2a_resolution_signature_detects_env_backed_auth_drift(monkeypatch, tmp_path):
     path = tmp_path / "instances.json"
     path.write_text(
@@ -284,6 +311,7 @@ def test_phase_2a_resolution_signature_detects_env_backed_auth_drift(monkeypatch
 
     assert first["instances_sha256"] != second["instances_sha256"]
 
+
 def test_phase_2a_resolution_signature_ignores_overwritten_duplicate_site_entries(tmp_path):
     path = tmp_path / "instances.json"
     payload = {
@@ -310,6 +338,7 @@ def test_phase_2a_resolution_signature_ignores_overwritten_duplicate_site_entrie
 
     assert first["instances_sha256"] == second["instances_sha256"]
 
+
 def test_resume_setting_matches_ignores_phase_2a_resolution_signature_path_only_drift():
     assert phase_2_injections._resume_setting_matches(
         {
@@ -326,6 +355,7 @@ def test_resume_setting_matches_ignores_phase_2a_resolution_signature_path_only_
             "instances_sha256": "same",
         },
     )
+
 
 def test_load_reusable_phase_2_tasks_rejects_duplicate_task_ids(tmp_path):
     output_path = tmp_path / "adversarial_tasks.json"
@@ -346,6 +376,28 @@ def test_load_reusable_phase_2_tasks_rejects_duplicate_task_ids(tmp_path):
     )
 
     assert reusable is None
+
+
+def test_load_reusable_phase_2_tasks_accepts_paused_checkpoint(tmp_path):
+    output_path = tmp_path / "adversarial_tasks.json"
+    output_path.write_text(json.dumps([_finalized_plan_task()], indent=2))
+
+    reusable = phase_2_injections._load_reusable_phase_2_tasks(
+        prior_state={"step": "phase_2", "status": "paused", "phase_2_stage": "feasibility"},
+        output_path=output_path,
+        sites_filter=None,
+        expected_task_ids={"adv-1"},
+        expected_benign_task_ids={"benign-1"},
+        texts_per_plan=1,
+        benign_by_id={"benign-1": _benign_task()},
+        site_profiles={"shopping": _single_surface_profile()},
+        current_sandbox_model="claude-sonnet-4-6",
+        current_text_model=phase_2_injections.DEFAULT_TEXT_FILL_MODEL,
+    )
+
+    assert reusable is not None
+    assert [task["id"] for task in reusable] == ["adv-1"]
+
 
 def test_load_reusable_phase_2_tasks_accepts_l4_clone_tasks_sharing_one_benign(tmp_path):
     output_path = tmp_path / "adversarial_tasks.json"
@@ -383,6 +435,7 @@ def test_load_reusable_phase_2_tasks_accepts_l4_clone_tasks_sharing_one_benign(t
     assert reusable is not None
     assert [task["benign_task_id"] for task in reusable] == ["benign-1", "benign-1"]
 
+
 def test_load_reusable_phase_2_tasks_rejects_phase_2a_resolution_signature_drift(tmp_path):
     output_path = tmp_path / "adversarial_tasks.json"
     output_path.write_text(json.dumps([_finalized_plan_task()], indent=2))
@@ -416,6 +469,7 @@ def test_load_reusable_phase_2_tasks_rejects_phase_2a_resolution_signature_drift
 
     assert reusable is None
 
+
 def test_load_reusable_phase_2_tasks_rejects_missing_resolution_signature(tmp_path):
     output_path = tmp_path / "adversarial_tasks.json"
     output_path.write_text(json.dumps([_finalized_plan_task()], indent=2))
@@ -442,6 +496,7 @@ def test_load_reusable_phase_2_tasks_rejects_missing_resolution_signature(tmp_pa
     )
 
     assert reusable is None
+
 
 def test_validate_reusable_phase_2_task_rejects_legacy_task_with_phase_2b_fields():
     task = {
