@@ -7,7 +7,12 @@ from collections.abc import Mapping
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
-from worldsim.sites.contracts import CanonicalRoute, TargetingContext
+from worldsim.sites import reddit_profile, reddit_routes
+from worldsim.sites.contracts import (
+    CanonicalRoute,
+    SiteRouteContractFacts,
+    TargetingContext,
+)
 from worldsim.sites.task_evidence import _path_and_query
 
 RedditResourceKind = Literal["submission", "forum", "dashboard_list"]
@@ -60,13 +65,36 @@ def _route(
     )
 
 
-class RedditSite:
+class RedditSite(reddit_profile.RedditProfileIdentity):
     site = "reddit"
     supported_benchmarks = frozenset({"webarena_verified"})
     expandable_listing_kinds = frozenset()
 
     def validate(self) -> None:
         return None
+
+    def route_contract_facts(
+        self,
+        *,
+        benchmark: str,
+        profile: Mapping[str, Any],
+        kind: str,
+    ) -> SiteRouteContractFacts:
+        routes = self.routes(TargetingContext(benchmark=benchmark, site=self.site, profile=profile))
+        route = next(
+            (
+                candidate
+                for candidate in routes
+                if kind in {candidate.kind, candidate.compatibility_kind}
+            ),
+            None,
+        )
+        return reddit_routes.route_contract_facts(
+            benchmark=benchmark,
+            profile=profile,
+            kind=kind,
+            route_patterns=route.allowed_start_url_patterns if route is not None else (),
+        )
 
     def validate_task(self, task: Mapping[str, Any]) -> tuple[str, str] | None:
         del task
