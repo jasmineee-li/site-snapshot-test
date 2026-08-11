@@ -28,6 +28,9 @@ from worldsim.phases.phase_2_render_check import (
     render_signature_selection,
     verify_seed_renders,
 )
+from worldsim.seeding.site_contracts import EditorSeedResult
+from worldsim.sites import SiteCatalog, SiteTargetingDefinitionError, default_catalog
+from worldsim.sites.read_surface import ReadSurfacePlanFailure
 
 logger = logging.getLogger(__name__)
 
@@ -181,9 +184,7 @@ async def _run_reachability_check(
     selected_rendered_payload_fn = _selected_rendered_payload
     logger_obj = logger
 
-    phase4_exposure_error = phase4_exposure_inadmissible_reason_fn(
-        task.get("exposure_contract")
-    )
+    phase4_exposure_error = phase4_exposure_inadmissible_reason_fn(task.get("exposure_contract"))
     if phase4_exposure_error is not None:
         return reachability_outcome_cls.unreachable(
             kind=f"phase4_exposure_{phase4_exposure_error}",
@@ -264,6 +265,7 @@ async def _run_render_check(
     seed: dict[str, Any],
     metadata: dict[str, Any],
     instance: dict[str, Any],
+    site_catalog: SiteCatalog | None = None,
 ) -> RenderOutcome:
     render_outcome_cls = RenderOutcome
     render_check_inputs_from_metadata_fn = _render_check_inputs_from_metadata
@@ -289,6 +291,104 @@ async def _run_render_check(
     signature = (
         selection.signature if selection is not None else render_signature_fn(seed, metadata)
     )
+
+    # Explicit catalogs are strict: they are the opt-in seam used by a new
+    # Site and must never fall back to the historical host/URL behavior. The
+    # default catalog plans active GitLab/Reddit checks when their evidence is
+    # complete, while unsupported historical Sites and signature-less facade
+    # calls retain the one-cycle compatibility path below.
+    strict_plan = site_catalog is not None
+    planning_catalog = site_catalog or default_catalog()
+    active_default_site = site_catalog is None and site_name in planning_catalog.sites
+    benchmark = _instance_benchmark_or_none(instance)
+    bound_site = None
+    planning_error: str | None = None
+    signature_compatibility_gap = False
+    if benchmark is None:
+        planning_error = "read-surface planning requires unambiguous benchmark metadata"
+    elif not isinstance(signature, str) or not signature.strip():
+        planning_error = "read-surface planning requires a non-empty signature"
+        signature_compatibility_gap = True
+    else:
+        try:
+            bound_site = planning_catalog.bind(
+                benchmark=benchmark,
+                site=site_name,
+                origin=site_url,
+            )
+        except SiteTargetingDefinitionError as exc:
+            planning_error = f"read-surface planning failed: {exc}"
+
+    if planning_error is not None and (
+        strict_plan or (active_default_site and not signature_compatibility_gap)
+    ):
+        return render_outcome_cls.failed(
+            kind="render_unverified",
+            detail=planning_error,
+            urls_tried=[],
+            per_url_errors={},
+        )
+    if bound_site is not None:
+        call_records = metadata.get("editor_call_results")
+        editor_calls = seed.get("editor_calls")
+        multi_call_seed = isinstance(editor_calls, list) and len(editor_calls) > 1
+        if (
+            selection is not None
+            and selection.call_index is not None
+            and (multi_call_seed or isinstance(call_records, list))
+            and render_diagnostics.get("read_surface_source") != "payload_editor_call"
+        ):
+            return render_outcome_cls.failed(
+                kind="render_unverified",
+                detail="payload editor call did not emit a usable read surface",
+                urls_tried=[],
+                per_url_errors={},
+            )
+        selected_provenance: str | None = None
+        if isinstance(call_records, list) and selection is not None:
+            for record in call_records:
+                if not isinstance(record, dict):
+                    continue
+                if record.get("call_index") != selection.call_index:
+                    continue
+                raw_source = record.get("read_surface_provenance_source")
+                if isinstance(raw_source, str) and raw_source.strip():
+                    selected_provenance = raw_source.strip()
+                break
+        if selected_provenance is None and not isinstance(call_records, list):
+            aggregate_provenance = metadata.get("read_surface_provenance")
+            if isinstance(aggregate_provenance, dict):
+                raw_source = aggregate_provenance.get("source")
+                if isinstance(raw_source, str) and raw_source.strip():
+                    selected_provenance = raw_source.strip()
+        selected_result = EditorSeedResult.from_mapping(
+            {
+                "read_surface_urls": list(urls),
+                **dict(write_tokens),
+                "read_surface_provenance_source": selected_provenance,
+            },
+            editor_method=(selection.editor_method if selection is not None else None),
+        )
+        plan = bound_site.read_surface_plan(
+            seed_result=selected_result,
+            signature=signature,
+        )
+        if isinstance(plan, ReadSurfacePlanFailure):
+            return render_outcome_cls.failed(
+                kind="render_unverified",
+                detail=f"{plan.reason}: {plan.detail}",
+                urls_tried=[],
+                per_url_errors={},
+            )
+        urls = list(plan.urls)
+        signature = plan.signature
+        write_tokens = dict(plan.identity_tokens)
+        render_diagnostics = dict(render_diagnostics)
+        render_diagnostics["read_surface_plan"] = {
+            "site": plan.site,
+            "verification_mode": plan.verification_mode,
+            "provenance_source": plan.provenance_source,
+        }
 
     browser_context_kwargs, auth_error = resolve_benign_browser_context_auth_fn(instance)
     if auth_error is not None:

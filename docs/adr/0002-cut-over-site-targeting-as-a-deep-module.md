@@ -173,6 +173,33 @@ render/reachability verification, admission, visibility/readback, cleanup,
 reward/scoring, or legacy facade deletion. Those capabilities remain separate
 follow-up slices.
 
+## ST-7 scope (strict read-surface verification planning)
+
+The seventh bounded slice adds an optional, pure Site capability that turns
+typed editor evidence from ST-5 into an immutable
+`ReadSurfaceVerificationPlan`. The plan carries only same-origin resolved read
+surfaces, a non-empty render signature, generic write identity tokens, and
+diagnostic provenance. It contains no browser, authentication, network,
+retry, reachability, exposure, admission, cleanup, or reward behavior.
+
+Phase 2c binds the Site against the explicit instance origin and consumes the
+plan before invoking its existing render executor. A foreign absolute URL is
+never passed to browser handling; path-local evidence is resolved against the
+bound origin, and a payload-bearing editor call may not borrow a setup call's
+read surface. Missing, malformed, foreign-only, or adapter-failed evidence is
+classified as `render_unverified` without browser navigation. An injected
+Site catalog and seed registry remain scoped to one run and do not mutate the
+production GitLab/Reddit catalogs or editor registry.
+
+The default path plans complete GitLab and Reddit evidence. Unsupported
+historical Sites and signature-less compatibility-facade calls retain the
+existing render path for one migration cycle; supplying an explicit catalog
+is strict and never falls back. Phase 2c continues to own Playwright context
+creation, auth resolution, navigation and retry classification, reachability,
+exposure/admission, and cleanup. Existing GitLab note and Reddit comment
+read-your-write browser probes also remain executor-owned until a later
+readback slice.
+
 ## Final cutover and deletion criteria
 
 Site Targeting is fully cut over only when all intended callers use the bound

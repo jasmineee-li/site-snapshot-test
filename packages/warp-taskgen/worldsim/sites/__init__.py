@@ -21,6 +21,11 @@ from worldsim.sites.contracts import (
 )
 from worldsim.sites.gitlab import GitLabSite
 from worldsim.sites.listing_resolution import ListingItemCandidate, ListingSiteAdapter
+from worldsim.sites.read_surface import (
+    ReadSurfacePlanFailure,
+    ReadSurfaceVerificationPlan,
+    SiteReadSurfaceCapability,
+)
 from worldsim.sites.reddit import RedditSite
 
 __all__ = [
@@ -29,11 +34,14 @@ __all__ = [
     "GitLabSite",
     "ListingItemCandidate",
     "ListingSiteAdapter",
+    "ReadSurfacePlanFailure",
+    "ReadSurfaceVerificationPlan",
     "RedditSite",
     "ResolvedTarget",
     "SiteAdapter",
     "SiteCatalog",
     "SiteProfileRouteCapability",
+    "SiteReadSurfaceCapability",
     "SiteRouteContractFacts",
     "SiteTargetingDefinitionError",
     "SourceListing",
