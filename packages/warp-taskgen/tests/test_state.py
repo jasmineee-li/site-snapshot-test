@@ -4,11 +4,14 @@ import json
 from argparse import Namespace
 from pathlib import Path
 
+import pytest
+
 from worldsim import main as worldsim_main
 from worldsim.browser_use_agent import AgentResult
 from worldsim.eval_worker_pool import load_completed_results
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
-from worldsim.state import get_state_dir, load_state, save_state
+from worldsim.run_transition import resolve_run_request
+from worldsim.state import bind_run_definition, get_state_dir, load_state, save_state
 from worldsim.trajectory import save_result
 
 
@@ -37,6 +40,142 @@ def test_state_dir_prefers_warp_taskgen_env_override(monkeypatch, tmp_path):
     assert get_state_dir() == canonical_logs
     assert (canonical_logs / "pipeline_state.json").is_file()
     assert not (legacy_logs / "pipeline_state.json").exists()
+
+
+def test_run_definition_is_persisted_identically_and_remains_stable(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    state_dir = tmp_path / "run"
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(state_dir))
+    transition = resolve_run_request(
+        {"agent_model": "model-a", "sites": ["gitlab"]},
+        existing_state=None,
+        new_run_id="run-stable",
+    )
+    assert transition.definition is not None
+
+    with bind_run_definition(transition.definition):
+        save_state("phase_1", status="running", agent_model="model-a", sites=["gitlab"])
+        first = json.loads((state_dir / "pipeline_state.json").read_text())
+        save_state("phase_2", status="running", agent_model="model-a", sites=["gitlab"])
+
+    current = json.loads((state_dir / "pipeline_state.json").read_text())
+    mirror = json.loads((tmp_path / "logs" / "last_run_state.json").read_text())
+    assert first["run_definition"] == current["run_definition"]
+    assert current["run_definition"] == mirror["run_definition"]
+    assert current["run_definition"]["run_id"] == "run-stable"
+
+
+def test_run_definition_context_is_root_scoped_and_reserved(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    primary = tmp_path / "primary"
+    worker = tmp_path / "worker"
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(primary))
+    transition = resolve_run_request({}, existing_state=None, new_run_id="run-primary")
+    assert transition.definition is not None
+
+    with bind_run_definition(transition.definition):
+        with pytest.raises(ValueError, match="reserved fields"):
+            save_state("phase_1", status="running", run_definition={})
+        monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(worker))
+        save_state("phase_4", status="running")
+
+    worker_state = json.loads((worker / "pipeline_state.json").read_text())
+    assert "run_definition" not in worker_state
+    assert not (primary / "pipeline_state.json").exists()
+
+
+def test_run_definition_context_rejects_existing_identity_mismatch(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
+    first = resolve_run_request({}, existing_state=None, new_run_id="run-one")
+    second = resolve_run_request({}, existing_state=None, new_run_id="run-two")
+    assert first.definition is not None and second.definition is not None
+    with bind_run_definition(first.definition):
+        save_state("phase_1", status="running")
+    before = (tmp_path / "pipeline_state.json").read_bytes()
+
+    with pytest.raises(ValueError, match="does not match"):
+        with bind_run_definition(second.definition):
+            save_state("phase_2", status="running")
+
+    assert (tmp_path / "pipeline_state.json").read_bytes() == before
+
+
+def test_fresh_cli_phase_binds_identity_before_first_checkpoint(monkeypatch, tmp_path):
+    from worldsim.cli import _impl as cli_impl
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path / "fresh"))
+
+    def fake_dispatch(_args):
+        save_state("phase_1", status="running", agent_model="model-a")
+        return 0
+
+    monkeypatch.setattr(cli_impl, "_dispatch_phase_with_run_context", fake_dispatch)
+
+    rc = cli_impl._dispatch_phase(
+        Namespace(command="phase", phase="1", agent_model="model-a", sites="gitlab")
+    )
+
+    assert rc == 0
+    state = json.loads((tmp_path / "fresh" / "pipeline_state.json").read_text())
+    definition = state["run_definition"]
+    assert definition["run_id"].startswith("run-")
+    assert definition["legacy"] is False
+    assert definition["contributions"]["phase_4"]["agent_model"] == "model-a"
+    assert definition["contributions"]["phase_2"]["phase_2_text_model"]
+    assert definition["contributions"]["pipeline"]["manifest_path"].endswith(
+        "fresh/phase_0a/BENCHMARK_MANIFEST.json"
+    )
+
+
+def test_direct_phase_keeps_existing_legacy_state_without_logs_dir(monkeypatch, tmp_path):
+    from worldsim.cli import _impl as cli_impl
+
+    monkeypatch.chdir(tmp_path)
+    state_dir = tmp_path / "legacy"
+    state_dir.mkdir()
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(state_dir))
+    (state_dir / "pipeline_state.json").write_text(
+        json.dumps({"step": "phase_1", "status": "running"}),
+        encoding="utf-8",
+    )
+
+    def fake_dispatch(_args):
+        save_state("phase_1", status="running")
+        return 0
+
+    monkeypatch.setattr(cli_impl, "_dispatch_phase_with_run_context", fake_dispatch)
+
+    assert cli_impl._dispatch_phase(Namespace(command="phase", phase="1")) == 0
+    saved = json.loads((state_dir / "pipeline_state.json").read_text())
+    assert "run_definition" not in saved
+
+
+def test_top_level_identified_state_migrates_to_nested_envelope(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
+    projected = resolve_run_request({}, existing_state=None, new_run_id="run-top-level")
+    assert projected.definition is not None
+    top_level = {
+        "step": "phase_1",
+        "status": "running",
+        "timestamp": "2026-08-11T12:00:00",
+        "logs_dir": str(tmp_path),
+        "run_definition_schema_version": 1,
+        "run_id": "run-top-level",
+        "source_run_id": None,
+        "definition_digest": projected.definition.definition_digest,
+    }
+    (tmp_path / "pipeline_state.json").write_text(json.dumps(top_level), encoding="utf-8")
+    transition = resolve_run_request({}, existing_state=top_level)
+    assert transition.definition is not None
+
+    with bind_run_definition(transition.definition):
+        save_state("phase_2", status="running")
+
+    saved = json.loads((tmp_path / "pipeline_state.json").read_text())
+    assert saved["run_definition"]["run_id"] == "run-top-level"
 
 
 def test_load_state_follows_resume_pointer_without_env_override(monkeypatch, tmp_path):
@@ -414,6 +553,44 @@ def test_dispatch_resume_restores_logs_dir_from_state(monkeypatch, tmp_path):
     assert str(captured["logs_dir"]) == str(custom_logs)
 
 
+def test_identity_aware_resume_refuses_definition_drift_without_writing(
+    monkeypatch, tmp_path, capsys
+):
+    monkeypatch.chdir(tmp_path)
+    state_dir = tmp_path / "identified"
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(state_dir))
+    transition = resolve_run_request(
+        {"agent_model": "source-model", "instances_path": "/tmp/instances.json"},
+        existing_state=None,
+        new_run_id="run-source",
+    )
+    assert transition.definition is not None
+    with bind_run_definition(transition.definition):
+        save_state(
+            "phase_4",
+            status="running",
+            agent_model="source-model",
+            instances_path="/tmp/instances.json",
+        )
+    state_path = state_dir / "pipeline_state.json"
+    before = state_path.read_bytes()
+    called = False
+
+    def fake_dispatch_phase(_args):
+        nonlocal called
+        called = True
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace(agent_model="changed-model"))
+
+    assert rc == 2
+    assert called is False
+    assert state_path.read_bytes() == before
+    assert "isolated Derived Run" in capsys.readouterr().err
+
+
 def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"
@@ -451,9 +628,7 @@ def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(monke
     assert captured["agent_step_timeout"] == 300
 
 
-def test_dispatch_resume_treats_legacy_phase_4_state_as_strategy_variation(
-    monkeypatch, tmp_path
-):
+def test_dispatch_resume_treats_legacy_phase_4_state_as_strategy_variation(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
@@ -504,9 +679,7 @@ def test_dispatch_resume_overrides_saved_phase_4_timeouts(monkeypatch, tmp_path)
 
     monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(
-        Namespace(agent_llm_timeout=240, agent_step_timeout=300)
-    )
+    rc = worldsim_main._dispatch_resume(Namespace(agent_llm_timeout=240, agent_step_timeout=300))
 
     assert rc == 0
     assert captured["phase"] == "4"

@@ -7,6 +7,8 @@ import pytest
 
 from worldsim.cli_status import build_status_payload, format_status_payload
 from worldsim.run_definition import define_run, plan_resume
+from worldsim.run_definition_contracts import RunDefinition
+from worldsim.run_transition import resolve_run_request
 
 
 def _state(tmp_path: Path, **overrides: object) -> dict[str, object]:
@@ -158,6 +160,98 @@ def test_define_run_validates_persisted_definition_metadata(tmp_path: Path):
     assert legacy_with_stray_identity.legacy is True
     assert legacy_with_stray_identity.run_id is None
     assert legacy_with_stray_identity.source_run_id is None
+
+
+def test_run_definition_rejects_unsafe_or_self_referential_identity(tmp_path: Path):
+    projected = define_run(_state(tmp_path))
+
+    for run_id in ("../escape", "contains space", "line\nbreak", "a" * 129):
+        with pytest.raises(ValueError, match="safe opaque"):
+            RunDefinition(
+                schema_version=1,
+                run_id=run_id,
+                source_run_id=None,
+                definition_digest=projected.definition_digest,
+                contributions=projected.contributions,
+                legacy=False,
+            )
+
+    with pytest.raises(ValueError, match="must not equal"):
+        RunDefinition(
+            schema_version=1,
+            run_id="run-child",
+            source_run_id="run-child",
+            definition_digest=projected.definition_digest,
+            contributions=projected.contributions,
+            legacy=False,
+        )
+
+
+def test_resolve_run_request_creates_exact_and_derived_transitions(tmp_path: Path):
+    inputs = _state(
+        tmp_path,
+        agent_model="one",
+        allow_unknown_auth=False,
+        skip_host_bound_storage_state_auth=False,
+    )
+    first = resolve_run_request(inputs, existing_state=None, new_run_id="run-one")
+    second = resolve_run_request(inputs, existing_state=None, new_run_id="run-two")
+
+    assert first.kind == second.kind == "new"
+    assert first.definition is not None and second.definition is not None
+    assert first.definition.run_id == "run-one"
+    assert second.definition.run_id == "run-two"
+    assert first.definition.definition_digest == second.definition.definition_digest
+
+    persisted = {**inputs, "run_definition": first.definition.to_dict()}
+    exact = resolve_run_request({}, existing_state=persisted)
+    derived = resolve_run_request({"agent_model": "two"}, existing_state=persisted)
+
+    assert exact.kind == "exact"
+    assert exact.definition == first.definition
+    assert derived.kind == "derived_required"
+    assert derived.definition is not None and derived.definition.run_id is None
+    assert derived.drift_fields == ("phase_4.agent_model",)
+
+
+def test_resolve_run_request_keeps_legacy_resume_mutable_without_identity(tmp_path: Path):
+    state = _state(tmp_path, agent_model="one")
+
+    transition = resolve_run_request({"agent_model": "two"}, existing_state=state)
+
+    assert transition.kind == "legacy"
+    assert transition.definition is not None
+    assert transition.definition.run_id is None
+
+
+def test_resolve_run_request_rejects_envelope_metadata_conflict(tmp_path: Path):
+    transition = resolve_run_request(
+        _state(tmp_path, agent_model="one"),
+        existing_state=None,
+        new_run_id="run-source",
+    )
+    assert transition.definition is not None
+    persisted = {
+        **_state(tmp_path, agent_model="two"),
+        "run_definition": transition.definition.to_dict(),
+    }
+
+    with pytest.raises(ValueError, match="conflicts with run_definition"):
+        resolve_run_request({}, existing_state=persisted)
+
+
+def test_definition_and_status_projection_hide_credential_urls(tmp_path: Path):
+    state = _state(
+        tmp_path,
+        phase_2a_resolution_signature={"callback": "https://user:password@example.invalid/path"},
+    )
+    (tmp_path / "pipeline_state.json").write_text(json.dumps(state), encoding="utf-8")
+
+    definition = define_run(state)
+    status = build_status_payload(tmp_path)
+
+    assert "password" not in json.dumps(definition.to_dict())
+    assert "password" not in json.dumps(status)
 
 
 @pytest.mark.parametrize(

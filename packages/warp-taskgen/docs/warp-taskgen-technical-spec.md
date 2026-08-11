@@ -311,8 +311,19 @@ pipeline state. Its SHA-256 Definition Digest is an explanation aid, not a
 replacement for Phase 2 or Phase 4 fingerprints. The accompanying read-only
 Resume Plan mirrors the existing complete/running/failed routing and identifies
 feature checkpoint families whose owning validators must still inspect them.
-Legacy runs have no inferred Run ID. Persisted opaque Run IDs, Derived Run
-lineage, and any lifecycle/pause changes are deferred to later slices.
+New CLI-orchestrated state roots persist the same immutable definition in the
+resume pointer and authoritative checkpoint, together with a random opaque Run
+ID. Exact continuation and resume retain that ID (and any existing source ID).
+The CLI projection resolves its shared static defaults before dispatch and
+omits absent optional paths instead of recording `null` as an effective value.
+Feature-resolved output signatures that become available only inside a phase
+remain under the existing Phase 2/4 fingerprint policies and do not mutate the
+Run Definition retroactively.
+Envelope-less legacy runs preserve their historical behavior and receive no
+inferred identity. A result-affecting override on an identified Run is reported
+as requiring an isolated Derived Run and stops before runner dispatch or state
+writes. Materializing that child root and transferring validator-approved
+checkpoints, plus any lifecycle/pause changes, remain later slices.
 
 ### CLI Flags
 

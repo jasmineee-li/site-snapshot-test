@@ -1583,6 +1583,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     novel_tasks_per_site = getattr(args, "novel_tasks_per_site", None)
     task_card_plan = getattr(args, "task_card_plan", None)
     task_capability_profile = getattr(args, "task_capability_profile", None)
+    phase_1_action_counts = getattr(args, "phase_1_action_counts", None)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     task_origin = getattr(args, "task_origin", None)
     sites = getattr(args, "sites", None)
@@ -1655,6 +1656,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
             task_card_plan = Path(raw_task_card_plan)
     if task_capability_profile is None:
         task_capability_profile = state.get("task_capability_profile")
+    if phase_1_action_counts is None:
+        phase_1_action_counts = state.get("phase_1_action_counts", state.get("action_counts"))
     if task_origin is None:
         task_origin = state.get("task_origin")
     if sites is None:
@@ -1723,6 +1726,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         novel_tasks_per_site=novel_tasks_per_site,
         task_card_plan=task_card_plan,
         task_capability_profile=task_capability_profile,
+        phase_1_action_counts=phase_1_action_counts,
         max_tasks_per_site=max_tasks_per_site,
         task_origin=task_origin,
         sites=sites,
@@ -1741,6 +1745,27 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         force_reverify=force_reverify,
         no_l3_l4=no_l3_l4,
     )
+
+    from worldsim.cli.run_identity import resolve_cli_run_transition
+
+    try:
+        transition = resolve_cli_run_transition(
+            args,
+            existing_state=state,
+        )
+    except ValueError as exc:
+        print(f"Resume rejected by Run Definition: {exc}", file=sys.stderr)
+        return 2
+    if transition.kind == "derived_required":
+        fields = ", ".join(transition.drift_fields) or "unknown inputs"
+        print(
+            "Resume requires an isolated Derived Run before execution "
+            f"({transition.reason_code}; changed: {fields}). "
+            "This migration slice leaves the source Run unchanged.",
+            file=sys.stderr,
+        )
+        return 2
+    synthetic._run_transition = transition
 
     try:
         _install_verification_proxy_from_args(synthetic)
@@ -1825,7 +1850,45 @@ def _unknown_auth_sites(
 
 
 def _dispatch_phase(args: argparse.Namespace) -> int:
-    """Dispatch to the requested phase module."""
+    """Resolve immutable Run identity, then dispatch to the requested phase."""
+
+    from worldsim.cli.run_identity import resolve_cli_run_transition
+    from worldsim.state import (
+        bind_run_definition,
+        get_state_dir,
+        validate_run_definition_binding,
+    )
+
+    transition = getattr(args, "_run_transition", None)
+    if transition is None:
+        try:
+            transition = resolve_cli_run_transition(args)
+        except ValueError as exc:
+            print(f"Phase dispatch rejected by Run Definition: {exc}", file=sys.stderr)
+            return 2
+    if transition.kind == "derived_required":
+        fields = ", ".join(transition.drift_fields) or "unknown inputs"
+        print(
+            "Phase dispatch requires an isolated Derived Run before execution "
+            f"({transition.reason_code}; changed: {fields}).",
+            file=sys.stderr,
+        )
+        return 2
+    if transition.kind == "rejected":
+        print(f"Phase dispatch rejected: {transition.reason_code}", file=sys.stderr)
+        return 2
+    definition = transition.definition if transition.kind in {"new", "exact"} else None
+    try:
+        validate_run_definition_binding(definition, state_dir=get_state_dir())
+    except ValueError as exc:
+        print(f"Phase dispatch rejected by persisted Run Definition: {exc}", file=sys.stderr)
+        return 2
+    with bind_run_definition(definition, state_dir=get_state_dir()):
+        return _dispatch_phase_with_run_context(args)
+
+
+def _dispatch_phase_with_run_context(args: argparse.Namespace) -> int:
+    """Dispatch to the requested phase module under a resolved Run context."""
     from worldsim.cost_tracker import tracker as cost_tracker
     from worldsim.state import get_state_dir
 
