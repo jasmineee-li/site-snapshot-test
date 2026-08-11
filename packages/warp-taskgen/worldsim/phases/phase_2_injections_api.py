@@ -536,7 +536,8 @@ def _infer_api_benchmark(
     benchmark = infer_benchmark_name(values)
     if benchmark is None:
         raise ValueError("Phase 2a API tasks are missing benchmark metadata")
-    capabilities = get_benchmark_capabilities(benchmark)
-    if not capabilities.phase_2_supported:
-        raise ValueError(f"benchmark {benchmark!r} does not support WARP Taskgen Phase 2")
+    try:
+        capabilities = get_benchmark_capabilities(benchmark).require("phase_2_generation")
+    except ValueError as exc:
+        raise ValueError(f"benchmark {benchmark!r} does not support WARP Taskgen Phase 2") from exc
     return capabilities.canonical_name

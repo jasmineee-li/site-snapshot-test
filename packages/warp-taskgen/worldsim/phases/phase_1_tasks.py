@@ -354,9 +354,10 @@ def _manifest_benchmark_name(manifest: dict[str, Any]) -> str:
     )
     if benchmark_name is None:
         raise ValueError("Phase 0a manifest is missing benchmark metadata")
-    capabilities = get_benchmark_capabilities(benchmark_name)
-    if not capabilities.phase_1_supported:
-        raise ValueError(f"benchmark {capabilities.canonical_name!r} does not support Phase 1")
+    try:
+        capabilities = get_benchmark_capabilities(benchmark_name).require("phase_1_generation")
+    except ValueError as exc:
+        raise ValueError(f"benchmark {benchmark_name!r} does not support Phase 1") from exc
     return capabilities.canonical_name
 
 

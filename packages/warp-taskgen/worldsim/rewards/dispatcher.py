@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from worldsim.benchmark_capabilities import resolve_evaluator_authority_from_metadata
 from worldsim.rewards.agent_response import _build_agent_response, _eval_agent_response
 from worldsim.rewards.final_state import _eval_final_state
 from worldsim.rewards.final_state_catalog import FinalStateEvaluatorCatalog
@@ -41,9 +42,20 @@ def run_reward_function(
     Returns:
         ``(passed, message)`` tuple.
     """
+    try:
+        authority = resolve_evaluator_authority_from_metadata(
+            (reward, instance),
+            task_id=reward.get("task_id"),
+        )
+    except ValueError as exc:
+        return False, f"benchmark contract rejected: {exc}"
     if "eval" in reward and isinstance(reward["eval"], list):
         if reward.get("task_id") is not None:
+            if authority is not None and authority != "canonical_vendor_task_id":
+                return False, f"benchmark contract selected unexpected evaluator {authority!r}"
             return _run_webarena_verified_eval(reward, instance, agent_result, network_trace)
+        if authority is not None and authority != "warp_local_task_idless":
+            return False, f"benchmark contract selected unexpected evaluator {authority!r}"
         if final_state_catalog is None:
             return _run_homebrew_eval(reward, instance, agent_result, network_trace)
         return _run_homebrew_eval(
@@ -53,6 +65,9 @@ def run_reward_function(
             network_trace,
             final_state_catalog=final_state_catalog,
         )
+
+    if authority is not None and authority != "warp_local_task_idless":
+        return False, f"benchmark contract selected unexpected evaluator {authority!r}"
 
     eval_type = reward.get("type") or reward.get("evaluator")
     if eval_type is None:

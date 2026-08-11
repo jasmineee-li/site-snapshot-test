@@ -391,12 +391,13 @@ async def verify_feasibility(
             "phase 2c pre-flight: mixed benchmark metadata between tasks and instances: "
             f"tasks={task_benchmark!r}, instances={instance_benchmark!r}"
         )
-    capabilities = get_benchmark_capabilities(task_benchmark)
-    if not capabilities.phase_2_feasibility_supported:
+    try:
+        capabilities = get_benchmark_capabilities(task_benchmark).require("phase_2_feasibility")
+    except ValueError as exc:
         raise RuntimeError(
             f"phase 2c pre-flight: benchmark {task_benchmark!r} does not support "
             "WARP Taskgen Phase 2c"
-        )
+        ) from exc
     for instance in instances:
         instance["benchmark"] = capabilities.canonical_name
         if benchmark_root is not None:
