@@ -107,57 +107,6 @@ L3_TOOL_SCHEMA: dict[str, Any] = {
         "additionalProperties": False,
     },
 }
-_L3_PROBE_KINDS_FOR_API: dict[str, frozenset[str]] = {
-    # User-dashboard probes — return only a dashboard anchor.
-    "list_user_todos": frozenset({"gitlab_dashboard_list"}),
-    "list_user_merge_requests": frozenset({"gitlab_dashboard_list", "gitlab_mr"}),
-    "list_user_issues": frozenset({"gitlab_dashboard_list", "gitlab_issue"}),
-    "list_user_submitted": frozenset({"reddit_dashboard_list"}),
-    "list_user_comments": frozenset({"reddit_dashboard_list"}),
-    # User-scoped issue/MR search — concrete iid in result.
-    "search_user_issues": frozenset({"gitlab_issue", "gitlab_search_result"}),
-    "search_user_mrs": frozenset({"gitlab_mr", "gitlab_search_result"}),
-    # Project-scoped issue/MR search — concrete iid in result.
-    "search_project_issues": frozenset({"gitlab_issue", "gitlab_search_result"}),
-    "search_project_mrs": frozenset({"gitlab_mr", "gitlab_search_result"}),
-    "list_project_issues_recent": frozenset({"gitlab_issue", "gitlab_search_result"}),
-    "list_project_mrs_recent": frozenset({"gitlab_mr", "gitlab_search_result"}),
-    # Project-resolution probe — only the project_id anchor; never an iid.
-    # Admit it for any kind so the host can chain through L4 if needed.
-    "find_project_by_path": frozenset(
-        {
-            "gitlab_issue",
-            "gitlab_mr",
-            "gitlab_search_result",
-            "gitlab_user_profile",
-            "gitlab_snippet",
-            "gitlab_project_milestone",
-            "gitlab_group",
-            "gitlab_snippets_index",
-            "gitlab_project_labels",
-        }
-    ),
-    # Reddit forum probes.
-    "find_submission_by_title": frozenset({"reddit_submission"}),
-    "list_forum_submissions_recent": frozenset({"reddit_submission", "reddit_forum"}),
-    # Sentinel; resolver short-circuits before the probe is dispatched.
-    "none": frozenset({}),
-}
-_L3_LISTING_SOURCE_FOR_API: dict[str, dict[str, str]] = {
-    "list_user_issues": {"gitlab_issue": "gitlab_dashboard_list"},
-    "list_user_merge_requests": {
-        "gitlab_issue": "gitlab_dashboard_list",
-        "gitlab_mr": "gitlab_dashboard_list",
-    },
-    "search_user_issues": {"gitlab_issue": "gitlab_search_result"},
-    "search_user_mrs": {"gitlab_mr": "gitlab_search_result"},
-    "search_project_issues": {"gitlab_issue": "gitlab_search_result"},
-    "search_project_mrs": {"gitlab_mr": "gitlab_search_result"},
-    "list_project_issues_recent": {"gitlab_issue": "gitlab_search_result"},
-    "list_project_mrs_recent": {"gitlab_mr": "gitlab_search_result"},
-    "find_submission_by_title": {"reddit_submission": "reddit_dashboard_list"},
-    "list_forum_submissions_recent": {"reddit_submission": "reddit_forum"},
-}
 _DETAIL_FORCING_VERBS_RE = re.compile(
     r"\b(reply|comment|respond|edit|update|change|add|submit)\b", re.IGNORECASE
 )
