@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
 from worldsim.benchmark_capabilities import normalize_benchmark_name
@@ -48,16 +48,39 @@ class TargetingContext:
             raise SiteTargetingDefinitionError("profile must be a mapping")
         if not isinstance(self.placeholders, Mapping):
             raise SiteTargetingDefinitionError("placeholders must be a mapping")
-        profile_site = (
-            str(self.profile.get("site_name") or self.profile.get("site") or "").strip().lower()
-        )
+        profile_sites: set[str] = set()
+        for profile_field in ("site_name", "site"):
+            if profile_field not in self.profile:
+                continue
+            value = self.profile[profile_field]
+            if not isinstance(value, str) or not value.strip():
+                raise SiteTargetingDefinitionError(
+                    f"profile {profile_field} must be a non-empty string"
+                )
+            profile_sites.add(value.strip().lower())
+        if len(profile_sites) > 1:
+            raise SiteTargetingDefinitionError("profile site fields disagree")
+        profile_site = next(iter(profile_sites), "")
         if profile_site and profile_site != site:
             raise SiteTargetingDefinitionError(
                 f"profile site {profile_site!r} does not match bound site {site!r}"
             )
-        profile_benchmark = normalize_benchmark_name(
-            self.profile.get("benchmark_name") or self.profile.get("benchmark")
-        )
+        profile_benchmarks: set[str] = set()
+        for profile_field in ("benchmark_name", "benchmark"):
+            if profile_field not in self.profile:
+                continue
+            value = self.profile[profile_field]
+            if not isinstance(value, str) or not value.strip():
+                raise SiteTargetingDefinitionError(
+                    f"profile {profile_field} must be a non-empty string"
+                )
+            normalized = normalize_benchmark_name(value)
+            if not normalized:
+                raise SiteTargetingDefinitionError(f"profile {profile_field} is unknown")
+            profile_benchmarks.add(normalized)
+        if len(profile_benchmarks) > 1:
+            raise SiteTargetingDefinitionError("profile benchmark fields disagree")
+        profile_benchmark = next(iter(profile_benchmarks), "")
         if profile_benchmark and profile_benchmark != benchmark:
             raise SiteTargetingDefinitionError(
                 f"profile benchmark {profile_benchmark!r} does not match {benchmark!r}"
@@ -104,9 +127,9 @@ class TargetingContext:
         return cls(
             benchmark=benchmark,
             site=site,
-            profile=profile or {},
+            profile={} if profile is None else profile,
             origin=origin,
-            placeholders=placeholders or {},
+            placeholders={} if placeholders is None else placeholders,
         )
 
     def site_origin(self) -> str | None:
@@ -193,6 +216,125 @@ class CanonicalRoute:
         if self.anchor_examples:
             result["anchor_examples"] = [dict(example) for example in self.anchor_examples]
         return result
+
+
+@dataclass(frozen=True)
+class SurfaceResolution:
+    """A Site-owned mapping from a profile surface to a canonical carrier.
+
+    Surface identity is deliberately kept separate from core/active-carrier
+    policy.  A Site can explain what a profile field means, while Phase 1/2
+    remains responsible for deciding whether that carrier is eligible.
+    """
+
+    benchmark: str
+    site: str
+    canonical_surface_id: str
+    profile_surface_id: str
+    profile_surface: Mapping[str, Any]
+    evidence: str
+    source_field: str | None = None
+    editor_surface_id: str | None = None
+
+    def __post_init__(self) -> None:
+        benchmark = normalize_benchmark_name(self.benchmark)
+        site = str(self.site or "").strip().lower()
+        canonical = str(self.canonical_surface_id or "").strip()
+        profile_id = str(self.profile_surface_id or "").strip()
+        evidence = str(self.evidence or "").strip()
+        if not benchmark or not site or not canonical or not profile_id or not evidence:
+            raise SiteTargetingDefinitionError(
+                "surface resolution needs benchmark, site, surface ids, and evidence"
+            )
+        if not isinstance(self.profile_surface, Mapping):
+            raise SiteTargetingDefinitionError("profile_surface must be a mapping")
+        object.__setattr__(self, "benchmark", benchmark)
+        object.__setattr__(self, "site", site)
+        object.__setattr__(self, "canonical_surface_id", canonical)
+        object.__setattr__(self, "profile_surface_id", profile_id)
+        object.__setattr__(self, "profile_surface", dict(self.profile_surface))
+        object.__setattr__(self, "evidence", evidence)
+
+
+@dataclass(frozen=True)
+class SiteRouteContractFacts:
+    """Inventory/profile facts needed to describe one Phase 1 route.
+
+    These facts are intentionally narrower than a Phase 1 route contract.
+    They carry only Site grammar and inventory evidence; editor eligibility,
+    exposure, instruction, and answer policy remain generic Phase 1 policy.
+    """
+
+    allowed_start_url_patterns: tuple[str, ...] = ()
+    anchor_examples: tuple[Mapping[str, Any], ...] = ()
+    requires_inventory_backed_start_url: bool = False
+    route_variant: str | None = None
+
+    def __post_init__(self) -> None:
+        patterns = tuple(str(pattern).strip() for pattern in self.allowed_start_url_patterns)
+        if any(not pattern for pattern in patterns):
+            raise SiteTargetingDefinitionError("route facts need non-empty URL patterns")
+        if len(set(patterns)) != len(patterns):
+            raise SiteTargetingDefinitionError("route facts contain duplicate URL patterns")
+        if any(not isinstance(example, Mapping) for example in self.anchor_examples):
+            raise SiteTargetingDefinitionError("route facts contain an invalid anchor example")
+        object.__setattr__(self, "allowed_start_url_patterns", patterns)
+        object.__setattr__(
+            self,
+            "anchor_examples",
+            tuple(dict(example) for example in self.anchor_examples),
+        )
+        if self.route_variant is not None:
+            variant = str(self.route_variant).strip()
+            object.__setattr__(self, "route_variant", variant or None)
+
+    @property
+    def start_url_patterns(self) -> tuple[str, ...]:
+        """Short alias used by Site feature callers."""
+
+        return self.allowed_start_url_patterns
+
+    @property
+    def inventory_backed(self) -> bool:
+        """Whether the route requires concrete profile inventory anchors."""
+
+        return self.requires_inventory_backed_start_url
+
+
+@runtime_checkable
+class SiteProfileRouteCapability(Protocol):
+    """Optional Site feature capability for profile identity and route facts.
+
+    The capability is intentionally independent of :class:`SiteAdapter` so a
+    compatibility/test adapter can opt in without acquiring editor, core,
+    active-carrier, exposure, or reward policy.
+    """
+
+    def canonicalize_surface_id(
+        self,
+        *,
+        benchmark: str,
+        raw_surface_id: str | None,
+    ) -> str | None: ...
+
+    def resolve_profile_surface(
+        self,
+        *,
+        benchmark: str,
+        profile: Mapping[str, Any],
+        target_surface_id: str,
+        kind: str | None = None,
+        method: str | None = None,
+        editor_surface_id: str | None = None,
+    ) -> SurfaceResolution | None: ...
+
+    def route_contract_facts(
+        self,
+        *,
+        benchmark: str,
+        profile: Mapping[str, Any],
+        kind: str,
+    ) -> SiteRouteContractFacts: ...
 
 
 @dataclass(frozen=True)
@@ -293,7 +435,10 @@ __all__ = [
     "CanonicalRoute",
     "ResolvedTarget",
     "SiteAdapter",
+    "SiteProfileRouteCapability",
+    "SiteRouteContractFacts",
     "SiteTargetingDefinitionError",
+    "SurfaceResolution",
     "TargetingContext",
     "TargetingFailure",
 ]

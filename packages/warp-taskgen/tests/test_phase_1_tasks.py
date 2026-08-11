@@ -630,6 +630,7 @@ def _append_injection_surface(profile: dict, surface_id: str, **fields: object) 
 
 
 def _add_gitlab_issue_sample(profile: dict) -> None:
+    profile["site_name"] = "gitlab"
     profile["data_model"] = [
         {
             "entity": "issue",
@@ -655,6 +656,7 @@ def _add_gitlab_issue_sample(profile: dict) -> None:
 
 
 def _add_gitlab_issue_sample_with_project_id(profile: dict) -> None:
+    profile["site_name"] = "gitlab"
     profile["data_model"] = [
         {
             "entity": "issue",
@@ -688,6 +690,7 @@ def _add_gitlab_issue_sample_with_project_id(profile: dict) -> None:
 
 
 def _add_reddit_submission_sample(profile: dict) -> None:
+    profile["site_name"] = "reddit"
     profile["data_model"] = [
         {
             "entity": "submission",
@@ -714,6 +717,7 @@ def _add_reddit_submission_sample(profile: dict) -> None:
 
 
 def _add_reddit_available_forums(profile: dict) -> None:
+    profile["site_name"] = "reddit"
     profile["available_entities"] = {
         "forums": [
             {"name": "books", "id": 10037},
@@ -4983,6 +4987,7 @@ def test_build_task_route_contracts_falls_back_for_missing_gitlab_issue_descript
 
 def test_build_task_route_contracts_inventory_backs_gitlab_project_issue_lists():
     profile = _profile(uncovered=["issue_description"])
+    profile["site_name"] = "gitlab"
     profile["data_model"] = [
         {
             "entity": "issues",
@@ -5052,6 +5057,7 @@ def test_build_task_route_contracts_resolves_gitlab_project_id_from_live_invento
 
 def test_build_task_route_contracts_uses_gitlab_project_samples_for_created_issue_lists():
     profile = _profile(uncovered=["issue_description"])
+    profile["site_name"] = "gitlab"
     profile["data_model"] = [
         {
             "entity": "project",
@@ -5111,6 +5117,7 @@ def test_build_task_route_contracts_uses_gitlab_project_samples_for_created_issu
 
 def test_build_task_route_contracts_does_not_treat_issue_id_as_project_id():
     profile = _profile(uncovered=["issue_description"])
+    profile["site_name"] = "gitlab"
     profile["data_model"] = [
         {
             "entity": "issue",
@@ -5205,6 +5212,7 @@ def test_build_task_route_contracts_does_not_emit_gitlab_mr_note_carriers():
 
 def test_build_task_route_contracts_rejects_single_segment_gitlab_project_paths():
     profile = _profile(uncovered=["issue_description", "note_body_on_issue", "note_body_on_mr"])
+    profile["site_name"] = "gitlab"
     profile["data_model"] = [
         {
             "entity": "project",

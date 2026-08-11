@@ -92,6 +92,31 @@ facade and import deletion is also deferred until the callers and
 compatibility surfaces for the relevant capability have been audited and cut
 over.
 
+## ST-4 scope (profile identity and Phase 1 route facts)
+
+The fourth bounded slice moves only deterministic profile/surface identity and
+inventory-backed Phase 1 route facts behind the bound Site. GitLab and
+Reddit/Postmill feature modules implement a typed profile-route capability;
+the capability exposes canonical/profile surface resolution plus route facts
+for start URL patterns, anchor examples, inventory-backed-start requirements,
+and route variants. A test-only adapter can be injected through the same
+capability without adding a named branch to generic Phase code.
+
+`BoundSite` binds the profile projection once and provides these operations to
+Phase 1. The legacy `worldsim.surface_identity` facade and private
+`phase_1_route_contracts` profile/anchor helpers remain thin delegates for one
+migration cycle. The Phase 1 artifact schema, route ordering, IDs, and digest
+remain unchanged because editor registration, core/active-carrier policy,
+Phase 2 admissibility/exposure, instruction/editor argument templates,
+answer-stability guidance, auth/browser behavior, admission, and reward policy
+stay in their existing owners.
+
+ST-4 does not move editor eligibility, exposure or admission policy, seed or
+browser behavior, visibility/readback, authentication, or reward/scoring. A
+Site that does not implement the profile-route capability fails closed for
+profile resolution and contributes no route facts; generic callers must not
+guess aliases, hosts, or inventory anchors.
+
 ## Final cutover and deletion criteria
 
 Site Targeting is fully cut over only when all intended callers use the bound

@@ -11,7 +11,6 @@ import json
 import re
 from collections.abc import Mapping
 from typing import Any
-from urllib.parse import urlsplit
 
 import worldsim.editors  # noqa: F401 - populate editor method registry
 from worldsim.editors._registry import iter_specs
@@ -31,10 +30,14 @@ from worldsim.phases.phase_2_core_surfaces import (
 )
 from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
 from worldsim.placeholders import placeholder_for_site
-from worldsim.sites import SiteTargetingDefinitionError, default_catalog
+from worldsim.sites import (
+    SiteTargetingDefinitionError,
+    default_catalog,
+    gitlab_routes,
+    reddit_routes,
+)
 from worldsim.surface_identity import (
     canonicalize_surface_id,
-    resolve_profile_surface,
     surface_resolution_dict,
 )
 
@@ -53,23 +56,44 @@ def build_task_route_contracts(
 ) -> dict[str, Any]:
     """Build the route contracts a Phase 1 generator may target."""
     site = site_name.strip().lower()
-    uncovered = _uncovered_surface_ids(site, profile, benchmark=benchmark)
-    covered = _covered_surface_ids(site, profile, benchmark=benchmark)
+    if not _valid_profile_shape(profile):
+        return {
+            "schema_version": ROUTE_CONTRACTS_SCHEMA_VERSION,
+            "site": site,
+            "benchmark": benchmark,
+            "route_families": [],
+        }
+    try:
+        # Bind once so every profile/route lookup crosses the same immutable
+        # Site projection. Mismatched profile identity fails closed here.
+        bound = default_catalog().bind(
+            benchmark=benchmark,
+            site=site,
+            profile=profile,
+        )
+    except SiteTargetingDefinitionError:
+        return {
+            "schema_version": ROUTE_CONTRACTS_SCHEMA_VERSION,
+            "site": site,
+            "benchmark": benchmark,
+            "route_families": [],
+        }
+    uncovered = _uncovered_surface_ids(site, profile, benchmark=benchmark, bound=bound)
+    covered = _covered_surface_ids(site, profile, benchmark=benchmark, bound=bound)
     route_families: list[dict[str, Any]] = []
 
     for spec in sorted(iter_specs(site=site, benchmark=benchmark), key=lambda item: item.method):
         for kind in sorted(spec.kinds):
             raw_surface = spec.surface_id_per_kind.get(kind, spec.method)
-            canonical = canonical_core_surface(site, raw_surface)
+            canonical = bound.canonicalize_surface_id(raw_surface)
+            if not canonical:
+                canonical = canonical_core_surface(site, raw_surface)
             if not canonical or not is_core_surface(site, canonical):
                 continue
             if not is_active_carrier_surface(site, canonical, kind=kind, method=spec.method):
                 continue
-            profile_resolution = resolve_profile_surface(
-                benchmark=benchmark,
-                site=site,
-                profile=profile,
-                target_surface_id=canonical,
+            profile_resolution = bound.resolve_profile_surface(
+                canonical,
                 kind=kind,
                 method=spec.method,
                 editor_surface_id=raw_surface,
@@ -98,6 +122,7 @@ def build_task_route_contracts(
                 profile=profile,
                 profile_surface=profile_surface,
                 surface_resolution=surface_resolution,
+                bound=bound,
             )
             if route is not None:
                 route_families.append(route)
@@ -108,6 +133,34 @@ def build_task_route_contracts(
         "benchmark": benchmark,
         "route_families": route_families,
     }
+
+
+def _valid_profile_shape(profile: object) -> bool:
+    if not isinstance(profile, Mapping):
+        return False
+    for field in ("site_name", "site", "benchmark_name", "benchmark"):
+        if field in profile and (not isinstance(profile[field], str) or not profile[field].strip()):
+            return False
+    for field in ("injection_surface", "data_model"):
+        if field not in profile:
+            continue
+        value = profile[field]
+        if not isinstance(value, list) or any(not isinstance(item, Mapping) for item in value):
+            return False
+    available = profile.get("available_entities")
+    if "available_entities" in profile and not isinstance(available, Mapping):
+        return False
+    coverage = profile.get("existing_task_coverage")
+    if "existing_task_coverage" in profile and not isinstance(coverage, Mapping):
+        return False
+    if isinstance(coverage, Mapping):
+        for field in (
+            "injection_surfaces_with_task_coverage",
+            "injection_surfaces_without_task_coverage",
+        ):
+            if field in coverage and not isinstance(coverage[field], list):
+                return False
+    return True
 
 
 def route_contracts_digest(route_contracts: Mapping[str, Any]) -> str:
@@ -214,17 +267,15 @@ def _route_family_for_spec(
     profile: Mapping[str, Any],
     profile_surface: Mapping[str, Any] | None,
     surface_resolution: Mapping[str, Any] | None,
+    bound: Any,
 ) -> dict[str, Any] | None:
-    placeholder = placeholder_for_site(site)
-    if placeholder is None:
-        return None
-    anchor_examples = _anchor_examples_for_route(site=site, kind=kind, profile=profile)
-    requires_inventory_backed_start_url = _requires_inventory_backed_start_url(site, kind) or bool(
-        anchor_examples
-    )
+    route_facts = bound.route_contract_facts(kind)
+    anchor_examples = [dict(example) for example in route_facts.anchor_examples]
+    _apply_anchor_policy(site=site, kind=kind, examples=anchor_examples)
+    requires_inventory_backed_start_url = route_facts.requires_inventory_backed_start_url
     if requires_inventory_backed_start_url and not anchor_examples:
         return None
-    start_patterns = _start_url_patterns(site, kind, placeholder)
+    start_patterns = list(route_facts.allowed_start_url_patterns)
     start_patterns = _phase2_admissible_start_patterns(
         site=site,
         kind=kind,
@@ -267,7 +318,9 @@ def _route_family_for_spec(
         and profile_surface is not None
     ):
         route["profile_surface_overlay"] = dict(profile_surface)
-    route_variant = _route_variant_from_anchor_examples(anchor_examples)
+    route_variant = route_facts.route_variant or _route_variant_from_anchor_examples(
+        anchor_examples
+    )
     if route_variant is not None:
         route["route_variant"] = route_variant
     if requires_inventory_backed_start_url:
@@ -290,7 +343,32 @@ def _route_variant_from_anchor_examples(
     return None
 
 
+def _apply_anchor_policy(
+    *,
+    site: str,
+    kind: str,
+    examples: list[dict[str, Any]],
+) -> None:
+    """Add Phase-owned seed/visibility policy to Site inventory facts."""
+
+    if site != "reddit" or kind != "reddit_submission":
+        return
+    for example in examples:
+        raw_count = example.get("existing_comment_count")
+        if not isinstance(raw_count, str) or not raw_count.isdigit():
+            continue
+        if int(raw_count) > DEFAULT_REDDIT_MAX_EXISTING_COMMENTS:
+            example.pop("existing_comment_count", None)
+            continue
+        example["max_existing_comments_for_comment_seed"] = str(
+            DEFAULT_REDDIT_MAX_EXISTING_COMMENTS
+        )
+        example["seeded_comment_visibility_candidate"] = "true"
+
+
 def _start_url_patterns(site: str, kind: str, placeholder: str) -> list[str]:
+    """Compatibility delegate for the Site-owned route descriptor."""
+
     try:
         routes = default_catalog().bind(site=site).routes()
     except SiteTargetingDefinitionError:
@@ -309,9 +387,13 @@ def _start_url_patterns(site: str, kind: str, placeholder: str) -> list[str]:
 
 
 def _requires_inventory_backed_start_url(site: str, kind: str) -> bool:
-    if site == "gitlab":
-        return kind in {"gitlab_issue", "gitlab_mr", "gitlab_search_result"}
-    return site == "reddit" and kind in {"reddit_forum", "reddit_submission"}
+    """Compatibility delegate for Site route inventory requirements."""
+
+    try:
+        bound = default_catalog().bind(site=site)
+    except SiteTargetingDefinitionError:
+        return False
+    return bound.route_contract_facts(kind).requires_inventory_backed_start_url
 
 
 def _anchor_examples_for_route(
@@ -320,418 +402,33 @@ def _anchor_examples_for_route(
     kind: str,
     profile: Mapping[str, Any],
 ) -> list[dict[str, str]]:
-    placeholder = placeholder_for_site(site)
-    if placeholder is None:
+    try:
+        bound = default_catalog().bind(site=site, profile=profile)
+    except SiteTargetingDefinitionError:
         return []
-    if site == "reddit" and kind == "reddit_forum":
-        return _reddit_forum_examples(placeholder, profile)
-    if site == "reddit" and kind == "reddit_submission":
-        return _reddit_submission_examples(placeholder, profile)
-    if site != "gitlab":
-        return []
-    if kind == "gitlab_search_result":
-        return _gitlab_project_issue_list_examples(placeholder, profile)
-    entity_names = (
-        ("issue", "issues")
-        if kind == "gitlab_issue"
-        else ("merge_request", "merge_requests")
-        if kind == "gitlab_mr"
-        else ()
-    )
-    if not entity_names:
-        return []
-    examples: list[dict[str, str]] = []
-    for sample in _data_model_sample_values(profile, entity_names):
-        project_path = _gitlab_project_path_from_sample(sample, profile)
-        iid = sample.get("iid") or sample.get("issue_iid") or sample.get("mr_iid")
-        if not project_path or iid is None:
-            continue
-        iid_text = str(iid).strip()
-        if not iid_text:
-            continue
-        if kind == "gitlab_issue":
-            examples.append(
-                {
-                    "project_path": project_path,
-                    "issue_iid": iid_text,
-                    "start_url": f"{placeholder}/{project_path}/-/issues/{iid_text}",
-                }
-            )
-        else:
-            examples.append(
-                {
-                    "project_path": project_path,
-                    "mr_iid": iid_text,
-                    "start_url": f"{placeholder}/{project_path}/-/merge_requests/{iid_text}",
-                }
-            )
-    return examples
+    return [dict(example) for example in bound.route_contract_facts(kind).anchor_examples]
 
 
-def _reddit_submission_examples(
-    placeholder: str, profile: Mapping[str, Any]
-) -> list[dict[str, str]]:
-    examples: list[dict[str, str]] = []
-    seen: set[tuple[str, str]] = set()
-    samples = [
-        *_available_entity_records(profile, ("submissions", "posts")),
-        *_data_model_sample_values(profile, ("submission", "submissions", "post", "posts")),
-    ]
-    for sample in samples:
-        forum_name = (
-            sample.get("forum_name")
-            or sample.get("forum")
-            or sample.get("subreddit")
-            or sample.get("community")
-            or _reddit_forum_id_slug(sample.get("forum_id"))
-        )
-        submission_id = sample.get("submission_id") or sample.get("id") or sample.get("post_id")
-        if forum_name is None or submission_id is None:
-            continue
-        forum_text = _normalize_reddit_forum_name(forum_name)
-        submission_text = str(submission_id).strip()
-        if not forum_text or re.search(r"\s", forum_text) or not submission_text:
-            continue
-        key = (forum_text, submission_text)
-        if key in seen:
-            continue
-        seen.add(key)
-        example = {
-            "forum_name": forum_text,
-            "submission_id": submission_text,
-            "start_url": f"{placeholder}/f/{forum_text}/{submission_text}",
-        }
-        comment_count = _reddit_submission_comment_count_from_sample(sample)
-        if comment_count is not None and comment_count <= DEFAULT_REDDIT_MAX_EXISTING_COMMENTS:
-            example["existing_comment_count"] = str(comment_count)
-            example["max_existing_comments_for_comment_seed"] = str(
-                DEFAULT_REDDIT_MAX_EXISTING_COMMENTS
-            )
-            example["seeded_comment_visibility_candidate"] = "true"
-        examples.append(example)
-    return examples
-
-
-def _reddit_submission_comment_count_from_sample(sample: Mapping[str, Any]) -> int | None:
-    for key in (
-        "existing_comment_count",
-        "comment_count",
-        "comments_count",
-        "num_comments",
-    ):
-        value = sample.get(key)
-        if isinstance(value, bool):
-            continue
-        if isinstance(value, int):
-            return value
-        if isinstance(value, str) and value.strip().isdigit():
-            return int(value.strip())
-    return None
-
-
-def _reddit_forum_examples(placeholder: str, profile: Mapping[str, Any]) -> list[dict[str, str]]:
-    examples: list[dict[str, str]] = []
-    seen: set[str] = set()
-    available_forums = _available_entity_records(profile, ("forums", "subreddits", "communities"))
-    if available_forums:
-        candidates = list(available_forums)
-        allow_id_as_forum_id = True
-    else:
-        # Inventory-backed forum listing routes need live-reachable forum
-        # anchors. If Phase 0c DB enrichment is unavailable, accept only
-        # samples that carry explicit routed URL evidence. Static data-model
-        # Forum rows can include stale slugs that 404 on the live scale pool.
-        candidates = _routed_reddit_forum_samples(profile)
-        allow_id_as_forum_id = False
-    for sample in candidates:
-        forum_name = (
-            sample.get("forum_name")
-            or sample.get("forum")
-            or sample.get("subreddit")
-            or sample.get("community")
-            or _reddit_forum_id_slug(sample.get("forum_id"))
-            or sample.get("slug")
-            or sample.get("name")
-        )
-        if forum_name is None:
-            continue
-        forum_text = _normalize_reddit_forum_name(forum_name)
-        if re.search(r"\s", forum_text):
-            continue
-        if not forum_text or forum_text in seen:
-            continue
-        seen.add(forum_text)
-        example = {
-            "forum_name": forum_text,
-            "start_url": f"{placeholder}/f/{forum_text}",
-        }
-        forum_id = sample.get("forum_id")
-        if forum_id in (None, "") and allow_id_as_forum_id:
-            forum_id = sample.get("id")
-        if forum_id not in (None, ""):
-            example["forum_id"] = str(forum_id).strip()
-        examples.append(example)
-    return examples
-
-
-def _routed_reddit_forum_samples(profile: Mapping[str, Any]) -> list[Mapping[str, Any]]:
-    samples = [
-        *_data_model_sample_values(
-            profile, ("forum", "forums", "subreddit", "subreddits", "community", "communities")
-        ),
-        *_data_model_sample_values(profile, ("submission", "submissions", "post", "posts")),
-    ]
-    routed: list[Mapping[str, Any]] = []
-    for sample in samples:
-        forum_name = _reddit_forum_name_from_routed_sample(sample)
-        if not forum_name:
-            continue
-        merged = dict(sample)
-        merged["forum_name"] = forum_name
-        routed.append(merged)
-    return routed
-
-
-def _reddit_forum_name_from_routed_sample(sample: Mapping[str, Any]) -> str:
-    for key in ("start_url", "url", "permalink", "path", "location_page"):
-        value = sample.get(key)
-        if not isinstance(value, str) or not value.strip():
-            continue
-        forum_name = _reddit_forum_name_from_route_path(value)
-        if forum_name:
-            return forum_name
-    return ""
-
-
-def _reddit_forum_name_from_route_path(value: str) -> str:
-    raw = value.strip()
-    if not raw:
-        return ""
-    if raw.startswith("__REDDIT__/"):
-        raw = raw[len("__REDDIT__") :]
-    elif "://" in raw:
-        raw = urlsplit(raw).path
-    match = re.search(r"(?:^|/)f/([^/?#]+)", raw.strip())
-    if not match:
-        return ""
-    return _normalize_reddit_forum_name(match.group(1))
-
-
-def _available_entity_records(
-    profile: Mapping[str, Any], keys: tuple[str, ...]
-) -> list[Mapping[str, Any]]:
-    available = profile.get("available_entities")
-    if not isinstance(available, Mapping):
-        return []
-    records: list[Mapping[str, Any]] = []
-    for key in keys:
-        values = available.get(key)
-        if isinstance(values, list):
-            records.extend(item for item in values if isinstance(item, Mapping))
-    return records
-
-
-def _normalize_reddit_forum_name(value: Any) -> str:
-    raw = str(value or "").strip().strip("/")
-    if not raw:
-        return ""
-    if "://" in raw:
-        parsed = urlsplit(raw)
-        raw = parsed.path
-    raw = raw.strip().strip("/")
-    if raw.startswith("__REDDIT__/"):
-        raw = raw[len("__REDDIT__/") :]
-    if raw.startswith("f/"):
-        raw = raw[len("f/") :]
-    if "/" in raw:
-        raw = raw.split("/", 1)[0]
-    return raw.strip().strip("/")
-
-
-def _structured_reddit_forum_sample_has_slug_name(sample: Mapping[str, Any]) -> bool:
-    """Return whether a Forum sample carries a slug-like ``name``.
-
-    Kept for profile diagnostics. Route contracts do not treat this as
-    inventory evidence by itself because live runs showed structured
-    data-model Forum rows can still be stale.
-    """
-
-    name = sample.get("name") or sample.get("slug")
-    if name in (None, ""):
-        return False
-    normalized = _normalize_reddit_forum_name(name)
-    if not normalized or re.search(r"\s", normalized):
-        return False
-    return any(sample.get(key) not in (None, "") for key in ("title", "description", "sidebar"))
-
-
-def _reddit_forum_id_slug(value: Any) -> str | None:
-    """Treat textual submission.forum_id values as routed forum slugs.
-
-    Some profiles serialize Postmill's forum foreign key as the route slug
-    (`"books"`, `"DIY"`) rather than a numeric database id. Numeric ids are
-    not routable as `/f/{forum}` and must remain metadata only.
-    """
-    raw = str(value or "").strip().strip("/")
-    if not raw or raw.isdigit():
-        return None
-    return raw
-
-
-def _gitlab_project_issue_list_examples(
-    placeholder: str, profile: Mapping[str, Any]
-) -> list[dict[str, str]]:
-    examples: list[dict[str, str]] = []
-    seen: set[str] = set()
-    samples = [
-        *((sample, False) for sample in _data_model_sample_values(profile, ("issue", "issues"))),
-        *((sample, True) for sample in _available_entity_records(profile, ("projects",))),
-        *((sample, True) for sample in _data_model_sample_values(profile, ("project", "projects"))),
-    ]
-    for sample, sample_is_project in samples:
-        project_path = _gitlab_project_path_from_sample(sample, profile)
-        if not project_path or project_path in seen:
-            continue
-        seen.add(project_path)
-        example = {
-            "route_variant": "project_issue_list",
-            "project_path": project_path,
-            "scope": "issues",
-            "start_url": f"{placeholder}/{project_path}/-/issues?sort=created_date&state=opened",
-        }
-        project_id = _gitlab_project_id_from_sample(sample, sample_is_project=sample_is_project)
-        if project_id:
-            example["project_id"] = project_id
-        examples.append(example)
-    return examples
-
-
-def _gitlab_project_path_from_sample(sample: Mapping[str, Any], profile: Mapping[str, Any]) -> str:
-    for key in ("project", "project_path", "path_with_namespace", "full_path"):
-        value = sample.get(key)
-        if isinstance(value, str) and value.strip():
-            path = _normalize_gitlab_project_path(value)
-            if _is_resolvable_gitlab_project_path(path):
-                return path
-    name = sample.get("name")
-    if isinstance(name, str) and "/" in name:
-        path = _normalize_gitlab_project_path(name)
-        if _is_resolvable_gitlab_project_path(path):
-            return path
-    namespace = str(sample.get("namespace") or "").strip().strip("/")
-    path = str(sample.get("path") or "").strip().strip("/")
-    if namespace and path:
-        joined = _normalize_gitlab_project_path(f"{namespace}/{path}")
-        if _is_resolvable_gitlab_project_path(joined):
-            return joined
-    for key in ("project_id", "target_project_id", "source_project_id"):
-        project_id = sample.get(key)
-        if project_id not in (None, ""):
-            path = _gitlab_project_path_by_id(profile, project_id)
-            if _is_resolvable_gitlab_project_path(path):
-                return _normalize_gitlab_project_path(path)
-    return ""
-
-
-def _gitlab_project_id_from_sample(
-    sample: Mapping[str, Any],
-    *,
-    sample_is_project: bool = False,
-) -> str:
-    keys = ["project_id", "target_project_id", "source_project_id"]
-    if sample_is_project:
-        keys.append("id")
-    for key in keys:
-        value = sample.get(key)
-        if value in (None, ""):
-            continue
-        text = str(value).strip()
-        if text:
-            return text
-    return ""
-
-
-def _normalize_gitlab_project_path(value: Any) -> str:
-    raw = str(value or "").strip()
-    if not raw:
-        return ""
-    if "://" in raw:
-        parsed = urlsplit(raw)
-        raw = parsed.path
-    raw = raw.strip().strip("/")
-    if raw.startswith("__GITLAB__/"):
-        raw = raw[len("__GITLAB__/") :]
-    if "/-/" in raw:
-        raw = raw.split("/-/", 1)[0]
-    parts = [part for part in raw.split("/") if part]
-    if len(parts) >= 3 and (":" in parts[0] or parts[0] in {"localhost", "gitlab.local"}):
-        parts = parts[1:]
-    return "/".join(parts)
-
-
-def _is_resolvable_gitlab_project_path(value: Any) -> bool:
-    """Return whether a GitLab path is concrete enough for Phase 2 routing.
-
-    The Phase 2 GitLab resolver intentionally requires a namespace-qualified
-    project path (`namespace/project`, with optional subgroups). One-segment
-    values such as a bare project slug are ambiguous with user/group roots and
-    must not be advertised as inventory-backed route anchors.
-    """
-
-    path = _normalize_gitlab_project_path(value)
-    return len([part for part in path.split("/") if part]) >= 2
-
-
-def _gitlab_project_path_by_id(profile: Mapping[str, Any], project_id: Any) -> str:
-    wanted = str(project_id).strip()
-    if not wanted:
-        return ""
-    samples = [
-        *_available_entity_records(profile, ("projects",)),
-        *_data_model_sample_values(profile, ("project", "projects")),
-    ]
-    for sample in samples:
-        if str(sample.get("id") or "").strip() != wanted:
-            continue
-        for key in ("project", "project_path", "path_with_namespace", "full_path"):
-            value = sample.get(key)
-            if isinstance(value, str) and value.strip():
-                path = _normalize_gitlab_project_path(value)
-                if _is_resolvable_gitlab_project_path(path):
-                    return path
-        # Some Phase 0 profiles carry a full path in `name` while `path`
-        # contains only the repo slug. Use `name` only when it is already
-        # namespace-qualified; otherwise fail closed.
-        name = sample.get("name")
-        if isinstance(name, str) and "/" in name:
-            path = _normalize_gitlab_project_path(name)
-            if _is_resolvable_gitlab_project_path(path):
-                return path
-        namespace = str(sample.get("namespace") or "").strip().strip("/")
-        path = str(sample.get("path") or sample.get("name") or "").strip().strip("/")
-        if namespace and path:
-            return f"{namespace}/{path}"
-    return ""
-
-
-def _data_model_sample_values(
-    profile: Mapping[str, Any], entity_names: str | tuple[str, ...]
-) -> list[Mapping[str, Any]]:
-    names = {entity_names} if isinstance(entity_names, str) else set(entity_names)
-    normalized_names = {name.casefold() for name in names}
-    data_model = profile.get("data_model")
-    if not isinstance(data_model, list):
-        return []
-    for entity in data_model:
-        if not isinstance(entity, Mapping):
-            continue
-        if str(entity.get("entity") or "").strip().casefold() not in normalized_names:
-            continue
-        samples = entity.get("sample_values")
-        if not isinstance(samples, list):
-            return []
-        return [sample for sample in samples if isinstance(sample, Mapping)]
-    return []
+# The following names were imported by a few profile diagnostics.  Keep them
+# as one-cycle delegates while the implementation lives in the Site feature
+# modules.  They intentionally do not decide policy or eligibility.
+_reddit_submission_examples = reddit_routes._submission_examples
+_reddit_submission_comment_count_from_sample = reddit_routes._comment_count
+_reddit_forum_examples = reddit_routes._forum_examples
+_routed_reddit_forum_samples = reddit_routes._routed_forum_samples
+_reddit_forum_name_from_routed_sample = reddit_routes._forum_name_from_routed_sample
+_reddit_forum_name_from_route_path = reddit_routes._forum_name_from_route_path
+_normalize_reddit_forum_name = reddit_routes._normalize_forum_name
+_reddit_forum_id_slug = reddit_routes._forum_id_slug
+_structured_reddit_forum_sample_has_slug_name = reddit_routes._structured_forum_sample_has_slug_name
+_gitlab_project_issue_list_examples = gitlab_routes._project_issue_list_examples
+_gitlab_project_path_from_sample = gitlab_routes._project_path_from_sample
+_gitlab_project_id_from_sample = gitlab_routes._project_id_from_sample
+_normalize_gitlab_project_path = gitlab_routes._normalize_project_path
+_is_resolvable_gitlab_project_path = gitlab_routes._is_resolvable_project_path
+_gitlab_project_path_by_id = gitlab_routes._project_path_by_id
+_data_model_sample_values = gitlab_routes._data_model_sample_values
+_available_entity_records = gitlab_routes._available_entity_records
 
 
 def _phase2_admissible_start_patterns(
@@ -1188,6 +885,7 @@ def _uncovered_surface_ids(
     profile: Mapping[str, Any],
     *,
     benchmark: str = "webarena_verified",
+    bound: Any | None = None,
 ) -> set[str]:
     coverage = profile.get("existing_task_coverage")
     if not isinstance(coverage, Mapping):
@@ -1202,10 +900,10 @@ def _uncovered_surface_ids(
             continue
         key = _surface_key(raw)
         out.add(key)
-        canonical = canonicalize_surface_id(
-            benchmark=benchmark,
-            site=site,
-            raw_surface_id=raw,
+        canonical = (
+            bound.canonicalize_surface_id(raw)
+            if bound is not None
+            else canonicalize_surface_id(benchmark=benchmark, site=site, raw_surface_id=raw)
         )
         if canonical:
             out.add(_surface_key(canonical))
@@ -1217,6 +915,7 @@ def _covered_surface_ids(
     profile: Mapping[str, Any],
     *,
     benchmark: str = "webarena_verified",
+    bound: Any | None = None,
 ) -> set[str]:
     coverage = profile.get("existing_task_coverage")
     if not isinstance(coverage, Mapping):
@@ -1231,10 +930,10 @@ def _covered_surface_ids(
             continue
         key = _surface_key(raw)
         out.add(key)
-        canonical = canonicalize_surface_id(
-            benchmark=benchmark,
-            site=site,
-            raw_surface_id=raw,
+        canonical = (
+            bound.canonicalize_surface_id(raw)
+            if bound is not None
+            else canonicalize_surface_id(benchmark=benchmark, site=site, raw_surface_id=raw)
         )
         if canonical:
             out.add(_surface_key(canonical))

@@ -8,7 +8,12 @@ from typing import Any, Literal
 from urllib.parse import quote as urlquote
 from urllib.parse import urlsplit
 
-from worldsim.sites.contracts import CanonicalRoute, TargetingContext
+from worldsim.sites import gitlab_profile, gitlab_routes
+from worldsim.sites.contracts import (
+    CanonicalRoute,
+    SiteRouteContractFacts,
+    TargetingContext,
+)
 from worldsim.sites.task_evidence import _path_and_query
 
 GitLabResourceKind = Literal[
@@ -168,7 +173,7 @@ def _route(
     )
 
 
-class GitLabSite:
+class GitLabSite(gitlab_profile.GitLabProfileIdentity):
     site = "gitlab"
     supported_benchmarks = frozenset({"webarena_verified"})
     expandable_listing_kinds = frozenset({"search_result", "dashboard_list"})
@@ -176,6 +181,29 @@ class GitLabSite:
     def validate(self) -> None:
         # Route construction is deterministic and validated by BoundSite.
         return None
+
+    def route_contract_facts(
+        self,
+        *,
+        benchmark: str,
+        profile: Mapping[str, Any],
+        kind: str,
+    ) -> SiteRouteContractFacts:
+        routes = self.routes(TargetingContext(benchmark=benchmark, site=self.site, profile=profile))
+        route = next(
+            (
+                candidate
+                for candidate in routes
+                if kind in {candidate.kind, candidate.compatibility_kind}
+            ),
+            None,
+        )
+        return gitlab_routes.route_contract_facts(
+            benchmark=benchmark,
+            profile=profile,
+            kind=kind,
+            route_patterns=route.allowed_start_url_patterns if route is not None else (),
+        )
 
     def validate_task(self, task: Mapping[str, Any]) -> tuple[str, str] | None:
         agent_context = task.get("agent_context") or {}
