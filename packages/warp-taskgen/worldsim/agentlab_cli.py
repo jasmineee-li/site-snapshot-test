@@ -33,6 +33,19 @@ def run(args: Namespace) -> int:
     if getattr(args, "json", False):
         print(json.dumps(result, sort_keys=True))
     else:
+        if result.get("result_kind") == "comparison":
+            provenance = result.get("provenance")
+            artifact_dir = provenance.get("artifact_dir") if isinstance(provenance, dict) else None
+            print(
+                "AgentLab comparison "
+                f"{result.get('status', 'unknown')}: task_id={result.get('task_id', 'unknown')} "
+                f"passed={bool(result.get('passed', False))} "
+                f"steps={int(result.get('steps', 0))} "
+                f"native_reward={result.get('native_reward')} "
+                f"outcome_mode={result.get('comparison_outcome_mode', 'unknown')}"
+            )
+            print(f"Artifacts: {artifact_dir or ''}")
+            return 1 if result.get("status") in {"error", "timeout"} else 0
         print(
             "AgentLab comparison "
             f"{result.get('status', 'unknown')}: task_id={result.get('task_id', 'unknown')} "

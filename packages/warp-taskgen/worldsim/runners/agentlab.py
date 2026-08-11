@@ -41,12 +41,20 @@ from worldsim.agent_auth import _resolve_declared_storage_state_path, resolve_ag
 from worldsim.agent_config import execution_instance_dict, task_reset_endpoints
 from worldsim.agent_models import resolve_agent_model_profile
 from worldsim.agent_runtime import AgentResult
-from worldsim.benchmark_capabilities import get_benchmark_capabilities
+from worldsim.benchmark_capabilities import (
+    get_benchmark_capabilities,
+    infer_benchmark_from_metadata,
+)
 from worldsim.browser_use_agent import (
     AuthArtifactMissingError,
     _augment_storage_state_origin_aliases,
     _storage_state_context_value,
     _storage_state_site_error,
+)
+from worldsim.comparison_ingestion import (
+    COMPARISON_RESULT_FILENAME,
+    ingest_comparison_payload,
+    write_comparison_result,
 )
 from worldsim.config import has_effective_agent_auth
 from worldsim.har_converter import minimal_har_placeholder_entry
@@ -162,9 +170,33 @@ async def _reset_task_environment(task: dict[str, Any]) -> None:
 
 
 def _task_benchmark_name(task: dict[str, Any]) -> str:
-    return str(
-        task.get("benchmark_name") or task.get("benchmark_adapter") or task.get("benchmark") or ""
-    ).strip()
+    benchmark_name = infer_benchmark_from_metadata((task,))
+    return benchmark_name or ""
+
+
+def _task_identity(
+    task: dict[str, Any],
+    *,
+    reject_conflicts: bool = False,
+    strict: bool = False,
+) -> str | None:
+    values: list[str] = []
+    for field in ("id", "task_id"):
+        value = task.get(field)
+        if value is None:
+            continue
+        if strict and (isinstance(value, bool) or not isinstance(value, (str, int))):
+            raise ValueError(f"AgentLab task {field} must be a non-empty string or integer")
+        normalized = str(value).strip()
+        if normalized:
+            values.append(normalized)
+        elif strict and value != "":
+            raise ValueError(f"AgentLab task {field} must be a non-empty string or integer")
+    if reject_conflicts and len(set(values)) > 1:
+        raise ValueError("AgentLab task has conflicting id/task_id metadata")
+    if not values:
+        return None
+    return values[0]
 
 
 def _validate_task_benchmark(task: dict[str, Any]) -> str:
@@ -359,7 +391,7 @@ def _build_sidecar_request(
     benchmark_prefix: str,
     max_steps: int,
 ) -> dict[str, Any]:
-    task_id = str(task.get("id", task.get("task_id", "unknown")))
+    task_id = _task_identity(task) or "unknown"
     model_profile = resolve_agent_model_profile(
         agent.model,
         agent.provider,
@@ -1850,8 +1882,16 @@ def make_task_runner(
         instance: Any,
         task_dir: Path,
     ) -> dict[str, Any]:
-        task_id = str(task.get("id", task.get("task_id", "unknown")))
         benchmark_name = _validate_task_benchmark(task)
+        capabilities = get_benchmark_capabilities(benchmark_name)
+        resolved_task_id = _task_identity(
+            task,
+            reject_conflicts=capabilities.supports("comparison_ingestion"),
+            strict=capabilities.supports("comparison_ingestion"),
+        )
+        if capabilities.supports("comparison_ingestion") and resolved_task_id is None:
+            raise ValueError("AgentLab task is missing id/task_id metadata")
+        task_id = resolved_task_id or "unknown"
         instance_dict = execution_instance_dict(instance, task)
         agent_wrapper = agent if isinstance(agent, AgentLabAgentWrapper) else AgentLabAgentWrapper()
         request = _build_sidecar_request(
@@ -1864,6 +1904,12 @@ def make_task_runner(
             max_steps=max_steps,
         )
 
+        comparison_result_path = task_dir / COMPARISON_RESULT_FILENAME
+        comparison_result_path.unlink(missing_ok=True)
+        if capabilities.supports("comparison_ingestion"):
+            # A reused task directory must never present a stale WARP sentinel
+            # beside the current benchmark-native comparison envelope.
+            (task_dir / "result.json").unlink(missing_ok=True)
         await _reset_task_environment(task)
         if attack_mode == "seeded_comparison":
             seed = task.get("adversarial_data_seed", task.get("data_seed", {}))
@@ -1871,6 +1917,21 @@ def make_task_runner(
                 await apply_data_seed_async(seed, instance_dict)
 
         sidecar_result = await asyncio.to_thread(_run_sidecar_request, request, task_dir)
+        if capabilities.supports("comparison_ingestion"):
+            # Native comparison records require string identity.  Normalize
+            # legacy numeric task IDs at this orchestration boundary while
+            # keeping the ingestion module strict for direct callers.
+            comparison_task = dict(task)
+            comparison_task.pop("id", None)
+            comparison_task.pop("task_id", None)
+            comparison_task["task_id"] = task_id
+            comparison_record = ingest_comparison_payload(
+                comparison_task,
+                sidecar_result,
+                artifact_dir=task_dir,
+            )
+            write_comparison_result(comparison_result_path, comparison_record)
+            return comparison_record.to_dict()
         parsed = _parse_sidecar_result(task_id, task_dir, sidecar_result)
         _persist_result_sentinel(task, task_dir, parsed)
         return parsed
