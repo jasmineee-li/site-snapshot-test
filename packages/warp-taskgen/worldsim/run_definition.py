@@ -1,9 +1,9 @@
-"""Read-only Run Definition and Resume Plan projections.
+"""Run Definition projection, transition, and advisory resume planning.
 
-This module explains the semantic inputs already persisted in pipeline state.
-It does not write state, route resume, or replace feature-owned checkpoint
-validators.  Persisted opaque Run IDs and Derived Run creation belong to the
-next migration slice; legacy runs are never assigned an inferred identity.
+This module owns the pure identity decision. State persistence and CLI routing
+consume its value objects, while feature-owned checkpoint validators retain
+reuse authority. Derived Run materialization remains a later migration slice;
+legacy runs are never assigned an inferred identity.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ import json
 from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType
+from urllib.parse import urlsplit
 
 from worldsim.run_definition_contracts import (
     _SCHEMA_VERSION,
@@ -53,7 +54,7 @@ _CONTRIBUTOR_FIELDS: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "phase_2b_texts_per_plan phase_2_text_model phase_2a_action_policy "
             "phase_2a_resolution_signature exposure_contract_signature skip_feasibility "
             "feasibility_only feasibility_instances feasibility_retry_count "
-            "feasibility_ttl_hours force_reverify"
+            "feasibility_ttl_hours force_reverify no_l3_l4"
         ),
         "phase_4": _fields(
             "agent_model agent_runner agent_provider agent_service_tier agent_llm_timeout "
@@ -115,6 +116,8 @@ def _normalise_value(value: object, *, field: str) -> object:
     if value is None or isinstance(value, (str, bool, int, float)):
         if isinstance(value, float) and not (float("-inf") < value < float("inf")):
             raise ValueError(f"run definition {field} must contain finite numbers")
+        if isinstance(value, str) and _has_url_userinfo(value):
+            return _safe_sensitive_identity(value)
         if (field.endswith(("_path", "_dir", "_root")) or field in _PATH_FIELDS) and isinstance(
             value, str
         ):
@@ -133,6 +136,14 @@ def _is_sensitive_key(key: str) -> bool:
         "".join(character for character in part if character.isalnum()) in compact
         for part in _SENSITIVE_KEY_PARTS
     )
+
+
+def _has_url_userinfo(value: str) -> bool:
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return False
+    return bool(parsed.scheme and parsed.netloc and (parsed.username or parsed.password))
 
 
 def _safe_sensitive_identity(value: object) -> object:
@@ -193,14 +204,23 @@ def _redact_state_for_status(value: object) -> object:
     """Preserve legacy status shape while removing secret-bearing values."""
 
     if isinstance(value, Mapping):
-        return {
-            str(key): "<redacted>"
-            if _is_sensitive_key(str(key))
-            else _redact_state_for_status(item)
-            for key, item in value.items()
-        }
+        redacted: dict[str, object] = {}
+        for key, item in value.items():
+            name = str(key)
+            if _is_sensitive_key(name):
+                redacted[name] = "<redacted>"
+            elif name in {"run_id", "source_run_id"} and item is not None:
+                try:
+                    redacted[name] = _optional_identity(item, field=name)
+                except ValueError:
+                    redacted[name] = "<invalid>"
+            else:
+                redacted[name] = _redact_state_for_status(item)
+        return redacted
     if isinstance(value, list):
         return [_redact_state_for_status(item) for item in value]
+    if isinstance(value, str) and _has_url_userinfo(value):
+        return "<redacted>"
     return value
 
 
@@ -227,7 +247,18 @@ def _definition_from_envelope(envelope: Mapping[str, object]) -> RunDefinition:
     for owner, values in contributions.items():
         if not isinstance(owner, str) or not owner.strip() or not isinstance(values, Mapping):
             raise ValueError("persisted run definition contributors must be named mappings")
-        normalised_contributions[owner] = _normalise_value(values, field=owner)
+        allowed_fields = _CONTRIBUTOR_FIELDS.get(owner)
+        if allowed_fields is None:
+            raise ValueError(f"unknown persisted run definition contributor {owner!r}")
+        unknown_fields = set(values).difference(allowed_fields)
+        if unknown_fields:
+            raise ValueError(
+                f"unknown persisted run definition fields for {owner}: "
+                + ", ".join(sorted(str(field) for field in unknown_fields))
+            )
+        normalised_contributions[owner] = {
+            str(field): _normalise_value(item, field=str(field)) for field, item in values.items()
+        }
     digest = envelope.get("definition_digest")
     if not isinstance(digest, str):
         raise ValueError("persisted run definition digest must be a string")
@@ -290,6 +321,47 @@ def define_run(effective_inputs: Mapping[str, object] | Path) -> RunDefinition:
         contributions=frozen,  # type: ignore[arg-type]
         legacy=legacy,
     )
+
+
+def _project_requested_definition(
+    source: RunDefinition,
+    effective_inputs: Mapping[str, object],
+    *,
+    persisted_state: Mapping[str, object] | None = None,
+) -> tuple[RunDefinition, tuple[str, ...]]:
+    """Merge explicit inputs into a source definition and report semantic drift."""
+
+    if not isinstance(source, RunDefinition) or not isinstance(effective_inputs, Mapping):
+        raise ValueError("source and effective_inputs must be Run Definition values")
+    source_inputs = {
+        field: _thaw(value)
+        for values in source.contributions.values()
+        for field, value in values.items()
+    }
+    if persisted_state is not None and not source.legacy:
+        projected_state = define_run(
+            {
+                field: persisted_state[field]
+                for fields in _CONTRIBUTOR_FIELDS.values()
+                for field in fields
+                if field in persisted_state and field in source_inputs
+            }
+        )
+        observed = {
+            field: _thaw(value)
+            for values in projected_state.contributions.values()
+            for field, value in values.items()
+        }
+        for field, expected in source_inputs.items():
+            if field in observed and observed[field] != expected:
+                raise ValueError(f"pipeline state field {field!r} conflicts with run_definition")
+    merged = dict(source_inputs)
+    for fields in _CONTRIBUTOR_FIELDS.values():
+        for field in fields:
+            if field in effective_inputs:
+                merged[field] = effective_inputs[field]
+    requested = define_run(merged)
+    return requested, _drift_fields(source, requested)
 
 
 def _flatten(contributions: Mapping[str, Mapping[str, object]]) -> dict[str, object]:

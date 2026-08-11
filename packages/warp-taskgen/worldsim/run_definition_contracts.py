@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -15,6 +16,9 @@ _SCHEMA_VERSION = 1
 CheckpointAction = Literal["reuse", "rerun", "reject", "not_inspected"]
 LifecycleAction = Literal["advance_phase", "rerun_phase", "finished", "reject"]
 ResumeMode = Literal["exact", "legacy", "derived_required", "rejected"]
+RunTransitionKind = Literal["new", "exact", "legacy", "derived_required", "rejected"]
+
+_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 
 
 def _freeze(value: object) -> object:
@@ -60,7 +64,12 @@ def _optional_identity(value: object, *, field: str) -> str | None:
         return None
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"run definition {field} must be a non-empty string or null")
-    return value.strip()
+    candidate = value.strip()
+    if candidate in {".", ".."} or _RUN_ID.fullmatch(candidate) is None:
+        raise ValueError(
+            f"run definition {field} must contain only safe opaque identifier characters"
+        )
+    return candidate
 
 
 @dataclass(frozen=True)
@@ -77,8 +86,8 @@ class RunDefinition:
     def __post_init__(self) -> None:
         if type(self.schema_version) is not int or self.schema_version != _SCHEMA_VERSION:
             raise ValueError(f"run definition schema_version must be {_SCHEMA_VERSION}")
-        _optional_identity(self.run_id, field="run_id")
-        _optional_identity(self.source_run_id, field="source_run_id")
+        run_id = _optional_identity(self.run_id, field="run_id")
+        source_run_id = _optional_identity(self.source_run_id, field="source_run_id")
         if not isinstance(self.definition_digest, str) or len(self.definition_digest) != 64:
             raise ValueError("run definition digest must be a SHA-256 hex string")
         try:
@@ -98,8 +107,12 @@ class RunDefinition:
             raise ValueError("legacy run definition cannot declare a run_id")
         if not self.legacy and self.run_id is None:
             raise ValueError("non-legacy run definition requires a run_id")
-        if self.source_run_id is not None and self.run_id is None:
+        if source_run_id is not None and run_id is None:
             raise ValueError("source_run_id requires a persisted run_id")
+        if source_run_id is not None and source_run_id == run_id:
+            raise ValueError("source_run_id must not equal run_id")
+        object.__setattr__(self, "run_id", run_id)
+        object.__setattr__(self, "source_run_id", source_run_id)
         object.__setattr__(self, "contributions", frozen)
 
     def to_dict(self) -> dict[str, object]:
@@ -200,4 +213,51 @@ class ResumePlan:
             "drift_fields": list(self.drift_fields),
             "checkpoint_decisions": [row.to_dict() for row in self.checkpoint_decisions],
             "errors": list(self.errors),
+        }
+
+
+@dataclass(frozen=True)
+class RunTransition:
+    """Pure decision about the identity used by one CLI dispatch."""
+
+    kind: RunTransitionKind
+    definition: RunDefinition | None
+    source_definition: RunDefinition | None
+    drift_fields: tuple[str, ...] = ()
+    reason_code: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.kind not in {"new", "exact", "legacy", "derived_required", "rejected"}:
+            raise ValueError("run transition has unsupported kind")
+        object.__setattr__(self, "drift_fields", tuple(self.drift_fields))
+        if self.kind in {"new", "exact"}:
+            if self.definition is None or self.definition.legacy:
+                raise ValueError(f"{self.kind} transition requires a persisted definition")
+        if self.kind == "new" and self.source_definition is not None:
+            raise ValueError("new transition cannot declare a source definition")
+        if self.kind == "exact" and self.source_definition != self.definition:
+            raise ValueError("exact transition must retain its source definition")
+        if self.kind == "legacy" and (self.definition is None or not self.definition.legacy):
+            raise ValueError("legacy transition requires a legacy definition")
+        if self.kind == "legacy" and self.source_definition != self.definition:
+            raise ValueError("legacy transition must retain its source definition")
+        if self.kind in {"derived_required", "rejected"} and not self.reason_code:
+            raise ValueError(f"{self.kind} transition requires a reason")
+        if self.kind == "derived_required":
+            if self.source_definition is None or self.source_definition.legacy:
+                raise ValueError("derived_required transition needs an identified source")
+            if self.definition is None or not self.definition.legacy:
+                raise ValueError("derived_required transition must not allocate child identity")
+            if not self.drift_fields:
+                raise ValueError("derived_required transition must describe definition drift")
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "kind": self.kind,
+            "definition": self.definition.to_dict() if self.definition is not None else None,
+            "source_definition": (
+                self.source_definition.to_dict() if self.source_definition is not None else None
+            ),
+            "drift_fields": list(self.drift_fields),
+            "reason_code": self.reason_code,
         }

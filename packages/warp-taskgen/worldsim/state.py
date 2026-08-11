@@ -12,12 +12,17 @@ from __future__ import annotations
 import json
 import logging
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
+from worldsim.run_definition import define_run
+from worldsim.run_definition_contracts import RunDefinition
 
 logger = logging.getLogger(__name__)
 _DEFAULT_STATE_DIR = Path("logs")
@@ -25,6 +30,20 @@ _RESUME_POINTER = _DEFAULT_STATE_DIR / "last_run_state.json"
 _PATHISH_METADATA_KEYS = {"feasibility_instances"}
 STATE_DIR_ENV = "WARP_TASKGEN_STATE_DIR"
 LEGACY_STATE_DIR_ENV = "WORLDSIM_STATE_DIR"
+_RESERVED_STATE_KEYS = frozenset(
+    {
+        "step",
+        "iteration",
+        "timestamp",
+        "logs_dir",
+        "state_file",
+        "run_definition",
+        "run_id",
+        "source_run_id",
+        "definition_digest",
+        "run_definition_schema_version",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -33,6 +52,55 @@ class _StateCandidate:
     source: str
     authoritative: bool
     path: Path | None = None
+
+
+@dataclass(frozen=True)
+class _RunPersistenceBinding:
+    state_dir: Path
+    definition: RunDefinition
+
+
+_RUN_PERSISTENCE: ContextVar[_RunPersistenceBinding | None] = ContextVar(
+    "worldsim_run_persistence",
+    default=None,
+)
+
+
+@contextmanager
+def bind_run_definition(
+    definition: RunDefinition | None,
+    *,
+    state_dir: Path | None = None,
+) -> Iterator[None]:
+    """Scope immutable Run identity to writes for exactly one state root."""
+
+    if definition is None or definition.legacy:
+        yield
+        return
+    if not isinstance(definition, RunDefinition):
+        raise ValueError("definition must be a RunDefinition or null")
+    root = _canonical_path(state_dir or get_state_dir())
+    validate_run_definition_binding(definition, state_dir=root)
+    token = _RUN_PERSISTENCE.set(_RunPersistenceBinding(root, definition))
+    try:
+        yield
+    finally:
+        _RUN_PERSISTENCE.reset(token)
+
+
+def validate_run_definition_binding(
+    definition: RunDefinition | None,
+    *,
+    state_dir: Path | None = None,
+) -> None:
+    """Validate identity compatibility without entering the persistence context."""
+
+    if definition is None or definition.legacy:
+        return
+    if not isinstance(definition, RunDefinition):
+        raise ValueError("definition must be a RunDefinition or null")
+    root = _canonical_path(state_dir or get_state_dir())
+    _validate_existing_definition(root / "pipeline_state.json", definition)
 
 
 def get_state_dir() -> Path:
@@ -55,7 +123,9 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
     """
     state_dir = get_state_dir()
     state_file = get_state_file()
-    state_dir.mkdir(parents=True, exist_ok=True)
+    conflicting = sorted(_RESERVED_STATE_KEYS.intersection(metadata))
+    if conflicting:
+        raise ValueError("state metadata cannot replace reserved fields: " + ", ".join(conflicting))
     normalized_metadata = _normalize_state_metadata(metadata)
     state = {
         "step": step,
@@ -64,6 +134,11 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
         "logs_dir": str(state_dir),
         **normalized_metadata,
     }
+    binding = _RUN_PERSISTENCE.get()
+    if binding is not None and _canonical_path(state_dir) == binding.state_dir:
+        _validate_existing_definition(state_file, binding.definition)
+        state["run_definition"] = binding.definition.to_dict()
+    state_dir.mkdir(parents=True, exist_ok=True)
     # Discovery pointer first: if a crash lands between the two writes for a
     # brand-new custom logs dir, ``resume`` can still recover from the mirrored
     # snapshot instead of losing the run entirely.
@@ -72,6 +147,22 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
     # Atomic write: write to a temp file in the same directory, then rename.
     # os.replace is atomic on POSIX when src and dst are on the same filesystem.
     write_json_atomic(state_file, state, failpoint_base=f"state.save_state.{step}.{status}")
+
+
+def _validate_existing_definition(path: Path, expected: RunDefinition) -> None:
+    if not path.exists():
+        return
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"existing pipeline state at {path} is unreadable") from exc
+    if not isinstance(payload, dict):
+        raise ValueError(f"existing pipeline state at {path} must contain an object")
+    observed = define_run(payload)
+    if observed.legacy:
+        raise ValueError("cannot attach Run identity to an existing legacy state root")
+    if observed != expected:
+        raise ValueError("existing pipeline state Run Definition does not match dispatch identity")
 
 
 def load_state() -> dict[str, Any] | None:
@@ -87,6 +178,18 @@ def load_state() -> dict[str, Any] | None:
     return _select_best_state(
         [candidate for candidate in [primary, *mirror_candidates] if candidate is not None]
     )
+
+
+def load_state_for_current_root() -> dict[str, Any] | None:
+    """Return state only for the dynamic state root, including mirror recovery."""
+
+    primary = _load_state_candidate(get_state_file(), source="authoritative state")
+    candidates = [
+        candidate
+        for candidate in [primary, *_load_resume_pointer_candidates()]
+        if candidate is not None
+    ]
+    return _select_best_state(candidates, expected_logs_dir=get_state_dir())
 
 
 def _state_dir_override() -> str | None:
@@ -248,11 +351,15 @@ def _candidate_matches_expected_dir(
     expected_logs_dir: Path,
     expected_state_file: Path,
 ) -> bool:
-    if _payload_logs_dir(candidate.payload) != expected_logs_dir:
+    payload_logs_dir = _payload_logs_dir(candidate.payload)
+    if candidate.authoritative:
+        return candidate.path == expected_state_file and payload_logs_dir in {
+            None,
+            expected_logs_dir,
+        }
+    if payload_logs_dir != expected_logs_dir:
         return False
-    if candidate.authoritative and candidate.path != expected_state_file:
-        return False
-    if not candidate.authoritative and _resume_pointer_target(candidate.payload) != expected_state_file:
+    if _resume_pointer_target(candidate.payload) != expected_state_file:
         return False
     return True
 

@@ -73,10 +73,14 @@ Current and target ownership should stay explicit:
   admission, or dispatch rewards. The AgentLab runner owns subprocess and
   reset orchestration and calls this module only after a native `run`.
 - `worldsim.run_definition`: immutable, non-secret Run Definition projection,
-  deterministic Definition Digests, and read-only Resume Plans. It explains
-  pipeline lifecycle and feature-checkpoint ownership but must not write state,
-  route resume, accept checkpoints, or replace Phase 2/4 fingerprint policies.
-  Opaque Run ID persistence and Derived Run creation are a later migration.
+  deterministic Definition Digests, and read-only Resume Plans.
+  `worldsim.run_transition` owns pure Run-transition decisions, while
+  `worldsim.cli.run_identity` normalizes shared CLI defaults and binds those
+  decisions to dispatch. `worldsim.state` owns the state-root-scoped context
+  that persists an exact Run Definition into each atomic checkpoint, while the
+  CLI consumes transition decisions. This seam must not accept checkpoints or
+  replace Phase 2/4 fingerprint policies. Isolated Derived Run materialization
+  remains a later migration; current definition drift stops before dispatch.
 - `worldsim.seeding`: host-side seed validation, context rendering, editor-call
   execution, read-surface/result metadata, reddit/map context resolution,
   runtime error validation, DB helpers, and editor-argument compatibility. This
