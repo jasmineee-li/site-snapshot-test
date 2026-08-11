@@ -7,6 +7,7 @@ import pytest
 
 from worldsim.sites import (
     CanonicalRoute,
+    ListingItemCandidate,
     SiteCatalog,
     SiteTargetingDefinitionError,
     SourceListing,
@@ -162,43 +163,37 @@ def test_binding_rejects_profile_and_origin_disagreement():
 def test_malformed_nested_task_metadata_returns_a_failure():
     malformed_reward = _task("gitlab", "__GITLAB__/namespace/project/-/issues/7")
     malformed_reward["reward_function"] = "not-a-mapping"
-    failure = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS).resolve(
-        malformed_reward
-    )
+    failure = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS).resolve(malformed_reward)
     assert isinstance(failure, TargetingFailure)
 
     malformed_eval = _task("gitlab", "__GITLAB__/namespace/project/-/issues/7")
     malformed_eval["reward_function"]["eval"] = {
         "expected": {"url": "__GITLAB__/namespace/project/-/issues/7"}
     }
-    failure = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS).resolve(
-        malformed_eval
-    )
+    failure = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS).resolve(malformed_eval)
     assert isinstance(failure, TargetingFailure)
     assert failure.reason == "malformed_metadata"
 
     malformed_start_urls = _task("gitlab", "__GITLAB__/namespace/project/-/issues/7")
-    malformed_start_urls["start_urls"] = [
-        {"url": "__GITLAB__/namespace/project/-/issues/7"}
-    ]
-    failure = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS).resolve(
-        malformed_start_urls
+    malformed_start_urls["start_urls"] = [{"url": "__GITLAB__/namespace/project/-/issues/7"}]
+    failure = (
+        SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS).resolve(malformed_start_urls)
     )
     assert isinstance(failure, TargetingFailure)
     assert failure.reason == "malformed_metadata"
 
     malformed_delivery = _task("gitlab", "__GITLAB__/namespace/project/-/issues/7")
     malformed_delivery["delivery_channel"] = ["gitlab"]
-    failure = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS).resolve(
-        malformed_delivery
+    failure = (
+        SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS).resolve(malformed_delivery)
     )
     assert isinstance(failure, TargetingFailure)
     assert failure.reason == "malformed_metadata"
 
     malformed_context = _task("gitlab", "__GITLAB__/overlap")
     malformed_context["agent_context"] = "not-a-mapping"
-    failure = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS).resolve(
-        malformed_context
+    failure = (
+        SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS).resolve(malformed_context)
     )
     assert isinstance(failure, TargetingFailure)
 
@@ -242,9 +237,13 @@ def test_benchmark_aliases_normalize_before_profile_and_adapter_validation():
 
 
 def test_bound_site_rejects_layers_outside_deterministic_targeting():
-    failure = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS).resolve(
-        _task("gitlab", "__GITLAB__/namespace/project/-/issues/7"),
-        allow_layers=("L1", "L3"),
+    failure = (
+        SiteCatalog()
+        .bind(site="gitlab", placeholders=PLACEHOLDERS)
+        .resolve(
+            _task("gitlab", "__GITLAB__/namespace/project/-/issues/7"),
+            allow_layers=("L1", "L3"),
+        )
     )
 
     assert isinstance(failure, TargetingFailure)
@@ -402,11 +401,15 @@ def test_injected_fake_site_proves_catalog_seam_without_production_registration(
 
 
 def test_gitlab_issue_listing_is_classified_by_the_site_grammar():
-    target = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS).resolve(
-        _task(
-            "gitlab",
-            "__GITLAB__/namespace/project/-/issues",
-            start_url="__GITLAB__/namespace/project/-/issues",
+    target = (
+        SiteCatalog()
+        .bind(site="gitlab", placeholders=PLACEHOLDERS)
+        .resolve(
+            _task(
+                "gitlab",
+                "__GITLAB__/namespace/project/-/issues",
+                start_url="__GITLAB__/namespace/project/-/issues",
+            )
         )
     )
 
@@ -627,3 +630,213 @@ def test_injected_fake_site_proves_candidate_seam_without_editor_contract():
 
     assert target.kind == "message"
     assert target.start_url_resolved == "https://fake.local/messages/9"
+
+
+def test_l4_listing_entry_projects_gitlab_issue_and_mr_rows():
+    bound = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS)
+    issue = bound.materialize_listing_entry(
+        ListingItemCandidate(
+            source_kind="gitlab_search_result",
+            item_kind="gitlab_issue",
+            payload={
+                "project_id": 159,
+                "iid": 104,
+                "web_url": "https://gitlab.local/byteblaze/design/-/issues/104",
+            },
+            evidence_url="https://gitlab.local/search",
+        )
+    )
+    merge_request = bound.materialize_listing_entry(
+        ListingItemCandidate(
+            source_kind="gitlab_dashboard_list",
+            item_kind="gitlab_mr",
+            payload={
+                "project_id": 159,
+                "iid": 7,
+                "web_url": "https://gitlab.local/byteblaze/design/-/merge_requests/7",
+            },
+            evidence_url="https://gitlab.local/dashboard/merge_requests",
+        )
+    )
+
+    assert issue.kind == "issue"
+    assert issue.anchors == {
+        "project_id": "159",
+        "issue_iid": "104",
+        "project_path": "byteblaze/design",
+    }
+    assert issue.start_url_resolved.endswith("/byteblaze/design/-/issues/104")
+    assert issue.layer == "L4"
+    assert merge_request.kind == "merge_request"
+    assert merge_request.canonical_route is not None
+    assert merge_request.canonical_route.compatibility_kind == "gitlab_mr"
+    assert merge_request.start_url_resolved.endswith("/-/merge_requests/7")
+
+
+def test_l4_listing_entry_rejects_unknown_rows_and_foreign_evidence():
+    bound = SiteCatalog().bind(site="gitlab", placeholders=PLACEHOLDERS)
+    unknown = bound.materialize_listing_entry(
+        ListingItemCandidate(
+            source_kind="gitlab_search_result",
+            item_kind="reddit_submission",
+            payload={"id": "1"},
+            evidence_url="https://gitlab.local/search",
+        )
+    )
+    foreign = bound.materialize_listing_entry(
+        ListingItemCandidate(
+            source_kind="gitlab_search_result",
+            item_kind="gitlab_issue",
+            payload={"project_id": 1, "iid": 2},
+            evidence_url="https://attacker.invalid/search",
+        )
+    )
+    malformed = bound.materialize_listing_entry(
+        ListingItemCandidate(
+            source_kind="gitlab_search_result",
+            item_kind="gitlab_issue",
+            payload={
+                "project_id": 1,
+                "iid": "not-an-iid",
+                "web_url": "https://gitlab.local/namespace/project/-/issues/not-an-iid",
+            },
+            evidence_url="https://gitlab.local/search",
+        )
+    )
+
+    assert isinstance(unknown, TargetingFailure)
+    assert unknown.reason == "unknown_route"
+    assert isinstance(foreign, TargetingFailure)
+    assert foreign.reason == "foreign_origin"
+    assert isinstance(malformed, TargetingFailure)
+    assert malformed.reason == "invalid_candidate"
+
+    reddit = SiteCatalog().bind(site="reddit", placeholders=PLACEHOLDERS)
+    malformed_submission = reddit.materialize_listing_entry(
+        ListingItemCandidate(
+            source_kind="reddit_dashboard_list",
+            item_kind="reddit_submission",
+            payload={"forum_name": "books", "id": "not-an-id"},
+            evidence_url="https://reddit.local/user/test/submitted",
+        )
+    )
+    assert isinstance(malformed_submission, TargetingFailure)
+    assert malformed_submission.reason == "invalid_candidate"
+
+
+def test_l4_listing_candidate_is_an_immutable_payload_snapshot():
+    payload = {"id": "42"}
+    candidate = ListingItemCandidate(
+        source_kind="reddit_dashboard_list",
+        item_kind="reddit_submission",
+        payload=payload,
+    )
+
+    payload["id"] = "99"
+    assert candidate.payload["id"] == "42"
+    with pytest.raises(TypeError):
+        candidate.payload["id"] = "7"  # type: ignore[index]
+
+
+def test_l4_listing_entry_supports_an_injected_fake_site():
+    class FakeListingSite(FakeSite):
+        expandable_listing_kinds = frozenset({"list"})
+
+        def routes(self, context):  # type: ignore[no-untyped-def]
+            return (
+                CanonicalRoute(
+                    id="fake.list",
+                    site=context.site,
+                    kind="list",
+                    compatibility_kind="fake_list",
+                    allowed_start_url_patterns=("/list",),
+                    anchor_examples=({"list_id": "1"},),
+                ),
+                CanonicalRoute(
+                    id="fake.message",
+                    site=context.site,
+                    kind="message",
+                    compatibility_kind="fake_message",
+                    allowed_start_url_patterns=("/messages/{message_id}",),
+                    anchor_examples=({"message_id": "1"},),
+                ),
+            )
+
+        def reconstruct(self, kind, anchors, context):  # type: ignore[no-untyped-def]
+            origin = context.site_origin()
+            if not origin:
+                return None
+            if kind == "list":
+                return f"{origin}/list"
+            return (
+                f"{origin}/messages/{anchors['message_id']}" if anchors.get("message_id") else None
+            )
+
+        def is_listing(self, kind):  # type: ignore[no-untyped-def]
+            return kind == "list"
+
+        def listing_item_kind(self, source_kind, item_kind, context):  # type: ignore[no-untyped-def]
+            del context
+            return (
+                "message"
+                if source_kind in {"list", "fake_list"}
+                and item_kind
+                in {
+                    "message",
+                    "fake_message",
+                }
+                else None
+            )
+
+        def listing_item_anchors(self, source_kind, item_kind, payload, context):  # type: ignore[no-untyped-def]
+            del source_kind, item_kind, context
+            return {"message_id": str(payload["id"])} if payload.get("id") else None
+
+    bound = SiteCatalog([FakeListingSite()]).bind(site="fake", origin="https://fake.local")
+    target = bound.materialize_listing_entry(
+        ListingItemCandidate(
+            source_kind="fake_list",
+            item_kind="fake_message",
+            payload={"id": 9},
+            evidence_url="https://fake.local/list",
+        )
+    )
+
+    assert not isinstance(target, TargetingFailure)
+    assert target.kind == "message"
+    assert target.start_url_resolved == "https://fake.local/messages/9"
+
+
+def test_l4_listing_capability_requires_explicit_item_kind_validation():
+    class MissingKindValidatorSite(FakeSite):
+        expandable_listing_kinds = frozenset({"list"})
+
+        def routes(self, context):  # type: ignore[no-untyped-def]
+            return (
+                CanonicalRoute(
+                    id="fake.list",
+                    site=context.site,
+                    kind="list",
+                    compatibility_kind="fake_list",
+                    allowed_start_url_patterns=("/list",),
+                    anchor_examples=({},),
+                ),
+                CanonicalRoute(
+                    id="fake.message",
+                    site=context.site,
+                    kind="message",
+                    compatibility_kind="fake_message",
+                    allowed_start_url_patterns=("/messages/{message_id}",),
+                    anchor_examples=({"message_id": "1"},),
+                ),
+            )
+
+        def is_listing(self, kind):  # type: ignore[no-untyped-def]
+            return kind == "list"
+
+        def listing_item_anchors(self, source_kind, item_kind, payload, context):  # type: ignore[no-untyped-def]
+            del source_kind, item_kind, context
+            return {"message_id": str(payload["id"])}
+
+    with pytest.raises(SiteTargetingDefinitionError, match="incomplete L4 listing capability"):
+        SiteCatalog([MissingKindValidatorSite()])

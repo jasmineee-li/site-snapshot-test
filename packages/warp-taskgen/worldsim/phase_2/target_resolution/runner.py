@@ -9,7 +9,6 @@ from collections.abc import Mapping
 from typing import Any, Literal
 
 from worldsim.phase_2.target_resolution.constants import (
-    _LISTING_KINDS,
     DEFAULT_L3_CONCURRENCY,
     DEFAULT_L4_CONCURRENCY,
 )
@@ -200,9 +199,9 @@ async def resolve_tasks(
 
     The four layers run cheap-first: every task gets L1/L2 synchronously;
     tasks whose L1/L2 record is tagged ``pending_layer="L3"`` fall back
-    to :func:`resolve_l3`; records whose resolved kind is in
-    :data:`_LISTING_KINDS` fan out via :func:`resolve_l4`. Non-listing
-    records flow through L4's identity pass unchanged.
+    to :func:`resolve_l3`; resolved records pass through Site Targeting's
+    L4 capability, where declared listings fan out and other kinds pass
+    through unchanged.
 
     Returns ``{task_id: [record, ...]}``. The list is ≥ 1 for every task
     except those whose L4 listing probe returned zero items — those
@@ -278,7 +277,7 @@ async def resolve_tasks(
 
         if (
             "L4" in allow_layers
-            and record.get("kind") in _LISTING_KINDS
+            and record.get("kind")
             and not record.get("skip_l4_expansion")
             and instance is not None
         ):

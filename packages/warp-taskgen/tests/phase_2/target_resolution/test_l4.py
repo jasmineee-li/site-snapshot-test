@@ -3,6 +3,82 @@
 from ._fixtures import *  # noqa: F403,F401
 
 
+def _fake_l4_catalog():
+    from worldsim.sites import CanonicalRoute, SiteCatalog
+
+    class FakeListingSite:
+        site = "fake"
+        supported_benchmarks = frozenset({"webarena_verified"})
+        expandable_listing_kinds = frozenset({"list"})
+
+        def validate(self):
+            return None
+
+        def validate_task(self, task):  # type: ignore[no-untyped-def]
+            del task
+            return None
+
+        def routes(self, context):  # type: ignore[no-untyped-def]
+            return (
+                CanonicalRoute(
+                    id="fake.list",
+                    site=context.site,
+                    kind="list",
+                    compatibility_kind="fake_list",
+                    allowed_start_url_patterns=("/list",),
+                    anchor_examples=({"list_id": "1"},),
+                ),
+                CanonicalRoute(
+                    id="fake.message",
+                    site=context.site,
+                    kind="message",
+                    compatibility_kind="fake_message",
+                    allowed_start_url_patterns=("/messages/{message_id}",),
+                    anchor_examples=({"message_id": "1"},),
+                ),
+            )
+
+        def match(self, url, task, context):  # type: ignore[no-untyped-def]
+            del url, task, context
+            return None
+
+        def reconstruct(self, kind, anchors, context):  # type: ignore[no-untyped-def]
+            origin = context.site_origin()
+            if not origin:
+                return None
+            if kind == "list":
+                return f"{origin}/list"
+            return (
+                f"{origin}/messages/{anchors['message_id']}" if anchors.get("message_id") else None
+            )
+
+        def is_listing(self, kind):  # type: ignore[no-untyped-def]
+            return kind == "list"
+
+        def listing_start_url(self, kind, resolved_url, fallback_url):  # type: ignore[no-untyped-def]
+            del kind, resolved_url
+            return fallback_url
+
+        def listing_item_kind(self, source_kind, item_kind, context):  # type: ignore[no-untyped-def]
+            del context
+            return (
+                "message"
+                if source_kind in {"list", "fake_list"}
+                and item_kind
+                in {
+                    "message",
+                    "fake_message",
+                }
+                else None
+            )
+
+        def listing_item_anchors(self, source_kind, item_kind, payload, context):  # type: ignore[no-untyped-def]
+            del source_kind, item_kind, context
+            return {"message_id": str(payload["id"])} if payload.get("id") else None
+
+    return SiteCatalog([FakeListingSite()])
+
+
 def test_gitlab_listing_detail_instruction_marks_transition_forced():
     task = _gitlab_task(
         eval_url=None,
@@ -176,9 +252,39 @@ def test_l4_identity_for_non_listing_kind():
         "layer": "L1",
     }
     result = asyncio.run(
-        resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe([]))
+        resolve_l4(
+            resource,
+            {},
+            {"site_url": "https://gitlab.local"},
+            probe_fn=_make_listing_probe([]),
+        )
     )
     assert result == [resource]
+
+
+def test_l4_resolve_accepts_an_injected_site_catalog_for_a_fake_listing():
+    resource = {
+        "kind": "fake_list",
+        "start_url_resolved": "https://fake.local/list",
+        "layer": "L2",
+    }
+
+    records = asyncio.run(
+        resolve_l4(
+            resource,
+            {},
+            {"site_url": "https://fake.local"},
+            probe_fn=_make_listing_probe(
+                [{"_item_kind": "fake_message", "id": "9", "title": "hello"}]
+            ),
+            catalog=_fake_l4_catalog(),
+        )
+    )
+
+    assert len(records) == 1
+    assert records[0]["kind"] == "fake_message"
+    assert records[0]["start_url_resolved"] == "https://fake.local/messages/9"
+    assert records[0]["source_listing_kind"] == "fake_list"
 
 
 def test_l4_expands_gitlab_search_to_three_issue_records():
@@ -214,7 +320,13 @@ def test_l4_expands_gitlab_search_to_three_issue_records():
         },
     ]
     records = asyncio.run(
-        resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe(items), top_n=3)
+        resolve_l4(
+            resource,
+            {},
+            {"site_url": "https://gitlab.local"},
+            probe_fn=_make_listing_probe(items),
+            top_n=3,
+        )
     )
     assert len(records) == 3
     for rec in records:
@@ -245,11 +357,60 @@ def test_l4_mr_search_projects_to_mr_records():
         },
     ]
     records = asyncio.run(
-        resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe(items))
+        resolve_l4(
+            resource,
+            {},
+            {"site_url": "https://gitlab.local"},
+            probe_fn=_make_listing_probe(items),
+        )
     )
     assert records[0]["kind"] == "gitlab_mr"
     assert records[0]["attach_surfaces"][0]["surface_id"] == "note_on_mr"
     assert records[0]["anchors"]["mr_iid"] == "7"
+
+
+def test_l4_dashboard_row_preserves_listing_provenance_and_dom_visibility():
+    resource = {
+        "kind": "gitlab_dashboard_list",
+        "anchors": {"dashboard": "merge_requests"},
+        "start_url_resolved": "https://gitlab.local/dashboard/merge_requests",
+        "attach_surfaces": [],
+        "encounter_requirements": {"viewport_budget_chars": 600},
+        "layer": "L2",
+    }
+    records = asyncio.run(
+        resolve_l4(
+            resource,
+            {},
+            {"site_url": "https://gitlab.local"},
+            probe_fn=_make_listing_probe(
+                [
+                    {
+                        "_item_kind": "gitlab_mr",
+                        "project_id": 5,
+                        "iid": 7,
+                        "web_url": "https://gitlab.local/org/repo/-/merge_requests/7",
+                        "title": "auth token rotation",
+                        "_entry_visible_href": "/org/repo/-/merge_requests/7",
+                    }
+                ]
+            ),
+        )
+    )
+
+    assert len(records) == 1
+    record = records[0]
+    assert record["kind"] == "gitlab_mr"
+    assert record["source_listing_kind"] == "gitlab_dashboard_list"
+    assert record["benign_read_url"] == "https://gitlab.local/dashboard/merge_requests"
+    assert record["seeded_detail_url"].endswith("/-/merge_requests/7")
+    assert record["l4_title"] == "auth token rotation"
+    assert record["entry_visibility_evidence"] == {
+        "entry_url": "https://gitlab.local/dashboard/merge_requests",
+        "href_path": "/org/repo/-/merge_requests/7",
+        "source": "dashboard_dom_href",
+    }
+    assert record["encounter_requirements"]["viewport_budget_chars"] == 600
 
 
 @pytest.mark.parametrize(
@@ -300,9 +461,59 @@ def test_l4_empty_probe_returns_empty_list_so_caller_excludes_task():
         "layer": "L2",
     }
     records = asyncio.run(
-        resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe([]))
+        resolve_l4(
+            resource,
+            {},
+            {"site_url": "https://gitlab.local"},
+            probe_fn=_make_listing_probe([]),
+        )
     )
     assert records == []
+
+
+def test_l4_expandable_listing_requires_a_configured_origin_before_probe():
+    resource = {
+        "kind": "gitlab_search_result",
+        "anchors": {"query": "nomatch"},
+        "layer": "L2",
+    }
+
+    async def must_not_probe(resource, task, instance):
+        raise AssertionError("missing origin must fail before the listing probe")
+
+    records = asyncio.run(
+        resolve_l4(resource, {}, {"site_url": "not-an-origin"}, probe_fn=must_not_probe)
+    )
+
+    assert len(records) == 1
+    assert records[0]["pending_layer"] == "L4"
+    assert records[0]["targeting_failure"] == "missing_origin"
+
+
+def test_l4_unsupported_benchmark_fails_before_probe():
+    resource = {
+        "kind": "gitlab_search_result",
+        "anchors": {"query": "nomatch"},
+        "layer": "L2",
+    }
+    task = {"sites": ["gitlab"]}
+
+    async def must_not_probe(resource, task, instance):
+        raise AssertionError("unsupported Benchmark must fail before the listing probe")
+
+    records = asyncio.run(
+        resolve_l4(
+            resource,
+            task,
+            {"site_url": "https://gitlab.local"},
+            probe_fn=must_not_probe,
+            benchmark="wasp",
+        )
+    )
+
+    assert len(records) == 1
+    assert records[0]["pending_layer"] == "L4"
+    assert records[0]["targeting_failure"] == "unsupported_benchmark"
 
 
 def test_l4_probe_exception_returns_error_record():
@@ -318,7 +529,9 @@ def test_l4_probe_exception_returns_error_record():
     async def boom(resource, task, instance):
         raise RuntimeError("missing benign auth")
 
-    records = asyncio.run(resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=boom))
+    records = asyncio.run(
+        resolve_l4(resource, {}, {"site_url": "https://gitlab.local"}, probe_fn=boom)
+    )
     assert len(records) == 1
     assert records[0]["kind"] is None
     assert records[0]["pending_layer"] == "L4"
@@ -342,7 +555,13 @@ def test_l4_respects_top_n_override():
         for i in range(10)
     ]
     records = asyncio.run(
-        resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe(items), top_n=2)
+        resolve_l4(
+            resource,
+            {},
+            {"site_url": "https://gitlab.local"},
+            probe_fn=_make_listing_probe(items),
+            top_n=2,
+        )
     )
     assert len(records) == 2
 
@@ -372,7 +591,7 @@ def test_l4_threads_explicit_top_n_into_default_probe(monkeypatch):
         fake_default_listing_probe,
     )
 
-    records = asyncio.run(resolve_l4(resource, {}, {"site_url": "x"}, top_n=7))
+    records = asyncio.run(resolve_l4(resource, {}, {"site_url": "https://gitlab.local"}, top_n=7))
 
     assert len(records) == 1
     assert captured["limit"] == 7
@@ -396,7 +615,12 @@ def test_l4_env_top_n_override(monkeypatch):
         for i in range(10)
     ]
     records = asyncio.run(
-        resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe(items))
+        resolve_l4(
+            resource,
+            {},
+            {"site_url": "https://gitlab.local"},
+            probe_fn=_make_listing_probe(items),
+        )
     )
     assert len(records) == 4
 
