@@ -18,10 +18,12 @@ uv run --project packages/worldsim-agentlab-runner \
   warp-taskgen-agentlab-runner run /path/to/agentlab_request.json
 ```
 
-The command prints the canonical result as the final JSON object on stdout.
+The command prints the native result as the final JSON object on stdout.
 Upstream BrowserGym/AgentLab may print informational lines before it. The
-parent WARP Taskgen process parses the final JSON object and owns conversion into
-canonical `result.json`. The legacy `worldsim-agentlab-runner` entrypoint is
+parent WARP Taskgen process parses the final JSON object. Benchmarks with the
+`comparison_ingestion` capability write a separate `comparison_result.json`;
+the historical WebArena comparison path retains its `result.json` sentinel for
+one compatibility cycle. The legacy `worldsim-agentlab-runner` entrypoint is
 kept as a compatibility alias.
 
 WARP Taskgen Phase 4 uses the sibling command:

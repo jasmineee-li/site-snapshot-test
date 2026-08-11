@@ -128,10 +128,13 @@ def infer_benchmark_from_metadata(
         if not isinstance(source, Mapping):
             raise ValueError("benchmark metadata sources must be mappings")
         for key in _BENCHMARK_METADATA_KEYS:
-            if key not in source or source[key] is None:
+            if key not in source:
                 continue
             metadata_declared = True
-            values.append(source[key])
+            value = source[key]
+            if value is None or not DEFAULT_BENCHMARK_CATALOG.normalize(value):
+                raise ValueError("benchmark metadata is empty")
+            values.append(value)
     if not metadata_declared:
         return None
     benchmark = DEFAULT_BENCHMARK_CATALOG.infer(values)

@@ -66,6 +66,12 @@ Current and target ownership should stay explicit:
   metadata only; new callers must require the named capability before
   admission. Legacy phase flags remain derived compatibility readers during
   the current migration cycle.
+- `worldsim.comparison_ingestion`: native AgentLab comparison payload
+  validation, immutable comparison-result envelopes, provenance/artifact
+  references, and atomic `comparison_result.json` persistence. This module
+  must not import AgentLab, start browsers, reset Sites, enter WARP phase
+  admission, or dispatch rewards. The AgentLab runner owns subprocess and
+  reset orchestration and calls this module only after a native `run`.
 - `worldsim.seeding`: host-side seed validation, context rendering, editor-call
   execution, read-surface/result metadata, reddit/map context resolution,
   runtime error validation, DB helpers, and editor-argument compatibility. This
