@@ -10,9 +10,21 @@ from worldsim.seeding._impl import (
     apply_data_seed_async,
     preflight_editor_seed_calls,
 )
+from worldsim.seeding.site_contracts import (
+    CreatedResourceFact,
+    EditorSeedResult,
+    ReadSurfaceFact,
+    SeedSiteRegistration,
+    SeedSiteRegistry,
+)
 
 __all__ = [
+    "CreatedResourceFact",
+    "EditorSeedResult",
+    "ReadSurfaceFact",
     "SeedCleanupHandle",
+    "SeedSiteRegistration",
+    "SeedSiteRegistry",
     "_apply_editor_seed_call",
     "_get_editor_for_seed_call",
     "apply_data_seed",
