@@ -1589,6 +1589,30 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         print(f"Last checkpoint: {last_step} has unknown status {status!r}.", file=sys.stderr)
         return 1
 
+    if state.get("process_pool"):
+        if pipeline_finished:
+            print(f"Last checkpoint: {last_step} complete. Pipeline finished — nothing to resume.")
+            return 0
+        try:
+            from worldsim.phase_4.process_pool_control import process_pool_resume_command
+
+            command = process_pool_resume_command(state)
+        except ValueError as exc:
+            print(f"Process-pool resume rejected: {exc}", file=sys.stderr)
+            return 2
+        if status != "paused":
+            print(
+                "Process-pool crash recovery remains fail-closed; inspect or repair its partial "
+                "artifacts instead of dispatching normal Phase 4.",
+                file=sys.stderr,
+            )
+            return 2
+        print(
+            f"Process-pool roots resume through the isolated supervisor wrapper:\n  {command}",
+            file=sys.stderr,
+        )
+        return 2
+
     # Build a synthetic argparse.Namespace that _dispatch_phase understands.
     # CLI flags override state metadata; state metadata fills gaps.
     benchmark = getattr(args, "benchmark", None)

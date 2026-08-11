@@ -12,10 +12,11 @@ import argparse
 import asyncio
 import json
 import os
+import shlex
 import shutil
 import sys
 from collections import Counter, deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -24,7 +25,33 @@ from worldsim.atomic_io import write_json_atomic
 from worldsim.config import BenchmarkConfig, BenchmarkInstance, load_benchmark_config
 from worldsim.phase_4._context import _normalize_phase_4_variant_system
 from worldsim.phase_4.postprocess_progress import write_phase_4_progress
+from worldsim.phase_4.process_pool_control import (
+    ProcessPoolArgs,
+    ProcessPoolOutputLocked,
+    WorkerAssignment,
+    WorkerOutcome,
+    process_pool_output_lock,
+    validate_paused_resume,
+)
+from worldsim.phase_4.process_pool_control import (
+    enter_process_pool_finalizing as _enter_process_pool_finalizing,
+)
+from worldsim.phase_4.process_pool_control import (
+    process_pool_resume_argv as _process_pool_resume_argv,
+)
+from worldsim.phase_4.process_pool_control import (
+    save_process_pool_state as _save_process_pool_state,
+)
+from worldsim.phase_4.process_pool_control import (
+    source_run_definition as _source_run_definition,
+)
 from worldsim.placeholders import normalize_site_name
+from worldsim.run_control import (
+    acknowledge_pause,
+    pause_control_lock,
+    pause_requested,
+)
+from worldsim.state import bind_run_definition, bind_state_paths
 from worldsim.task_paths import safe_task_path_component
 
 _REUSABLE_PHASE_INPUT_DIRS = ("phase_0a", "phase_0c", "phase_1", "phase_2", "phase_3")
@@ -33,55 +60,22 @@ _VARIANT_WORKER_POSTPROCESS_GRACE_S = 600
 
 
 @dataclass(frozen=True)
-class ProcessPoolArgs:
-    source_state_dir: Path
-    instances: Path
-    out_dir: Path
-    workers: int
-    runner: str
-    agent_provider: str | None
-    agent_model: str | None
-    agent_service_tier: str | None
-    agent_llm_timeout: int | None
-    agent_step_timeout: int | None
-    agent_task_timeout: int | None
-    sandbox_model: str | None
-    benchmark: Path | None
-    sites: str | None
-    adversarial_action_kind: str | None
-    max_tasks_per_site: int | None
-    phase_4_variant_system: str | None
-    phase_4_eval_awareness_max_iterations: int | None
-    phase_4_variant_budget: str | None
-    allow_unknown_auth: bool
-    skip_host_bound_storage_state_auth: bool
-    task_limit: int | None
-
-
-@dataclass(frozen=True)
-class WorkerAssignment:
-    worker_id: int
-    task: dict[str, Any]
-    instance_index: int
-    instance: BenchmarkInstance
-    state_dir: Path
-    instance_file: Path
-    stdout_log: Path
-    stderr_log: Path
-
-
-@dataclass(frozen=True)
-class WorkerOutcome:
+class _RunningWorker:
     assignment: WorkerAssignment
-    returncode: int
-    timed_out: bool
+    process: asyncio.subprocess.Process
+    slot_id: int
     started_at: str
-    finished_at: str
-    results: list[dict[str, Any]]
-    error: str | None = None
+    timeout: int | None
+
+
+@dataclass(frozen=True)
+class _AssignmentRun:
+    outcomes: list[WorkerOutcome]
+    paused: bool
 
 
 def main(argv: list[str] | None = None) -> int:
+    from worldsim.cli.phase4_lock import Phase4AlreadyRunning, _phase4_run_lock
     from worldsim.phase_4.sweep_tag import sweep_in_progress
 
     args = _parse_args(argv)
@@ -109,17 +103,36 @@ def main(argv: list[str] | None = None) -> int:
         allow_unknown_auth=args.allow_unknown_auth,
         skip_host_bound_storage_state_auth=args.skip_host_bound_storage_state_auth,
         task_limit=args.task_limit,
+        resume=args.resume,
     )
-    with sweep_in_progress():
-        return asyncio.run(run_process_pool(pool_args))
+    try:
+        with _phase4_run_lock(pool_args.source_state_dir), sweep_in_progress():
+            return asyncio.run(run_process_pool(pool_args))
+    except (Phase4AlreadyRunning, ProcessPoolOutputLocked) as exc:
+        raise SystemExit(f"process-pool supervisor is already active: {exc}") from exc
+    except ValueError as exc:
+        raise SystemExit(f"process-pool state rejected: {exc}") from exc
 
 
 async def run_process_pool(args: ProcessPoolArgs) -> int:
+    pointer = args.out_dir / "last_run_state.json"
+    source_definition = _source_run_definition(args.source_state_dir)
+    with process_pool_output_lock(args.out_dir):
+        with bind_state_paths(args.out_dir, resume_pointer=pointer):
+            with bind_run_definition(source_definition, state_dir=args.out_dir):
+                return await _run_process_pool_bound(args)
+
+
+async def _run_process_pool_bound(args: ProcessPoolArgs) -> int:
     _validate_source_state(args.source_state_dir)
+    if args.source_state_dir.resolve(strict=False) == args.out_dir.resolve(strict=False):
+        raise SystemExit("process-pool output must be isolated from its source state root")
     if args.workers <= 0:
         raise SystemExit("--workers must be positive")
-    if args.out_dir.exists() and any(args.out_dir.iterdir()):
+    if not args.resume and args.out_dir.exists() and any(args.out_dir.iterdir()):
         raise SystemExit(f"output dir already exists and is not empty: {args.out_dir}")
+    if args.resume and not args.out_dir.exists():
+        raise SystemExit(f"process-pool resume root does not exist: {args.out_dir}")
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     _materialize_reusable_phase_inputs(args.source_state_dir, args.out_dir)
@@ -131,9 +144,60 @@ async def run_process_pool(args: ProcessPoolArgs) -> int:
     if not tasks:
         raise SystemExit("no admitted Phase 4 tasks available for process pool")
 
+    if args.resume:
+        paused_state = _load_json_dict(args.out_dir / "pipeline_state.json")
+        prior_generation = paused_state.get("process_pool_resume_generation", 0)
+        if type(prior_generation) is not int or prior_generation < 0:
+            raise SystemExit("process-pool resume generation is malformed")
+        args = replace(args, resume_generation=prior_generation + 1)
     assignments = _build_assignments(args, config, tasks)
-    _write_pool_progress(args, assignments, [], status="running", stage="queued")
-    outcomes = await _run_assignments(args, assignments)
+    prior_outcomes = _load_paused_outcomes(args, assignments) if args.resume else []
+    completed_ids = {outcome.assignment.worker_id for outcome in prior_outcomes}
+    pending = [
+        assignment for assignment in assignments if assignment.worker_id not in completed_ids
+    ]
+    _save_process_pool_state(
+        args,
+        assignments,
+        prior_outcomes,
+        status="running",
+        reason="process_pool_resumed" if args.resume else "process_pool_started",
+    )
+    _write_pool_progress(
+        args,
+        assignments,
+        prior_outcomes,
+        status="running",
+        stage="queued",
+    )
+    run = await _run_assignments(
+        args,
+        pending,
+        all_assignments=assignments,
+        prior_outcomes=prior_outcomes,
+    )
+    outcomes = [*prior_outcomes, *run.outcomes]
+    if run.paused or not _enter_process_pool_finalizing(args, assignments, outcomes):
+        _save_process_pool_state(
+            args,
+            assignments,
+            outcomes,
+            status="running",
+            reason="process_pool_pause_boundary",
+        )
+        acknowledge_pause(args.out_dir)
+        _write_pool_progress(
+            args,
+            assignments,
+            outcomes,
+            status="paused",
+            stage="process_pool_paused",
+        )
+        print(
+            "Process pool paused after active children finished. Resume with:\n"
+            f"  {shlex.join(_process_pool_resume_argv(args))}"
+        )
+        return 0
     return _merge_outcomes(args, config, tasks, outcomes)
 
 
@@ -161,7 +225,24 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--allow-unknown-auth", action="store_true")
     parser.add_argument("--skip-host-bound-storage-state-auth", action="store_true")
     parser.add_argument("--task-limit", type=int, default=None)
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Continue a cooperatively paused process-pool root.",
+    )
     return parser.parse_args(argv)
+
+
+def _load_paused_outcomes(
+    args: ProcessPoolArgs,
+    assignments: list[WorkerAssignment],
+) -> list[WorkerOutcome]:
+    state = _load_json_dict(args.out_dir / "pipeline_state.json")
+    validate_paused_resume(state, args, assignments)
+    # A paused pool records prior successes for inspection, but resume does not
+    # promote them into a new canonical merge without the child runner's full
+    # fingerprint/sidecar validator. The isolated attempt reruns every assignment.
+    return []
 
 
 def _validate_source_state(source: Path) -> None:
@@ -224,7 +305,15 @@ def _build_assignments(
             raise SystemExit(f"no instances available for task {task.get('id')} site {site!r}")
         instance_index, instance = candidates[0]
         candidates.rotate(-1)
-        worker_root = args.out_dir / "phase_4" / "process_pool_workers" / f"worker_{worker_id:03d}"
+        worker_collection = args.out_dir / "phase_4" / "process_pool_workers"
+        if args.resume_generation:
+            worker_collection = (
+                args.out_dir
+                / "phase_4"
+                / "process_pool_resume_workers"
+                / f"attempt_{args.resume_generation:03d}"
+            )
+        worker_root = worker_collection / f"worker_{worker_id:03d}"
         assignments.append(
             WorkerAssignment(
                 worker_id=worker_id,
@@ -243,37 +332,68 @@ def _build_assignments(
 async def _run_assignments(
     args: ProcessPoolArgs,
     assignments: list[WorkerAssignment],
-) -> list[WorkerOutcome]:
-    queue: asyncio.Queue[WorkerAssignment] = asyncio.Queue()
-    for assignment in assignments:
-        queue.put_nowait(assignment)
+    *,
+    all_assignments: list[WorkerAssignment] | None = None,
+    prior_outcomes: list[WorkerOutcome] | None = None,
+) -> _AssignmentRun:
+    progress_assignments = all_assignments or assignments
+    prior_outcomes = prior_outcomes or []
+    pending = deque(assignments)
     outcomes: list[WorkerOutcome] = []
     lock = asyncio.Lock()
-    instance_locks = {assignment.instance_index: asyncio.Lock() for assignment in assignments}
+    admission_lock = asyncio.Lock()
+    busy_instances: set[int] = set()
+    instance_available = asyncio.Event()
+    instance_available.set()
     active: dict[int, tuple[WorkerAssignment, int]] = {}
     stop_heartbeat = asyncio.Event()
+    paused = asyncio.Event()
 
     async def _slot(slot_id: int) -> None:
         while True:
+            assignment: WorkerAssignment | None = None
+            running: _RunningWorker | None = None
+            launch_error: Exception | None = None
+            while assignment is None:
+                async with admission_lock:
+                    with pause_control_lock(args.out_dir):
+                        if pause_requested(args.out_dir):
+                            paused.set()
+                            return
+                        candidate = next(
+                            (item for item in pending if item.instance_index not in busy_instances),
+                            None,
+                        )
+                        if candidate is None:
+                            if not pending:
+                                return
+                            instance_available.clear()
+                        else:
+                            pending.remove(candidate)
+                            assignment = candidate
+                            busy_instances.add(assignment.instance_index)
+                            active[assignment.worker_id] = (assignment, slot_id)
+                            _write_pool_progress(
+                                args,
+                                progress_assignments,
+                                [*prior_outcomes, *outcomes],
+                                status="running",
+                                stage="workers",
+                                active_assignments=list(active.values()),
+                            )
+                            try:
+                                running = await _launch_one_worker(
+                                    args,
+                                    assignment,
+                                    slot_id=slot_id,
+                                )
+                            except Exception as exc:
+                                launch_error = exc
+                if assignment is None:
+                    await instance_available.wait()
+            assert assignment is not None
             try:
-                assignment = queue.get_nowait()
-            except asyncio.QueueEmpty:
-                return
-            try:
-                async with lock:
-                    active[assignment.worker_id] = (assignment, slot_id)
-                    _write_pool_progress(
-                        args,
-                        assignments,
-                        outcomes,
-                        status="running",
-                        stage="workers",
-                        active_assignments=list(active.values()),
-                    )
-                try:
-                    async with instance_locks[assignment.instance_index]:
-                        outcome = await _run_one_worker(args, assignment, slot_id=slot_id)
-                except Exception as exc:
+                if launch_error is not None:
                     outcome = WorkerOutcome(
                         assignment=assignment,
                         returncode=-1,
@@ -281,21 +401,37 @@ async def _run_assignments(
                         started_at=datetime.now().isoformat(),
                         finished_at=datetime.now().isoformat(),
                         results=[],
-                        error=repr(exc),
+                        error=repr(launch_error),
                     )
+                else:
+                    assert running is not None
+                    try:
+                        outcome = await _finish_one_worker(running)
+                    except Exception as exc:
+                        outcome = WorkerOutcome(
+                            assignment=assignment,
+                            returncode=-1,
+                            timed_out=False,
+                            started_at=running.started_at,
+                            finished_at=datetime.now().isoformat(),
+                            results=[],
+                            error=repr(exc),
+                        )
                 async with lock:
                     active.pop(assignment.worker_id, None)
                     outcomes.append(outcome)
                     _write_pool_progress(
                         args,
-                        assignments,
-                        outcomes,
+                        progress_assignments,
+                        [*prior_outcomes, *outcomes],
                         status="running",
                         stage="workers",
                         active_assignments=list(active.values()),
                     )
             finally:
-                queue.task_done()
+                async with admission_lock:
+                    busy_instances.discard(assignment.instance_index)
+                    instance_available.set()
 
     async def _heartbeat() -> None:
         while not stop_heartbeat.is_set():
@@ -303,8 +439,8 @@ async def _run_assignments(
             async with lock:
                 _write_pool_progress(
                     args,
-                    assignments,
-                    outcomes,
+                    progress_assignments,
+                    [*prior_outcomes, *outcomes],
                     status="running",
                     stage="workers",
                     active_assignments=list(active.values()),
@@ -324,7 +460,10 @@ async def _run_assignments(
             await heartbeat_task
         except asyncio.CancelledError:
             pass
-    return outcomes
+    with pause_control_lock(args.out_dir):
+        if pause_requested(args.out_dir):
+            paused.set()
+    return _AssignmentRun(outcomes=outcomes, paused=paused.is_set())
 
 
 async def _run_one_worker(
@@ -333,12 +472,25 @@ async def _run_one_worker(
     *,
     slot_id: int,
 ) -> WorkerOutcome:
+    running = await _launch_one_worker(args, assignment, slot_id=slot_id)
+    return await _finish_one_worker(running)
+
+
+async def _launch_one_worker(
+    args: ProcessPoolArgs,
+    assignment: WorkerAssignment,
+    *,
+    slot_id: int,
+) -> _RunningWorker:
     started_at = datetime.now().isoformat()
     _prepare_worker_state(args, assignment)
     command = _worker_command(args, assignment)
     assignment.stdout_log.parent.mkdir(parents=True, exist_ok=True)
     env = os.environ.copy()
-    env["WORLDSIM_STATE_DIR"] = str(assignment.state_dir)
+    worker_state_dir = str(assignment.state_dir)
+    env["WARP_TASKGEN_STATE_DIR"] = worker_state_dir
+    env["WORLDSIM_STATE_DIR"] = worker_state_dir
+    env["WARP_TASKGEN_RESUME_POINTER"] = str(assignment.state_dir / "last_run_state.json")
     env["WORLDSIM_PROCESS_POOL_WORKER_ID"] = str(assignment.worker_id)
     env["WORLDSIM_PROCESS_POOL_SLOT_ID"] = str(slot_id)
     timeout = _worker_timeout_seconds(args)
@@ -350,41 +502,53 @@ async def _run_one_worker(
             stdout=stdout,
             stderr=stderr,
         )
-        _write_worker_status(
-            assignment,
-            slot_id=slot_id,
-            status="running",
-            pid=proc.pid,
-            started_at=started_at,
-        )
-        timed_out = False
+    _write_worker_status(
+        assignment,
+        slot_id=slot_id,
+        status="running",
+        pid=proc.pid,
+        started_at=started_at,
+    )
+    return _RunningWorker(
+        assignment=assignment,
+        process=proc,
+        slot_id=slot_id,
+        started_at=started_at,
+        timeout=timeout,
+    )
+
+
+async def _finish_one_worker(running: _RunningWorker) -> WorkerOutcome:
+    assignment = running.assignment
+    proc = running.process
+    timed_out = False
+    try:
+        returncode = await asyncio.wait_for(proc.wait(), timeout=running.timeout)
+    except TimeoutError:
+        timed_out = True
+        proc.terminate()
         try:
-            returncode = await asyncio.wait_for(proc.wait(), timeout=timeout)
+            returncode = await asyncio.wait_for(proc.wait(), timeout=15)
         except TimeoutError:
-            timed_out = True
-            proc.terminate()
-            try:
-                returncode = await asyncio.wait_for(proc.wait(), timeout=15)
-            except TimeoutError:
-                proc.kill()
-                returncode = await proc.wait()
+            proc.kill()
+            returncode = await proc.wait()
     results, error = _load_worker_results(assignment)
     status_payload = _write_worker_status(
         assignment,
-        slot_id=slot_id,
+        slot_id=running.slot_id,
         status="timed_out" if timed_out else "completed",
         returncode=returncode,
         timed_out=timed_out,
         result_count=len(results),
         error=error,
-        started_at=started_at,
+        started_at=running.started_at,
         finished_at=datetime.now().isoformat(),
     )
     return WorkerOutcome(
         assignment=assignment,
         returncode=returncode,
         timed_out=timed_out,
-        started_at=started_at,
+        started_at=running.started_at,
         finished_at=status_payload["finished_at"],
         results=results,
         error=error,

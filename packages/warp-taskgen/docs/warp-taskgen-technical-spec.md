@@ -343,8 +343,15 @@ scheduler stop dequeuing new units, allow already-admitted atomic work to
 finish, then persist `paused`. `resume` reruns the same Phase 4 and existing
 fingerprint/sidecar policies decide which completed task work is reusable.
 Catchable SIGINT/SIGTERM records `interrupted` and follows the same resume path;
-SIGKILL remains crash-compatible `running`. Process-pool Phase 4 and Phases 0-3
-do not accept pause requests in this slice.
+SIGKILL remains crash-compatible `running`. The process-pool supervisor also
+accepts pause at its assignment claim/subprocess-launch boundary. It serializes
+the request with launch, drains already-started children, keeps queued and
+unsuccessful assignments pending, writes no canonical merged result, and
+persists a root-local `paused` checkpoint. Its saved wrapper `--resume` command
+reruns every assignment in an isolated attempt root; generic `warp-taskgen
+resume` fails closed for a
+pool root. Process-pool SIGTERM/crash recovery and Phases 0-3 do not accept
+cooperative pause semantics in this slice.
 The handler is installed after the Phase 4 run lock is acquired; termination
 during pre-ownership setup remains a normal crash. Once lifecycle persistence
 starts, further SIGINT/SIGTERM delivery is ignored for that short atomic write.

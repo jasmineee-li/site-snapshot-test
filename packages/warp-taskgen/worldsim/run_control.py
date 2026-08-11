@@ -22,6 +22,7 @@ _REQUEST_FILE = "pause_request.json"
 _REQUEST_LOCK_FILE = ".pause_request.lock"
 _SUPPORTED_STEP = "phase_4"
 _SUPPORTED_PAUSE_STAGES = {"initial_evaluation", "postprocessing"}
+_PROCESS_POOL_PAUSE_STAGE = "process_pool_dispatch"
 
 
 class PauseBoundaryReached(BaseException):
@@ -130,10 +131,13 @@ def _pauseable_definition(root: Path):
     state = _load_json_object(state_path)
     if state.get("status") != "running" or state.get("step") != _SUPPORTED_STEP:
         raise ValueError("cooperative pause currently supports only a running Phase 4")
-    if state.get("process_pool"):
-        raise ValueError("Phase 4 process-pool pause is not supported in this slice")
     stage = state.get("pause_stage")
-    if stage not in _SUPPORTED_PAUSE_STAGES:
+    if state.get("process_pool") and stage != _PROCESS_POOL_PAUSE_STAGE:
+        raise ValueError(f"Phase 4 process-pool stage {stage!r} is not pause-aware")
+    supported_stages = (
+        {_PROCESS_POOL_PAUSE_STAGE} if state.get("process_pool") else _SUPPORTED_PAUSE_STAGES
+    )
+    if stage not in supported_stages:
         raise ValueError(f"Phase 4 stage {stage!r} is not pause-aware")
     return define_run(state)
 
