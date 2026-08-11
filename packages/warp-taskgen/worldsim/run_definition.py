@@ -390,6 +390,10 @@ def _lifecycle(step: str, status: str) -> tuple[LifecycleAction, str | None, str
         return ("rerun_phase", step, "pipeline_checkpoint_running")
     if status == "failed":
         return ("rerun_phase", step, "pipeline_checkpoint_failed")
+    if status == "paused":
+        return ("rerun_phase", step, "pipeline_checkpoint_paused")
+    if status == "interrupted":
+        return ("rerun_phase", step, "pipeline_checkpoint_interrupted")
     return ("reject", None, "unknown_status")
 
 

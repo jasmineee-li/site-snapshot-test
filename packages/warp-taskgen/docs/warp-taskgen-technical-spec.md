@@ -298,10 +298,13 @@ def save_state(step: str, iteration: int = 0, **metadata):
     tmp.write_text(json.dumps(state, indent=2))
     os.replace(tmp, state_path)
 
-On crash, `--resume` reads this file and applies two-branch logic:
+On restart, `resume` reads this file and applies lifecycle routing:
 
-- **complete**: the phase finished successfully. Skip to the next phase in `_PHASE_ORDER`.
-- **running**: the phase started but did not finish. Re-run it from the beginning.
+- **complete / partial_complete**: advance to the next phase in `_PHASE_ORDER`.
+- **running / failed**: re-run the current phase.
+- **paused / interrupted**: re-run the current phase under its existing
+  feature-owned resume validators.
+- **unknown status**: reject rather than infer a route.
 
 `_PHASE_ORDER` is a fixed list: `["phase_0a", "phase_0b", "phase_0c", "phase_0d", "phase_1", "phase_2", "phase_3", "phase_4"]`. The resume loader also checks for a `logs_dir` key in the state metadata; if present, it uses that path instead of the default, allowing runs that were started with a custom `WORLDSIM_STATE_DIR` to resume correctly.
 
@@ -329,12 +332,26 @@ task artifacts, and the source state, source artifacts, and global resume
 pointer remain unchanged. The CLI prints an explicit
 `WARP_TASKGEN_STATE_DIR=<child>
 WARP_TASKGEN_RESUME_POINTER=<child>/last_run_state.json warp-taskgen resume`
-command; it does not automatically dispatch the child. Checkpoint transfer, automatic child
-execution, and lifecycle/pause changes remain later slices.
+command; it does not automatically dispatch the child. Checkpoint transfer and
+automatic child execution remain later slices.
+
+Normal single-process Phase 4 supports cooperative checkpoint-aligned pause.
+`warp-taskgen pause [--state-dir <run>]` atomically writes a non-secret request;
+`status` reports the transitional projection as `pausing` while the persisted
+checkpoint remains `running`. Initial-evaluation workers and the postprocessing
+scheduler stop dequeuing new units, allow already-admitted atomic work to
+finish, then persist `paused`. `resume` reruns the same Phase 4 and existing
+fingerprint/sidecar policies decide which completed task work is reusable.
+Catchable SIGINT/SIGTERM records `interrupted` and follows the same resume path;
+SIGKILL remains crash-compatible `running`. Process-pool Phase 4 and Phases 0-3
+do not accept pause requests in this slice.
+The handler is installed after the Phase 4 run lock is acquired; termination
+during pre-ownership setup remains a normal crash. Once lifecycle persistence
+starts, further SIGINT/SIGTERM delivery is ignored for that short atomic write.
 
 ### CLI Flags
 
-`worldsim.main` exposes core pipeline subcommands `phase <id>`, `resume`, and `rescore-phase-3`, plus operator utilities including `trace`, `preflight`, `status`, `inspect`, `agentlab`, and `task-bank`. The `resume` subcommand mirrors every pipeline flag below so that a crashed run can be restarted with either the saved values or an override. `resume` reads the saved step from `logs/pipeline_state.json`, applies the two-branch logic from the State Persistence section, and then dispatches exactly as if you had typed `phase <id>` with the stored arguments.
+`worldsim.main` exposes core pipeline subcommands `phase <id>`, `resume`, and `rescore-phase-3`, plus operator utilities including `pause`, `trace`, `preflight`, `status`, `inspect`, `agentlab`, and `task-bank`. The `resume` subcommand mirrors every pipeline flag below so that a crashed run can be restarted with either the saved values or an override. `resume` reads the saved step from `logs/pipeline_state.json`, applies the lifecycle logic from the State Persistence section, and then dispatches exactly as if you had typed `phase <id>` with the stored arguments.
 
 **Paths and configs (all phases)**:
 

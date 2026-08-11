@@ -12,6 +12,7 @@ from worldsim.phase_4.postprocess_progress import (
     record_variant_progress,
     write_phase_4_progress,
 )
+from worldsim.run_control import pause_aware_map, pause_requested
 
 install_context(globals())
 
@@ -440,7 +441,12 @@ async def run(args: argparse.Namespace) -> int:
         asyncio.Semaphore(phase_4_max_workers) if phase_4_max_workers is not None else None
     )
     reset_cache = TaskResetCache()
-    save_state("phase_4", status="running", **state_metadata)
+    save_state(
+        "phase_4",
+        status="running",
+        pause_stage="initial_evaluation",
+        **state_metadata,
+    )
     completed_initial_task_ids = completed_task_ids_from_task_dir_root(task_dir_root)
 
     def _write_progress_safely(stage: str, *, status: str = "running", **kwargs: Any) -> None:
@@ -582,10 +588,17 @@ async def run(args: argparse.Namespace) -> int:
             ),
             site_profile=site_profiles.get(str(task.get("site", ""))),
         ),
+        pause_check=lambda: pause_requested(state_dir),
     )
 
     task_by_id = {str(task.get("id", "unknown")): task for task in tasks}
 
+    save_state(
+        "phase_4",
+        status="running",
+        pause_stage="postprocessing",
+        **state_metadata,
+    )
     progress_state = Phase4ProgressState(
         state_dir=state_dir,
         task_dir_root=task_dir_root,
@@ -657,9 +670,11 @@ async def run(args: argparse.Namespace) -> int:
             logger.warning("Could not write Phase 4 postprocess-complete heartbeat: %s", exc)
         return processed
 
-    raw_postprocessed = await asyncio.gather(
-        *[_postprocess_one_task_with_progress(result) for result in results],
-        return_exceptions=True,
+    raw_postprocessed = await pause_aware_map(
+        results,
+        _postprocess_one_task_with_progress,
+        concurrency=phase_4_max_workers or max(1, len(results)),
+        state_dir=state_dir,
     )
 
     final_results: list[dict] = []
@@ -691,6 +706,12 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 1
 
+    save_state(
+        "phase_4",
+        status="running",
+        pause_stage="finalizing",
+        **state_metadata,
+    )
     intermediate_asr_summary: dict[str, Any] | None = None
     try:
         from worldsim.phase_4.intermediate_asr import (

@@ -40,3 +40,20 @@ or the process-wide resume pointer. The CLI prints an explicit child-root
 resume command with a child-local resume pointer instead of automatically
 dispatching it. Automatic child
 execution, checkpoint transfer, and pause/lease semantics remain later slices.
+
+The fourth slice adds cooperative pause at the two normal Phase 4 admission
+boundaries: initial task dequeue and per-task postprocessing. `warp-taskgen
+pause` writes a small non-secret request sidecar without changing the active
+checkpoint. Schedulers stop admitting new atomic units, allow already-admitted
+browser or postprocessing work to finish and persist its existing sentinel,
+then the outer Phase 4 boundary records `paused`. Catchable SIGINT/SIGTERM is
+recorded as `interrupted`; SIGKILL remains indistinguishable from a crashed
+`running` process. Resume of either lifecycle state reruns Phase 4 and delegates
+all reuse decisions to the existing result/fingerprint/sidecar validators.
+This slice deliberately rejects process-pool pause and does not add pause
+admission to Phases 0-3; each needs its own quiescence and checkpoint contract.
+There is no cancellation protocol, lease, or new checkpoint-acceptance path.
+Signal handling begins only after the Phase 4 run lock is owned. Termination
+during pre-ownership lock/sweep setup remains crash-compatible `running`, while
+the short atomic `paused`/`interrupted` state transition ignores a second
+termination signal so it cannot be torn midway.

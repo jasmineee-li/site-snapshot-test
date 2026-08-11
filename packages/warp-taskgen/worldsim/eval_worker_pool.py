@@ -48,12 +48,17 @@ def _worker_stagger_delay_s() -> float:
     try:
         value = float(raw)
     except ValueError:
-        logger.warning("%s=%r is not numeric; using %.1fs", _WORKER_STAGGER_DELAY_ENV, raw, STAGGER_DELAY)
+        logger.warning(
+            "%s=%r is not numeric; using %.1fs", _WORKER_STAGGER_DELAY_ENV, raw, STAGGER_DELAY
+        )
         return STAGGER_DELAY
     if value < 0:
-        logger.warning("%s=%r is negative; using %.1fs", _WORKER_STAGGER_DELAY_ENV, raw, STAGGER_DELAY)
+        logger.warning(
+            "%s=%r is negative; using %.1fs", _WORKER_STAGGER_DELAY_ENV, raw, STAGGER_DELAY
+        )
         return STAGGER_DELAY
     return value
+
 
 _OUTCOME_RESULT_EXTRA_KEYS: tuple[str, ...] = (
     "error",
@@ -300,6 +305,8 @@ async def staggered_worker(
     stop_event: asyncio.Event,
     worker_semaphore: asyncio.Semaphore | None = None,
     result_callback: ResultCallback | None = None,
+    pause_check: Callable[[], bool] | None = None,
+    pause_event: asyncio.Event | None = None,
 ) -> None:
     """Worker coroutine pinned to one benchmark instance.
 
@@ -310,6 +317,10 @@ async def staggered_worker(
     if delay > 0:
         await asyncio.sleep(delay)
     if stop_event.is_set():
+        return
+    if pause_check is not None and pause_check():
+        if pause_event is not None:
+            pause_event.set()
         return
 
     async def _run_worker_lifetime() -> None:
@@ -324,6 +335,10 @@ async def staggered_worker(
         try:
             while True:
                 if stop_event.is_set():
+                    return
+                if pause_check is not None and pause_check():
+                    if pause_event is not None:
+                        pause_event.set()
                     return
                 try:
                     task = task_queue.get_nowait()
@@ -408,6 +423,7 @@ async def run_eval(
     expected_result_fingerprints: dict[str, str] | None = None,
     max_workers: int | None = None,
     result_callback: ResultCallback | None = None,
+    pause_check: Callable[[], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """Distribute ``tasks`` across ``instances`` with staggered worker startup.
 
@@ -502,6 +518,7 @@ async def run_eval(
     results: list[dict[str, Any]] = []
     results_lock = asyncio.Lock()
     stop_event = asyncio.Event()
+    pause_event = asyncio.Event()
 
     worker_specs = [
         (worker_index, ordered[worker_index], task_queues[worker_index])
@@ -526,13 +543,23 @@ async def run_eval(
             stop_event=stop_event,
             worker_semaphore=worker_semaphore,
             result_callback=result_callback,
+            pause_check=pause_check,
+            pause_event=pause_event,
         )
         for launch_index, (worker_index, instance, task_queue) in enumerate(worker_specs)
     ]
     gather_results = await asyncio.gather(*workers, return_exceptions=True)
+    from worldsim.run_control import PauseBoundaryReached, RunInterrupted
+
+    for result in gather_results:
+        if isinstance(result, (PauseBoundaryReached, RunInterrupted)):
+            raise result
     for i, gr in enumerate(gather_results):
         if isinstance(gr, Exception):
             logger.error("worker %d raised an unhandled exception: %s", i, gr)
+
+    if pause_event.is_set():
+        raise PauseBoundaryReached()
 
     if stop_event.is_set():
         await _drain_queues_as_failures(

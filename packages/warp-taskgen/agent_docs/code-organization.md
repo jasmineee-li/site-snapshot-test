@@ -83,6 +83,13 @@ Current and target ownership should stay explicit:
   the atomic reservation and isolated child-root initialization for definition
   drift. It must not copy or accept feature checkpoints, mutate the source Run,
   update the shared discovery pointer, or dispatch the child automatically.
+- `worldsim.run_control`: non-secret cooperative pause requests, Phase 4
+  admission-boundary scheduling, and paused/interrupted lifecycle transitions.
+  It must not cancel admitted browser/API work, accept feature checkpoints,
+  reinterpret `progress.json` as routing authority, or silently extend pause to
+  process-pool Phase 4 or Phases 0-3.
+  `worldsim.cli.run_control` is the thin parser/dispatch adapter that handles
+  operator output and catchable process signals after the phase stack unwinds.
 - `worldsim.seeding`: host-side seed validation, context rendering, editor-call
   execution, read-surface/result metadata, reddit/map context resolution,
   runtime error validation, DB helpers, and editor-argument compatibility. This
