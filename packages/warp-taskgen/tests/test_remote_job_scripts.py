@@ -2052,6 +2052,7 @@ def test_graceful_stop_waits_for_authoritative_pause_before_term(tmp_path: Path)
         assert stop["pause_request_id"] == "pause-" + "1" * 32
         assert stop["run_id"] == "run-control-test"
         assert stop["definition_digest"] == "a" * 64
+        assert stop["observed_status"] == "paused"
         assert exit_data["signal"] == "TERM"
     finally:
         _cleanup_control_job(remote_dir, job_id)

@@ -399,6 +399,7 @@ if graceful:
         "pause_request_id": observed_request,
         "run_id": before_run_id,
         "definition_digest": before_digest,
+        "observed_status": final_state.get("status"),
         "paused_at": now(),
     }
     write_graceful_result(
