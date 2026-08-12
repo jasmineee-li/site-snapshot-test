@@ -392,6 +392,22 @@ legacy, stale, malformed, tampered, or topology-incompatible tasks. Phase 2
 signal interruption, cancellation, leases, and cooperative pause for Phases 0,
 1, and 3 remain outside this slice.
 
+Run-control inspection is deliberately read-only around these boundaries.
+`pause --wait --timeout <seconds>` polls `pipeline_state.json` with a
+monotonic deadline and exact request/run identity, reports bounded progress at
+the authoritative internal stage, and returns only an acknowledgement,
+terminal, rejection, or timeout outcome; it never writes an acknowledgement
+or clears a marker. `resume --plan --json` (also available on
+`derive-and-resume`) serializes the existing `ResumePlan` before any
+transition, marker, child, or environment write. `status --json` exposes a
+nested `run_control` projection with the supported-stage contract,
+authoritative pause request identity/reason/age, advisory feature-owned
+queued/admitted/completed counts, bounded non-secret transition history, and a
+quoted exact next action. Counts and history are explanatory only and never
+route or accept checkpoints. Phase 2 SIGINT/SIGTERM handling begins after the
+Phase 2 run lock is owned; pre-lock delivery and SIGKILL retain
+crash-compatible `running` semantics.
+
 ### CLI Flags
 
 `worldsim.main` exposes core pipeline subcommands `phase <id>`, `resume`, and `rescore-phase-3`, plus operator utilities including `pause`, `trace`, `preflight`, `status`, `inspect`, `agentlab`, and `task-bank`. The `resume` subcommand mirrors every pipeline flag below so that a crashed run can be restarted with either the saved values or an override. `resume` reads the saved step from `logs/pipeline_state.json`, applies the lifecycle logic from the State Persistence section, and then dispatches exactly as if you had typed `phase <id>` with the stored arguments.

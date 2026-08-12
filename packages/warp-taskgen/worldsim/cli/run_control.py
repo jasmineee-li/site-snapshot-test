@@ -18,6 +18,7 @@ from worldsim.run_control import (
     mark_interrupted,
     request_pause,
 )
+from worldsim.run_control_wait import current_pause_stage, wait_for_pause
 
 
 def dispatch_pause(args: Namespace) -> int:
@@ -27,7 +28,39 @@ def dispatch_pause(args: Namespace) -> int:
         print(f"pause failed: {exc}", file=sys.stderr)
         return 2
     print(f"Pause requested for {request.step} at the next safe checkpoint ({request.request_id}).")
-    return 0
+    if not getattr(args, "wait", False):
+        return 0
+    progress_stage = current_pause_stage(getattr(args, "state_dir", None)) or request.step
+    print(f"Pause progress: pausing request={request.request_id} stage={progress_stage}.")
+    try:
+        result = wait_for_pause(
+            getattr(args, "state_dir", None),
+            request.request_id,
+            timeout=float(getattr(args, "timeout", 300.0)),
+            poll_interval=float(getattr(args, "poll_interval", 0.25)),
+            expected_request=request,
+        )
+    except (OSError, ValueError) as exc:
+        print(f"pause wait failed: {exc}", file=sys.stderr)
+        return 2
+    if result.status == "paused":
+        print(f"Pause acknowledged ({request.request_id}).")
+        return 0
+    if result.status == "terminal":
+        print(f"Pause ended because the pipeline is terminal ({result.state_status or 'unknown'}).")
+        return 0
+    if result.status == "timed_out":
+        print(
+            f"Pause still pending after {result.elapsed_seconds:.1f}s "
+            f"({request.request_id}; reason={result.reason_code}).",
+            file=sys.stderr,
+        )
+        return 1
+    print(
+        f"Pause wait {result.status}: {result.reason_code} ({request.request_id}).",
+        file=sys.stderr,
+    )
+    return 2
 
 
 def dispatch_phase_with_run_control(
@@ -41,7 +74,10 @@ def dispatch_phase_with_run_control(
 
     with lifecycle_guard():
         try:
-            with _phase_interrupt_signals(enabled=phase == "4"):
+            # Handled signals begin only after the caller's lifecycle guard
+            # owns the Phase 2/4 run lock. Pre-lock termination remains the
+            # existing crash-compatible running state.
+            with _phase_interrupt_signals(enabled=phase in {"2", "2c", "4"}):
                 return operation()
         except PauseBoundaryReached:
             if phase not in {"2", "2c", "4"}:
@@ -62,7 +98,7 @@ def dispatch_phase_with_run_control(
                 print(f"Could not persist interrupted state: {state_exc}", file=sys.stderr)
             return 128 + int(getattr(signal, exc.signal_name, signal.SIGTERM))
         except KeyboardInterrupt:
-            if phase != "4":
+            if phase not in {"2", "2c", "4"}:
                 raise
             try:
                 with _ignore_lifecycle_transition_signals(enabled=True):
@@ -79,16 +115,22 @@ def _phase_interrupt_signals(*, enabled: bool) -> Iterator[None]:
     if not enabled or threading.current_thread() is not threading.main_thread():
         yield
         return
-    previous = signal.getsignal(signal.SIGTERM)
+    previous_sigterm = signal.getsignal(signal.SIGTERM)
+    previous_sigint = signal.getsignal(signal.SIGINT)
 
     def _handle_sigterm(_signum: int, _frame: object) -> None:
         raise RunInterrupted("SIGTERM")
 
+    def _handle_sigint(_signum: int, _frame: object) -> None:
+        raise RunInterrupted("SIGINT")
+
     signal.signal(signal.SIGTERM, _handle_sigterm)
+    signal.signal(signal.SIGINT, _handle_sigint)
     try:
         yield
     finally:
-        signal.signal(signal.SIGTERM, previous)
+        signal.signal(signal.SIGINT, previous_sigint)
+        signal.signal(signal.SIGTERM, previous_sigterm)
 
 
 @contextlib.contextmanager

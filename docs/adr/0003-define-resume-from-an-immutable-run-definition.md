@@ -107,3 +107,17 @@ delegates compatibility to the Phase 2c checkpoint validators, so missing,
 legacy, stale, malformed, tampered, or topology-incompatible tasks rerun.
 Phase 2 signal interruption, cancellation, leases, and Phases 0, 1, and 3
 remain outside cooperative pause.
+
+The run-control inspection surface keeps those lifecycle and checkpoint
+boundaries explicit. `pause --wait` is a bounded, read-only poll of the
+authoritative pipeline state and returns only `paused`, `terminal`,
+`rejected`, or `timed_out` (with a compact `pausing` snapshot while waiting);
+it never acknowledges or repairs state. `resume --plan --json` and its
+`derive-and-resume --plan --json` spelling serialize the existing
+`ResumePlan` before transition or child materialization, so they create no
+files or processes. `status` nests supported-stage, request identity/reason/
+age, advisory feature-owned checkpoint counts, bounded redacted transition
+history, and the exact next lifecycle action under `run_control`; pipeline
+state remains the authority. Phase 2 SIGINT/SIGTERM handlers are installed
+only after the Phase 2 run lock is owned, preserving pre-lock and SIGKILL
+crash compatibility.

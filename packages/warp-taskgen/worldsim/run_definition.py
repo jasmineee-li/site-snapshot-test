@@ -409,8 +409,18 @@ def _authoritative_pipeline_state_matches(
         return False
     if not isinstance(payload, Mapping):
         return False
-    for field in ("step", "status", "timestamp", "logs_dir"):
+    for field in ("step", "status", "timestamp"):
         if payload.get(field) != pipeline_state.get(field):
+            return False
+    expected_logs_dir = pipeline_state.get("logs_dir")
+    observed_logs_dir = payload.get("logs_dir")
+    if expected_logs_dir is not None or observed_logs_dir is not None:
+        try:
+            if Path(str(expected_logs_dir)).expanduser().resolve(strict=False) != Path(
+                str(observed_logs_dir)
+            ).expanduser().resolve(strict=False):
+                return False
+        except (OSError, RuntimeError):
             return False
     try:
         requested_source = define_run(pipeline_state)
