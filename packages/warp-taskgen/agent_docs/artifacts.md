@@ -32,6 +32,13 @@ the collection lock as a run artifact. HF exports project `source_run_id` and
 `definition_digest` when the persisted Run Definition is valid. Archive one
 child by passing its request-key directory as the existing archive wrapper's
 `--logs-dir` and its opaque child ID as `<run_id>`.
+Materialization retries preserve normal phase/root artifacts only after the
+reservation, `derived_run.json`, and child `pipeline_state.json` identities all
+validate; incomplete roots remain fresh-root fail-closed.
+
+Plain `resume` never materializes a child implicitly. Operators who intend to
+execute a changed definition must invoke `derive-and-resume`; that operation
+binds the child root and its local `last_run_state.json` pointer for dispatch.
 
 ## Promotion record
 

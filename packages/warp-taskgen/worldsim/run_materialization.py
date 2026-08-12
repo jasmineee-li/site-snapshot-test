@@ -18,6 +18,7 @@ _SCHEMA_VERSION = 1
 _RESTART_STEP = "phase_0a"
 _COLLECTION_NAME = ".warp-derived-runs"
 _RESERVATIONS_NAME = ".reservations"
+_CHILD_POINTER_NAME = "last_run_state.json"
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,18 @@ def _source_authority(source_root: Path, expected: RunDefinition) -> tuple[dict,
     if logs_dir and _canonical(Path(str(logs_dir))) != source_root:
         raise ValueError("Derived Run source checkpoint belongs to a different state root")
     return payload, hashlib.sha256(raw).hexdigest()
+
+
+def _confirm_source_unchanged(
+    source_root: Path,
+    expected: RunDefinition,
+    expected_sha256: str,
+) -> None:
+    """Re-read source authority and require the expected byte identity."""
+
+    _, observed_sha256 = _source_authority(source_root, expected)
+    if observed_sha256 != expected_sha256:
+        raise ValueError("Derived Run source checkpoint changed during materialization")
 
 
 def _materialization_key(source_root: Path, source: RunDefinition, requested: RunDefinition) -> str:
@@ -138,26 +151,17 @@ def _initialize_child(
     child_root.mkdir(parents=True, exist_ok=True)
     manifest_path = child_root / "derived_run.json"
     state_path = child_root / "pipeline_state.json"
-    if manifest_path.is_symlink() or state_path.is_symlink():
+    pointer_path = child_root / _CHILD_POINTER_NAME
+    if manifest_path.is_symlink() or state_path.is_symlink() or pointer_path.is_symlink():
         raise ValueError("Derived Run child metadata must not be symlinked")
-    unexpected = {
-        path.name for path in child_root.iterdir() if path not in {manifest_path, state_path}
-    }
-    if unexpected:
-        raise ValueError(
-            "Derived Run child root contains unrelated files: " + ", ".join(sorted(unexpected))
-        )
     created = not state_path.exists()
+    manifest_valid = False
     if manifest_path.exists():
         existing = _load_reservation(manifest_path)
         if existing != reservation:
             raise ValueError("Derived Run manifest does not match its reservation")
-    else:
-        write_json_atomic(
-            manifest_path,
-            reservation,
-            failpoint_base="run_materialization.child_manifest",
-        )
+        manifest_valid = True
+    state_valid = False
     if state_path.exists():
         try:
             payload = json.loads(state_path.read_text(encoding="utf-8"))
@@ -165,6 +169,35 @@ def _initialize_child(
             raise ValueError("Derived Run child checkpoint is unreadable") from exc
         if not isinstance(payload, dict) or define_run(payload) != definition:
             raise ValueError("Derived Run child checkpoint has conflicting identity")
+        logs_dir = payload.get("logs_dir")
+        if not logs_dir or _canonical(Path(str(logs_dir))) != child_root:
+            raise ValueError("Derived Run child checkpoint belongs to a different state root")
+        state_valid = True
+
+    # Once both immutable lineage records and the authoritative checkpoint are
+    # valid, this is an established child Run. Normal phase/root artifacts are
+    # expected and must survive idempotent derive-and-resume retries.
+    if manifest_valid and state_valid:
+        return False
+
+    # Fresh and crash-incomplete roots have not established both identities;
+    # fail closed instead of adopting arbitrary artifacts into the child.
+    unexpected = {
+        path.name
+        for path in child_root.iterdir()
+        if path not in {manifest_path, state_path, pointer_path}
+    }
+    if unexpected:
+        raise ValueError(
+            "Derived Run child root contains unrelated files: " + ", ".join(sorted(unexpected))
+        )
+    if not manifest_valid:
+        write_json_atomic(
+            manifest_path,
+            reservation,
+            failpoint_base="run_materialization.child_manifest",
+        )
+    if state_valid:
         return False
     initialize_isolated_run_state(
         child_root,
@@ -220,7 +253,8 @@ def materialize_derived_run(
         try:
             _, source_state_sha256 = _source_authority(source_root, source)
             reservation = _load_reservation(reservation_path)
-            if reservation is None:
+            new_reservation = reservation is None
+            if new_reservation:
                 if reservation_dir.exists():
                     raise ValueError("Derived Run reservation directory is incomplete")
                 child_id = f"run-{uuid.uuid4().hex}"
@@ -241,11 +275,6 @@ def materialize_derived_run(
                     "child_root": str(child_root),
                     "run_definition": definition.to_dict(),
                 }
-                write_json_atomic(
-                    reservation_path,
-                    reservation,
-                    failpoint_base="run_materialization.reservation",
-                )
             child_root, definition = _validate_reservation(
                 reservation,
                 source_root=source_root,
@@ -261,7 +290,30 @@ def materialize_derived_run(
                 unexpected = {path for path in reservation_dir.iterdir() if path != child_root}
                 if unexpected:
                     raise ValueError("Derived Run reservation directory contains unrelated files")
-            else:
+
+            _confirm_source_unchanged(source_root, source, source_state_sha256)
+            if new_reservation:
+                write_json_atomic(
+                    reservation_path,
+                    reservation,
+                    failpoint_base="run_materialization.reservation",
+                )
+                try:
+                    _confirm_source_unchanged(source_root, source, source_state_sha256)
+                except ValueError as source_error:
+                    # The new reservation is not accepted until this post-write
+                    # check succeeds. Roll back only while no child directory
+                    # exists and the file still contains our exact reservation;
+                    # later source writes remain outside this narrow protocol.
+                    observed = _load_reservation(reservation_path)
+                    if observed != reservation or reservation_dir.exists():
+                        raise ValueError(
+                            "Derived Run source changed while reservation acceptance "
+                            "could not be rolled back safely"
+                        ) from source_error
+                    reservation_path.unlink()
+                    raise
+            if not reservation_dir.exists():
                 reservation_dir.mkdir(parents=False)
             created = _initialize_child(
                 child_root,

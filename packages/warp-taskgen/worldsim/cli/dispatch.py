@@ -11,6 +11,7 @@ from worldsim.cli._impl import (
     _dispatch_task_bank,
     main,
 )
+from worldsim.cli.derived_run import dispatch_derived_resume
 
 __all__ = [
     "_dispatch_inspect",
@@ -19,5 +20,6 @@ __all__ = [
     "_dispatch_resume",
     "_dispatch_status",
     "_dispatch_task_bank",
+    "dispatch_derived_resume",
     "main",
 ]

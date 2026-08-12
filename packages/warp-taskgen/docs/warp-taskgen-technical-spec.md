@@ -329,11 +329,20 @@ sibling child root, persists a random opaque child Run ID with
 `source_run_id=<parent>`, and initializes a `phase_0a` failed checkpoint so the
 existing resume lifecycle reruns Phase 0a. The child receives no copied phase or
 task artifacts, and the source state, source artifacts, and global resume
-pointer remain unchanged. The CLI prints an explicit
-`WARP_TASKGEN_STATE_DIR=<child>
-WARP_TASKGEN_RESUME_POINTER=<child>/last_run_state.json warp-taskgen resume`
-command; it does not automatically dispatch the child. Checkpoint transfer and
-automatic child execution remain later slices.
+pointer remain unchanged. Materialization verifies the source checkpoint byte
+digest before the first commit. A new atomic reservation remains provisional
+until an immediate post-write read verifies the same source bytes. If that read
+observes drift, materialization removes only the exact reservation while no
+child directory exists and fails closed, allowing a retry. The successful
+post-write read is the bounded reservation-acceptance point; this protocol does
+not lock or serialize later source checkpoint writers, and the reservation is
+bound to the source bytes accepted at that point. Retries admit normal child
+runtime artifacts only after the reservation, lineage manifest, and
+authoritative child checkpoint all validate. Plain `warp-taskgen resume` remains
+read-only and fails closed when drift requires derivation. The explicit
+`warp-taskgen derive-and-resume` operation creates or recovers the child-local
+discovery pointer, binds execution to the child state root, and dispatches only
+the child. Checkpoint transfer remains outside this slice.
 
 Normal single-process Phase 4 supports cooperative checkpoint-aligned pause.
 `warp-taskgen pause [--state-dir <run>]` atomically writes a non-secret request;

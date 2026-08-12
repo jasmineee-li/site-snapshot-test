@@ -8,9 +8,10 @@ import pytest
 
 from worldsim import run_materialization
 from worldsim.cli import _impl as cli_impl
+from worldsim.cli.derived_run import dispatch_derived_resume
 from worldsim.run_materialization import materialize_derived_run
 from worldsim.run_transition import resolve_run_request
-from worldsim.state import save_state
+from worldsim.state import get_state_dir, save_state
 
 
 def _identified_source(tmp_path: Path) -> tuple[Path, dict[str, object]]:
@@ -103,6 +104,32 @@ def test_materialization_recovers_reserved_identity_after_missing_child_state(tm
     assert recovered.definition.run_id == first.definition.run_id
     assert recovered.created is True
     assert (recovered.child_root / "pipeline_state.json").is_file()
+
+
+def test_materialization_retry_accepts_runtime_artifacts_for_established_child(tmp_path: Path):
+    source_root, state = _identified_source(tmp_path)
+    transition = _drift(state)
+    first = materialize_derived_run(
+        source_root,
+        transition,
+        collection_root=tmp_path / "children",
+    )
+    phase_0a = first.child_root / "phase_0a"
+    phase_0a.mkdir()
+    (phase_0a / "BENCHMARK_MANIFEST.json").write_text('{"sites": []}', encoding="utf-8")
+    (first.child_root / "cost_report.json").write_text('{"entries": []}', encoding="utf-8")
+
+    recovered = materialize_derived_run(
+        source_root,
+        transition,
+        collection_root=tmp_path / "children",
+    )
+
+    assert recovered.created is False
+    assert recovered.child_root == first.child_root
+    assert recovered.definition == first.definition
+    assert (phase_0a / "BENCHMARK_MANIFEST.json").is_file()
+    assert (first.child_root / "cost_report.json").is_file()
 
 
 def test_materialization_fails_closed_on_source_or_reservation_drift(tmp_path: Path):
@@ -198,6 +225,98 @@ def test_materialization_recovers_after_uncommitted_reservation_write(monkeypatc
     assert recovered.reservation_path.is_file()
 
 
+def test_materialization_rechecks_source_before_first_commit(monkeypatch, tmp_path: Path):
+    source_root, state = _identified_source(tmp_path)
+    transition = _drift(state)
+    collection = tmp_path / "children"
+    real_load_reservation = run_materialization._load_reservation
+    mutated = False
+
+    def mutate_source_after_first_authority_read(path):
+        nonlocal mutated
+        if not mutated:
+            mutated = True
+            source_state = json.loads((source_root / "pipeline_state.json").read_text())
+            source_state["timestamp"] = "2026-08-11T12:00:01+00:00"
+            (source_root / "pipeline_state.json").write_text(
+                json.dumps(source_state), encoding="utf-8"
+            )
+        return real_load_reservation(path)
+
+    monkeypatch.setattr(
+        run_materialization,
+        "_load_reservation",
+        mutate_source_after_first_authority_read,
+    )
+    with pytest.raises(ValueError, match="changed during materialization"):
+        materialize_derived_run(
+            source_root,
+            transition,
+            collection_root=collection,
+        )
+
+    assert mutated is True
+    assert not list((collection / ".reservations").glob("*.json"))
+    committed_children = [
+        path
+        for path in collection.iterdir()
+        if path.name not in {".materialization.lock", ".reservations"}
+    ]
+    assert committed_children == []
+
+
+def test_materialization_rejects_source_change_during_reservation_commit(
+    monkeypatch,
+    tmp_path: Path,
+):
+    source_root, state = _identified_source(tmp_path)
+    transition = _drift(state)
+    collection = tmp_path / "children"
+    real_write = run_materialization.write_json_atomic
+    mutated = False
+
+    def mutate_source_during_reservation_commit(path, payload, *, failpoint_base=None):
+        nonlocal mutated
+        real_write(path, payload, failpoint_base=failpoint_base)
+        if failpoint_base == "run_materialization.reservation" and not mutated:
+            mutated = True
+            source_state = json.loads((source_root / "pipeline_state.json").read_text())
+            source_state["timestamp"] = "2026-08-11T12:00:01+00:00"
+            (source_root / "pipeline_state.json").write_text(
+                json.dumps(source_state), encoding="utf-8"
+            )
+
+    monkeypatch.setattr(
+        run_materialization,
+        "write_json_atomic",
+        mutate_source_during_reservation_commit,
+    )
+    with pytest.raises(ValueError, match="changed during materialization"):
+        materialize_derived_run(
+            source_root,
+            transition,
+            collection_root=collection,
+        )
+
+    assert mutated is True
+    assert not list((collection / ".reservations").glob("*.json"))
+    committed_children = [
+        path
+        for path in collection.iterdir()
+        if path.name not in {".materialization.lock", ".reservations"}
+    ]
+    assert committed_children == []
+
+    monkeypatch.setattr(run_materialization, "write_json_atomic", real_write)
+    recovered = materialize_derived_run(
+        source_root,
+        transition,
+        collection_root=collection,
+    )
+    assert recovered.created is True
+    assert recovered.reservation_path.is_file()
+
+
 def test_materialization_rejects_legacy_missing_benchmark_and_nested_collection(tmp_path: Path):
     source_root, state = _identified_source(tmp_path)
     with pytest.raises(ValueError, match="derived_required"):
@@ -230,7 +349,7 @@ def test_materialization_rejects_legacy_missing_benchmark_and_nested_collection(
         )
 
 
-def test_resume_materializes_child_then_child_resume_restores_definition_inputs(
+def test_plain_resume_rejects_drift_without_materializing_or_dispatching(
     monkeypatch, tmp_path, capsys
 ):
     source_root, _state = _identified_source(tmp_path)
@@ -249,42 +368,77 @@ def test_resume_materializes_child_then_child_resume_restores_definition_inputs(
         return 0
 
     monkeypatch.setattr(cli_impl, "_dispatch_phase_with_run_context", unexpected_dispatch)
-    assert cli_impl._dispatch_resume(Namespace(agent_model="child-model")) == 0
+    assert cli_impl._dispatch_resume(Namespace(agent_model="child-model")) == 2
     assert called is False
     assert (source_root / "pipeline_state.json").read_bytes() == source_before
-    output = capsys.readouterr().out
-    assert "Created isolated Derived Run" in output
-    child_root = next((tmp_path / ".warp-derived-runs").glob("*/run-*"))
-    child_pointer = child_root / "last_run_state.json"
-    assert f"WARP_TASKGEN_RESUME_POINTER={child_pointer}" in output
+    assert pointer.read_bytes() == pointer_before
+    assert not (tmp_path / ".warp-derived-runs").exists()
+    assert "derive-and-resume" in capsys.readouterr().err
 
-    captured = {}
+
+def test_derive_and_resume_materializes_then_dispatches_only_child(monkeypatch, tmp_path, capsys):
+    source_root, _state = _identified_source(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(source_root))
+    source_before = (source_root / "pipeline_state.json").read_bytes()
+    pointer = tmp_path / "logs" / "last_run_state.json"
+    pointer.parent.mkdir()
+    pointer.write_text('{"sentinel":"parent"}', encoding="utf-8")
+    pointer_before = pointer.read_bytes()
+    captured: dict[str, object] = {}
 
     def child_dispatch(args):
         captured["phase"] = args.phase
         captured["benchmark"] = args.benchmark
         captured["agent_model"] = args.agent_model
+        captured["state_dir"] = get_state_dir()
+        phase_0a = get_state_dir() / "phase_0a"
+        phase_0a.mkdir(exist_ok=True)
+        (phase_0a / "BENCHMARK_MANIFEST.json").write_text('{"sites": []}', encoding="utf-8")
+        (get_state_dir() / "cost_report.json").write_text('{"entries": []}', encoding="utf-8")
         save_state("phase_0a", status="running")
         return 0
 
-    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(child_root))
-    monkeypatch.setenv("WARP_TASKGEN_RESUME_POINTER", str(child_pointer))
-    monkeypatch.setattr(cli_impl, "_install_verification_proxy_from_args", lambda _args: None)
     monkeypatch.setattr(cli_impl, "_dispatch_phase_with_run_context", child_dispatch)
-    assert cli_impl._dispatch_resume(Namespace()) == 0
+    assert (
+        dispatch_derived_resume(Namespace(command="derive-and-resume", agent_model="child-model"))
+        == 0
+    )
+
+    output = capsys.readouterr().out
+    assert "Created isolated Derived Run" in output
+    child_root = next((tmp_path / ".warp-derived-runs").glob("*/run-*"))
+    child_pointer = child_root / "last_run_state.json"
+    reservation_path = next((tmp_path / ".warp-derived-runs" / ".reservations").glob("*.json"))
+    reservation_before = reservation_path.read_bytes()
     assert captured == {
         "phase": "0a",
         "benchmark": tmp_path / "benchmark",
         "agent_model": "child-model",
+        "state_dir": child_root,
     }
-    assert pointer.read_bytes() == pointer_before
     assert child_pointer.is_file()
+    pointer_payload = json.loads(child_pointer.read_text())
+    assert pointer_payload["state_file"] == str(child_root / "pipeline_state.json")
+    assert pointer.read_bytes() == pointer_before
+    assert (source_root / "pipeline_state.json").read_bytes() == source_before
     child_state = json.loads((child_root / "pipeline_state.json").read_text())
     assert child_state["run_definition"]["source_run_id"] == "run-source"
+    assert (child_root / "phase_0a" / "BENCHMARK_MANIFEST.json").is_file()
+    assert (child_root / "cost_report.json").is_file()
+
+    # A retry recovers the same reservation/child identity and executes only
+    # through the child-local pointer; the reservation remains immutable.
+    assert (
+        dispatch_derived_resume(Namespace(command="derive-and-resume", agent_model="child-model"))
+        == 0
+    )
+    assert next((tmp_path / ".warp-derived-runs").glob("*/run-*")) == child_root
+    assert reservation_path.read_bytes() == reservation_before
 
 
-def test_terminal_complete_resume_materializes_explicit_definition_drift(
-    monkeypatch, tmp_path: Path
+def test_terminal_complete_plain_resume_rejects_explicit_definition_drift(
+    monkeypatch, tmp_path: Path, capsys
 ):
     source_root, state = _identified_source(tmp_path)
     state["status"] = "complete"
@@ -292,14 +446,14 @@ def test_terminal_complete_resume_materializes_explicit_definition_drift(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(source_root))
 
-    assert cli_impl._dispatch_resume(Namespace(agent_model="child-model")) == 0
-
-    child_root = next((tmp_path / ".warp-derived-runs").glob("*/run-*"))
-    child_state = json.loads((child_root / "pipeline_state.json").read_text())
-    assert child_state["run_definition"]["source_run_id"] == "run-source"
+    assert cli_impl._dispatch_resume(Namespace(agent_model="child-model")) == 2
+    assert not (tmp_path / ".warp-derived-runs").exists()
+    assert "derive-and-resume" in capsys.readouterr().err
 
 
-def test_resume_reports_materialization_filesystem_failure(monkeypatch, tmp_path, capsys):
+def test_derive_and_resume_reports_materialization_filesystem_failure(
+    monkeypatch, tmp_path, capsys
+):
     source_root, _state = _identified_source(tmp_path)
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(source_root))
@@ -308,5 +462,85 @@ def test_resume_reports_materialization_filesystem_failure(monkeypatch, tmp_path
         raise OSError("read-only derived collection")
 
     monkeypatch.setattr(run_materialization, "materialize_derived_run", fail_materialization)
-    assert cli_impl._dispatch_resume(Namespace(agent_model="child-model")) == 2
+    assert (
+        dispatch_derived_resume(Namespace(command="derive-and-resume", agent_model="child-model"))
+        == 2
+    )
     assert "read-only derived collection" in capsys.readouterr().err
+
+
+def test_derive_and_resume_rejects_malformed_reservation_without_dispatch(
+    monkeypatch, tmp_path, capsys
+):
+    source_root, state = _identified_source(tmp_path)
+    transition = _drift(state)
+    child = materialize_derived_run(source_root, transition)
+    source_before = (source_root / "pipeline_state.json").read_bytes()
+    child.reservation_path.write_text("{bad-json", encoding="utf-8")
+    called = False
+
+    def unexpected_dispatch(_args):
+        nonlocal called
+        called = True
+        return 0
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(source_root))
+    monkeypatch.setattr(cli_impl, "_dispatch_resume", unexpected_dispatch)
+    assert (
+        dispatch_derived_resume(Namespace(command="derive-and-resume", agent_model="child-model"))
+        == 2
+    )
+    assert called is False
+    assert (source_root / "pipeline_state.json").read_bytes() == source_before
+    assert "materialization failed" in capsys.readouterr().err
+
+
+def test_derive_and_resume_reports_child_dispatch_failure_without_parent_writes(
+    monkeypatch, tmp_path, capsys
+):
+    source_root, _state = _identified_source(tmp_path)
+    source_before = (source_root / "pipeline_state.json").read_bytes()
+    pointer = tmp_path / "logs" / "last_run_state.json"
+    pointer.parent.mkdir()
+    pointer.write_text('{"sentinel":"parent"}', encoding="utf-8")
+    pointer_before = pointer.read_bytes()
+
+    def fail_dispatch(_args):
+        raise RuntimeError("child runner unavailable")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(source_root))
+    monkeypatch.setattr(cli_impl, "_dispatch_resume", fail_dispatch)
+    assert (
+        dispatch_derived_resume(Namespace(command="derive-and-resume", agent_model="child-model"))
+        == 2
+    )
+    assert (source_root / "pipeline_state.json").read_bytes() == source_before
+    assert pointer.read_bytes() == pointer_before
+    assert "child dispatch failed" in capsys.readouterr().err
+
+
+def test_derive_and_resume_rejects_legacy_without_inventing_lineage(monkeypatch, tmp_path, capsys):
+    source_root = tmp_path / "legacy"
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(source_root))
+    save_state(
+        "phase_4",
+        status="running",
+        agent_model="source-model",
+    )
+    before = (source_root / "pipeline_state.json").read_bytes()
+    assert (
+        dispatch_derived_resume(Namespace(command="derive-and-resume", agent_model="child-model"))
+        == 2
+    )
+    assert (source_root / "pipeline_state.json").read_bytes() == before
+    assert not (tmp_path / ".warp-derived-runs").exists()
+    assert "legacy runs" in capsys.readouterr().err
+
+
+def test_parser_exposes_one_explicit_derive_and_resume_operation():
+    args = cli_impl.build_parser().parse_args(["derive-and-resume", "--agent-model", "child-model"])
+    assert args.command == "derive-and-resume"
+    assert args.agent_model == "child-model"

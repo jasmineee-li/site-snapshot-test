@@ -34,12 +34,21 @@ that reservation. Retries recover the same reservation and ID. The child
 definition records the source Run ID, starts from the existing `phase_0a`
 failed/rerun lifecycle state, and contains no copied phase or task artifacts;
 the owning Phase 2 and Phase 4 validators therefore remain the only checkpoint
-reuse authorities. Materialization re-reads the authoritative source state,
-fails closed on source or reservation drift, and never writes the source state
-or the process-wide resume pointer. The CLI prints an explicit child-root
-resume command with a child-local resume pointer instead of automatically
-dispatching it. Automatic child
-execution, checkpoint transfer, and pause/lease semantics remain later slices.
+reuse authorities. Materialization re-reads the authoritative source state and
+verifies its byte digest before the first commit. A new atomic reservation is
+provisional until an immediate post-write source read verifies the same bytes;
+observed drift removes only that exact reservation while no child directory
+exists, then fails closed so the request remains retryable. That successful
+post-write read is the bounded reservation-acceptance point. It does not lock
+or serialize later source checkpoint writers, and the reservation remains
+bound to the source bytes accepted at that point. Materialization never writes
+the source state or process-wide resume pointer. A retry accepts normal child
+artifacts only after the reservation, lineage manifest, and authoritative child
+checkpoint all validate. Plain `resume` remains read-only and fails closed when
+drift requires derivation. The explicit `derive-and-resume` operation creates
+or recovers the child-local discovery pointer, binds execution to the child
+root, and dispatches only that child. Checkpoint transfer and pause/lease
+semantics remain later slices.
 
 The fourth slice adds cooperative pause at the two normal Phase 4 admission
 boundaries: initial task dequeue and per-task postprocessing. `warp-taskgen
