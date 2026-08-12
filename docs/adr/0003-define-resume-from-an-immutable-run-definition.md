@@ -60,7 +60,8 @@ recorded as `interrupted`; SIGKILL remains indistinguishable from a crashed
 `running` process. Resume of either lifecycle state reruns Phase 4 and delegates
 all reuse decisions to the existing result/fingerprint/sidecar validators.
 This slice deliberately rejects process-pool pause and does not add pause
-admission to Phases 0-3; each needs its own quiescence and checkpoint contract.
+admission to Phases 0, 1, or 3; each needs its own quiescence and checkpoint
+contract. Phase 2a/2b/2c later slices now define those separate boundaries.
 There is no cancellation protocol, lease, or new checkpoint-acceptance path.
 Signal handling begins only after the Phase 4 run lock is owned. Termination
 during pre-ownership lock/sweep setup remains crash-compatible `running`, while
@@ -79,9 +80,10 @@ conservatively reruns every assignment in a fresh attempt root instead of
 promoting supervisor metadata past Phase 4's fingerprint/sidecar authority. It
 uses the explicit process-pool wrapper command persisted in state; generic
 `warp-taskgen resume` fails closed rather than dispatching normal Phase 4.
-Process-pool SIGTERM/crash recovery and Phases 0-3 remain outside cooperative
-pause, and the existing process-pool merge and partial-repair rules remain the
-only artifact-acceptance paths.
+Process-pool SIGTERM/crash recovery and Phases 0, 1, and 3 remain outside
+cooperative pause, while the Phase 2a/2b/2c boundaries are owned by their
+feature validators. The existing process-pool merge and partial-repair rules
+remain the only artifact-acceptance paths.
 
 The sixth slice extends cooperative pause only to Phase 2a planning. Shard
 claims are serialized with the pause request, already-admitted target
@@ -121,3 +123,21 @@ history, and the exact next lifecycle action under `run_control`; pipeline
 state remains the authority. Phase 2 SIGINT/SIGTERM handlers are installed
 only after the Phase 2 run lock is owned, preserving pre-lock and SIGKILL
 crash compatibility.
+
+## Expand-in-place cutover boundary
+
+The completed lifecycle and checkpoint slices do not introduce a storage
+migration. Existing canonical Run roots remain at `logs/<run_id>/`, and the
+archive wrapper preserves the corresponding
+`s3://benchmark-archives/worldsim-runs/<run_id>/` layout. A Legacy Run remains
+readable and conservative: it has no invented Run ID or Definition Digest, and
+its unbound artifacts are not promoted to reusable Checkpoints. New and Derived
+Runs retain their immutable identities and are archived by the selected opaque
+Run ID; a Derived Run's sibling collection is never archived recursively.
+
+The existing Phase 2a, Phase 2b, and Phase 2c feature-owned checkpoint paths
+are transported unchanged as Run Artifacts. Archive transport does not validate
+or repair checkpoints, alter pipeline state, materialize children, or add a
+workflow/event-sourcing layer. Phases 0, 1, and 3 remain crash-only. The
+tracked readiness proof is
+`packages/warp-taskgen/docs/handoffs/final-cutover-readiness-2026-08-11.md`.

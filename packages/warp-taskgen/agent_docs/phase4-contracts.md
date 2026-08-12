@@ -84,7 +84,9 @@ the paused checkpoint and are not promoted around the feature-owned
 fingerprint/sidecar validators;
 generic `warp-taskgen resume` refuses to reinterpret the pool root as normal
 Phase 4. Do not turn queued work into error results, cancel active units, or
-infer pause from `progress.json`. Phases 0-3 remain outside this contract.
+infer pause from `progress.json`. Phase 4's cooperative pause contract is
+separate from the Phase 2a/2b/2c contracts; Phases 0, 1, and 3 remain
+crash-only and reject cooperative pause.
 Single-process SIGINT/SIGTERM may persist `interrupted` after stack unwind;
 process-pool termination remains crash-compatible, and SIGKILL cannot be
 relabeled because no handler ran.

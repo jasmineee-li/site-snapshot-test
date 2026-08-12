@@ -204,6 +204,20 @@ active host or archive before trusting checked-in task JSON, then apply
 state directory after the precondition is fixed; do not relaunch into the same
 evidentiary run.
 
+## Final cutover and archive compatibility
+
+The expand-in-place cutover keeps the selected Run root at
+`logs/<run_id>/` and archives it at
+`s3://benchmark-archives/worldsim-runs/<run_id>/`. The archive wrapper selects
+one explicit root and recursively transports its feature-owned files, including
+the Phase 2a/2b/2c checkpoint families; it does not rename, flatten, migrate,
+or recursively include the `.warp-derived-runs/` collection. Archive transport
+does not validate or repair checkpoints. A Legacy Run remains readable without
+an invented Run ID or Definition Digest, and unbound Legacy output is not
+reusable Checkpoint evidence. See the tracked
+`docs/handoffs/final-cutover-readiness-2026-08-11.md` for the compatibility
+proof and live-canary gate record.
+
 For the live PR gate, use the current host config and quiet wrapper:
 
 ```bash
