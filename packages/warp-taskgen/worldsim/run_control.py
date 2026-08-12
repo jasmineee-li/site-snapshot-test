@@ -14,6 +14,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from worldsim.atomic_io import write_json_atomic
+from worldsim.run_control_history import (
+    append_history_event,
+)
+from worldsim.run_control_history import (
+    transition_history_path as _transition_history_path,
+)
 from worldsim.run_definition import define_run
 from worldsim.state import get_state_dir, transition_pipeline_status
 
@@ -60,6 +66,14 @@ class PauseRequest:
 
 def pause_request_path(state_dir: Path | None = None) -> Path:
     return (state_dir or get_state_dir()).expanduser().resolve(strict=False) / _REQUEST_FILE
+
+
+def transition_history_path(state_dir: Path | None = None) -> Path:
+    """Return the advisory, non-authoritative lifecycle history path."""
+
+    return _transition_history_path(
+        (state_dir or get_state_dir()).expanduser().resolve(strict=False)
+    )
 
 
 def _load_json_object(path: Path) -> dict[str, object]:
@@ -134,7 +148,7 @@ def _pauseable_definition(root: Path):
     if state.get("status") != "running":
         raise ValueError("cooperative pause requires a running pipeline phase")
     step = state.get("step")
-    if step not in _SUPPORTED_PAUSE_STAGES:
+    if not isinstance(step, str) or step not in _SUPPORTED_PAUSE_STAGES:
         raise ValueError(f"pipeline step {step!r} is not pause-aware")
     if step == "phase_2":
         stage = state.get("phase_2_stage")
@@ -146,7 +160,7 @@ def _pauseable_definition(root: Path):
         supported_stages = {_PROCESS_POOL_PAUSE_STAGE}
     else:
         supported_stages = _SUPPORTED_PAUSE_STAGES[str(step)]
-    if stage not in supported_stages:
+    if not isinstance(stage, str) or stage not in supported_stages:
         raise ValueError(f"{step} stage {stage!r} is not pause-aware")
     return define_run(state)
 
@@ -162,7 +176,7 @@ def validate_active_pause_request(
     if state.get("status") != "running":
         raise ValueError("pause request does not match a running pipeline phase")
     step = state.get("step")
-    if request.step != step or step not in _SUPPORTED_PAUSE_STAGES:
+    if not isinstance(step, str) or request.step != step or step not in _SUPPORTED_PAUSE_STAGES:
         raise ValueError("pause request does not match an active pause-aware Run")
     if step == "phase_2":
         stage = state.get("phase_2_stage")
@@ -173,7 +187,7 @@ def validate_active_pause_request(
         if step == "phase_4" and state.get("process_pool")
         else _SUPPORTED_PAUSE_STAGES[str(step)]
     )
-    if stage not in supported_stages:
+    if not isinstance(stage, str) or stage not in supported_stages:
         raise ValueError("pause request does not match an active pause-aware Run")
     definition = define_run(state)
     if (
@@ -235,6 +249,13 @@ def request_pause(state_dir: Path | None = None) -> PauseRequest:
         if observed_definition != definition:
             clear_pause_request(root)
             raise ValueError("active Run changed while the pause request was being recorded")
+        append_history_event(
+            root,
+            "pause_requested",
+            request_id=request.request_id,
+            step=request.step,
+            reason_code="operator_requested_pause",
+        )
         return request
 
 
@@ -264,9 +285,19 @@ def acknowledge_pause(state_dir: Path | None = None) -> dict[str, object]:
                 "paused_from_status": "running",
                 "pause_request_id": request.request_id,
                 "pause_requested_at": request.requested_at,
+                "pause_request_run_id": request.run_id,
+                "pause_request_definition_digest": request.definition_digest,
                 "paused_at": datetime.now(UTC).isoformat(),
                 "reason": "operator_requested_pause",
+                "reason_code": "operator_requested_pause",
             },
+        )
+        append_history_event(
+            root,
+            "paused",
+            request_id=request.request_id,
+            step=request.step,
+            reason_code="operator_requested_pause",
         )
         clear_pause_request(root)
         return updated
@@ -284,7 +315,15 @@ def mark_interrupted(state_dir: Path | None = None, *, signal_name: str) -> dict
                 "interrupted_at": datetime.now(UTC).isoformat(),
                 "interrupt_signal": signal_name,
                 "reason": "abrupt_process_interruption",
+                "reason_code": "abrupt_process_interruption",
             },
+        )
+        append_history_event(
+            root,
+            "interrupted",
+            step=str(updated.get("step")) if updated.get("step") else None,
+            reason_code="abrupt_process_interruption",
+            signal_name=signal_name,
         )
         clear_pause_request(root)
         return updated
@@ -342,11 +381,26 @@ async def pause_aware_map[T, R](
     return [result for result in results if result is not missing]  # type: ignore[misc]
 
 
+def __getattr__(name: str) -> object:
+    """Lazily expose read-only waiter types without a module cycle."""
+
+    if name in {"PauseWaitResult", "wait_for_pause"}:
+        from worldsim import run_control_wait
+
+        return getattr(run_control_wait, name)
+    if name == "load_transition_history":
+        from worldsim.run_control_history import load_transition_history
+
+        return load_transition_history
+    raise AttributeError(name)
+
+
 __all__ = [
     "PauseBoundaryReached",
     "PauseRequest",
     "RunInterrupted",
     "acknowledge_pause",
+    "append_history_event",
     "clear_pause_request",
     "load_pause_request",
     "mark_interrupted",
@@ -355,4 +409,5 @@ __all__ = [
     "pause_request_path",
     "pause_requested",
     "request_pause",
+    "transition_history_path",
 ]

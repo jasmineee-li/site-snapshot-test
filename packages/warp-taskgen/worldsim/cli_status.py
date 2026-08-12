@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from worldsim.phase_4.result_summary import summarize_results
+from worldsim.run_control_status import build_run_control_projection
 from worldsim.state import get_state_dir
 
 
@@ -203,24 +204,34 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
             else:
                 payload["run_definition"] = run_definition.to_dict()
                 payload["resume_plan"] = resume_plan.to_dict()
-        from worldsim.run_control import (
-            load_pause_request,
-            pause_request_path,
-            validate_active_pause_request,
-        )
-
-        marker = pause_request_path(run_root)
-        if marker.exists():
-            try:
-                pause_request = load_pause_request(run_root)
-                if pause_request is None:
-                    raise ValueError("pause request marker is missing")
-                validate_active_pause_request(state, pause_request)
-            except ValueError as exc:
-                payload["pause_request_error"] = str(exc)
-            else:
-                payload["pause_request"] = pause_request.to_dict()
-                payload["lifecycle_status"] = "pausing"
+            payload.update(build_run_control_projection(run_root, state))
+            run_control = {
+                key: payload[key]
+                for key in (
+                    "lifecycle_status",
+                    "state_status",
+                    "supported_stage",
+                    "supported",
+                    "supported_stages",
+                    "pause_request",
+                    "pause_request_error",
+                    "checkpoint_counts",
+                    "feature_checkpoint_counts",
+                    "next_action",
+                    "transition_history",
+                    "pause_request_id",
+                    "pause_reason_code",
+                    "pause_age_seconds",
+                )
+                if key in payload
+            }
+            payload["run_control"] = run_control
+            # Preserve the existing status keys only for a valid pausing
+            # marker; malformed/stale markers stay explanatory and cannot
+            # masquerade as an active lifecycle state.
+            if run_control.get("pause_request_error"):
+                payload.pop("lifecycle_status", None)
+                payload.pop("pause_request", None)
     if progress_path.exists():
         progress = load_json(progress_path)
         if isinstance(progress, dict):
@@ -374,6 +385,22 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
         task_dir_root = state.get("task_dir_root")
         if isinstance(task_dir_root, str) and task_dir_root:
             lines.append(f"Task dir root: {task_dir_root}")
+        supported_stage = payload.get("supported_stage")
+        if supported_stage is not None or "supported" in payload:
+            lines.append(
+                "Run control: "
+                f"supported_stage={supported_stage or 'none'} "
+                f"supported={str(bool(payload.get('supported'))).lower()}"
+            )
+        counts = payload.get("checkpoint_counts")
+        if isinstance(counts, dict):
+            lines.append(
+                "Run checkpoints: "
+                f"queued={counts.get('queued', 'unknown') if counts.get('queued') is not None else 'unknown'} "
+                f"admitted={counts.get('admitted', 'unknown') if counts.get('admitted') is not None else 'unknown'} "
+                f"completed={counts.get('completed', 'unknown') if counts.get('completed') is not None else 'unknown'} "
+                f"authority={counts.get('authority', 'unknown')}"
+            )
     else:
         lines.append("Pipeline: no pipeline_state.json found")
 
@@ -401,10 +428,20 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
         lines.append(
             "Pause request: "
             f"id={pause_request.get('request_id', 'unknown')} "
+            f"reason={pause_request.get('reason_code', 'unknown')} "
+            f"age={pause_request.get('age_seconds', 'unknown')}s "
             f"requested_at={pause_request.get('requested_at', 'unknown')}"
         )
     elif payload.get("pause_request_error"):
         lines.append(f"Pause request: malformed ({payload['pause_request_error']})")
+    next_action = payload.get("next_action")
+    if isinstance(next_action, dict):
+        lines.append(f"Next action: {next_action.get('description', 'unknown')}")
+        if next_action.get("command"):
+            lines.append(f"  command={next_action['command']}")
+    history = payload.get("transition_history")
+    if isinstance(history, list) and history:
+        lines.append(f"Run-control history: {len(history)} advisory event(s)")
 
     progress = payload.get("phase4_progress")
     if isinstance(progress, dict):

@@ -20,6 +20,7 @@ import contextlib
 import fcntl
 import ipaddress
 import logging
+import math
 import os
 import sys
 from pathlib import Path
@@ -206,6 +207,18 @@ def _non_negative_int(value: str) -> int:
     parsed = int(value)
     if parsed < 0:
         raise argparse.ArgumentTypeError("must be zero or greater")
+    return parsed
+
+
+def _non_negative_float(value: str) -> float:
+    """Argparse type for finite zero-or-greater durations."""
+
+    try:
+        parsed = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be a number") from exc
+    if not math.isfinite(parsed) or parsed < 0:
+        raise argparse.ArgumentTypeError("must be a finite number >= 0")
     return parsed
 
 
@@ -869,6 +882,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Resume: force the saved Phase 2 run down the offline L1/L2-only "
         "resolver path instead of live L3/L4 enrichment.",
     )
+    resume_cmd.add_argument(
+        "--plan",
+        action="store_true",
+        help="Explain the read-only Resume Plan without dispatching a phase.",
+    )
+    resume_cmd.add_argument(
+        "--json",
+        action="store_true",
+        help="With --plan, print structured JSON instead of operator prose.",
+    )
     # Keep derivation as a separate, unmistakably state-changing operator
     # action. The parent parser reuses the exact resume override surface
     # without adding a second implementation of those options.
@@ -891,6 +914,25 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Run state directory. Defaults to the configured WARP state root.",
+    )
+    pause_cmd.add_argument(
+        "--wait",
+        action="store_true",
+        help="Wait for authoritative paused, terminal, rejected, or timeout readback.",
+    )
+    pause_cmd.add_argument(
+        "--timeout",
+        type=_non_negative_float,
+        default=300.0,
+        metavar="SECONDS",
+        help="Maximum bounded wait duration (default: 300 seconds).",
+    )
+    pause_cmd.add_argument(
+        "--poll-interval",
+        type=_non_negative_float,
+        default=0.25,
+        metavar="SECONDS",
+        help="Readback polling interval while --wait is active (default: 0.25).",
     )
     rescore_cmd = subparsers.add_parser(
         "rescore-phase-3",
@@ -1570,6 +1612,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     if state is None:
         print("No pipeline state found; run a phase first.", file=sys.stderr)
         return 1
+    if getattr(args, "plan", False):
+        return _dispatch_resume_plan(args, state)
     from worldsim.cli.run_identity import resume_state_inputs
 
     try:
@@ -1860,6 +1904,14 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         print(str(exc), file=sys.stderr)
         return 2
     return _dispatch_phase(synthetic)
+
+
+def _dispatch_resume_plan(args: argparse.Namespace, state: dict[str, Any]) -> int:
+    """Compatibility route to the feature-owned read-only plan adapter."""
+
+    from worldsim.cli.resume_plan import dispatch_resume_plan
+
+    return dispatch_resume_plan(args, state)
 
 
 def _unknown_auth_sites(

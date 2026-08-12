@@ -139,8 +139,10 @@ WARP_TASKGEN_STATE_DIR=<run-root> uv run warp-taskgen pause
 WARP_TASKGEN_STATE_DIR=<run-root> uv run warp-taskgen status
 ```
 
-Wait for `status=paused` before stopping infrastructure. `status=pausing`
-means an admitted atomic unit or process-pool child is still draining. A paused
+For a bounded readback, use `pause --wait --timeout <seconds>` and wait for
+the exact request to report `paused` (or an explicit terminal, rejection, or
+timeout outcome) before stopping infrastructure. `status=pausing` means an
+admitted atomic unit or process-pool child is still draining. A paused
 process pool prints and persists its full `scripts/run_phase4_process_pool.py
 --resume ...` command; use that exact wrapper command. Generic `warp-taskgen
 resume` deliberately refuses a pool root. Process-pool termination without a
@@ -152,6 +154,13 @@ stopping claims, then drains admitted seed/render/readback/reachability/cleanup
 units through exact Run-bound checkpoints without promoting a partial
 aggregate. Phases 0, 1, and 3 reject pause. Do not simulate pause by killing
 their workers.
+
+For inspection without side effects, run
+`WARP_TASKGEN_STATE_DIR=<run-root> uv run warp-taskgen resume --plan --json`.
+The same read-only plan is available on `derive-and-resume --plan --json` and
+does not create a child or alter the source root. `status --json` places
+run-control details under `run_control`; its checkpoint counts and transition
+history are advisory and must not be used as checkpoint acceptance evidence.
 
 A result-affecting resume override on an identified Run materializes an
 isolated child and prints its exact resume command. Preserve both environment

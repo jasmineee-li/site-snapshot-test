@@ -121,6 +121,14 @@ def dispatch_derived_resume(args: argparse.Namespace) -> int:
         print("No pipeline state found; run a phase first.", file=sys.stderr)
         return 1
 
+    # ``derive-and-resume --plan`` is deliberately the same read-only
+    # projection as ``resume --plan``.  Check before transition resolution or
+    # materialization so the command cannot allocate a child by accident.
+    if getattr(args, "plan", False):
+        from worldsim.cli.resume_plan import dispatch_resume_plan
+
+        return dispatch_resume_plan(args, state)
+
     try:
         transition = resolve_cli_run_transition(args, existing_state=state)
     except ValueError as exc:
