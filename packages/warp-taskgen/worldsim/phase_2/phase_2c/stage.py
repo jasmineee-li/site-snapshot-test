@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 from worldsim.phase_2._context import install_context
+from worldsim.run_definition import define_run
+from worldsim.state import load_state_for_current_root
 
 install_context(globals())
 
@@ -65,6 +67,7 @@ async def _run_feasibility_stage(
     sites_filter = _sites_filter_from_value(
         getattr(args, "sites", None) or state_metadata.get("sites")
     )
+    checkpoint_dir = output_dir / "feasibility_checkpoints"
 
     save_state(
         "phase_2",
@@ -81,6 +84,24 @@ async def _run_feasibility_stage(
         force_reverify=force_reverify,
         **state_metadata,
     )
+
+    # The outer CLI binds an identified Run Definition to this state root.
+    # Legacy/direct phase calls intentionally remain identity-less and cannot
+    # manufacture reusable checkpoints.
+    checkpoint_run_id: str | None = None
+    checkpoint_definition_digest: str | None = None
+    try:
+        bound_state = load_state_for_current_root() or {}
+        definition = define_run(bound_state)
+        if not definition.legacy:
+            checkpoint_run_id = definition.run_id
+            checkpoint_definition_digest = definition.definition_digest
+    except (TypeError, ValueError):
+        logger.warning(
+            "Phase 2c: unable to resolve identified Run Definition; "
+            "task checkpoints remain disabled for this legacy invocation",
+            exc_info=True,
+        )
 
     try:
         current = json.loads(output_path.read_text())
@@ -122,6 +143,7 @@ async def _run_feasibility_stage(
             "unverified_count": len(stamped),
             "cleanup_warnings": [],
             "per_site": {},
+            "checkpoint_reused_count": 0,
             "source_data_dropped_count": 0,
             "source_data_dropped_by_kind": {},
         }
@@ -153,6 +175,7 @@ async def _run_feasibility_stage(
             feasibility_skipped_count=int(summary.get("skipped_already_verified_count") or 0),
             feasibility_unverified_count=summary["unverified_count"],
             feasibility_dropped_source_data_count=len(artifact_result.dropped_source_data),
+            feasibility_checkpoint_reused_count=0,
             feasibility_skipped_via_flag=True,
             **state_metadata,
         )
@@ -169,6 +192,7 @@ async def _run_feasibility_stage(
                 ),
                 "feasibility_unverified_count": summary["unverified_count"],
                 "feasibility_dropped_source_data_count": len(artifact_result.dropped_source_data),
+                "feasibility_checkpoint_reused_count": 0,
                 "feasibility_skipped_via_flag": True,
             }
         )
@@ -273,6 +297,9 @@ async def _run_feasibility_stage(
             ttl_hours=ttl_hours,
             force_reverify=force_reverify,
             phase_2_status=prior_phase_2_status,
+            checkpoint_dir=checkpoint_dir,
+            run_id=checkpoint_run_id,
+            definition_digest=checkpoint_definition_digest,
         )
     except Exception as exc:
         logger.error("Phase 2c verification failed: %s", exc)
@@ -337,6 +364,7 @@ async def _run_feasibility_stage(
         "feasibility_unverified_count": 0,
         "feasibility_cleanup_warning_count": len(report.cleanup_warnings),
         "feasibility_dropped_source_data_count": len(artifact_result.dropped_source_data),
+        "feasibility_checkpoint_reused_count": int(report.reused_checkpoints),
     }
     save_state(
         "phase_2",

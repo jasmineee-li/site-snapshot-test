@@ -31,6 +31,7 @@ def _report_summary_dict(
         "verified_count": len(report.verified),
         "infeasible_count": len(report.infeasible),
         "skipped_already_verified_count": len(report.skipped_already_verified),
+        "checkpoint_reused_count": int(report.reused_checkpoints),
         "cleanup_warnings": list(report.cleanup_warnings),
         "per_site": report.per_site_counts,
         "source_data_dropped_count": len(active_dropped_source_data),
