@@ -13,6 +13,7 @@ SSH_KEY_ARG=""
 JOB_ID=""
 LATEST=0
 NAME=""
+JSON=0
 
 usage() {
     cat <<'USAGE'
@@ -25,6 +26,7 @@ Options:
   --job-id <id>             job id to inspect
   --latest                  inspect latest job
   --name <name>             inspect latest job with this human name
+  --json                    print structured job/run status JSON
   -h, --help                show this help
 USAGE
 }
@@ -37,6 +39,7 @@ while (($#)); do
         --job-id) JOB_ID="$2"; shift 2 ;;
         --latest) LATEST=1; shift ;;
         --name) NAME="$2"; shift 2 ;;
+        --json) JSON=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) rj_die "unknown arg: $1" ;;
     esac
@@ -48,11 +51,12 @@ rj_prepare_connection "$HOST_CONFIG" "$SSH_KEY_ARG"
 REMOTE_DIR="${REMOTE_DIR:-$(rj_default_remote_dir)}"
 JOB_ID="$(rj_resolve_job_id "$REMOTE_DIR" "$JOB_ID" "$LATEST" "$NAME")"
 
-rj_ssh_bash "$REMOTE_DIR" "$JOB_ID" <<'REMOTE'
+rj_ssh_bash "$REMOTE_DIR" "$JOB_ID" "$JSON" <<'REMOTE'
 set -euo pipefail
 remote_dir="$1"
 job_id="$2"
-python3 - "$remote_dir" "$job_id" <<'PY'
+json_mode="$3"
+python3 - "$remote_dir" "$job_id" "$json_mode" <<'PY'
 import json
 import os
 import re
@@ -65,12 +69,63 @@ from pathlib import Path
 
 remote_dir = Path(sys.argv[1])
 job_id = sys.argv[2]
+json_mode = sys.argv[3] == "1"
 job_dir = remote_dir / "logs" / "remote_jobs" / job_id
 metadata_path = job_dir / "metadata.json"
 if not metadata_path.exists():
     raise SystemExit(f"metadata not found: {metadata_path}")
 
 metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+
+def metadata_state_root() -> Path | None:
+    raw = metadata.get("state_dir")
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    path = Path(raw).expanduser()
+    return (path if path.is_absolute() else remote_dir / path).resolve(strict=False)
+
+state_root = metadata_state_root()
+authoritative_state = None
+if state_root is not None:
+    try:
+        state_payload = json.loads((state_root / "pipeline_state.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        state_payload = None
+    if isinstance(state_payload, dict):
+        authoritative_state = state_payload
+
+run_control = None
+if state_root is not None and authoritative_state is not None:
+    # The checked-out WARP status projection is the source for exact operator
+    # next_action text. Fall back to the state-only identity below when an old
+    # remote checkout cannot import the projection module.
+    try:
+        sys.path.insert(0, str(remote_dir))
+        from worldsim.cli_status import build_status_payload
+
+        status_payload = build_status_payload(state_root)
+        candidate = status_payload.get("run_control")
+        if isinstance(candidate, dict):
+            run_control = candidate
+    except Exception:
+        run_control = None
+
+def run_definition_identity() -> tuple[str | None, str | None]:
+    definition = authoritative_state.get("run_definition") if isinstance(authoritative_state, dict) else None
+    if not isinstance(definition, dict):
+        definition = {}
+    run_id = authoritative_state.get("run_id") if isinstance(authoritative_state, dict) else None
+    digest = authoritative_state.get("definition_digest") if isinstance(authoritative_state, dict) else None
+    if run_id is None:
+        run_id = definition.get("run_id")
+    if digest is None:
+        digest = definition.get("definition_digest")
+    return (
+        run_id if isinstance(run_id, str) and run_id else None,
+        digest if isinstance(digest, str) and digest else None,
+    )
+
+run_id, definition_digest = run_definition_identity()
 try:
     job_created_ts = datetime.fromisoformat(
         str(metadata.get("created_at", "")).replace("Z", "+00:00")
@@ -120,6 +175,44 @@ try:
     elapsed = f"{seconds // 3600}h{(seconds % 3600) // 60:02d}m{seconds % 60:02d}s"
 except Exception:
     pass
+
+if json_mode:
+    next_action = run_control.get("next_action") if isinstance(run_control, dict) else None
+    if not isinstance(next_action, dict) and isinstance(authoritative_state, dict):
+        root_text = str(state_root) if state_root is not None else "<run-root>"
+        state_status = authoritative_state.get("status")
+        if state_status in {"paused", "interrupted", "complete", "partial_complete", "failed"}:
+            next_action = {
+                "description": "resume the run from its authoritative checkpoint",
+                "command": f"WARP_TASKGEN_STATE_DIR={shlex.quote(root_text)} uv run warp-taskgen resume",
+            }
+        elif state_status == "running":
+            # An older remote checkout may not have the run-control
+            # projection.  Do not guess that an arbitrary running phase can
+            # accept pause; operators should inspect the authoritative state.
+            next_action = {
+                "description": "inspect authoritative run-control support before acting",
+                "command": None,
+            }
+    payload = {
+        "remote_job_id": job_id,
+        "name": metadata.get("name"),
+        "status": status,
+        "returncode": exit_data.get("returncode") if isinstance(exit_data, dict) else None,
+        "pid": pid,
+        "pgid": metadata.get("pgid"),
+        "remote_dir": metadata.get("remote_dir"),
+        "metadata": str(metadata_path),
+        "run_state_dir": str(state_root) if state_root is not None else None,
+        "run_id": run_id,
+        "definition_digest": definition_digest,
+        "run_status": authoritative_state.get("status") if isinstance(authoritative_state, dict) else None,
+        "run_step": authoritative_state.get("step") if isinstance(authoritative_state, dict) else None,
+        "run_control": run_control,
+        "next_action": next_action,
+    }
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    raise SystemExit(0)
 
 def tail(path: Path, lines: int = 8, max_bytes: int = 65536) -> list[str]:
     if not path.exists():
@@ -388,6 +481,36 @@ print(f"pid: {pid}")
 print(f"pgid: {metadata.get('pgid')}")
 print(f"remote_dir: {metadata.get('remote_dir')}")
 print(f"metadata: {metadata_path}")
+print(f"run_state_dir: {state_root if state_root is not None else 'unknown'}")
+print(f"run_id: {run_id or 'legacy/unknown'}")
+print(f"definition_digest: {definition_digest or 'unknown'}")
+if isinstance(authoritative_state, dict):
+    print(
+        "run_state: "
+        f"status={authoritative_state.get('status') or 'unknown'} "
+        f"step={authoritative_state.get('step') or 'unknown'}"
+    )
+if isinstance(run_control, dict):
+    print(
+        "run_control: "
+        f"lifecycle_status={run_control.get('lifecycle_status') or 'unknown'} "
+        f"supported_stage={run_control.get('supported_stage') or 'none'} "
+        f"supported={str(bool(run_control.get('supported'))).lower()}"
+    )
+    next_action = run_control.get('next_action')
+    if isinstance(next_action, dict):
+        print(f"next_action: {next_action.get('description') or 'unknown'}")
+        if next_action.get('command'):
+            print(f"next_command: {next_action['command']}")
+elif isinstance(authoritative_state, dict):
+    # Keep an exact, useful command visible even against an older checkout.
+    root_text = str(state_root) if state_root is not None else "<run-root>"
+    state_status = authoritative_state.get("status")
+    if state_status in {"paused", "interrupted", "complete", "partial_complete", "failed"}:
+        print("next_action: resume the run from its authoritative checkpoint")
+        print(f"next_command: WARP_TASKGEN_STATE_DIR={shlex.quote(root_text)} uv run warp-taskgen resume")
+    elif state_status == "running":
+        print("next_action: inspect authoritative run-control support before acting")
 print("command: " + " ".join(metadata.get("command", [])[:12]) + (" ..." if len(metadata.get("command", [])) > 12 else ""))
 
 def print_git(label: str, payload) -> str | None:

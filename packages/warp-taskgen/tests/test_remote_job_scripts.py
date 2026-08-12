@@ -3,11 +3,14 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+
+import pytest
 
 
 def _base_env(repo_root: Path, tmp_path: Path) -> dict[str, str]:
@@ -21,6 +24,192 @@ def _base_env(repo_root: Path, tmp_path: Path) -> dict[str, str]:
 def _write_executable(path: Path, body: str) -> None:
     path.write_text(body)
     path.chmod(0o755)
+
+
+def _write_fake_ssh(fakebin: Path) -> None:
+    _write_executable(
+        fakebin / "ssh",
+        """#!/usr/bin/env python3
+import subprocess
+import sys
+
+args = sys.argv[1:]
+remote_cmd = args[-1]
+raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).returncode)
+""",
+    )
+
+
+def _start_control_test_job(
+    tmp_path: Path,
+    *,
+    fakebin: Path,
+    pause_mode: str = "paused",
+) -> tuple[Path, str, Path]:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    remote_dir.mkdir(parents=True)
+    _install_remote_process_group_helper(remote_dir)
+    _write_fake_ssh(fakebin)
+    state_root = remote_dir / "logs" / "run"
+    state_root.mkdir(parents=True)
+    (state_root / "pipeline_state.json").write_text(
+        json.dumps(
+            {
+                "step": "phase_2",
+                "status": "running",
+                "phase_2_stage": "planning",
+                "logs_dir": str(state_root),
+                "run_id": "run-control-test",
+                "definition_digest": "a" * 64,
+                "timestamp": "2026-08-11T00:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+    _write_executable(
+        fakebin / "uv",
+        f"""#!/usr/bin/env python3
+import json
+import os
+import sys
+from pathlib import Path
+
+args = sys.argv[1:]
+root = Path({str(state_root)!r})
+mode = os.environ.get("FAKE_PAUSE_MODE", {pause_mode!r})
+if mode == "paused":
+    state_path = root / "pipeline_state.json"
+    state = json.loads(state_path.read_text())
+    state.update(status="paused", pause_request_id="pause-" + "1" * 32)
+    state_path.write_text(json.dumps(state))
+    print("Pause acknowledged (pause-" + "1" * 32 + ").")
+    raise SystemExit(0)
+if mode == "timeout":
+    print("Pause still pending after 1.0s (pause-test; reason=pause_wait_timeout).")
+    raise SystemExit(1)
+if mode == "terminal":
+    state_path = root / "pipeline_state.json"
+    state = json.loads(state_path.read_text())
+    state["status"] = "complete"
+    state_path.write_text(json.dumps(state))
+    print("Pause ended because the pipeline is terminal (complete).")
+    raise SystemExit(0)
+if mode == "swap":
+    state_path = root / "pipeline_state.json"
+    state = json.loads(state_path.read_text())
+    state.update(
+        status="paused",
+        pause_request_id="pause-" + "1" * 32,
+        run_id="different-run",
+        definition_digest="b" * 64,
+    )
+    state_path.write_text(json.dumps(state))
+    print("Pause acknowledged (pause-" + "1" * 32 + ").")
+    raise SystemExit(0)
+print("pause wait rejected: unsupported stage", file=sys.stderr)
+raise SystemExit(2)
+""",
+    )
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+    env["FAKE_PAUSE_MODE"] = pause_mode
+    started = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--name",
+            "graceful-control-test",
+            "--state-dir",
+            "logs/run",
+            "--",
+            sys.executable,
+            "-c",
+            "import time; time.sleep(60)",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert started.returncode == 0, started.stderr
+    job_id = next(
+        line.split("=", 1)[1] for line in started.stdout.splitlines() if line.startswith("job_id=")
+    )
+    metadata_path = remote_dir / "logs" / "remote_jobs" / job_id / "metadata.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metadata.update(run_id="run-control-test", definition_digest="a" * 64)
+    metadata_path.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+    return host_config, job_id, remote_dir
+
+
+def _control_job_paths(remote_dir: Path, job_id: str) -> tuple[Path, Path]:
+    job_dir = remote_dir / "logs" / "remote_jobs" / job_id
+    return job_dir, job_dir / "metadata.json"
+
+
+def _cleanup_control_job(remote_dir: Path, job_id: str) -> None:
+    _, metadata_path = _control_job_paths(remote_dir, job_id)
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        pgid = int(metadata.get("pgid") or 0)
+        if pgid > 1:
+            os.killpg(pgid, signal.SIGKILL)
+    except (FileNotFoundError, json.JSONDecodeError, OSError, ValueError):
+        pass
+
+
+def _require_procfs() -> None:
+    if not Path("/proc").is_dir():
+        pytest.skip("remote job process identity tests require Linux procfs")
+
+
+def _run_graceful_stop(
+    repo_root: Path,
+    host_config: Path,
+    remote_dir: Path,
+    job_id: str,
+    fakebin: Path,
+    *extra: str,
+) -> subprocess.CompletedProcess[str]:
+    env = _base_env(repo_root, host_config.parent)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+    return subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_stop.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--job-id",
+            job_id,
+            "--graceful",
+            "--pause-timeout",
+            "1",
+            "--pause-poll-interval",
+            "0.1",
+            "--timeout",
+            "2",
+            *extra,
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _assert_control_process_alive(remote_dir: Path, job_id: str) -> bool:
+    _, metadata_path = _control_job_paths(remote_dir, job_id)
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    pid = int(metadata["pid"])
+    return Path("/proc", str(pid)).exists()
 
 
 def _install_remote_process_group_helper(remote_dir: Path) -> None:
@@ -110,9 +299,7 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     assert "--dry-run" in args
     assert "--delete" in args
     exclude_values = {
-        args[index + 1]
-        for index, value in enumerate(args[:-1])
-        if value == "--exclude"
+        args[index + 1] for index, value in enumerate(args[:-1]) if value == "--exclude"
     }
     assert ".env" in joined
     assert ".git" in joined
@@ -1806,6 +1993,167 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
     assert "phase4_results:" not in completed.stdout
     assert "task_broke=1" not in completed.stdout
     assert "audit output" in completed.stdout
+
+
+def test_graceful_stop_waits_for_authoritative_pause_before_term(tmp_path: Path) -> None:
+    _require_procfs()
+    repo_root = Path(__file__).resolve().parents[1]
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    host_config, job_id, remote_dir = _start_control_test_job(
+        tmp_path, fakebin=fakebin, pause_mode="paused"
+    )
+    try:
+        completed = _run_graceful_stop(repo_root, host_config, remote_dir, job_id, fakebin)
+        assert completed.returncode == 0, completed.stderr
+        assert "Pause acknowledged" in completed.stdout
+        assert f"stopped job {job_id} with TERM" in completed.stdout
+        job_dir, _ = _control_job_paths(remote_dir, job_id)
+        stop = json.loads((job_dir / "stop.json").read_text(encoding="utf-8"))
+        exit_data = json.loads((job_dir / "exit.json").read_text(encoding="utf-8"))
+        assert stop["status"] == "term_sent"
+        assert stop["control"] == "graceful"
+        assert stop["pause_request_id"] == "pause-" + "1" * 32
+        assert stop["run_id"] == "run-control-test"
+        assert stop["definition_digest"] == "a" * 64
+        assert exit_data["signal"] == "TERM"
+    finally:
+        _cleanup_control_job(remote_dir, job_id)
+
+
+def test_graceful_pause_outcomes_never_send_term(tmp_path: Path) -> None:
+    _require_procfs()
+    repo_root = Path(__file__).resolve().parents[1]
+    for mode in ("timeout", "terminal", "unsupported", "swap"):
+        case_dir = tmp_path / mode
+        case_dir.mkdir()
+        fakebin = case_dir / "bin"
+        fakebin.mkdir()
+        host_config, job_id, remote_dir = _start_control_test_job(
+            case_dir, fakebin=fakebin, pause_mode=mode
+        )
+        try:
+            completed = _run_graceful_stop(repo_root, host_config, remote_dir, job_id, fakebin)
+            assert completed.returncode != 0, (mode, completed.stdout, completed.stderr)
+            job_dir, _ = _control_job_paths(remote_dir, job_id)
+            stop = json.loads((job_dir / "stop.json").read_text(encoding="utf-8"))
+            assert stop["status"] == "pause_rejected", (mode, stop)
+            assert "term_sent" not in stop["status"]
+            assert not (job_dir / "exit.json").exists(), mode
+            assert _assert_control_process_alive(remote_dir, job_id), mode
+        finally:
+            _cleanup_control_job(remote_dir, job_id)
+
+
+def test_graceful_stop_rejects_missing_state_or_identity_metadata(tmp_path: Path) -> None:
+    _require_procfs()
+    repo_root = Path(__file__).resolve().parents[1]
+    for mutate in ("state_dir", "identity"):
+        case_dir = tmp_path / mutate
+        case_dir.mkdir()
+        fakebin = case_dir / "bin"
+        fakebin.mkdir()
+        host_config, job_id, remote_dir = _start_control_test_job(
+            case_dir, fakebin=fakebin, pause_mode="paused"
+        )
+        try:
+            job_dir, metadata_path = _control_job_paths(remote_dir, job_id)
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            if mutate == "state_dir":
+                metadata.pop("state_dir", None)
+            else:
+                metadata.pop("process_start_ticks", None)
+            metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+            completed = _run_graceful_stop(repo_root, host_config, remote_dir, job_id, fakebin)
+            assert completed.returncode != 0
+            stop = json.loads((job_dir / "stop.json").read_text(encoding="utf-8"))
+            assert stop["status"] == "pause_rejected"
+            assert not (job_dir / "exit.json").exists()
+            assert _assert_control_process_alive(remote_dir, job_id)
+        finally:
+            _cleanup_control_job(remote_dir, job_id)
+
+
+def test_graceful_stop_records_stale_live_process_rejection(tmp_path: Path) -> None:
+    _require_procfs()
+    repo_root = Path(__file__).resolve().parents[1]
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    host_config, job_id, remote_dir = _start_control_test_job(
+        tmp_path, fakebin=fakebin, pause_mode="paused"
+    )
+    try:
+        job_dir, metadata_path = _control_job_paths(remote_dir, job_id)
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        metadata["process_start_ticks"] = "stale-start-ticks"
+        metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+        completed = _run_graceful_stop(repo_root, host_config, remote_dir, job_id, fakebin)
+        assert completed.returncode != 0
+        stop = json.loads((job_dir / "stop.json").read_text(encoding="utf-8"))
+        assert stop["status"] == "pause_rejected"
+        assert stop["control"] == "graceful"
+        assert "start time" in stop["reason"]
+        assert not (job_dir / "exit.json").exists()
+        assert _assert_control_process_alive(remote_dir, job_id)
+    finally:
+        _cleanup_control_job(remote_dir, job_id)
+
+
+def test_graceful_stop_ssh_failure_cannot_signal_local_process(tmp_path: Path) -> None:
+    _require_procfs()
+    repo_root = Path(__file__).resolve().parents[1]
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    host_config, job_id, remote_dir = _start_control_test_job(
+        tmp_path, fakebin=fakebin, pause_mode="paused"
+    )
+    try:
+        _write_executable(fakebin / "ssh", "#!/bin/sh\nexit 42\n")
+        completed = _run_graceful_stop(repo_root, host_config, remote_dir, job_id, fakebin)
+        assert completed.returncode == 42
+        assert _assert_control_process_alive(remote_dir, job_id)
+        job_dir, _ = _control_job_paths(remote_dir, job_id)
+        assert not (job_dir / "stop.json").exists()
+    finally:
+        _cleanup_control_job(remote_dir, job_id)
+
+
+def test_status_json_keeps_job_and_run_identity_distinct(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    host_config, job_id, remote_dir = _start_control_test_job(
+        tmp_path, fakebin=fakebin, pause_mode="paused"
+    )
+    try:
+        env = _base_env(repo_root, tmp_path)
+        env["PATH"] = f"{fakebin}:{env['PATH']}"
+        completed = subprocess.run(
+            [
+                "bash",
+                str(repo_root / "scripts" / "remote_job_status.sh"),
+                "--host-config",
+                str(host_config),
+                "--remote-dir",
+                str(remote_dir),
+                "--job-id",
+                job_id,
+                "--json",
+            ],
+            cwd=repo_root,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        assert completed.returncode == 0, completed.stderr
+        payload = json.loads(completed.stdout)
+        assert payload["remote_job_id"] == job_id
+        assert payload["run_id"] == "run-control-test"
+        assert payload["definition_digest"] == "a" * 64
+        assert payload["run_state_dir"].endswith("logs/run")
+        assert payload["remote_job_id"] != payload["run_id"]
+    finally:
+        _cleanup_control_job(remote_dir, job_id)
 
 
 def test_stop_requires_job_id_and_rejects_patterns(tmp_path: Path) -> None:
