@@ -36,8 +36,16 @@ separate task boundary: each plan/task writes one Run-bound checkpoint after
 all payload ordinals, validation, selected seed, and diagnostics complete.
 Pause drains admitted text-fill units without promoting a partial
 `adversarial_tasks.json`; exact resume reuses only matching Run ID/digest,
-plan-input, model, and text-count evidence. Phase 2c feasibility does not
-accept cooperative pause.
+plan-input, model, and text-count evidence. Phase 2c feasibility has its own
+bounded source-data preflight followed by a task-level Atomic Work Unit:
+seed, render/readback/reachability, cleanup, and the Run-bound checkpoint.
+Pause requests received during preflight are acknowledged only after that
+setup drains and prevent every later verification claim. During verification,
+claims are serialized with the request marker; admitted units finish and
+checkpoint, then the Run is persisted as paused without promoting a partial
+aggregate. Exact resume delegates compatibility to the Phase 2c checkpoint
+validator, rerunning missing, stale, malformed, legacy, tampered, or
+topology-drifted tasks.
 
 Carrier exposure and action objective are separate contracts. A payload may be
 admitted on a WASP carrier while asking the agent to perform a different

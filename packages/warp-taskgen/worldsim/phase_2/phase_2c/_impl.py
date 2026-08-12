@@ -71,6 +71,10 @@ from worldsim.phase_2.phase_2c.outcomes import (
     _resolve_seed_site,
     skipped_task_stanza,
 )
+from worldsim.phase_2.phase_2c.pause_control import (
+    assert_preflight_boundary,
+    run_verification_units,
+)
 from worldsim.phase_2.phase_2c.policy import FeasibilityPolicyCatalog
 from worldsim.phase_2.phase_2c.reddit_attribution import (
     _attach_gitlab_issue_note_state_probe_anchors,
@@ -345,6 +349,7 @@ async def verify_feasibility(
     seed_registry: SeedSiteRegistry | None = None,
     site_catalog: SiteCatalog | None = None,
     checkpoint_dir: Path | str | None = None,
+    state_dir: Path | str | None = None,
     run_id: str | None = None,
     definition_digest: str | None = None,
     verifier_version: str = VERIFIER_VERSION,
@@ -381,6 +386,9 @@ async def verify_feasibility(
         checkpoint_dir: Optional directory for durable per-task checkpoints.
             When omitted, direct/legacy callers retain pre-checkpoint behavior;
             an identity without a directory never writes into the process cwd.
+        state_dir: Optional authoritative Run state root used for cooperative
+            pause admission. When omitted, direct/legacy callers do not poll
+            lifecycle markers.
         run_id / definition_digest: Immutable Run identity. Checkpoint reuse
             is disabled when either is absent so legacy roots cannot acquire
             an invented identity.
@@ -395,6 +403,8 @@ async def verify_feasibility(
 
     if checkpoint_dir is not None:
         checkpoint_dir = Path(checkpoint_dir)
+    if state_dir is not None:
+        state_dir = Path(state_dir)
     fingerprint_base = _host_fingerprint(instances_label, instances)
 
     if not raw:
@@ -511,6 +521,10 @@ async def verify_feasibility(
     )
     # ``raw`` has been mutated in place by _run_preflight_and_filter_raw
     # when preflight succeeds.
+    # Source-data preflight is one bounded setup operation. A request that
+    # arrives while it drains is acknowledged only at this boundary, before
+    # any verification task can claim an Atomic Work Unit.
+    assert_preflight_boundary(state_dir)
 
     verified: list[dict[str, Any]] = []
     infeasible: list[dict[str, Any]] = []
@@ -800,9 +814,16 @@ async def verify_feasibility(
                 ok=worker_ok,
             )
 
-    results = await asyncio.gather(
-        *(worker(task, i) for i, task in enumerate(raw)),
-        return_exceptions=False,
+    # The operation includes replica admission, seed effects, render/readback
+    # and reachability evidence, cleanup, and the task-local checkpoint write.
+    # The feature-owned scheduler serializes claims with the pause marker and
+    # drains every already-admitted unit without cancellation.
+    indexed_tasks = list(enumerate(raw))
+    results = await run_verification_units(
+        indexed_tasks,
+        lambda indexed_task: worker(indexed_task[1], indexed_task[0]),
+        concurrency=concurrency,
+        state_dir=state_dir,
     )
 
     # Per-replica observability summary. One log line per replica, sorted

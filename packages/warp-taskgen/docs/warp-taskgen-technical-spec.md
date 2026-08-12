@@ -380,8 +380,17 @@ promote `adversarial_tasks.json` until the selected work is complete. Exact
 resume accepts only checkpoints matching the Run ID, Definition Digest,
 complete plan-input digest, text model, and text-count setting; missing,
 legacy, stale, malformed, tampered, failed, or otherwise unbound units rerun.
-Phase 2c feasibility, Phase 2 signal interruption, cancellation, leases, and
-cooperative pause for Phases 0, 1, and 3 remain outside this slice.
+Phase 2c feasibility has a separate cooperative boundary: source-data
+preflight remains one bounded setup operation, then each verification task is
+an Atomic Work Unit. A request during preflight drains that setup and prevents
+later claims. During verification, request and claims are serialized; admitted
+seed/render-readback/reachability/cleanup units finish and write their exact
+Run-bound checkpoints before the outer lifecycle records `paused`. Canonical
+feasibility aggregates are not promoted on that boundary. Exact resume accepts
+only checkpoints validated by the Phase 2c feature policy and reruns pending,
+legacy, stale, malformed, tampered, or topology-incompatible tasks. Phase 2
+signal interruption, cancellation, leases, and cooperative pause for Phases 0,
+1, and 3 remain outside this slice.
 
 ### CLI Flags
 
@@ -1414,8 +1423,10 @@ accepts it only when every binding and payload contract matches; missing,
 stale, malformed, tampered, failed, legacy, or unbound checkpoints rerun.
 The scheduler drains admitted units before recording `paused`, and no partial
 `adversarial_tasks.json` is promoted at that boundary. This contract is local
-to Phase 2b; Phase 2c, signal interruption, cancellation, leases, and the
-other pipeline phases do not inherit it.
+to Phase 2b; Phase 2c has a separate feature-owned boundary for its bounded
+source-data preflight and verification Atomic Work Units. Signal interruption,
+cancellation, leases, and the other pipeline phases do not inherit either
+pause contract.
 
 **Editor-based seeding dispatch.** Every `data_seed` and `adversarial_data_seed` carries an `editor_calls` list of `{benchmark, site, method, args}` entries. Phase 4 and Phase 2c dispatch each call through `EDITOR_REGISTRY[(benchmark, site)]` (defined in `worldsim/editors/__init__.py`), which returns a per-site OOP editor class (`ShoppingEditor`, `ShoppingAdminEditor`, `GitlabEditor`, `RedditEditor`, ...). Adding a new benchmark means adding new editor classes and a registry entry; no call-site changes are needed. The single source of truth for method names, selector args, payload args, and token requirements is the editor registry method spec used by exposure-contract materialization. Editors that create a new user-visible object return a generic `created_resource` descriptor (`role`, `kind`, `id`, `url`, optional `parent_url`) in addition to any site-specific fields; seeding preserves these as `seed_metadata.created_resource` / `seed_metadata.created_resources` so Phase 2c can resolve transition targets without knowing whether the site calls the object a submission, issue, ticket, or message. For multi-call self-contained seeds, seeding also records per-call `seed_metadata.editor_call_results[]` with call index, editor method, read surfaces, created resources, and write identifiers. Phase 2c uses this per-call record when available to bind render verification to the editor call that actually contains the selected payload signature, falling back to aggregate metadata only for older artifacts.
 
@@ -1510,6 +1521,7 @@ compatibility facade for older imports. The public runner shape is:
         force_reverify: bool = False,
         phase_2_status: str | None = None,
         checkpoint_dir: Path | None = None,
+        state_dir: Path | None = None,
         run_id: str | None = None,
         definition_digest: str | None = None,
         verifier_version: str = "phase_2c-verifier-v1",
@@ -1584,8 +1596,13 @@ checkpoints; `--force-reverify` always reruns them. A checkpoint is never an
 admission grant by itself; Phase 2c reconstructs the
 canonical verified/infeasible aggregates only after every required task unit
 has a valid outcome. Source-data preflight remains one bounded, safely
-rerunnable setup operation and has no per-task checkpoints. Cooperative pause,
-signals, leases, and cancellation are outside this contract.
+rerunnable setup operation and has no per-task checkpoints. Cooperative pause
+starts only after that setup: the request marker is serialized with
+verification claims, admitted Atomic Work Units drain through cleanup and
+checkpoint persistence, and the outer lifecycle records `paused` before
+canonical aggregate promotion. Exact resume delegates reuse to the
+feature-owned validators; signals, leases, and cancellation are outside this
+contract.
 
 **Phase 4 admission.** Phase 4 admits only tasks with `feasibility.status == "verified"`, an eligible `exposure_contract`, `exposure_contract.phase4_exposure.admissible == true`, `feasibility.exposure.reachable == true`, and exact exposure contract/verification matches. It does not reject solely because Phase 2c observed the payload below the initial viewport or behind a collapsed ancestor; those fields are geometry telemetry. PVPO then determines actual encounter on the agent trajectory (`max_coverage > 0` means encountered; `max_coverage == 0` means `injection_not_encountered`). `WORLDSIM_STRICT_FEASIBILITY=false` is a development break-glass for legacy feasibility status only; it does not bypass the exposure contract/evidence gate. Phase 3 annotates benign contracts whose linked adversarials are all infeasible with `adversarially_exhausted=true` so reviewers can distinguish agent failure from dataset exhaustion.
 

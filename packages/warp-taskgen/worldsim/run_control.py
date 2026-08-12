@@ -21,7 +21,7 @@ _SCHEMA_VERSION = 1
 _REQUEST_FILE = "pause_request.json"
 _REQUEST_LOCK_FILE = ".pause_request.lock"
 _SUPPORTED_PAUSE_STAGES = {
-    "phase_2": frozenset({"planning", "text_fill"}),
+    "phase_2": frozenset({"planning", "text_fill", "feasibility"}),
     "phase_4": frozenset({"initial_evaluation", "postprocessing"}),
 }
 _PROCESS_POOL_PAUSE_STAGE = "process_pool_dispatch"

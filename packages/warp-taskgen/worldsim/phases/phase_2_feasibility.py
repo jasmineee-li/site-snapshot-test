@@ -52,6 +52,8 @@ _PATCHABLE_GLOBALS = (
     "resolve_agent_auth_headers",
     "resolve_storage_state_path",
     "retrying",
+    "assert_preflight_boundary",
+    "run_verification_units",
     "phase_2c_retry_sleep",
     "select_task_site_instance_dict_p2c",
     "storage_state_preflight_error_for_payload",

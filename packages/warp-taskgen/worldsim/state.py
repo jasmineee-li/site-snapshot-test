@@ -146,12 +146,22 @@ def get_state_file() -> Path:
     return get_state_dir() / "pipeline_state.json"
 
 
-def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
+def save_state(
+    step: str,
+    iteration: int = 0,
+    *,
+    _pause_lock_held: bool = False,
+    **metadata: Any,
+) -> None:
     """Write a checkpoint before each major operation.
 
     Args:
         step: Identifier for the current step (e.g. "phase_0a", "phase_3_task_5").
         iteration: Loop iteration counter for retry logic. 0 means first attempt.
+        _pause_lock_held: Internal Phase 2c promotion seam indicating that the
+            caller already holds the state-root pause lock. This keeps the
+            aggregate write and terminal lifecycle transition ordered as one
+            cooperative boundary.
         **metadata: Arbitrary extra fields merged into the state blob.
     """
     state_dir = get_state_dir()
@@ -176,6 +186,9 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
     pause_capable = step in {"phase_2", "phase_4"} and not bool(
         normalized_metadata.get("process_pool")
     )
+    pause_requested_fn = None
+    clear_pause_request_fn = None
+    pause_boundary_error = None
     if pause_capable:
         from worldsim.run_control import (
             PauseBoundaryReached,
@@ -184,7 +197,10 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
             pause_requested,
         )
 
-        control = pause_control_lock(state_dir)
+        pause_requested_fn = pause_requested
+        clear_pause_request_fn = clear_pause_request
+        pause_boundary_error = PauseBoundaryReached
+        control = nullcontext() if _pause_lock_held else pause_control_lock(state_dir)
     else:
         control = nullcontext()
     with control:
@@ -193,24 +209,29 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
             and step == "phase_2"
             and status == "failed"
             and normalized_metadata.get("phase_2_stage") == "text_fill"
-            and pause_requested(state_dir)
+            and pause_requested_fn is not None
+            and pause_requested_fn(state_dir)
         ):
             # Serialize the final zero-success decision with pause admission.
             # If a request already won, leave the running text-fill checkpoint
             # authoritative so the outer lifecycle adapter can acknowledge it.
-            raise PauseBoundaryReached()
+            assert pause_boundary_error is not None
+            raise pause_boundary_error()
         if (
             step == "phase_2"
             and status == "running"
-            and pause_requested(state_dir)
+            and pause_requested_fn is not None
+            and pause_requested_fn(state_dir)
             and (load_state_for_current_root() or {}).get("phase_2_stage")
             != normalized_metadata.get("phase_2_stage")
         ):
-            # An accepted pause wins over entry into an unsupported Phase 2c
-            # stage.  Phase 2b has its own task-local checkpoint boundary;
-            # keeping this guard here still prevents a planning request from
-            # crossing into text fill before the outer adapter acknowledges it.
-            raise PauseBoundaryReached()
+            # An accepted pause wins over entry into a different Phase 2
+            # stage. Phase 2b has its own task-local checkpoint boundary;
+            # keeping this guard here prevents a planning request from
+            # crossing into text fill or feasibility before the outer adapter
+            # acknowledges it.
+            assert pause_boundary_error is not None
+            raise pause_boundary_error()
         # Discovery pointer first: if a crash lands between the two writes for a
         # brand-new custom logs dir, ``resume`` can still recover from the mirrored
         # snapshot instead of losing the run entirely.
@@ -218,10 +239,17 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
         # Atomic write: write to a temp file in the same directory, then rename.
         # os.replace is atomic on POSIX when src and dst are on the same filesystem.
         write_json_atomic(state_file, state, failpoint_base=f"state.save_state.{step}.{status}")
-        if pause_capable and status == "running" and pause_requested(state_dir):
-            raise PauseBoundaryReached()
+        if (
+            pause_capable
+            and status == "running"
+            and pause_requested_fn is not None
+            and pause_requested_fn(state_dir)
+        ):
+            assert pause_boundary_error is not None
+            raise pause_boundary_error()
         if pause_capable and status in {"complete", "partial_complete", "failed"}:
-            clear_pause_request(state_dir)
+            assert clear_pause_request_fn is not None
+            clear_pause_request_fn(state_dir)
 
 
 def initialize_isolated_run_state(
