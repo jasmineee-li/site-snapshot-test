@@ -30,6 +30,15 @@ tampered, failed, or unbound envelopes and reruns that unit. Checkpoints are
 resume evidence only; `adversarial_tasks.json` is promoted once the selected
 text-fill work is complete.
 
+Phase 2c feasibility checkpoints live under
+`phase_2/feasibility_checkpoints/`. Each task file is an atomic, Run-bound
+envelope written only after the seed work unit has attempted cleanup. The
+Phase 2c validator accepts only verified or infeasible evidence whose task
+content, verifier/policy/catalog versions, and hash-only instance topology
+match the current run; legacy, malformed, stale, tampered, or topology-drifted
+files are rerun. These sidecars are evidence for crash recovery, not Phase 4
+admission grants, and no source-data preflight checkpoint is created per task.
+
 Derived Runs are initialized under the source root's sibling
 `.warp-derived-runs/<request-key>/<run-id>/` collection. The request key is an
 internal idempotency key, not a public Run ID. The atomic reservation lives at

@@ -1509,6 +1509,12 @@ compatibility facade for older imports. The public runner shape is:
         ttl_hours: float | None = None,
         force_reverify: bool = False,
         phase_2_status: str | None = None,
+        checkpoint_dir: Path | None = None,
+        run_id: str | None = None,
+        definition_digest: str | None = None,
+        verifier_version: str = "phase_2c-verifier-v1",
+        policy_version: str = "phase_2c-policy-catalog-v1",
+        catalog_version: str = "phase_2c-site-catalog-v1",
     ) -> FeasibilityReport: ...
 
     @dataclass(frozen=True)
@@ -1521,6 +1527,7 @@ compatibility facade for older imports. The public runner shape is:
         elapsed_seconds: float
         per_site_counts: dict[str, dict[str, int]]
         phase_2_status: str | None
+        reused_checkpoints: int
 
 Per-task execution reuses the existing primitives: the verifier calls
 `apply_data_seed_async` from `worldsim.seeding` (implemented in
@@ -1556,8 +1563,29 @@ Reachability uses `task["exposure_contract"]["verification"]` as the source of t
 - `logs/phase_2/adversarial_tasks.json`: tasks with `feasibility.status == "verified"`, positive `feasibility.exposure.reachable`, an `attempts` log, layout telemetry when available, and a `host_fingerprint` stanza (`host_config`, `editor_commit`, `dataset_commit`). `visual_reachable` remains diagnostic; PVPO is the authority for visual encounter during Phase 4.
 - `logs/phase_2/adversarial_tasks.infeasible.json`: tasks with `feasibility.status == "infeasible"`, including per-call `kind` drawn from the editor error taxonomy (`base_state_missing`, `auth_missing`, `schema_mismatch`, `length_exceeded`, `field_required`, `content_policy`, `permission_denied`, `request_failed`, `unreachable`, `unsupported_method`, `site_mismatch`, `cleanup_failed`, `unknown`), `http_status`, and a `response_snippet`. Editors classify 4xx responses into these kinds with cheap per-platform heuristics so the verifier itself stays benchmark-agnostic.
 - `logs/phase_2/feasibility_report.json`: single summary line with per-site verified / infeasible breakdown, elapsed time, total `cleanup_warnings`, and the host fingerprint used for the run.
+- `logs/phase_2/feasibility_checkpoints/<task>.json`: one atomic, non-secret
+  Phase 2c verification checkpoint per completed task unit. The checkpoint is
+  written only after seed cleanup has run and carries the opaque Run ID,
+  Definition Digest, task/content fingerprint, verifier/policy/catalog
+  versions, and hash-only host/instance topology fingerprint. It stores the
+  existing verified or infeasible task evidence, not credentials or instance
+  configuration. Legacy or unbound checkpoints are diagnostic only.
 
 **Idempotency.** A task whose `feasibility.host_fingerprint` matches the current `(host_config, editor_commit, dataset_commit, task_content_hash)` — where `task_content_hash` is a 12-char SHA-256 prefix of the canonical-JSON-encoded `editor_calls` — is skipped on re-run. Drift on any field invalidates the fingerprint and triggers re-verification. `--force-reverify` overrides; `--feasibility-ttl-hours N` opts into a short-lived bypass that preserves recent verifications even when the fingerprint drifts.
+
+For an identified Run, exact crash resume is stricter than the legacy stanza
+shortcut: Phase 2c reuses a task only when its checkpoint envelope validates
+against the current Run ID, Definition Digest, source task/content hash,
+verifier/policy/catalog versions, and non-secret topology fingerprint. Missing,
+malformed, legacy, unbound, tampered, task-drifted, or topology-drifted files
+rerun the complete seed → render/readback/reachability → cleanup unit. A
+configured `--feasibility-ttl-hours` also expires otherwise-compatible
+checkpoints; `--force-reverify` always reruns them. A checkpoint is never an
+admission grant by itself; Phase 2c reconstructs the
+canonical verified/infeasible aggregates only after every required task unit
+has a valid outcome. Source-data preflight remains one bounded, safely
+rerunnable setup operation and has no per-task checkpoints. Cooperative pause,
+signals, leases, and cancellation are outside this contract.
 
 **Phase 4 admission.** Phase 4 admits only tasks with `feasibility.status == "verified"`, an eligible `exposure_contract`, `exposure_contract.phase4_exposure.admissible == true`, `feasibility.exposure.reachable == true`, and exact exposure contract/verification matches. It does not reject solely because Phase 2c observed the payload below the initial viewport or behind a collapsed ancestor; those fields are geometry telemetry. PVPO then determines actual encounter on the agent trajectory (`max_coverage > 0` means encountered; `max_coverage == 0` means `injection_not_encountered`). `WORLDSIM_STRICT_FEASIBILITY=false` is a development break-glass for legacy feasibility status only; it does not bypass the exposure contract/evidence gate. Phase 3 annotates benign contracts whose linked adversarials are all infeasible with `adversarially_exhausted=true` so reviewers can distinguish agent failure from dataset exhaustion.
 

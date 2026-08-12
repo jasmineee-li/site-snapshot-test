@@ -38,6 +38,7 @@ from worldsim.instance_selection import (
     select_task_site_instance_dict_p2c,
 )
 from worldsim.phase_2.phase_2c import auth_preflight as _auth_preflight
+from worldsim.phase_2.phase_2c import checkpoints as _checkpoints
 from worldsim.phase_2.phase_2c import fingerprints as _fingerprints
 from worldsim.phase_2.phase_2c import outcomes as _outcomes
 from worldsim.phase_2.phase_2c import probes as _probes
@@ -49,6 +50,11 @@ from worldsim.phase_2.phase_2c.admission_guards import (
     _seed_has_appended_surface_attack,
     _seed_surface_values,
     _strings_overlap,
+)
+from worldsim.phase_2.phase_2c.checkpoints import (
+    POLICY_CATALOG_VERSION,
+    SITE_CATALOG_VERSION,
+    VERIFIER_VERSION,
 )
 from worldsim.phase_2.phase_2c.exposure import _metadata_path_value, _verification_target_url
 from worldsim.phase_2.phase_2c.fingerprints import (
@@ -317,6 +323,10 @@ class FeasibilityReport:
     # ``infeasible`` because they are dataset-quality issues, not probe
     # failures; re-running Phase 2c will not rehabilitate them.
     dropped_source_data: list[dict[str, Any]] = field(default_factory=list)
+    # Number of complete task units reconstructed from durable checkpoints.
+    # This is observational and does not change the verified/infeasible
+    # meanings consumed by Phase 3/4.
+    reused_checkpoints: int = 0
 
 
 async def verify_feasibility(
@@ -334,6 +344,12 @@ async def verify_feasibility(
     feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
     seed_registry: SeedSiteRegistry | None = None,
     site_catalog: SiteCatalog | None = None,
+    checkpoint_dir: Path | str | None = None,
+    run_id: str | None = None,
+    definition_digest: str | None = None,
+    verifier_version: str = VERIFIER_VERSION,
+    policy_version: str = POLICY_CATALOG_VERSION,
+    catalog_version: str = SITE_CATALOG_VERSION,
 ) -> FeasibilityReport:
     """Verify each adversarial task in ``tasks_path`` against a dev instance.
 
@@ -362,6 +378,14 @@ async def verify_feasibility(
         site_catalog: Optional immutable per-run Site capability catalog used
             to plan read-surface verification. When omitted, the production
             GitLab/Reddit catalog is assembled for each check.
+        checkpoint_dir: Optional directory for durable per-task checkpoints.
+            When omitted, direct/legacy callers retain pre-checkpoint behavior;
+            an identity without a directory never writes into the process cwd.
+        run_id / definition_digest: Immutable Run identity. Checkpoint reuse
+            is disabled when either is absent so legacy roots cannot acquire
+            an invented identity.
+        verifier_version / policy_version / catalog_version: Explicit
+            compatibility versions bound into each checkpoint.
     """
     raw = json.loads(tasks_path.read_text())
     if not isinstance(raw, list):
@@ -369,6 +393,8 @@ async def verify_feasibility(
             f"{tasks_path} must contain a JSON array of tasks; got {type(raw).__name__}"
         )
 
+    if checkpoint_dir is not None:
+        checkpoint_dir = Path(checkpoint_dir)
     fingerprint_base = _host_fingerprint(instances_label, instances)
 
     if not raw:
@@ -382,6 +408,7 @@ async def verify_feasibility(
             elapsed_seconds=0.0,
             per_site_counts={},
             phase_2_status=phase_2_status,
+            reused_checkpoints=0,
         )
 
     task_benchmark = _infer_records_benchmark(raw, label="Phase 2c tasks")
@@ -514,6 +541,7 @@ async def verify_feasibility(
     # _BROWSER_PROBE_CAP for rationale.
     browser_probe_sem = asyncio.Semaphore(_BROWSER_PROBE_CAP)
     per_replica_sems: dict[str, asyncio.BoundedSemaphore] = {}
+    reused_checkpoint_count = 0
     # in_flight_counts feeds :func:`select_task_site_instance_dict_p2c`.
     # It counts tasks that have *reserved* a replica (via P2C pick),
     # including those queued on the replica's semaphore — not just those
@@ -550,6 +578,11 @@ async def verify_feasibility(
     now_iso = _now_iso()
 
     skip_render_check = os.getenv(_SKIP_RENDER_CHECK_ENV) == "1"
+    # A render-disabled development run must never become production render
+    # evidence merely because its other fields match.
+    checkpoint_verifier_version = (
+        f"{verifier_version}-render-disabled" if skip_render_check else verifier_version
+    )
     async_playwright_factory: Any = None
     if skip_render_check:
         logger.warning(
@@ -573,6 +606,37 @@ async def verify_feasibility(
         await _ensure_playwright_chromium_ready(async_playwright_factory)
 
     async def worker(task: dict[str, Any], index: int) -> dict[str, Any]:
+        nonlocal reused_checkpoint_count
+        task_seed = task.get("adversarial_data_seed") or {}
+        task_calls = task_seed.get("editor_calls") if isinstance(task_seed, dict) else None
+        task_content_hash = _task_content_hash(
+            task_calls if isinstance(task_calls, list) else [],
+            exposure_contract=task.get("exposure_contract"),
+        )
+        task_checkpoint = (
+            _checkpoints.checkpoint_context(
+                run_id=run_id,
+                definition_digest=definition_digest,
+                task=task,
+                task_content_hash=task_content_hash,
+                topology_fingerprint=fingerprint_base,
+                verifier_version=checkpoint_verifier_version,
+                policy_version=policy_version,
+                catalog_version=catalog_version,
+            )
+            if checkpoint_dir is not None
+            else None
+        )
+        if task_checkpoint is not None and not force_reverify:
+            loaded_checkpoint = _checkpoints.load_checkpoint(
+                checkpoint_dir or Path("."),
+                context=task_checkpoint,
+            )
+            if _checkpoints.checkpoint_is_fresh(loaded_checkpoint, ttl_hours=ttl_hours):
+                reused_checkpoint_count += 1
+                cleanup_warnings.extend(loaded_checkpoint.cleanup_warnings)
+                return loaded_checkpoint.result or {}
+
         # Resolve site + replica *before* acquiring any semaphore so the
         # fast ``unsupported_site`` path does not burn chromium budget or
         # block other workers on an impossible-to-run task.
@@ -614,6 +678,13 @@ async def verify_feasibility(
             stats.in_flight_peak = new_in_flight
         worker_started_mono = time.monotonic()
         worker_ok = False
+        local_cleanup_warnings: list[str] = []
+        checkpoint_work_unit = {
+            "seed_applied": False,
+            "render_completed": False,
+            "reachability_completed": False,
+        }
+        result: dict[str, Any]
         try:
             replica_sem = _replica_sem_for(instance)
 
@@ -661,9 +732,11 @@ async def verify_feasibility(
                                 "fingerprint_base": fingerprint_base,
                                 "ttl_hours": ttl_hours,
                                 "force_reverify": force_reverify,
-                                "cleanup_warnings": cleanup_warnings,
+                                "cleanup_warnings": local_cleanup_warnings,
                                 "browser": browser,
                                 "render_semaphore": None,
+                                "checkpoint_context": task_checkpoint,
+                                "checkpoint_work_unit": checkpoint_work_unit,
                             }
                             if seed_registry is not None:
                                 verify_kwargs["seed_registry"] = seed_registry
@@ -681,11 +754,10 @@ async def verify_feasibility(
                         # latency/p99 purposes. ``verification_crashed``
                         # below is the "replica broke the client" path.
                         worker_ok = True
-                        return result
                     except Exception as exc:
                         task_id = str(task.get("id", "unknown"))
                         logger.exception("phase 2c verification crashed for task %s", task_id)
-                        return _infeasible_task(
+                        result = _infeasible_task(
                             task,
                             kind="verification_crashed",
                             detail=f"{exc.__class__.__name__}: {exc}",
@@ -706,6 +778,19 @@ async def verify_feasibility(
                             await pw_handle.stop()
                         except Exception:
                             logger.exception("phase 2c: failed to stop per-task playwright handle")
+            cleanup_warnings.extend(local_cleanup_warnings)
+            if task_checkpoint is not None:
+                checkpoint_work_unit["cleanup_completed"] = True
+                _checkpoints.write_checkpoint(
+                    checkpoint_dir or Path("."),
+                    context=task_checkpoint,
+                    result=result,
+                    cleanup_warnings=local_cleanup_warnings,
+                    seed_applied=checkpoint_work_unit["seed_applied"],
+                    render_completed=checkpoint_work_unit["render_completed"],
+                    reachability_completed=checkpoint_work_unit["reachability_completed"],
+                )
+            return result
         finally:
             # Decrement always, including after verification_crashed or
             # browser-teardown failure, so P2C's load signal stays true.
@@ -764,6 +849,7 @@ async def verify_feasibility(
         per_site_counts=per_site,
         phase_2_status=phase_2_status,
         dropped_source_data=dropped_source_data,
+        reused_checkpoints=reused_checkpoint_count,
     )
 
 
@@ -780,6 +866,8 @@ async def _verify_one(
     render_semaphore: asyncio.Semaphore | None = None,
     seed_registry: SeedSiteRegistry | None = None,
     site_catalog: SiteCatalog | None = None,
+    checkpoint_context: _checkpoints.Phase2cCheckpointContext | None = None,
+    checkpoint_work_unit: dict[str, bool] | None = None,
 ) -> dict[str, Any]:
     seed = task.get("adversarial_data_seed") or {}
     editor_calls = seed.get("editor_calls") if isinstance(seed, dict) else None
@@ -791,12 +879,20 @@ async def _verify_one(
     fingerprint = dict(fingerprint_base)
     fingerprint["task_content_hash"] = content_hash
 
-    decision, skip_reason = _idempotency_decision(
-        task.get("feasibility"),
-        current_fingerprint=fingerprint,
-        ttl_hours=ttl_hours,
-        force_reverify=force_reverify,
-    )
+    # Identified runs reuse only a complete, validated task checkpoint.  This
+    # is stricter than the legacy feasibility stanza/TTL shortcut: a topology
+    # drift or malformed checkpoint must rerun even if an older result is
+    # recent.  Legacy direct callers retain the historical TTL/fingerprint
+    # behavior until they acquire an explicit Run-bound checkpoint directory.
+    if checkpoint_context is not None:
+        decision, skip_reason = ("verify", None)
+    else:
+        decision, skip_reason = _idempotency_decision(
+            task.get("feasibility"),
+            current_fingerprint=fingerprint,
+            ttl_hours=ttl_hours,
+            force_reverify=force_reverify,
+        )
     if decision == "skip":
         # Preserve the prior ``status="verified"`` record verbatim — Phase 4's
         # strict admission gate only admits ``status == "verified"``, so
@@ -917,6 +1013,9 @@ async def _verify_one(
             timestamp=_now_iso(),
         )
 
+    if checkpoint_work_unit is not None:
+        checkpoint_work_unit["seed_applied"] = True
+
     # Render check runs BEFORE cleanup because cleanup deletes the seeded
     # row. The 2026-04-21 Magento bug shipped because Phase 2c stamped
     # ``verified`` on HTTP 2xx alone — Layer 2 of the long-term fix closes
@@ -940,6 +1039,8 @@ async def _verify_one(
             render_outcome = await _run_render_check(
                 **render_kwargs,
             )
+            if checkpoint_work_unit is not None:
+                checkpoint_work_unit["render_completed"] = True
             # Render-unverified means the seed wrote successfully but the
             # signature did not appear in any read-surface URL within the
             # body-poll window. On loaded GitLab hosts this is dominated
@@ -990,6 +1091,8 @@ async def _verify_one(
                         instance=instance,
                         render_outcome=render_outcome,
                     )
+                if checkpoint_work_unit is not None and reachability_outcome is not None:
+                    checkpoint_work_unit["reachability_completed"] = True
     finally:
         _safe_cleanup(handle, cleanup_warnings, task.get("id"))
 
