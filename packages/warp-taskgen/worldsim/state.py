@@ -189,15 +189,27 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
         control = nullcontext()
     with control:
         if (
+            pause_capable
+            and step == "phase_2"
+            and status == "failed"
+            and normalized_metadata.get("phase_2_stage") == "text_fill"
+            and pause_requested(state_dir)
+        ):
+            # Serialize the final zero-success decision with pause admission.
+            # If a request already won, leave the running text-fill checkpoint
+            # authoritative so the outer lifecycle adapter can acknowledge it.
+            raise PauseBoundaryReached()
+        if (
             step == "phase_2"
             and status == "running"
             and pause_requested(state_dir)
             and (load_state_for_current_root() or {}).get("phase_2_stage")
             != normalized_metadata.get("phase_2_stage")
         ):
-            # An accepted planning pause wins over entry into unsupported
-            # Phase 2b/2c stages. Keep the authoritative checkpoint at the
-            # last pause-aware boundary so the outer adapter can acknowledge it.
+            # An accepted pause wins over entry into an unsupported Phase 2c
+            # stage.  Phase 2b has its own task-local checkpoint boundary;
+            # keeping this guard here still prevents a planning request from
+            # crossing into text fill before the outer adapter acknowledges it.
             raise PauseBoundaryReached()
         # Discovery pointer first: if a crash lands between the two writes for a
         # brand-new custom logs dir, ``resume`` can still recover from the mirrored

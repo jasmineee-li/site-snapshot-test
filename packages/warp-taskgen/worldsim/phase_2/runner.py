@@ -5,6 +5,10 @@ from __future__ import annotations
 
 from worldsim.phase_2._context import install_context
 from worldsim.phase_2.pause_control import run_planning_shards
+from worldsim.phase_2.text_fill.checkpoint_runner import (
+    fill_plans_with_checkpoints,
+    validate_unique_text_fill_task_ids,
+)
 from worldsim.run_definition import define_run
 
 install_context(globals())
@@ -287,7 +291,21 @@ async def run(args: argparse.Namespace) -> int:
     reusable_final_tasks = None
     planning_completed_now = False
     paused_definition = define_run(prior_state) if prior_state.get("status") == "paused" else None
-    if reusable_plans is None and sites_filter is None:
+    # A deliberate paused text-fill run is not allowed to route around
+    # task-local evidence just because an output file happens to contain every
+    # task.  Crash recovery retains the established complete-output reuse
+    # behavior (a crash may land after the canonical replace but before the
+    # stage transition); a paused continuation always revalidates through the
+    # feature-owned checkpoint policy. Later feasibility/complete stages may
+    # use the existing full-output validator as before.
+    if (
+        reusable_plans is None
+        and sites_filter is None
+        and not (
+            prior_state.get("status") == "paused"
+            and prior_state.get("phase_2_stage") == "text_fill"
+        )
+    ):
         reusable_final_tasks = _load_reusable_phase_2_tasks(
             prior_state=prior_state,
             output_path=output_path,
@@ -301,6 +319,8 @@ async def run(args: argparse.Namespace) -> int:
             current_text_model=text_fill_model,
             current_phase_2a_resolution_signature=state_metadata["phase_2a_resolution_signature"],
         )
+        if reusable_final_tasks is not None:
+            validate_unique_text_fill_task_ids(reusable_final_tasks)
     if reusable_plans is None and reusable_final_tasks is None:
         save_state("phase_2", status="running", phase_2_stage="planning", **state_metadata)
 
@@ -480,21 +500,30 @@ async def run(args: argparse.Namespace) -> int:
             for plan in reusable_plans
             if sites_filter is None or str(plan.get("site", "")) in sites_filter
         ]
-        reusable_final_tasks = _load_reusable_phase_2_tasks(
-            prior_state=prior_state,
-            output_path=output_path,
-            sites_filter=sites_filter,
-            expected_task_ids={str(plan.get("id", "")) for plan in candidate_plans},
-            expected_benign_task_ids={
-                str(plan.get("benign_task_id", "")) for plan in candidate_plans
-            },
-            texts_per_plan=texts_per_plan,
-            benign_by_id=benign_by_id,
-            site_profiles=site_profile_payloads,
-            current_sandbox_model=sandbox_model,
-            current_text_model=text_fill_model,
-            current_phase_2a_resolution_signature=state_metadata["phase_2a_resolution_signature"],
-        )
+        validate_unique_text_fill_task_ids(candidate_plans)
+        if not (
+            prior_state.get("status") == "paused"
+            and prior_state.get("phase_2_stage") == "text_fill"
+        ):
+            reusable_final_tasks = _load_reusable_phase_2_tasks(
+                prior_state=prior_state,
+                output_path=output_path,
+                sites_filter=sites_filter,
+                expected_task_ids={str(plan.get("id", "")) for plan in candidate_plans},
+                expected_benign_task_ids={
+                    str(plan.get("benign_task_id", "")) for plan in candidate_plans
+                },
+                texts_per_plan=texts_per_plan,
+                benign_by_id=benign_by_id,
+                site_profiles=site_profile_payloads,
+                current_sandbox_model=sandbox_model,
+                current_text_model=text_fill_model,
+                current_phase_2a_resolution_signature=state_metadata[
+                    "phase_2a_resolution_signature"
+                ],
+            )
+            if reusable_final_tasks is not None:
+                validate_unique_text_fill_task_ids(reusable_final_tasks)
         if reusable_final_tasks is None:
             if not planning_completed_now:
                 save_state(
@@ -507,15 +536,26 @@ async def run(args: argparse.Namespace) -> int:
 
             prefilled_tasks = [task for task in candidate_plans if "seed_template" not in task]
             plans_to_fill = [task for task in candidate_plans if "seed_template" in task]
-            if plans_to_fill:
-                filled_tasks, text_fill_diagnostics = await fill_texts_for_tasks(
-                    plans_to_fill,
-                    texts_per_plan=texts_per_plan,
-                    concurrency=text_fill_concurrency,
-                    model=text_fill_model,
-                )
-            else:
-                filled_tasks, text_fill_diagnostics = ([], [])
+
+            # Phase 2b is task-granular.  A checkpoint is accepted only when
+            # it is bound to this Run Definition, the exact plan bytes, and
+            # the current text-fill settings.  Legacy or stale evidence is
+            # intentionally left on disk for inspection but reruns below.
+            text_fill_state = load_state() or prior_state
+            text_fill_definition = define_run(text_fill_state)
+            text_fill_settings = {"text_fill_concurrency": text_fill_concurrency}
+            checkpoint_dir = output_dir / "text_fill" / "checkpoints"
+            filled_tasks, text_fill_diagnostics = await fill_plans_with_checkpoints(
+                plans_to_fill,
+                texts_per_plan=texts_per_plan,
+                concurrency=text_fill_concurrency,
+                model=text_fill_model,
+                state_dir=state_dir,
+                checkpoint_dir=checkpoint_dir,
+                definition=text_fill_definition,
+                settings=text_fill_settings,
+                fill_operation=fill_texts_for_tasks,
+            )
             filled_tasks = prefilled_tasks + filled_tasks
             write_json_atomic(diagnostics_path, text_fill_diagnostics)
         else:
@@ -558,7 +598,7 @@ async def run(args: argparse.Namespace) -> int:
     text_fill_failures = [
         diag
         for diag in text_fill_diagnostics
-        if diag.get("status") not in {"ok", "reused_existing"}
+        if diag.get("status") not in {"ok", "reused_existing", "reused_checkpoint"}
     ]
     status = "partial_complete" if site_failures or text_fill_failures else "complete"
     save_state(

@@ -86,8 +86,9 @@ Current and target ownership should stay explicit:
 - `worldsim.run_control`: non-secret cooperative pause requests and
   paused/interrupted lifecycle transitions. Normal Phase 4 scheduling remains
   here; `worldsim.phase_2.pause_control` owns the Phase 2a planning queue and
-  its Run-bound shard manifests. Phase 2b text fill and Phase 2c feasibility do
-  not yet accept pause.
+  its Run-bound shard manifests. `worldsim.phase_2.text_fill` owns the Phase
+  2b task queue and Run-bound text-fill checkpoints; Phase 2c feasibility does
+  not accept pause.
   It must not cancel admitted browser/API work, accept feature checkpoints,
   reinterpret `progress.json` as routing authority, or silently extend pause to
   Phases 0, 1, or 3. `worldsim.phase_4.process_pool` owns its supervisor-specific

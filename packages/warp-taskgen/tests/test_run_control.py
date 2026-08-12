@@ -229,7 +229,7 @@ def test_phase_2_planning_pause_is_atomic_idempotent_and_visible(
     assert (tmp_path / "pipeline_state.json").read_bytes() == before
 
 
-@pytest.mark.parametrize("stage", ["text_fill", "feasibility", "complete"])
+@pytest.mark.parametrize("stage", ["feasibility", "complete"])
 def test_phase_2_pause_rejects_nonplanning_stages(tmp_path: Path, stage: str) -> None:
     _write_running_phase_2(tmp_path, stage=stage)
 
