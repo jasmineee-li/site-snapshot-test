@@ -1539,13 +1539,13 @@ def _dispatch_preflight(args: argparse.Namespace) -> int:
     """
     import subprocess
 
-    repo_root = Path(__file__).resolve().parents[1]
+    package_root = Path(__file__).resolve().parents[2]
     env = os.environ.copy()
 
     if args.host_config is not None:
         host_config = args.host_config
         if not host_config.is_absolute():
-            host_config = repo_root / host_config
+            host_config = package_root / host_config
         if not host_config.exists():
             print(f"host-config not found: {host_config}", file=sys.stderr)
             return 2
@@ -1553,7 +1553,7 @@ def _dispatch_preflight(args: argparse.Namespace) -> int:
 
     instances = args.instances
     if not instances.is_absolute():
-        instances = repo_root / instances
+        instances = package_root / instances
     if not instances.exists():
         print(
             f"instances file not found: {instances}\n"
@@ -1570,7 +1570,7 @@ def _dispatch_preflight(args: argparse.Namespace) -> int:
     cmd.extend(extra)
 
     print(f"running: {' '.join(cmd)}", file=sys.stderr)
-    result = subprocess.run(cmd, cwd=repo_root, env=env)
+    result = subprocess.run(cmd, cwd=package_root, env=env)
     return result.returncode
 
 
