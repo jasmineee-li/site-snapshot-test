@@ -96,6 +96,14 @@ boundary to Phase 2b text fill: one plan/task is an Atomic Work Unit, and its
 all-ordinal payloads, validation, selected seed, diagnostics, and Run-bound
 checkpoint are persisted atomically. A paused continuation reuses only exact
 Run ID/Definition Digest, input, model, and setting matches; all other units
-rerun, and a partial `adversarial_tasks.json` is never promoted. Phase 2c
-feasibility, Phase 2 signal interruption, cancellation, leases, and Phases 0,
-1, and 3 remain outside this slice.
+rerun, and a partial `adversarial_tasks.json` is never promoted. The eighth
+slice extends cooperative pause to Phase 2c feasibility with a feature-owned
+bounded source-data preflight and task-level Atomic Work Units. A request
+during preflight drains that setup and prevents later claims; during
+verification, claims serialize with the marker, admitted seed/render/readback/
+reachability/cleanup work drains through exact Run-bound checkpoints, and the
+Run is persisted as `paused` before canonical aggregate promotion. Exact resume
+delegates compatibility to the Phase 2c checkpoint validators, so missing,
+legacy, stale, malformed, tampered, or topology-incompatible tasks rerun.
+Phase 2 signal interruption, cancellation, leases, and Phases 0, 1, and 3
+remain outside cooperative pause.

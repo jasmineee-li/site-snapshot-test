@@ -87,8 +87,10 @@ Current and target ownership should stay explicit:
   paused/interrupted lifecycle transitions. Normal Phase 4 scheduling remains
   here; `worldsim.phase_2.pause_control` owns the Phase 2a planning queue and
   its Run-bound shard manifests. `worldsim.phase_2.text_fill` owns the Phase
-  2b task queue and Run-bound text-fill checkpoints; Phase 2c feasibility does
-  not accept pause.
+  2b task queue and Run-bound text-fill checkpoints. The feature-owned
+  `worldsim.phase_2.phase_2c.pause_control` owns bounded preflight admission,
+  verification claims, drain behavior, and the aggregate-promotion boundary;
+  its task checkpoints remain owned by `phase_2.phase_2c.checkpoints`.
   It must not cancel admitted browser/API work, accept feature checkpoints,
   reinterpret `progress.json` as routing authority, or silently extend pause to
   Phases 0, 1, or 3. `worldsim.phase_4.process_pool` owns its supervisor-specific

@@ -44,7 +44,7 @@ def dispatch_phase_with_run_control(
             with _phase_interrupt_signals(enabled=phase == "4"):
                 return operation()
         except PauseBoundaryReached:
-            if phase not in {"2", "4"}:
+            if phase not in {"2", "2c", "4"}:
                 raise
             try:
                 with _ignore_lifecycle_transition_signals(enabled=True):

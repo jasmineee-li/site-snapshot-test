@@ -229,14 +229,23 @@ def test_phase_2_planning_pause_is_atomic_idempotent_and_visible(
     assert (tmp_path / "pipeline_state.json").read_bytes() == before
 
 
-@pytest.mark.parametrize("stage", ["feasibility", "complete"])
-def test_phase_2_pause_rejects_nonplanning_stages(tmp_path: Path, stage: str) -> None:
+@pytest.mark.parametrize("stage", ["complete"])
+def test_phase_2_pause_rejects_non_pauseable_stages(tmp_path: Path, stage: str) -> None:
     _write_running_phase_2(tmp_path, stage=stage)
 
     with pytest.raises(ValueError, match="not pause-aware"):
         request_pause(tmp_path)
 
     assert not (tmp_path / "pause_request.json").exists()
+
+
+def test_phase_2_feasibility_pause_is_supported(tmp_path: Path) -> None:
+    _write_running_phase_2(tmp_path, stage="feasibility")
+
+    request = request_pause(tmp_path)
+
+    assert request.step == "phase_2"
+    assert (tmp_path / "pause_request.json").exists()
 
 
 def test_phase_2_running_checkpoint_raises_only_after_atomic_write(
@@ -380,6 +389,27 @@ def test_phase_2_boundary_adapter_persists_pause_after_operation_unwinds(
     state = json.loads((tmp_path / "pipeline_state.json").read_text(encoding="utf-8"))
     assert state["status"] == "paused"
     assert state["phase_2_stage"] == "planning"
+
+
+def test_phase_2c_alias_boundary_adapter_acknowledges_pause(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("WARP_TASKGEN_RESUME_POINTER", str(tmp_path / "pointer.json"))
+    _write_running_phase_2(tmp_path, stage="feasibility")
+    request_pause(tmp_path)
+
+    rc = dispatch_phase_with_run_control(
+        phase="2c",
+        state_dir=tmp_path,
+        operation=lambda: (_ for _ in ()).throw(PauseBoundaryReached()),
+        lifecycle_guard=nullcontext,
+    )
+
+    assert rc == 0
+    state = json.loads((tmp_path / "pipeline_state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "paused"
+    assert state["phase_2_stage"] == "feasibility"
 
 
 def test_phase_boundary_adapter_records_keyboard_interrupt(

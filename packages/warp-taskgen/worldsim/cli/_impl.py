@@ -612,9 +612,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Resume from the last saved checkpoint",
         description=(
             "Resume from the last saved checkpoint. When resuming Phase 2, WARP Taskgen "
-            "re-enters the saved internal sub-stage automatically: 2a planning or "
-            "2b text fill. There are no separate --phase-2a-only or "
-            "--phase-2b-only flags."
+            "re-enters the saved internal sub-stage automatically: 2a planning, "
+            "2b text fill, or 2c feasibility. There are no separate "
+            "--phase-2a-only or --phase-2b-only flags."
         ),
     )
     resume_cmd.add_argument(

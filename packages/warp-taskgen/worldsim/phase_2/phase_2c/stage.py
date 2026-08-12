@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from worldsim.phase_2._context import install_context
+from worldsim.phase_2.phase_2c.pause_control import promotion_boundary
 from worldsim.run_definition import define_run
 from worldsim.state import load_state_for_current_root
 
@@ -68,6 +69,7 @@ async def _run_feasibility_stage(
         getattr(args, "sites", None) or state_metadata.get("sites")
     )
     checkpoint_dir = output_dir / "feasibility_checkpoints"
+    state_dir = output_dir.parent
 
     save_state(
         "phase_2",
@@ -147,38 +149,40 @@ async def _run_feasibility_stage(
             "source_data_dropped_count": 0,
             "source_data_dropped_by_kind": {},
         }
-        artifact_result = _write_phase_2c_artifacts(
-            output_path=output_path,
-            infeasible_path=infeasible_path,
-            dropped_source_path=dropped_source_path,
-            report_path=report_path,
-            verified=stamped,
-            infeasible=[],
-            dropped_source_data=[],
-            report_summary=report_summary,
-            sites_filter=sites_filter,
-            allow_unverified=True,
-        )
-        summary = artifact_result.summary
-        completed_at = _utcnow_iso()
-        save_state(
-            "phase_2",
-            status=_terminal_phase_2_status(prior_phase_2_status),
-            phase_2_stage="feasibility",
-            adversarial_tasks_path=str(output_path),
-            feasibility_report_path=str(report_path),
-            feasibility_infeasible_path=str(infeasible_path),
-            feasibility_dropped_source_data_path=str(dropped_source_path),
-            feasibility_completed_at=completed_at,
-            feasibility_verified_count=summary["verified_count"],
-            feasibility_infeasible_count=summary["infeasible_count"],
-            feasibility_skipped_count=int(summary.get("skipped_already_verified_count") or 0),
-            feasibility_unverified_count=summary["unverified_count"],
-            feasibility_dropped_source_data_count=len(artifact_result.dropped_source_data),
-            feasibility_checkpoint_reused_count=0,
-            feasibility_skipped_via_flag=True,
-            **state_metadata,
-        )
+        with promotion_boundary(state_dir):
+            artifact_result = _write_phase_2c_artifacts(
+                output_path=output_path,
+                infeasible_path=infeasible_path,
+                dropped_source_path=dropped_source_path,
+                report_path=report_path,
+                verified=stamped,
+                infeasible=[],
+                dropped_source_data=[],
+                report_summary=report_summary,
+                sites_filter=sites_filter,
+                allow_unverified=True,
+            )
+            summary = artifact_result.summary
+            completed_at = _utcnow_iso()
+            save_state(
+                "phase_2",
+                status=_terminal_phase_2_status(prior_phase_2_status),
+                phase_2_stage="feasibility",
+                adversarial_tasks_path=str(output_path),
+                feasibility_report_path=str(report_path),
+                feasibility_infeasible_path=str(infeasible_path),
+                feasibility_dropped_source_data_path=str(dropped_source_path),
+                feasibility_completed_at=completed_at,
+                feasibility_verified_count=summary["verified_count"],
+                feasibility_infeasible_count=summary["infeasible_count"],
+                feasibility_skipped_count=int(summary.get("skipped_already_verified_count") or 0),
+                feasibility_unverified_count=summary["unverified_count"],
+                feasibility_dropped_source_data_count=len(artifact_result.dropped_source_data),
+                feasibility_checkpoint_reused_count=0,
+                feasibility_skipped_via_flag=True,
+                _pause_lock_held=True,
+                **state_metadata,
+            )
         state_metadata.update(
             {
                 "feasibility_report_path": str(report_path),
@@ -298,6 +302,7 @@ async def _run_feasibility_stage(
             force_reverify=force_reverify,
             phase_2_status=prior_phase_2_status,
             checkpoint_dir=checkpoint_dir,
+            state_dir=output_dir.parent,
             run_id=checkpoint_run_id,
             definition_digest=checkpoint_definition_digest,
         )
@@ -320,23 +325,58 @@ async def _run_feasibility_stage(
             except OSError:
                 logger.warning("Phase 2c: failed to remove temporary input %s", temporary_input)
 
-    artifact_result = _write_phase_2c_artifacts(
-        output_path=output_path,
-        infeasible_path=infeasible_path,
-        dropped_source_path=dropped_source_path,
-        report_path=report_path,
-        verified=report.verified,
-        infeasible=report.infeasible,
-        dropped_source_data=report.dropped_source_data,
-        report_summary=_report_summary_dict(report, instances_path=instances_path.name),
-        sites_filter=sites_filter,
-    )
-    summary = artifact_result.summary
-
-    verified_count = summary["verified_count"]
-    infeasible_count = summary["infeasible_count"]
-    skipped_count = int(summary.get("skipped_already_verified_count") or 0)
-    fresh_count = verified_count - skipped_count
+    feasibility_metadata = {
+        "feasibility_report_path": str(report_path),
+        "feasibility_infeasible_path": str(infeasible_path),
+        "feasibility_dropped_source_data_path": str(dropped_source_path),
+        "feasibility_completed_at": _utcnow_iso(),
+        "feasibility_verified_count": 0,
+        "feasibility_infeasible_count": 0,
+        "feasibility_skipped_count": 0,
+        "feasibility_unverified_count": 0,
+        "feasibility_cleanup_warning_count": len(report.cleanup_warnings),
+        "feasibility_dropped_source_data_count": len(report.dropped_source_data),
+        "feasibility_checkpoint_reused_count": int(report.reused_checkpoints),
+    }
+    with promotion_boundary(state_dir):
+        # A second boundary immediately before promotion closes the short
+        # helper-return race. The writer and terminal state transition share
+        # one lock, so a request that wins first cannot leave a partial
+        # canonical aggregate behind.
+        artifact_result = _write_phase_2c_artifacts(
+            output_path=output_path,
+            infeasible_path=infeasible_path,
+            dropped_source_path=dropped_source_path,
+            report_path=report_path,
+            verified=report.verified,
+            infeasible=report.infeasible,
+            dropped_source_data=report.dropped_source_data,
+            report_summary=_report_summary_dict(report, instances_path=instances_path.name),
+            sites_filter=sites_filter,
+        )
+        summary = artifact_result.summary
+        verified_count = summary["verified_count"]
+        infeasible_count = summary["infeasible_count"]
+        skipped_count = int(summary.get("skipped_already_verified_count") or 0)
+        fresh_count = verified_count - skipped_count
+        feasibility_metadata.update(
+            {
+                "feasibility_completed_at": _utcnow_iso(),
+                "feasibility_verified_count": verified_count,
+                "feasibility_infeasible_count": infeasible_count,
+                "feasibility_skipped_count": skipped_count,
+                "feasibility_dropped_source_data_count": len(artifact_result.dropped_source_data),
+            }
+        )
+        save_state(
+            "phase_2",
+            status=_terminal_phase_2_status(prior_phase_2_status),
+            phase_2_stage="feasibility",
+            adversarial_tasks_path=str(output_path),
+            **feasibility_metadata,
+            **state_metadata,
+            _pause_lock_held=True,
+        )
     logger.info(
         "Phase 2c complete: %d admitted (%d fresh + %d reused via idempotency) / "
         "%d infeasible (elapsed=%.1fs)",
@@ -352,27 +392,5 @@ async def _run_feasibility_stage(
             len(report.cleanup_warnings),
             report.cleanup_warnings[0],
         )
-
-    feasibility_metadata = {
-        "feasibility_report_path": str(report_path),
-        "feasibility_infeasible_path": str(infeasible_path),
-        "feasibility_dropped_source_data_path": str(dropped_source_path),
-        "feasibility_completed_at": _utcnow_iso(),
-        "feasibility_verified_count": verified_count,
-        "feasibility_infeasible_count": infeasible_count,
-        "feasibility_skipped_count": skipped_count,
-        "feasibility_unverified_count": 0,
-        "feasibility_cleanup_warning_count": len(report.cleanup_warnings),
-        "feasibility_dropped_source_data_count": len(artifact_result.dropped_source_data),
-        "feasibility_checkpoint_reused_count": int(report.reused_checkpoints),
-    }
-    save_state(
-        "phase_2",
-        status=_terminal_phase_2_status(prior_phase_2_status),
-        phase_2_stage="feasibility",
-        adversarial_tasks_path=str(output_path),
-        **feasibility_metadata,
-        **state_metadata,
-    )
     state_metadata.update(feasibility_metadata)
     return 0
