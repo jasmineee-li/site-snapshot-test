@@ -10,8 +10,6 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-import pytest
-
 
 def _base_env(repo_root: Path, tmp_path: Path) -> dict[str, str]:
     env = os.environ.copy()
@@ -164,9 +162,37 @@ def _cleanup_control_job(remote_dir: Path, job_id: str) -> None:
         pass
 
 
-def _require_procfs() -> None:
-    if not Path("/proc").is_dir():
-        pytest.skip("remote job process identity tests require Linux procfs")
+def _prepare_process_identity_fixture(remote_dir: Path, job_id: str) -> Path | None:
+    """Provide proc-shaped identity files for fake SSH on non-Linux hosts."""
+
+    if sys.platform.startswith("linux"):
+        return None
+    job_dir, metadata_path = _control_job_paths(remote_dir, job_id)
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    pid = int(metadata["pid"])
+    fingerprint = str(metadata["command_fingerprint"])
+    proc_root = remote_dir / ".fake_proc"
+    proc_dir = proc_root / str(pid)
+    proc_dir.mkdir(parents=True, exist_ok=True)
+    # Keep a stable synthetic start tick so stale metadata still fails the
+    # exact comparison while valid metadata can exercise the full gate.
+    if "process_start_ticks" in metadata and metadata.get("process_start_ticks") is None:
+        metadata["process_start_ticks"] = "12345"
+        metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+    stat_fields = ["0"] * 18 + ["12345"]
+    (proc_dir / "stat").write_text(
+        f"{pid} (run_job.py) R " + " ".join(stat_fields), encoding="utf-8"
+    )
+    (proc_dir / "cmdline").write_bytes(
+        f"python3\0{job_dir / 'run_job.py'}\0{fingerprint}\0".encode()
+    )
+    cwd_path = proc_dir / "cwd"
+    try:
+        cwd_path.unlink()
+    except FileNotFoundError:
+        pass
+    cwd_path.symlink_to(remote_dir, target_is_directory=True)
+    return proc_root
 
 
 def _run_graceful_stop(
@@ -179,6 +205,9 @@ def _run_graceful_stop(
 ) -> subprocess.CompletedProcess[str]:
     env = _base_env(repo_root, host_config.parent)
     env["PATH"] = f"{fakebin}:{env['PATH']}"
+    proc_root = _prepare_process_identity_fixture(remote_dir, job_id)
+    if proc_root is not None:
+        env["WARP_REMOTE_JOB_PROC_ROOT"] = str(proc_root)
     return subprocess.run(
         [
             "bash",
@@ -209,7 +238,15 @@ def _assert_control_process_alive(remote_dir: Path, job_id: str) -> bool:
     _, metadata_path = _control_job_paths(remote_dir, job_id)
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     pid = int(metadata["pid"])
-    return Path("/proc", str(pid)).exists()
+    if sys.platform.startswith("linux"):
+        return Path("/proc", str(pid)).exists()
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
 
 
 def _install_remote_process_group_helper(remote_dir: Path) -> None:
@@ -1996,7 +2033,6 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
 
 
 def test_graceful_stop_waits_for_authoritative_pause_before_term(tmp_path: Path) -> None:
-    _require_procfs()
     repo_root = Path(__file__).resolve().parents[1]
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
@@ -2022,7 +2058,6 @@ def test_graceful_stop_waits_for_authoritative_pause_before_term(tmp_path: Path)
 
 
 def test_graceful_pause_outcomes_never_send_term(tmp_path: Path) -> None:
-    _require_procfs()
     repo_root = Path(__file__).resolve().parents[1]
     for mode in ("timeout", "terminal", "unsupported", "swap"):
         case_dir = tmp_path / mode
@@ -2046,7 +2081,6 @@ def test_graceful_pause_outcomes_never_send_term(tmp_path: Path) -> None:
 
 
 def test_graceful_stop_rejects_missing_state_or_identity_metadata(tmp_path: Path) -> None:
-    _require_procfs()
     repo_root = Path(__file__).resolve().parents[1]
     for mutate in ("state_dir", "identity"):
         case_dir = tmp_path / mutate
@@ -2075,7 +2109,6 @@ def test_graceful_stop_rejects_missing_state_or_identity_metadata(tmp_path: Path
 
 
 def test_graceful_stop_records_stale_live_process_rejection(tmp_path: Path) -> None:
-    _require_procfs()
     repo_root = Path(__file__).resolve().parents[1]
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
@@ -2100,7 +2133,6 @@ def test_graceful_stop_records_stale_live_process_rejection(tmp_path: Path) -> N
 
 
 def test_graceful_stop_ssh_failure_cannot_signal_local_process(tmp_path: Path) -> None:
-    _require_procfs()
     repo_root = Path(__file__).resolve().parents[1]
     fakebin = tmp_path / "bin"
     fakebin.mkdir()

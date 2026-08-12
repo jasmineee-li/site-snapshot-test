@@ -120,7 +120,16 @@ pid = int(metadata.get("pid") or (job_dir / "pid").read_text().strip())
 pgid = int(metadata.get("pgid") or (job_dir / "pgid").read_text().strip())
 fingerprint = str(metadata.get("command_fingerprint") or "")
 start_ticks = str(metadata.get("process_start_ticks") or "").strip()
-proc = Path("/proc") / str(pid)
+# Normal remote control always reads Linux procfs.  The narrow override is
+# only useful to deterministic fake-SSH tests on hosts without procfs; when
+# procfs exists, the production default and its PID-reuse checks cannot be
+# replaced by an environment variable.
+if Path("/proc").is_dir():
+    proc_root = Path("/proc")
+else:
+    proc_root = Path(os.environ.get("WARP_REMOTE_JOB_PROC_ROOT", "/proc"))
+proc = proc_root / str(pid)
+synthetic_proc = proc_root != Path("/proc")
 
 if graceful and (
     not metadata.get("pid")
@@ -146,6 +155,13 @@ def write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 def alive() -> bool:
+    if synthetic_proc:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            pass
     if not proc.exists():
         return False
     try:
