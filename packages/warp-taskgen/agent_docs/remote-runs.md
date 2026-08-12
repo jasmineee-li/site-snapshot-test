@@ -162,6 +162,27 @@ does not create a child or alter the source root. `status --json` places
 run-control details under `run_control`; its checkpoint counts and transition
 history are advisory and must not be used as checkpoint acceptance evidence.
 
+To drain and stop one registered Remote Job, use the explicit graceful option:
+
+```bash
+scripts/remote_job_stop.sh \
+  --host-config configs/benchmark_hosts/r8a.local.yaml \
+  --job-id <remote-job-id> \
+  --graceful --pause-timeout 300
+```
+
+The job metadata must contain an explicit `state_dir`. The helper invokes the
+normal remote `warp-taskgen pause --wait` command against that Run root and
+reads back the authoritative `pipeline_state.json`; it sends TERM to the
+existing job process group only when the command succeeds, reports an exact
+pause request, and the state is `paused`. Timeout, rejection, unsupported or
+malformed state, stale metadata, terminal/natural-exit races, and SSH failure
+leave the process group untouched. Use `remote_job_stop.sh` without
+`--graceful` only when the existing abrupt TERM/optional KILL operation is
+intentional. Remote Job IDs and Run IDs are distinct; inspect both with
+`remote_job_status.sh --job-id <id> --json`, which also shows the Run Definition
+Digest, authoritative Run status, and exact next command.
+
 A result-affecting resume override on an identified Run materializes an
 isolated child and prints its exact resume command. Preserve both environment
 assignments so the child state and discovery mirror stay inside that child:
