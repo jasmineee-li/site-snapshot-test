@@ -28,6 +28,25 @@ def test_state_dir_honors_runtime_env_override(monkeypatch, tmp_path):
     assert load_state()["status"] == "running"
 
 
+def test_phase_2_process_pool_failed_text_fill_state_skips_pause_guard(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
+
+    save_state(
+        "phase_2",
+        status="failed",
+        phase_2_stage="text_fill",
+        process_pool=True,
+    )
+
+    state = json.loads((tmp_path / "pipeline_state.json").read_text())
+    assert state["status"] == "failed"
+    assert state["phase_2_stage"] == "text_fill"
+    assert state["process_pool"] is True
+
+
 def test_state_dir_prefers_warp_taskgen_env_override(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     canonical_logs = tmp_path / "canonical"

@@ -19,6 +19,20 @@ from worldsim.phase_2.text_fill.api import (
     is_refusal,
 )
 from worldsim.phase_2.text_fill.api_errors import TextFillAPIError
+from worldsim.phase_2.text_fill.checkpoint_runner import (
+    fill_plans_with_checkpoints,
+    validate_unique_text_fill_task_ids,
+)
+from worldsim.phase_2.text_fill.checkpoints import (
+    CHECKPOINT_SCHEMA_VERSION,
+    CHECKPOINT_STAGE,
+    load_text_fill_checkpoint,
+    text_fill_checkpoint_matches,
+    text_fill_checkpoint_path,
+    text_fill_input_digest,
+    text_fill_task_id,
+    write_text_fill_checkpoint,
+)
 from worldsim.phase_2.text_fill.constants import (
     _TEXT_FILL_DEFAULT_MAX_TOKENS,
     _TEXT_FILL_EXPANDED_MAX_TOKENS,
@@ -37,6 +51,7 @@ from worldsim.phase_2.text_fill.context import (
     _string_or_unknown,
     _surface_route_context,
 )
+from worldsim.phase_2.text_fill.pause import run_text_fill_units
 from worldsim.phase_2.text_fill.payload_views import (
     _contains_offscreen_css,
     _is_offscreen_style,

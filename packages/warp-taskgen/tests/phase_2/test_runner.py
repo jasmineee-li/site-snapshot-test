@@ -129,3 +129,64 @@ async def test_paused_run_reuses_exact_single_shard_before_api_admission(
     assert rc == 0
     output = json.loads((tmp_path / "phase_2" / "adversarial_tasks.json").read_text())
     assert [task["id"] for task in output] == ["adv-reused"]
+
+
+@pytest.mark.asyncio
+async def test_text_fill_pause_wins_zero_success_terminal_race(monkeypatch, tmp_path):
+    from worldsim.run_control import PauseBoundaryReached, request_pause
+    from worldsim.run_transition import resolve_run_request
+    from worldsim.state import bind_run_definition
+
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    monkeypatch.setenv("WARP_TASKGEN_RESUME_POINTER", str(tmp_path / "pointer.json"))
+    (tmp_path / "phase_1").mkdir(parents=True)
+    (tmp_path / "phase_0c").mkdir(parents=True)
+    (tmp_path / "phase_2").mkdir(parents=True)
+    (tmp_path / "phase_1" / "benign_tasks.json").write_text(json.dumps([_benign_task()]))
+    (tmp_path / "phase_0c" / "BENCHMARK_PROFILE_shopping.json").write_text(
+        json.dumps(_single_surface_profile())
+    )
+    (tmp_path / "phase_2" / "adversarial_plans.json").write_text(json.dumps([_plan_task()]))
+    args = Namespace(skip_feasibility=True, sandbox_model="demo")
+    definition = resolve_run_request(
+        {"sandbox_model": "demo"},
+        existing_state=None,
+        new_run_id="run-zero-success-pause-race",
+    ).definition
+
+    async def unsuccessful_fill(*args, **kwargs):
+        del args, kwargs
+        return [], [{"task_id": "adv-1", "status": "text_unrecoverable"}]
+
+    monkeypatch.setattr(phase_2_injections, "fill_texts_for_tasks", unsuccessful_fill)
+    original_write = phase_2_injections.write_json_atomic
+    diagnostics_path = tmp_path / "phase_2" / "text_fill_diagnostics.json"
+
+    def request_pause_after_scheduler_drain(path, payload, **kwargs):
+        original_write(path, payload, **kwargs)
+        if path == diagnostics_path:
+            request_pause(tmp_path)
+
+    monkeypatch.setattr(
+        phase_2_injections,
+        "write_json_atomic",
+        request_pause_after_scheduler_drain,
+    )
+
+    with bind_run_definition(definition, state_dir=tmp_path):
+        save_state(
+            "phase_2",
+            status="running",
+            phase_2_stage="text_fill",
+            sandbox_model="demo",
+            phase_2a_resolution_signature=phase_2_injections._phase_2a_resolution_signature(args),
+        )
+        with pytest.raises(PauseBoundaryReached):
+            await phase_2_injections.run(args)
+
+    state = json.loads((tmp_path / "pipeline_state.json").read_text())
+    assert state["status"] == "running"
+    assert state["phase_2_stage"] == "text_fill"
+    assert (tmp_path / "pause_request.json").exists()
+    assert not (tmp_path / "phase_2" / "adversarial_tasks.json").exists()

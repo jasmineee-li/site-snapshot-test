@@ -82,7 +82,11 @@ atomically with a non-secret manifest bound to the Run ID and Definition
 Digest. A paused resume accepts only exact manifests before applying the
 existing Phase 2 shard validators; missing, legacy, stale, malformed, or
 unbound shards rerun. The runner records `paused` before Phase 2b begins and
-does not promote a partial planning merge. Phase 2b text fill and Phase 2c
-feasibility remain unsupported because their eager task schedulers do not yet
-have task-local checkpoint contracts. Phase 2 signal interruption and Phases
-0, 1, and 3 also remain outside this slice.
+does not promote a partial planning merge. The seventh slice extends the same
+boundary to Phase 2b text fill: one plan/task is an Atomic Work Unit, and its
+all-ordinal payloads, validation, selected seed, diagnostics, and Run-bound
+checkpoint are persisted atomically. A paused continuation reuses only exact
+Run ID/Definition Digest, input, model, and setting matches; all other units
+rerun, and a partial `adversarial_tasks.json` is never promoted. Phase 2c
+feasibility, Phase 2 signal interruption, cancellation, leases, and Phases 0,
+1, and 3 remain outside this slice.

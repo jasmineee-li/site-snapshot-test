@@ -362,8 +362,17 @@ API retries, validation, and atomic shard writes, then records `paused` before
 Phase 2b begins. Each shard has a non-secret manifest bound to the Run ID,
 Definition Digest, and payload hash; exact resume still applies the existing
 Phase 2 validators and reruns missing, legacy, stale, malformed, or unbound
-shards. Phase 2b text fill and Phase 2c feasibility remain unsupported, as do
-Phase 2 signal interruption and cooperative pause for Phases 0, 1, and 3.
+shards. Phase 2b text fill also supports cooperative pause at task boundaries.
+One plan/task is one Atomic Work Unit: all requested payload ordinals,
+post-hoc validation, selected seed, and diagnostics are written in one
+Run-bound, atomic checkpoint under the text-fill feature directory. A pause
+stops new task claims, lets admitted units finish and checkpoint, and does not
+promote `adversarial_tasks.json` until the selected work is complete. Exact
+resume accepts only checkpoints matching the Run ID, Definition Digest,
+complete plan-input digest, text model, and text-count setting; missing,
+legacy, stale, malformed, tampered, failed, or otherwise unbound units rerun.
+Phase 2c feasibility, Phase 2 signal interruption, cancellation, leases, and
+cooperative pause for Phases 0, 1, and 3 remain outside this slice.
 
 ### CLI Flags
 
@@ -1385,6 +1394,19 @@ the host can make the selected action objective reviewer-defensible.
 **Phase 2a output schema.** The production API schema is strategy-only: `id`, `benign_task_id`, `exposure_contract_id`, `framing`, `concealment`, `attack_objective`, and `adversarial_action` (`kind`, `description`). The schema rejects `seed_template`, `target_surface_id`, `delivery_mechanism`, editor methods, selector args, anchors, `reward_function`, and `adversarial_reward`. The orchestrator copies immutable fields (`instruction`, `site`, `sites`, `start_urls`, `data_seed`, `agent_context`, `benign_reward`) from the benign task after the model returns, attaches the selected `exposure_contract`, derives `required_tokens` and `length_budget`, host-materializes the placement fields, and host-compiles `adversarial_action` into `reward_function.adversarial_reward`. This reduces output tokens, prevents JSON reproduction errors, and keeps Phase 2a refusal-safe because it does not ask the model to write payload text, evaluator configs, or benchmark-specific endpoint details.
 
 **Phase 2b output schema.** The host-side text-fill stage consumes each validated plan's `seed_template` plus the derived `required_tokens` and `length_budget`, generates one or more `payload_texts`, records `selected_payload_index` and `payload_text_diagnostics`, and materializes a backward-compatible `adversarial_data_seed` by substituting the selected rendered payload into the `seed_template`. The final `adversarial_tasks.json` is the handoff artifact for Phase 2c, which in turn emits the verified `adversarial_tasks.json` that Phase 4 admits.
+
+**Phase 2b Atomic Work Units.** Cooperative pause is admitted only between
+task claims. Each plan/task is one Atomic Work Unit: all requested payload
+ordinals, their post-hoc validation, the selected payload/seed, and compact
+diagnostics are written to one atomic checkpoint under the text-fill feature
+directory. The checkpoint carries the Run ID, Definition Digest, complete
+plan-input content hash, text model, and text-fill settings. A continuation
+accepts it only when every binding and payload contract matches; missing,
+stale, malformed, tampered, failed, legacy, or unbound checkpoints rerun.
+The scheduler drains admitted units before recording `paused`, and no partial
+`adversarial_tasks.json` is promoted at that boundary. This contract is local
+to Phase 2b; Phase 2c, signal interruption, cancellation, leases, and the
+other pipeline phases do not inherit it.
 
 **Editor-based seeding dispatch.** Every `data_seed` and `adversarial_data_seed` carries an `editor_calls` list of `{benchmark, site, method, args}` entries. Phase 4 and Phase 2c dispatch each call through `EDITOR_REGISTRY[(benchmark, site)]` (defined in `worldsim/editors/__init__.py`), which returns a per-site OOP editor class (`ShoppingEditor`, `ShoppingAdminEditor`, `GitlabEditor`, `RedditEditor`, ...). Adding a new benchmark means adding new editor classes and a registry entry; no call-site changes are needed. The single source of truth for method names, selector args, payload args, and token requirements is the editor registry method spec used by exposure-contract materialization. Editors that create a new user-visible object return a generic `created_resource` descriptor (`role`, `kind`, `id`, `url`, optional `parent_url`) in addition to any site-specific fields; seeding preserves these as `seed_metadata.created_resource` / `seed_metadata.created_resources` so Phase 2c can resolve transition targets without knowing whether the site calls the object a submission, issue, ticket, or message. For multi-call self-contained seeds, seeding also records per-call `seed_metadata.editor_call_results[]` with call index, editor method, read surfaces, created resources, and write identifiers. Phase 2c uses this per-call record when available to bind render verification to the editor call that actually contains the selected payload signature, falling back to aggregate metadata only for older artifacts.
 

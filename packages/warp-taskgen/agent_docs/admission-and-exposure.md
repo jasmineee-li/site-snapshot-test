@@ -31,8 +31,13 @@ new claims, lets admitted target-resolution/API/validation work finish, and
 writes each completed shard plus its Run-bound manifest atomically before the
 runner records `paused`. Resume accepts a shard only when its Run ID,
 Definition Digest, payload hash, and existing Phase 2 validators match; other
-shards rerun. No partial plan merge is promoted. Phase 2b text fill and Phase
-2c feasibility do not yet accept cooperative pause.
+shards rerun. No partial plan merge is promoted. Phase 2b text fill has a
+separate task boundary: each plan/task writes one Run-bound checkpoint after
+all payload ordinals, validation, selected seed, and diagnostics complete.
+Pause drains admitted text-fill units without promoting a partial
+`adversarial_tasks.json`; exact resume reuses only matching Run ID/digest,
+plan-input, model, and text-count evidence. Phase 2c feasibility does not
+accept cooperative pause.
 
 Carrier exposure and action objective are separate contracts. A payload may be
 admitted on a WASP carrier while asking the agent to perform a different
