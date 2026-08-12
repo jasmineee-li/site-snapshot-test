@@ -83,3 +83,22 @@ of committing runtime blobs.
 
 Completion means every artifact touched has a current owner, source/run
 provenance, retention location, and promotion or recovery decision.
+
+## Final cutover compatibility
+
+The expand-in-place boundary keeps the canonical local root
+`logs/<run_id>/` and the archive prefix
+`s3://benchmark-archives/worldsim-runs/<run_id>/`. The existing archive
+wrapper selects exactly one `--logs-dir` plus opaque `<run_id>`; it does not
+rename paths, flatten feature directories, or recursively archive the
+`.warp-derived-runs` collection. Archive transport preserves Phase 2a shard,
+Phase 2b text-fill, and Phase 2c feasibility Run Artifacts without becoming a
+checkpoint validator or migration system.
+
+Legacy roots remain readable and identity-less: WARP does not invent a Run ID
+or Definition Digest and does not treat unbound legacy output as a reusable
+Checkpoint. The archive manifest's `run_id` is only the selected S3 namespace
+for that archive; it is not authoritative lifecycle identity and must not make
+Legacy artifacts reusable. New and Derived roots retain their persisted identity. See the
+tracked [final cutover readiness note](../docs/handoffs/final-cutover-readiness-2026-08-11.md)
+and `tests/test_archive_run_scripts.py` for the compatibility proof.

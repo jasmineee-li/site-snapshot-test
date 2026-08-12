@@ -392,6 +392,17 @@ legacy, stale, malformed, tampered, or topology-incompatible tasks. Phase 2
 signal interruption, cancellation, leases, and cooperative pause for Phases 0,
 1, and 3 remain outside this slice.
 
+The final expand-in-place cutover preserves the artifact contract above: a
+selected Run remains under `logs/<run_id>/` and the archive wrapper transports
+that root to `s3://benchmark-archives/worldsim-runs/<run_id>/` without a
+storage migration, path rewrite, or recursive Derived Run collection copy.
+Phase 2a/2b/2c feature-owned checkpoint paths are transported unchanged and
+remain subject to their existing validators; archiving never accepts, repairs,
+or promotes a checkpoint. Legacy roots remain identity-less and conservative,
+while identified New/Derived roots retain their persisted Run identity. Phases
+0, 1, and 3 remain crash-only. The tracked readiness note records the archive
+compatibility proof and the selected-host canary gate.
+
 Run-control inspection is deliberately read-only around these boundaries.
 `pause --wait --timeout <seconds>` polls `pipeline_state.json` with a
 monotonic deadline and exact request/run identity, reports bounded progress at

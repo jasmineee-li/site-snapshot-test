@@ -34,8 +34,10 @@ usage() {
     cat <<'USAGE'
 archive_run_to_s3.sh <run_id> [options]
 
-Archive a Phase 4 rigor run from logs/<run_id>/ to
-s3://benchmark-archives/worldsim-runs/<run_id>/ as paper evidence.
+Archive one selected Run Artifact root from logs/<run_id>/ to
+s3://benchmark-archives/worldsim-runs/<run_id>/ as paper evidence. The
+wrapper preserves feature-owned Phase 2/4 paths and never selects a whole
+Derived Run collection.
 
 Required positional:
   <run_id>                directory name under logs/ to archive
@@ -88,6 +90,11 @@ done
 [[ -n "$RUN_ID" ]] || { usage >&2; die "<run_id> is required"; }
 command -v aws >/dev/null 2>&1 || die "aws CLI not found on PATH"
 
+# Run IDs are opaque directory names. Reject separators and traversal before
+# joining the caller-provided logs root, especially when --delete-local is used.
+[[ "$RUN_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || \
+    die "run_id must be an opaque directory name (letters, digits, '.', '_' or '-')"
+
 # Resolve and validate the run directory.
 RUN_DIR="$LOGS_DIR/$RUN_ID"
 [[ -d "$RUN_DIR" ]] || die "run directory not found: $RUN_DIR"
@@ -109,7 +116,10 @@ GIT_BRANCH="$(cd "$REPO_ROOT" && git rev-parse --abbrev-ref HEAD 2>/dev/null || 
 ARCHIVED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 HOSTNAME_VAL="$(hostname -f 2>/dev/null || hostname)"
 FILE_COUNT="$(find "$RUN_DIR" -type f | wc -l | tr -d ' ')"
-BYTE_COUNT="$(du -sb "$RUN_DIR" | awk '{print $1}')"
+# macOS `du` has no `-b`; byte count is informational and must not make the
+# archive path platform-dependent.  Prefer portable `du -sk` and normalize to
+# bytes, while retaining the existing field name for manifest compatibility.
+BYTE_COUNT="$(du -sk "$RUN_DIR" | awk '{print $1 * 1024}')"
 
 cat > "$MANIFEST" <<EOF_MANIFEST
 {

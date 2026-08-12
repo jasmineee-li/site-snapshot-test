@@ -71,3 +71,27 @@ _Avoid_: Resumed Run, modified Run
 **Resume Plan**:
 A read-only explanation of which checkpoints a requested Run will reuse, rerun, or reject and the evidence for each decision.
 _Avoid_: Resume status, retry plan
+
+**Atomic Work Unit**:
+The smallest admitted operation that must finish its validation, durable evidence, and required cleanup before a Run can become paused. An Atomic Work Unit may be a shard or one task, depending on the owning phase.
+_Avoid_: Worker, coroutine, process
+
+**Checkpoint**:
+Durable evidence that one Atomic Work Unit completed under a specific Run Definition. A phase-owned validator decides whether a Checkpoint may be reused.
+_Avoid_: Progress marker, log entry, partial output
+
+**Pause Request**:
+Operator intent to stop admission of new Atomic Work Units. Already-admitted units drain before the Run becomes paused. A Pause Request does not stop a Remote Job by itself.
+_Avoid_: Cancellation, process stop, signal
+
+**Legacy Run**:
+A historical Run whose persisted state predates Run ID and Run Definition storage. It remains readable and may resume conservatively, but WARP never invents its identity or treats its unbound artifacts as reusable Checkpoints.
+_Avoid_: Derived Run, migrated Run
+
+**Run Artifact**:
+Persisted output or evidence owned by one Run. A Run Artifact may be a reusable Checkpoint, a canonical aggregate, or inspection evidence, but it is not source code.
+_Avoid_: Asset, source fixture
+
+**Run Lifecycle**:
+The durable execution state of a Run, such as running, paused, interrupted, failed, or complete. It is independent of the process state of any Remote Job.
+_Avoid_: Remote Job status, process status
