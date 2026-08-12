@@ -868,6 +868,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Resume: force the saved Phase 2 run down the offline L1/L2-only "
         "resolver path instead of live L3/L4 enrichment.",
     )
+    # Keep derivation as a separate, unmistakably state-changing operator
+    # action. The parent parser reuses the exact resume override surface
+    # without adding a second implementation of those options.
+    subparsers.add_parser(
+        "derive-and-resume",
+        parents=[resume_cmd],
+        add_help=False,
+        help="Materialize and execute an isolated Derived Run for explicit drift.",
+        description=(
+            "Materialize or recover one isolated Derived Run for explicit "
+            "result-affecting overrides, then resume that child only."
+        ),
+    )
     pause_cmd = subparsers.add_parser(
         "pause",
         help="Request a cooperative pause at the next supported Phase 2 or Phase 4 boundary.",
@@ -1278,6 +1291,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "resume":
         return _dispatch_resume(args)
 
+    if args.command == "derive-and-resume":
+        from worldsim.cli.derived_run import dispatch_derived_resume
+
+        return dispatch_derived_resume(args)
+
     if args.command == "pause":
         from worldsim.cli.run_control import dispatch_pause
 
@@ -1540,6 +1558,11 @@ def _next_step(step: str) -> str | None:
 
 def _dispatch_resume(args: argparse.Namespace) -> int:
     """Read last checkpoint and dispatch to the appropriate phase."""
+    if getattr(args, "command", None) == "derive-and-resume":
+        from worldsim.cli.derived_run import dispatch_derived_resume
+
+        return dispatch_derived_resume(args)
+
     from worldsim.state import load_state
 
     state = load_state()
@@ -1812,29 +1835,14 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         print(f"Resume rejected by Run Definition: {exc}", file=sys.stderr)
         return 2
     if transition.kind == "derived_required":
-        import shlex
-
-        from worldsim.run_materialization import materialize_derived_run
-        from worldsim.state import RESUME_POINTER_ENV, STATE_DIR_ENV, get_state_dir
-
-        source_root = Path(str(state.get("logs_dir") or get_state_dir()))
-        try:
-            child = materialize_derived_run(source_root, transition)
-        except (OSError, ValueError) as exc:
-            print(f"Derived Run materialization failed: {exc}", file=sys.stderr)
-            return 2
-        action = "Created" if child.created else "Reused"
         fields = ", ".join(transition.drift_fields) or "unknown inputs"
-        child_root = shlex.quote(str(child.child_root))
-        child_pointer = shlex.quote(str(child.child_root / "last_run_state.json"))
         print(
-            f"{action} isolated Derived Run {child.definition.run_id} "
-            f"for changed inputs: {fields}.\n"
-            f"Restart conservatively from Phase 0a with:\n"
-            f"  {STATE_DIR_ENV}={child_root} {RESUME_POINTER_ENV}={child_pointer} "
-            "warp-taskgen resume"
+            "Resume requires an isolated Derived Run and explicit "
+            "`warp-taskgen derive-and-resume` intent "
+            f"({transition.reason_code}; changed: {fields}).",
+            file=sys.stderr,
         )
-        return 0
+        return 2
     if status in {"complete", "partial_complete", "failed", "paused", "interrupted"}:
         from worldsim.run_control import clear_pause_request
         from worldsim.state import get_state_dir

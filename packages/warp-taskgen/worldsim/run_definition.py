@@ -2,7 +2,7 @@
 
 This module owns the pure identity decision. State persistence and CLI routing
 consume its value objects, while feature-owned checkpoint validators retain
-reuse authority. Derived Run materialization remains a later migration slice;
+reuse authority. The CLI's explicit Derived Run operation owns materialization;
 legacy runs are never assigned an inferred identity.
 """
 
