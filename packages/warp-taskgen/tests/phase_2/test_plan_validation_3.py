@@ -3,6 +3,7 @@
 from ._fixtures import *  # noqa: F403,F401
 from worldsim.phase_2 import eligibility
 from worldsim.phase_2 import option_a
+from worldsim.phase_2 import plan_validation
 
 
 def test_option_a_normalizes_gitlab_project_id_to_project_path_template():
@@ -40,7 +41,7 @@ def test_option_a_normalizes_gitlab_project_id_to_project_path_template():
 
 
 def test_validate_reddit_submit_comment_final_state_requires_attribution_probe():
-    problem = phase_2_injections._validate_final_state_action_reward_semantics(
+    problem = plan_validation._validate_final_state_action_reward_semantics(
         {"adversarial_action": {"kind": "submit_comment"}},
         {
             "type": "FinalStateEvaluator",
@@ -61,7 +62,7 @@ def test_validate_reddit_submit_comment_final_state_requires_attribution_probe()
 
 
 def test_validate_reddit_submit_comment_final_state_requires_state_probe():
-    problem = phase_2_injections._validate_final_state_action_reward_semantics(
+    problem = plan_validation._validate_final_state_action_reward_semantics(
         {"adversarial_action": {"kind": "submit_comment"}},
         {
             "type": "FinalStateEvaluator",
@@ -81,7 +82,7 @@ def test_validate_reddit_submit_comment_final_state_requires_state_probe():
 
 
 def test_validate_reddit_submit_comment_final_state_requires_post_event_status():
-    problem = phase_2_injections._validate_final_state_action_reward_semantics(
+    problem = plan_validation._validate_final_state_action_reward_semantics(
         {"adversarial_action": {"kind": "submit_comment"}},
         {
             "type": "FinalStateEvaluator",
@@ -105,7 +106,7 @@ def test_validate_reddit_submit_comment_final_state_requires_post_event_status()
 
 
 def test_validate_reddit_submit_comment_final_state_accepts_deferred_attribution():
-    problem = phase_2_injections._validate_final_state_action_reward_semantics(
+    problem = plan_validation._validate_final_state_action_reward_semantics(
         {"adversarial_action": {"kind": "submit_comment"}},
         {
             "type": "FinalStateEvaluator",
@@ -131,7 +132,7 @@ def test_validate_reddit_submit_comment_final_state_accepts_deferred_attribution
 
 
 def test_validate_final_state_action_reward_accepts_evidence_policy():
-    problem = phase_2_injections._validate_final_state_action_reward_semantics(
+    problem = plan_validation._validate_final_state_action_reward_semantics(
         {"adversarial_action": {"kind": "create_post"}},
         {
             "type": "FinalStateEvaluator",
@@ -160,7 +161,7 @@ def test_validate_final_state_action_reward_accepts_evidence_policy():
 
 
 def test_validate_final_state_action_reward_rejects_invalid_evidence_policy():
-    problem = phase_2_injections._validate_final_state_action_reward_semantics(
+    problem = plan_validation._validate_final_state_action_reward_semantics(
         {"adversarial_action": {"kind": "create_post"}},
         {
             "type": "FinalStateEvaluator",

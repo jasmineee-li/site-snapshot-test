@@ -2,6 +2,9 @@
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from tests.phase_2._fixtures import *  # noqa: F403,F401
 from worldsim.phase_2 import eligibility
+from worldsim.phase_2 import plan_validation
+from worldsim.seed_contracts import delivery, validation
+from worldsim.seed_contracts.delivery import _call_delivery_path
 
 
 def test_self_contained_adversarial_seed_admits_mode_b_api_post_then_patch():
@@ -19,7 +22,7 @@ def test_self_contained_adversarial_seed_admits_mode_b_api_post_then_patch():
     }
 
     assert (
-        phase_2_injections._validate_self_contained_adversarial_seed(benign_seed, seed_template)
+        plan_validation._validate_self_contained_adversarial_seed(benign_seed, seed_template)
         is None
     )
 
@@ -44,7 +47,7 @@ def test_self_contained_adversarial_seed_admits_mode_b_reddit_multi_editor_calls
     }
 
     assert (
-        phase_2_injections._validate_self_contained_adversarial_seed(benign_seed, seed_template)
+        plan_validation._validate_self_contained_adversarial_seed(benign_seed, seed_template)
         is None
     )
 
@@ -67,7 +70,7 @@ def test_self_contained_adversarial_seed_rejects_mode_b_reddit_dropping_benign_c
         ],
     }
 
-    error = phase_2_injections._validate_self_contained_adversarial_seed(benign_seed, seed_template)
+    error = plan_validation._validate_self_contained_adversarial_seed(benign_seed, seed_template)
 
     assert (
         error
@@ -190,7 +193,7 @@ def test_validate_adversarial_task_contract_rejects_editor_body_placeholders():
         },
     }
 
-    violation = phase_2_injections._validate_adversarial_task_contract(
+    violation = plan_validation._validate_adversarial_task_contract(
         adversarial_task,
         benign_task,
         site_profile,
@@ -225,7 +228,7 @@ def test_call_delivery_path_parses_absolute_urls_by_path_for_contract_matching()
         "body": {"detail": "payload"},
     }
 
-    assert phase_2_injections._call_delivery_path(call) == "/rest/V1/reviews"
+    assert _call_delivery_path(call) == "/rest/V1/reviews"
 
 
 def test_validate_finalized_http_seed_contract_accepts_editor_shopping_postcondition_fields():
@@ -248,7 +251,7 @@ def test_validate_finalized_http_seed_contract_accepts_editor_shopping_postcondi
     }
     delivery_channel = _site_profile()["injection_surface"][0]["delivery_channels"][0]
 
-    error = phase_2_injections._validate_finalized_http_seed_contract(
+    error = plan_validation._validate_finalized_http_seed_contract(
         seed,
         delivery_channel,
         sites=["shopping"],
@@ -273,7 +276,7 @@ def test_validate_finalized_http_seed_contract_rejects_conflicting_nested_shoppi
     }
     delivery_channel = _site_profile()["injection_surface"][0]["delivery_channels"][0]
 
-    error = phase_2_injections._validate_finalized_http_seed_contract(
+    error = plan_validation._validate_finalized_http_seed_contract(
         seed,
         delivery_channel,
         sites=["shopping"],
@@ -309,7 +312,7 @@ def test_validate_finalized_http_seed_contract_accepts_reddit_legacy_dynamic_com
         ),
     }
 
-    error = phase_2_injections._validate_finalized_http_seed_contract(
+    error = plan_validation._validate_finalized_http_seed_contract(
         seed,
         delivery_channel,
         sites=["reddit"],
@@ -345,7 +348,7 @@ def test_validate_finalized_http_seed_contract_accepts_reddit_submission_form_al
         ),
     }
 
-    error = phase_2_injections._validate_finalized_http_seed_contract(
+    error = plan_validation._validate_finalized_http_seed_contract(
         seed,
         delivery_channel,
         sites=["reddit"],
@@ -370,7 +373,7 @@ def test_validate_adversarial_task_contract_accepts_nested_review_body_shape():
         ],
     }
 
-    violation = phase_2_injections._validate_discriminating_payload(
+    violation = plan_validation._validate_discriminating_payload(
         benign_seed,
         adversarial_seed,
         _site_profile()["injection_surface"][0],

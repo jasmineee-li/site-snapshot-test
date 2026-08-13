@@ -1,6 +1,8 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import plan_validation
+from worldsim.seed_contracts import validation as seed_validation
 
 
 def test_validate_generated_adversarial_tasks_rejects_legacy_shaped_task_with_payload_texts():
@@ -37,7 +39,7 @@ def test_validate_generated_adversarial_tasks_rejects_legacy_shaped_task_with_pa
         },
     }
 
-    validated, errors = phase_2_injections._validate_generated_adversarial_tasks(
+    validated, errors = plan_validation._validate_generated_adversarial_tasks(
         [task],
         [_benign_task()],
         _single_surface_profile(),
@@ -69,7 +71,7 @@ def test_validate_adversarial_task_contract_rejects_unresolved_http_path():
         ],
     }
 
-    violation = phase_2_injections._validate_adversarial_task_contract(
+    violation = plan_validation._validate_adversarial_task_contract(
         task,
         _benign_task(),
         _single_surface_profile(),
@@ -107,11 +109,11 @@ def test_unresolved_http_template_token_regex_narrowed_to_identifier_shape(text,
     ``{name}`` tokens so realistic UGC bodies (embedded JSON, curl snippets, shell
     expansions) do not false-positive as unresolved templates.
 
-    See worldsim/phases/phase_2_injections.py:_UNRESOLVED_HTTP_TEMPLATE_TOKEN and
+    See worldsim.seed_contracts.validation:_UNRESOLVED_HTTP_TEMPLATE_TOKEN and
     the adv-175-urgency-plaintext incident where a generated curl example
     containing ``{"cart_id": "test-123"}`` tripped the old ``\\{[^}/]+\\}`` pattern.
     """
-    token = phase_2_injections._UNRESOLVED_HTTP_TEMPLATE_TOKEN
+    token = seed_validation._UNRESOLVED_HTTP_TEMPLATE_TOKEN
     assert bool(token.search(text)) is expect_match, (
         f"regex {token.pattern!r} matched={bool(token.search(text))} for {text!r}; "
         f"expected match={expect_match}"
@@ -134,7 +136,7 @@ def test_validate_adversarial_task_contract_rejects_legacy_seed_template_shape()
         ],
     }
 
-    violation = phase_2_injections._validate_adversarial_task_contract(
+    violation = plan_validation._validate_adversarial_task_contract(
         task,
         _benign_task(),
         _site_profile(),
@@ -225,7 +227,7 @@ def test_validate_adversarial_task_contract_accepts_editor_seed_shape():
         },
     }
 
-    violation = phase_2_injections._validate_adversarial_task_contract(
+    violation = plan_validation._validate_adversarial_task_contract(
         adversarial_task,
         benign_task,
         site_profile,
@@ -315,7 +317,7 @@ def test_validate_adversarial_task_contract_accepts_editor_alias_placeholder_pla
         },
     }
 
-    violation = phase_2_injections._validate_adversarial_task_contract(
+    violation = plan_validation._validate_adversarial_task_contract(
         adversarial_task,
         benign_task,
         site_profile,
@@ -404,7 +406,7 @@ def test_validate_adversarial_task_contract_accepts_gitlab_issue_description_bod
         },
     }
 
-    violation = phase_2_injections._validate_adversarial_task_contract(
+    violation = plan_validation._validate_adversarial_task_contract(
         adversarial_task,
         benign_task,
         site_profile,
@@ -491,7 +493,7 @@ def test_validate_adversarial_task_contract_rejects_editor_map_seed():
         },
     }
 
-    violation = phase_2_injections._validate_adversarial_task_contract(
+    violation = plan_validation._validate_adversarial_task_contract(
         adversarial_task,
         benign_task,
         site_profile,
@@ -524,7 +526,7 @@ def test_validate_adversarial_task_contract_rejects_placeholder_postcondition_se
         ),
     }
 
-    violation = phase_2_injections._validate_adversarial_task_contract(
+    violation = plan_validation._validate_adversarial_task_contract(
         task,
         _benign_task(),
         _single_surface_profile(),
@@ -540,7 +542,7 @@ def test_validate_generated_adversarial_task_rejects_preseeded_read_surface_fiel
     task = _plan_task()
     task["read_surface_urls"] = ["/forbidden"]
 
-    problem = phase_2_injections._validate_generated_adversarial_task(
+    problem = plan_validation._validate_generated_adversarial_task(
         task,
         0,
         {"benign-1": _benign_task()},

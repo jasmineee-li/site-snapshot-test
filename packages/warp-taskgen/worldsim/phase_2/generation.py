@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from worldsim.phase_2 import eligibility as _eligibility
 from worldsim.phase_2 import option_a as _option_a
+from worldsim.phase_2 import plan_validation as _plan_validation
 from worldsim.phase_2 import target_stage as _target_stage
 from worldsim.phase_2._context import install_context
 from worldsim.phase_2.pause_control import write_planning_shard_checkpoint
@@ -188,7 +189,7 @@ async def _generate_injections_for_site(
     except ValueError as exc:
         return SiteInjectionResult(site_name, [], [f"host reward compilation failed: {exc}"])
 
-    validated, errors = _validate_generated_adversarial_tasks(
+    validated, errors = _plan_validation._validate_generated_adversarial_tasks(
         adv_tasks,
         all_site_tasks,
         site_profile,

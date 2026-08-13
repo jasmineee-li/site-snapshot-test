@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 from worldsim.phase_2 import eligibility
+from worldsim.phase_2 import plan_validation
 from worldsim.phase_2 import target_stage
 
 
@@ -26,7 +27,7 @@ async def test_generate_injections_for_site_emits_benign_target_resources_json(
         fake_generate_phase_2a_plans_api,
     )
     monkeypatch.setattr(
-        phase_2_injections,
+        plan_validation,
         "_validate_generated_adversarial_tasks",
         lambda adv_tasks, benign_tasks, site_profile: (adv_tasks, []),
     )
@@ -186,7 +187,7 @@ async def test_checkpoint_write_failure_does_not_promote_unbound_plans(
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        phase_2_injections,
+        plan_validation,
         "_validate_generated_adversarial_tasks",
         lambda *args: ([plan], []),
     )
