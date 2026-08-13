@@ -1,6 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import shards
 
 
 class TestRecoverOrphanedShards:
@@ -87,7 +88,7 @@ class TestRecoverOrphanedShards:
             json.dumps([self._plan("adv-200", site="reddit")])
         )
         in_memory: list[dict] = []
-        merged, recovered = phase_2_injections._recover_orphaned_shards(
+        merged, recovered = shards._recover_orphaned_shards(
             shards_dir, in_memory, allowed_sites={"gitlab", "reddit"}
         )
         assert {plan["id"] for plan in merged} == {"adv-100", "adv-101", "adv-200"}
@@ -125,7 +126,7 @@ class TestRecoverOrphanedShards:
             input_task_ids=["benign-bound"],
         )
 
-        merged, recovered = phase_2_injections._recover_orphaned_shards(
+        merged, recovered = shards._recover_orphaned_shards(
             shards_dir,
             [],
             allowed_sites={"shopping"},
@@ -139,7 +140,7 @@ class TestRecoverOrphanedShards:
         manifest["definition_digest"] = "0" * 64
         manifest_path.write_text(json.dumps(manifest))
 
-        merged, recovered = phase_2_injections._recover_orphaned_shards(
+        merged, recovered = shards._recover_orphaned_shards(
             shards_dir,
             [],
             allowed_sites={"shopping"},
@@ -204,7 +205,7 @@ class TestRecoverOrphanedShards:
             )
         )
         in_memory = [{**self._plan("adv-100"), "marker": "from-memory"}]
-        merged, recovered = phase_2_injections._recover_orphaned_shards(
+        merged, recovered = shards._recover_orphaned_shards(
             shards_dir, in_memory, allowed_sites={"gitlab"}
         )
         # adv-100 already in memory → shard copy is ignored.
@@ -228,7 +229,7 @@ class TestRecoverOrphanedShards:
         newer.write_text(json.dumps([{**self._plan("adv-100"), "gen": "new"}]))
         # newer keeps default mtime (now), which exceeds old_mtime.
 
-        merged, recovered = phase_2_injections._recover_orphaned_shards(
+        merged, recovered = shards._recover_orphaned_shards(
             shards_dir, [], allowed_sites={"gitlab"}
         )
         assert recovered == ["adv-100"]
@@ -241,7 +242,7 @@ class TestRecoverOrphanedShards:
             json.dumps([self._plan("adv-shop-1", site="shopping")])
         )
         (shards_dir / "gitlab-shard-0.json").write_text(json.dumps([self._plan("adv-gl-1")]))
-        merged, recovered = phase_2_injections._recover_orphaned_shards(
+        merged, recovered = shards._recover_orphaned_shards(
             shards_dir, [], allowed_sites={"gitlab", "reddit"}
         )
         # shopping is out of the WASP-aligned scope and stays on disk only.
@@ -251,7 +252,7 @@ class TestRecoverOrphanedShards:
     def test_missing_shards_dir_returns_input_unchanged(self, tmp_path: Path):
         missing = tmp_path / "does_not_exist"
         in_memory = [self._plan("adv-1")]
-        merged, recovered = phase_2_injections._recover_orphaned_shards(
+        merged, recovered = shards._recover_orphaned_shards(
             missing, in_memory, allowed_sites={"gitlab"}
         )
         assert recovered == []
@@ -262,9 +263,7 @@ class TestRecoverOrphanedShards:
         shards_dir.mkdir()
         (shards_dir / "gitlab-shard-0.json").write_text("not-json-at-all")
         (shards_dir / "gitlab-shard-1.json").write_text(json.dumps([self._plan("adv-valid")]))
-        _, recovered = phase_2_injections._recover_orphaned_shards(
-            shards_dir, [], allowed_sites={"gitlab"}
-        )
+        _, recovered = shards._recover_orphaned_shards(shards_dir, [], allowed_sites={"gitlab"})
         assert recovered == ["adv-valid"]
 
     def test_reconstructs_bare_host_start_url_from_anchors(self, tmp_path: Path):
@@ -301,7 +300,7 @@ class TestRecoverOrphanedShards:
         }
         (shards_dir / "reddit-shard-0.json").write_text(json.dumps([stale_orphan]))
 
-        merged, recovered = phase_2_injections._recover_orphaned_shards(
+        merged, recovered = shards._recover_orphaned_shards(
             shards_dir, [], allowed_sites={"reddit"}
         )
         assert recovered == ["adv-stale"]
@@ -360,7 +359,7 @@ class TestRecoverOrphanedShards:
             },
         }
         (shards_dir / "gitlab-shard-0.json").write_text(json.dumps([orphan]))
-        merged, recovered = phase_2_injections._recover_orphaned_shards(
+        merged, recovered = shards._recover_orphaned_shards(
             shards_dir, [], allowed_sites={"gitlab"}
         )
         assert recovered == ["adv-name-backfill"]
@@ -410,9 +409,7 @@ class TestRecoverOrphanedShards:
             },
         }
         (shards_dir / "gitlab-shard-0.json").write_text(json.dumps([orphan]))
-        merged, _ = phase_2_injections._recover_orphaned_shards(
-            shards_dir, [], allowed_sites={"gitlab"}
-        )
+        merged, _ = shards._recover_orphaned_shards(shards_dir, [], allowed_sites={"gitlab"})
         recovered_args = merged[0]["adversarial_data_seed"]["editor_calls"][0]["args"]
         assert recovered_args["project_name_template"] == "webagent-task-{salt}"
 
@@ -442,9 +439,7 @@ class TestRecoverOrphanedShards:
             },
         }
         (shards_dir / "reddit-shard-0.json").write_text(json.dumps([orphan]))
-        merged, _ = phase_2_injections._recover_orphaned_shards(
-            shards_dir, [], allowed_sites={"reddit"}
-        )
+        merged, _ = shards._recover_orphaned_shards(shards_dir, [], allowed_sites={"reddit"})
         recovered_args = merged[0]["adversarial_data_seed"]["editor_calls"][0]["args"]
         assert "project_name_template" not in recovered_args
 
@@ -489,8 +484,8 @@ class TestRecoverOrphanedShards:
         (shards_dir / "gitlab-shard-0.json").write_text(json.dumps([valid]))
         (shards_dir / "gitlab-shard-1.json").write_text(json.dumps([invalid]))
 
-        with caplog.at_level("WARNING", logger="worldsim.phases.phase_2_injections"):
-            merged, recovered = phase_2_injections._recover_orphaned_shards(
+        with caplog.at_level("WARNING", logger="worldsim.phase_2.shards"):
+            merged, recovered = shards._recover_orphaned_shards(
                 shards_dir, [], allowed_sites={"gitlab"}
             )
 
@@ -518,8 +513,8 @@ class TestRecoverOrphanedShards:
         (shards_dir / "gitlab-shard-0.json").write_text(json.dumps([bad]))
         benign_by_id = {"benign-bad": {"id": "benign-bad", "site": "gitlab", "sites": ["gitlab"]}}
 
-        with caplog.at_level("WARNING", logger="worldsim.phases.phase_2_injections"):
-            merged, recovered = phase_2_injections._recover_orphaned_shards(
+        with caplog.at_level("WARNING", logger="worldsim.phase_2.shards"):
+            merged, recovered = shards._recover_orphaned_shards(
                 shards_dir,
                 [],
                 allowed_sites={"gitlab"},
