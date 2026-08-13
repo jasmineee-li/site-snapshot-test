@@ -266,9 +266,9 @@ def _materialize_reusable_phase_inputs(source: Path, dest: Path) -> None:
 
 
 def _admitted_tasks_for_pool(args: ProcessPoolArgs) -> list[dict[str, Any]]:
-    from worldsim.phase_4 import runner as phase_4_runner
+    from worldsim.phase_4 import admission as phase_4_admission
 
-    admission = phase_4_runner._load_admitted_phase_4_tasks(
+    admission = phase_4_admission._load_admitted_phase_4_tasks(
         state_dir=args.source_state_dir,
         sites_filter_raw=args.sites,
         adversarial_action_kind_filter_raw=args.adversarial_action_kind,

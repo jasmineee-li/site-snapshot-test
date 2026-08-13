@@ -4,6 +4,11 @@
 from __future__ import annotations
 
 from worldsim.phase_4._context import install_context
+from worldsim.phase_4.admission import (
+    _collect_agent_auth_runtime_errors,
+    _load_admitted_phase_4_tasks,
+    _load_site_profiles,
+)
 from worldsim.phase_4.postprocess_progress import (
     Phase4ProgressState,
     completed_task_ids_from_task_dir_root,
@@ -11,6 +16,11 @@ from worldsim.phase_4.postprocess_progress import (
     record_postprocess_start,
     record_variant_progress,
     write_phase_4_progress,
+)
+from worldsim.phase_4.preflight import (
+    BaseStateProbeResult,
+    _preflight_host_messages_api,
+    _probe_seed_base_state_for_task_targets,
 )
 from worldsim.run_control import pause_aware_map, pause_requested
 
@@ -758,15 +768,10 @@ def _agentlab_phase4_preflight_errors() -> list[str]:
 
 import sys as _sys
 
-from worldsim.phase_4 import admission as _admission
 from worldsim.phase_4 import eval_awareness_iterator as _eval_awareness_iterator
 from worldsim.phase_4 import execution as _execution
-from worldsim.phase_4 import execution_helpers as _execution_helpers
-from worldsim.phase_4 import metrics as _metrics
-from worldsim.phase_4 import payload_text as _payload_text
 from worldsim.phase_4 import placement_loop as _placement_loop
 from worldsim.phase_4 import postprocess as _postprocess
-from worldsim.phase_4 import preflight as _preflight
 from worldsim.phase_4 import results as _results
 from worldsim.phase_4 import resume as _resume
 from worldsim.phase_4 import strategy_variation as _strategy_variation
@@ -776,15 +781,10 @@ from worldsim.phase_4._context import link_modules as _link_modules
 _link_modules(
     [
         _sys.modules[__name__],
-        _admission,
         _execution,
-        _execution_helpers,
         _eval_awareness_iterator,
-        _metrics,
-        _payload_text,
         _placement_loop,
         _postprocess,
-        _preflight,
         _resume,
         _results,
         _strategy_variation,

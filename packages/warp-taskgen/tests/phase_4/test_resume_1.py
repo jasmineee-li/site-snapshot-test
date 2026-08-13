@@ -455,7 +455,7 @@ async def test_run_adversarial_task_persists_resume_fingerprint(monkeypatch, tmp
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
     monkeypatch.setattr(

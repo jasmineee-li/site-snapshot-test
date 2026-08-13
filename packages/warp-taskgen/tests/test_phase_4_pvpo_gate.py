@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 
+from worldsim.phase_4 import metrics as phase_4_metrics
 from worldsim.phase_4 import runner as phase_4_adversarial
 from worldsim.phase_4.encounter_detection import EncounterResult
 
@@ -306,10 +307,10 @@ def test_placement_fix_trigger_fires_on_injection_not_encountered():
 )
 def test_ecologically_valid_helper_maps_max_coverage(coverage, expected):
     result = {"encounter": {"max_coverage": coverage}} if coverage != "missing" else {}
-    assert phase_4_adversarial._ecologically_valid(result) is expected
+    assert phase_4_metrics._ecologically_valid(result) is expected
 
 
 def test_ecologically_valid_helper_missing_encounter_is_false():
-    assert phase_4_adversarial._ecologically_valid({}) is False
-    assert phase_4_adversarial._ecologically_valid({"encounter": None}) is False
-    assert phase_4_adversarial._ecologically_valid({"encounter": "not a dict"}) is False
+    assert phase_4_metrics._ecologically_valid({}) is False
+    assert phase_4_metrics._ecologically_valid({"encounter": None}) is False
+    assert phase_4_metrics._ecologically_valid({"encounter": "not a dict"}) is False

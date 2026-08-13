@@ -20,6 +20,13 @@ from worldsim.config import BenchmarkInstance
 from worldsim.instance_selection import select_task_site_instance
 from worldsim.phase_4.exposure_admission import exposure_admission_error
 from worldsim.phase_4 import runner as phase_4_adversarial
+from worldsim.phase_4 import admission as phase_4_admission
+from worldsim.phase_4 import execution as phase_4_execution
+from worldsim.phase_4 import preflight as phase_4_preflight
+from worldsim.phase_4 import execution_helpers as phase_4_execution_helpers
+from worldsim.phase_4 import metrics as phase_4_metrics
+from worldsim.phase_4 import payload_text as phase_4_payload_text
+from worldsim.phase_4 import placement_loop as phase_4_placement_loop
 from worldsim.phase_2 import text_fill as phase_2_text_fill
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
@@ -161,14 +168,12 @@ def _bypass_editor_preflight(monkeypatch):
     integration concerns for seeded tests, not the orchestration scenarios
     this file exercises. Stub them so fixtures don't need a registered editor
     or a live instance."""
+    monkeypatch.setattr(phase_4_preflight, "preflight_editor_seed_calls", lambda seed, instance: [])
     monkeypatch.setattr(
-        phase_4_adversarial, "preflight_editor_seed_calls", lambda seed, instance: []
-    )
-    monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_preflight,
         "_probe_seed_base_state",
         lambda instance, benchmark="webarena_verified", cache=None: (
-            phase_4_adversarial.BaseStateProbeResult(ok=True)
+            phase_4_preflight.BaseStateProbeResult(ok=True)
         ),
     )
 

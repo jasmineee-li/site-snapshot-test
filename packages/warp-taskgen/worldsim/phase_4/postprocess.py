@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from worldsim.phase_4._context import install_context
+from worldsim.phase_4.metrics import _ecologically_valid, _layout_telemetry
 from worldsim.phase_4.postprocess_progress import Phase4ProgressCallback
 
 install_context(globals())

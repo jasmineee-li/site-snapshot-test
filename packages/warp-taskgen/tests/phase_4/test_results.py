@@ -11,7 +11,7 @@ def test_layout_telemetry_records_geometry_bucket():
     task["feasibility"]["exposure"]["scroll_to_visible_px"] = 8001
     task["feasibility"]["exposure"]["requires_expand"] = True
 
-    assert phase_4_adversarial._layout_telemetry(task) == {
+    assert phase_4_metrics._layout_telemetry(task) == {
         "layout_visible_at_entry": False,
         "scroll_to_visible_px": 8001,
         "requires_expand": True,
@@ -267,7 +267,7 @@ async def test_phase_4_sites_filter_limits_token_acquisition(monkeypatch, tmp_pa
 
     monkeypatch.setattr(phase_4_adversarial, "acquire_tokens_for_instances", fake_acquire_tokens)
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_admission,
         "_rebase_adversarial_task",
         lambda adversarial_task, benign_task: dict(adversarial_task),
     )

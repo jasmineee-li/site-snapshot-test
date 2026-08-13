@@ -5,7 +5,7 @@ from typing import ClassVar
 from worldsim.config import BenchmarkInstance
 from worldsim.editors.base import EditorError
 from worldsim.instance_selection import select_task_site_instance
-from worldsim.phase_4 import runner as phase_4_adversarial
+from worldsim.phase_4 import preflight as phase_4_preflight
 
 
 class _ProbeEditor:
@@ -23,7 +23,7 @@ def _install_probe_editor(monkeypatch, behavior=None, *, benchmark: str = "webar
     _ProbeEditor.calls = []
     _ProbeEditor.behavior = behavior
     monkeypatch.setitem(
-        phase_4_adversarial.EDITOR_REGISTRY,
+        phase_4_preflight.EDITOR_REGISTRY,
         (benchmark, "gitlab"),
         _ProbeEditor,
     )
@@ -31,15 +31,15 @@ def _install_probe_editor(monkeypatch, behavior=None, *, benchmark: str = "webar
 
 def test_probe_seed_base_state_uses_cache(monkeypatch):
     _install_probe_editor(monkeypatch)
-    cache: dict[tuple[str, str, str, str], phase_4_adversarial.BaseStateProbeResult] = {}
+    cache: dict[tuple[str, str, str, str], phase_4_preflight.BaseStateProbeResult] = {}
     instance = {
         "site_name": "gitlab",
         "site_url": "http://gitlab.test",
         "auth": {"type": "bearer_token", "token": "token"},
     }
 
-    first = phase_4_adversarial._probe_seed_base_state(instance, cache=cache)
-    second = phase_4_adversarial._probe_seed_base_state(instance, cache=cache)
+    first = phase_4_preflight._probe_seed_base_state(instance, cache=cache)
+    second = phase_4_preflight._probe_seed_base_state(instance, cache=cache)
 
     assert first.ok is True
     assert second.ok is True
@@ -48,9 +48,9 @@ def test_probe_seed_base_state_uses_cache(monkeypatch):
 
 def test_probe_seed_base_state_cache_is_scoped_by_auth(monkeypatch):
     _install_probe_editor(monkeypatch)
-    cache: dict[tuple[str, str, str, str], phase_4_adversarial.BaseStateProbeResult] = {}
+    cache: dict[tuple[str, str, str, str], phase_4_preflight.BaseStateProbeResult] = {}
 
-    first = phase_4_adversarial._probe_seed_base_state(
+    first = phase_4_preflight._probe_seed_base_state(
         {
             "site_name": "gitlab",
             "site_url": "http://gitlab.test",
@@ -58,7 +58,7 @@ def test_probe_seed_base_state_cache_is_scoped_by_auth(monkeypatch):
         },
         cache=cache,
     )
-    second = phase_4_adversarial._probe_seed_base_state(
+    second = phase_4_preflight._probe_seed_base_state(
         {
             "site_name": "gitlab",
             "site_url": "http://gitlab.test",
@@ -80,7 +80,7 @@ def test_probe_seed_base_state_reports_auth_missing(monkeypatch):
         ),
     )
 
-    result = phase_4_adversarial._probe_seed_base_state(
+    result = phase_4_preflight._probe_seed_base_state(
         {
             "site_name": "gitlab",
             "site_url": "http://gitlab.test",
@@ -100,7 +100,7 @@ def test_probe_seed_base_state_treats_unexpected_errors_as_base_state_missing(mo
         behavior=lambda instance: (_ for _ in ()).throw(RuntimeError("HTTP 302 redirect")),
     )
 
-    result = phase_4_adversarial._probe_seed_base_state(
+    result = phase_4_preflight._probe_seed_base_state(
         {
             "site_name": "gitlab",
             "site_url": "http://gitlab.test",
@@ -150,11 +150,11 @@ def test_probe_seed_base_state_for_task_targets_only_probes_selected_instance(mo
     def fake_probe(instance, benchmark="webarena_verified", cache=None):
         probed.append(instance["site_url"])
         assert benchmark == "webarena_verified"
-        return phase_4_adversarial.BaseStateProbeResult(ok=True)
+        return phase_4_preflight.BaseStateProbeResult(ok=True)
 
-    monkeypatch.setattr(phase_4_adversarial, "_probe_seed_base_state", fake_probe)
+    monkeypatch.setattr(phase_4_preflight, "_probe_seed_base_state", fake_probe)
 
-    errors = phase_4_adversarial._probe_seed_base_state_for_task_targets([task], instances)
+    errors = phase_4_preflight._probe_seed_base_state_for_task_targets([task], instances)
 
     assert errors == []
     assert probed == [expected.site_url]
@@ -163,7 +163,7 @@ def test_probe_seed_base_state_for_task_targets_only_probes_selected_instance(mo
 def test_probe_seed_base_state_uses_task_benchmark(monkeypatch):
     _install_probe_editor(monkeypatch, benchmark="custom_benchmark")
 
-    result = phase_4_adversarial._probe_seed_base_state(
+    result = phase_4_preflight._probe_seed_base_state(
         {
             "site_name": "gitlab",
             "site_url": "http://gitlab.test",

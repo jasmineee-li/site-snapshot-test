@@ -1,11 +1,27 @@
 """Phase 4 execution helper behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_4._context import install_context
+import asyncio
+import json
+import logging
+import time
+from typing import Any
 
-install_context(globals())
+import requests
+
+from worldsim.agent_config import task_reset_endpoints
+from worldsim.config import has_effective_agent_auth
+from worldsim.phase_2.text_fill.seed import (
+    materialize_adversarial_seed,
+    validate_seed_template_contract,
+)
+from worldsim.phase_2.text_fill.validation import validate_text_post_hoc
+
+logger = logging.getLogger(__name__)
+_RESET_TIMEOUT = 300
+_RESET_MAX_RETRIES = 2
+_RESET_RETRY_DELAY = 10
 
 
 async def _reset_task_environment(task: dict[str, Any]) -> None:

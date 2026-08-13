@@ -1,12 +1,31 @@
 """Phase 4 preflight behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_4._context import install_context
-from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
+import asyncio
+import logging
+import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
-install_context(globals())
+from worldsim.agent_runtime import AgentResult
+from worldsim.config import BenchmarkInstance
+from worldsim.editors import EDITOR_REGISTRY, EditorError
+from worldsim.instance_selection import select_task_site_instance
+from worldsim.phase_4.resume import (
+    _fingerprint_payload,
+    _seed_target_benchmark,
+    _seed_target_site,
+    _seed_uses_editor_calls,
+)
+from worldsim.placeholders import normalize_site_name
+from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
+from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
+from worldsim.seeding import preflight_editor_seed_calls
+from worldsim.trajectory import save_result
+
+logger = logging.getLogger(__name__)
 
 
 async def _preflight_host_messages_api(*, sandbox_model: str) -> tuple[bool, str | None]:

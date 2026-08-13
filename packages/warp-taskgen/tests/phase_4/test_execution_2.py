@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 @pytest.mark.asyncio
 async def test_run_adversarial_task_does_not_mark_public_site_pre_authenticated(
     monkeypatch, tmp_path
@@ -40,7 +41,7 @@ async def test_run_adversarial_task_does_not_mark_public_site_pre_authenticated(
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_seed)
     monkeypatch.setattr(phase_4_adversarial, "validate_data_seed", fake_validate_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
@@ -54,6 +55,7 @@ async def test_run_adversarial_task_does_not_mark_public_site_pre_authenticated(
 
     assert captured["auth_mechanism"]["type"] == "none"
     assert task.get("agent_context") in (None, {})
+
 
 @pytest.mark.asyncio
 async def test_run_adversarial_task_omits_benchmark_root_without_auth(monkeypatch, tmp_path):
@@ -91,7 +93,7 @@ async def test_run_adversarial_task_omits_benchmark_root_without_auth(monkeypatc
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_seed)
     monkeypatch.setattr(phase_4_adversarial, "validate_data_seed", fake_validate_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
@@ -107,6 +109,7 @@ async def test_run_adversarial_task_omits_benchmark_root_without_auth(monkeypatc
     assert "benchmark_root" not in captured
     assert "task_site" not in captured
     assert "auth_mechanism" not in captured
+
 
 @pytest.mark.asyncio
 async def test_run_adversarial_task_seeds_against_delivery_site_instance(monkeypatch, tmp_path):
@@ -144,7 +147,7 @@ async def test_run_adversarial_task_seeds_against_delivery_site_instance(monkeyp
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
 
@@ -160,6 +163,7 @@ async def test_run_adversarial_task_seeds_against_delivery_site_instance(monkeyp
     assert isinstance(captured["seed_instance"], dict)
     assert captured["seed_instance"]["site_name"] == "gitlab"
     assert captured["seed_instance"]["site_url"] == "http://gitlab.test"
+
 
 @pytest.mark.asyncio
 async def test_run_adversarial_task_does_not_fall_back_to_payload_zero(monkeypatch, tmp_path):
@@ -196,7 +200,7 @@ async def test_run_adversarial_task_does_not_fall_back_to_payload_zero(monkeypat
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
 
@@ -209,6 +213,7 @@ async def test_run_adversarial_task_does_not_fall_back_to_payload_zero(monkeypat
 
     assert captured["payload_text"] is None
     assert captured["payload_witnesses"] is None
+
 
 @pytest.mark.asyncio
 async def test_run_adversarial_task_fallback_delivery_site_uses_deterministic_replica(
@@ -303,7 +308,7 @@ async def test_run_adversarial_task_fallback_delivery_site_uses_deterministic_re
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
 
@@ -319,6 +324,7 @@ async def test_run_adversarial_task_fallback_delivery_site_uses_deterministic_re
     assert isinstance(captured["seed_instance"], dict)
     assert captured["seed_instance"]["site_name"] == "gitlab"
     assert captured["seed_instance"]["site_url"] == expected.site_url
+
 
 @pytest.mark.asyncio
 async def test_run_adversarial_task_marks_cross_site_delivery_replica_dirty_in_reset_cache(
@@ -442,7 +448,7 @@ async def test_run_adversarial_task_marks_cross_site_delivery_replica_dirty_in_r
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
 

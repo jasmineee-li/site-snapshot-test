@@ -38,7 +38,7 @@ async def test_run_adversarial_task_uses_selected_payload_for_pvpo(monkeypatch, 
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
 
@@ -99,7 +99,7 @@ async def test_run_adversarial_task_passes_attack_witnesses_to_pvpo(monkeypatch,
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
 
@@ -132,8 +132,7 @@ async def test_pvpo_gate_does_not_downgrade_missing_screenshot_to_non_encounter(
                 "step": 0,
                 "payload_text": "visible injected payload",
                 "visibility_vec": [
-                    {"char": char, "layoutVisible": True}
-                    for char in "visible injected payload"
+                    {"char": char, "layoutVisible": True} for char in "visible injected payload"
                 ],
             }
         ),
@@ -196,8 +195,7 @@ async def test_pvpo_gate_does_not_downgrade_empty_reference_screenshot_to_non_en
                 "payload_text": "visible injected payload",
                 "match_found": True,
                 "visibility_vec": [
-                    {"char": char, "layoutVisible": True}
-                    for char in "visible injected payload"
+                    {"char": char, "layoutVisible": True} for char in "visible injected payload"
                 ],
             }
         ),

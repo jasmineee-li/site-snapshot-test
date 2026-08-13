@@ -4,8 +4,14 @@
 from __future__ import annotations
 
 from worldsim.phase_4._context import install_context
+from worldsim.phase_4.execution_helpers import _effective_adversarial_seed
+from worldsim.phase_4.payload_text import (
+    _seed_preserves_exposure_contract_error,
+    _synchronize_variant_payload_texts,
+)
 
 install_context(globals())
+
 
 def _merge_variant_task(
     original_task: dict[str, Any],
@@ -73,6 +79,7 @@ def _merge_variant_task(
             merged[field] = candidate[field]
     return merged
 
+
 def _rebase_adversarial_task(
     adversarial_task: dict[str, Any],
     benign_task: dict[str, Any],
@@ -126,6 +133,7 @@ def _rebase_adversarial_task(
         rebuilt[key] = json.loads(json.dumps(value))
     return rebuilt
 
+
 def _merged_task_sites(*tasks: dict[str, Any]) -> list[str]:
     merged: list[str] = []
     for task in tasks:
@@ -142,6 +150,7 @@ def _merged_task_sites(*tasks: dict[str, Any]) -> list[str]:
             if delivery_site and delivery_site.lower() != "none" and delivery_site not in merged:
                 merged.append(delivery_site)
     return merged
+
 
 async def _rerun_adversarial_task(
     task: dict[str, Any],
@@ -199,6 +208,7 @@ async def _rerun_adversarial_task(
     async with browser_worker_semaphore:
         return await _run()
 
+
 async def _evaluate_variant(
     task: dict[str, Any],
     variant: dict[str, Any],
@@ -252,6 +262,7 @@ async def _evaluate_variant(
             }
 
     try:
+
         async def _run() -> dict[str, Any]:
             agent = agent_factory()
             try:
