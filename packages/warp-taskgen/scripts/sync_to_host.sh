@@ -12,6 +12,7 @@ REMOTE_DIR=""
 SSH_KEY_ARG=""
 DRY_RUN=0
 ALLOW_ACTIVE_JOBS=0
+REFRESH_ENV=0
 
 usage() {
     cat <<'USAGE'
@@ -23,6 +24,7 @@ Options:
   --ssh-key <path>          SSH private key (default: $SSH_KEY or ~/.ssh/webarena-key.pem)
   --dry-run                 print rsync changes without writing
   --allow-active-jobs       sync even if remote_jobs registry has running jobs
+  --refresh-env             run the canonical locked host venv refresh and checks
   -h, --help                show this help
 USAGE
 }
@@ -34,6 +36,7 @@ while (($#)); do
         --ssh-key) SSH_KEY_ARG="$2"; shift 2 ;;
         --dry-run) DRY_RUN=1; shift ;;
         --allow-active-jobs) ALLOW_ACTIVE_JOBS=1; shift ;;
+        --refresh-env) REFRESH_ENV=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) rj_die "unknown arg: $1" ;;
     esac
@@ -77,6 +80,11 @@ excludes=(
     ".claude/local.md"
     ".claude/settings.local.json"
     "AgentLab/"
+    # Keep the retired core namespace on the host until the post-rsync helper
+    # has proven it contains cache residue only.  Without this exclusion,
+    # rsync --delete would remove substantive legacy files before the helper
+    # could fail closed.
+    "/worldsim"
     # Every vendor checkout is host-local and gitignored. A selective list
     # lets rsync --delete erase newly added benchmark/vendor trees.
     "vendors/"
@@ -240,6 +248,40 @@ printf 'Using SSH key: %s\n' "$RJ_SSH_KEY" >&2
     "$RJ_SSH_TARGET:$REMOTE_DIR/"
 
 if [[ "$DRY_RUN" -eq 0 ]]; then
+    rj_ssh_bash "$REMOTE_DIR" <<'REMOTE'
+set -euo pipefail
+remote_dir="$1"
+python3 "$remote_dir/scripts/prune_retired_namespace.py" "$remote_dir"
+REMOTE
+
+    if [[ "$REFRESH_ENV" -eq 1 ]]; then
+        rj_ssh_bash "$REMOTE_DIR" <<'REMOTE'
+set -euo pipefail
+remote_dir="$1"
+cd "$remote_dir"
+uv sync --locked --extra dev
+test -x "$remote_dir/.venv/bin/python"
+test -x "$remote_dir/.venv/bin/warp-taskgen"
+"$remote_dir/.venv/bin/python" - <<'PY'
+import importlib.metadata
+import importlib.resources
+import importlib.util
+import tomllib
+from pathlib import Path
+
+project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+expected = str(project["project"]["version"])
+assert importlib.metadata.version("warp-taskgen") == expected
+import warp_taskgen
+assert warp_taskgen.__version__ == expected
+assert importlib.util.find_spec("worldsim") is None
+assert not Path(".venv/bin/worldsim").exists()
+assert importlib.resources.files("warp_taskgen").joinpath("prompts/profile-site.md").is_file()
+PY
+"$remote_dir/.venv/bin/warp-taskgen" --help >/dev/null
+REMOTE
+    fi
+
     SYNC_STAMP_B64="$(python3 - "$REPO_ROOT" "$HOST_CONFIG" <<'PY'
 import base64
 import json

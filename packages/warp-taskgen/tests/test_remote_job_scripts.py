@@ -381,10 +381,218 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     assert "scripts/proxy_ports.conf" in joined
     assert "agent-tools/" in joined
     assert "AgentLab/" in joined
+    assert "/worldsim" in joined
     assert ".claude/worktrees/" in joined
     assert "vendors/" in joined
     assert "$HOME" not in joined
     assert str(Path(env["HOME"]) / ".ssh" / "webarena-key.pem") in joined
+
+
+def test_retired_namespace_cache_cleanup_removes_only_bytecode_residue(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    retired = tmp_path / "worldsim"
+    cache_dir = retired / "nested" / "__pycache__"
+    cache_dir.mkdir(parents=True)
+    (cache_dir / "module.cpython-312.pyc").write_bytes(b"cache")
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(repo_root / "scripts" / "prune_retired_namespace.py"),
+            str(tmp_path),
+        ],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert not retired.exists()
+    assert "retired namespace absent" in completed.stdout
+
+
+def test_retired_namespace_cache_cleanup_refuses_substantive_files_without_deleting(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    retired = tmp_path / "worldsim"
+    cache_dir = retired / "nested" / "__pycache__"
+    cache_dir.mkdir(parents=True)
+    cache_file = cache_dir / "module.cpython-312.pyc"
+    cache_file.write_bytes(b"cache")
+    source_file = retired / "main.py"
+    source_file.write_text("raise RuntimeError('must remain')\n", encoding="utf-8")
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(repo_root / "scripts" / "prune_retired_namespace.py"),
+            str(tmp_path),
+        ],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "substantive" in completed.stderr
+    assert source_file.read_text(encoding="utf-8") == "raise RuntimeError('must remain')\n"
+    assert cache_file.read_bytes() == b"cache"
+
+
+def test_retired_namespace_cache_cleanup_refuses_symlink_without_following_it(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    retired = tmp_path / "worldsim"
+    retired.mkdir()
+    outside = tmp_path / "outside.py"
+    outside.write_text("must remain\n", encoding="utf-8")
+    (retired / "escape.py").symlink_to(outside)
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(repo_root / "scripts" / "prune_retired_namespace.py"),
+            str(tmp_path),
+        ],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "substantive" in completed.stderr
+    assert (retired / "escape.py").is_symlink()
+    assert outside.read_text(encoding="utf-8") == "must remain\n"
+
+
+def _run_sync_with_fake_transport(
+    tmp_path: Path,
+    *,
+    retired_entries: dict[str, bytes | str],
+    retired_file: bytes | str | None = None,
+) -> tuple[subprocess.CompletedProcess[str], Path, list[str]]:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    remote_dir.mkdir(parents=True, exist_ok=True)
+    if retired_file is not None:
+        if isinstance(retired_file, bytes):
+            (remote_dir / "worldsim").write_bytes(retired_file)
+        else:
+            (remote_dir / "worldsim").write_text(retired_file, encoding="utf-8")
+    else:
+        for relative, contents in retired_entries.items():
+            path = remote_dir / "worldsim" / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if isinstance(contents, bytes):
+                path.write_bytes(contents)
+            else:
+                path.write_text(contents, encoding="utf-8")
+
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    args_path = tmp_path / "rsync_args.json"
+    _write_fake_ssh(fakebin)
+    _write_executable(
+        fakebin / "rsync",
+        f"""#!/usr/bin/env python3
+import json
+import os
+import shutil
+import sys
+from pathlib import Path
+
+args = sys.argv[1:]
+Path({str(args_path)!r}).write_text(json.dumps(args), encoding="utf-8")
+source = Path(args[-2]).resolve()
+remote = Path(os.environ["FAKE_REMOTE_DIR"])
+target = remote / "scripts" / "prune_retired_namespace.py"
+target.parent.mkdir(parents=True, exist_ok=True)
+shutil.copy2(source / "scripts" / "prune_retired_namespace.py", target)
+""",
+    )
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+    env["REMOTE_JOBS_SSH_BIN"] = str(fakebin / "ssh")
+    env["REMOTE_JOBS_RSYNC_BIN"] = str(fakebin / "rsync")
+    env["FAKE_REMOTE_DIR"] = str(remote_dir)
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "sync_to_host.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    return completed, remote_dir, json.loads(args_path.read_text(encoding="utf-8"))
+
+
+def test_sync_cleans_cache_only_retired_namespace_and_stamps_after_postcondition(
+    tmp_path: Path,
+) -> None:
+    completed, remote_dir, rsync_args = _run_sync_with_fake_transport(
+        tmp_path,
+        retired_entries={"nested/__pycache__/module.cpython-312.pyc": b"cache"},
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert not (remote_dir / "worldsim").exists()
+    assert "--delete" in rsync_args
+    assert "/worldsim" in rsync_args
+    stamp = json.loads((remote_dir / ".worldsim_sync_stamp.json").read_text())
+    assert stamp["git_metadata_excluded"] is True
+    assert stamp["host_config"].endswith("host.yaml")
+
+
+def test_sync_refuses_substantive_retired_namespace_before_stamp_update(tmp_path: Path) -> None:
+    completed, remote_dir, _ = _run_sync_with_fake_transport(
+        tmp_path,
+        retired_entries={"old.py": "legacy implementation\n"},
+    )
+
+    assert completed.returncode == 2
+    assert "substantive" in completed.stderr
+    assert (remote_dir / "worldsim" / "old.py").read_text(encoding="utf-8") == (
+        "legacy implementation\n"
+    )
+    assert not (remote_dir / ".worldsim_sync_stamp.json").exists()
+
+
+def test_sync_refuses_top_level_retired_namespace_file_before_rsync_delete(
+    tmp_path: Path,
+) -> None:
+    completed, remote_dir, rsync_args = _run_sync_with_fake_transport(
+        tmp_path,
+        retired_entries={},
+        retired_file="legacy implementation\n",
+    )
+
+    assert completed.returncode == 2
+    assert "substantive" in completed.stderr
+    assert (remote_dir / "worldsim").read_text(encoding="utf-8") == "legacy implementation\n"
+    assert not (remote_dir / ".worldsim_sync_stamp.json").exists()
+    assert "/worldsim" in rsync_args
+
+
+def test_sync_runs_retired_namespace_postcondition_before_stamp(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    script = (repo_root / "scripts" / "sync_to_host.sh").read_text(encoding="utf-8")
+    rsync_index = script.index('"$RJ_RSYNC_BIN"')
+    cleanup_index = script.index("prune_retired_namespace.py", rsync_index)
+    refresh_index = script.index("uv sync --locked --extra dev", cleanup_index)
+    stamp_index = script.index('path = remote_dir / ".worldsim_sync_stamp.json"')
+    assert rsync_index < cleanup_index < refresh_index < stamp_index
+    assert "--refresh-env" in script
+    assert 'find_spec("worldsim") is None' in script
+    assert 'Path(".venv/bin/worldsim").exists()' in script
 
 
 def test_sync_dry_run_excludes_linked_worktree_git_file(tmp_path: Path) -> None:

@@ -22,6 +22,14 @@ Use `--allow-active-jobs` only for deliberate maintenance with the provenance
 impact recorded. Keep secrets in the pushed environment, never in commands or
 shell history.
 
+When deploying a namespace-removal release to a long-lived host, add
+`--refresh-env` to `scripts/sync_to_host.sh`. After rsync, the flag runs the
+canonical `uv sync --locked --extra dev` workflow and checks the installed
+distribution/package version, absence of the retired core `worldsim` import
+and console, and canonical CLI/resource loading. Without the flag, sync still
+performs the cache-only retired-namespace postcondition but intentionally does
+not alter the host virtual environment.
+
 ## Launch contract
 
 The canonical selected-host shape is:
