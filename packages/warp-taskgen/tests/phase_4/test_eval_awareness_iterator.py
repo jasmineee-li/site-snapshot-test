@@ -52,7 +52,7 @@ async def test_process_adversarial_result_uses_eval_awareness_iterator_by_defaul
     monkeypatch.setattr(phase_4_postprocess, "run_eval_awareness_iterator", fake_iterator)
     monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fail_strategy_variation)
 
-    result = await phase_4_adversarial._process_adversarial_result(
+    result = await phase_4_postprocess._process_adversarial_result(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -120,7 +120,7 @@ async def test_process_adversarial_result_runs_eval_awareness_iterator_on_compli
     monkeypatch.setattr(phase_4_postprocess, "run_eval_awareness_iterator", fake_iterator)
     monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fail_strategy_variation)
 
-    result = await phase_4_adversarial._process_adversarial_result(
+    result = await phase_4_postprocess._process_adversarial_result(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -183,7 +183,7 @@ async def test_process_adversarial_result_preserves_resistant_baseline_when_iter
     monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
     monkeypatch.setattr(phase_4_postprocess, "run_eval_awareness_iterator", fake_iterator)
 
-    result = await phase_4_adversarial._process_adversarial_result(
+    result = await phase_4_postprocess._process_adversarial_result(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -226,7 +226,7 @@ async def test_legacy_strategy_generation_failure_stays_inconclusive(monkeypatch
     monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fake_strategy_variation)
     monkeypatch.setattr(phase_4_postprocess, "run_eval_awareness_iterator", fail_iterator)
 
-    result = await phase_4_adversarial._process_adversarial_result(
+    result = await phase_4_postprocess._process_adversarial_result(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -274,7 +274,7 @@ async def test_process_adversarial_result_preserves_complied_tp_real_iterator_en
     monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
     monkeypatch.setattr(phase_4_postprocess, "run_eval_awareness_iterator", fake_iterator)
 
-    result = await phase_4_adversarial._process_adversarial_result(
+    result = await phase_4_postprocess._process_adversarial_result(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -312,7 +312,7 @@ async def test_process_adversarial_result_records_iterator_skip_for_non_encounte
     monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
     monkeypatch.setattr(phase_4_postprocess, "run_eval_awareness_iterator", fail_iterator)
 
-    result = await phase_4_adversarial._process_adversarial_result(
+    result = await phase_4_postprocess._process_adversarial_result(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -362,7 +362,7 @@ async def test_process_adversarial_result_can_select_legacy_strategy_variation(
     monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fake_strategy_variation)
     monkeypatch.setattr(phase_4_postprocess, "run_eval_awareness_iterator", fail_iterator)
 
-    result = await phase_4_adversarial._process_adversarial_result(
+    result = await phase_4_postprocess._process_adversarial_result(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -1668,7 +1668,7 @@ async def test_eval_awareness_zero_budget_is_resistant(monkeypatch, tmp_path):
 
     monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
 
-    result = await phase_4_adversarial._process_adversarial_result(
+    result = await phase_4_postprocess._process_adversarial_result(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],

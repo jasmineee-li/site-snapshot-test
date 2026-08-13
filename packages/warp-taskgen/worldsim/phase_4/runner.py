@@ -1,9 +1,10 @@
 """Phase 4 runner behavior."""
-# ruff: noqa: F821,E402
+# ruff: noqa: F821
 
 from __future__ import annotations
 
 from worldsim.phase_4 import execution as _execution
+from worldsim.phase_4 import postprocess as _postprocess
 from worldsim.phase_4._context import install_context
 from worldsim.phase_4.admission import (
     _collect_agent_auth_runtime_errors,
@@ -656,7 +657,7 @@ async def run(args: argparse.Namespace) -> int:
                 logger.warning("Could not write Phase 4 variant heartbeat: %s", exc)
 
         try:
-            processed = await _postprocess_one_task(
+            processed = await _postprocess._postprocess_one_task(
                 result=result,
                 task_by_id=task_by_id,
                 config=config,
@@ -773,19 +774,5 @@ def _agentlab_phase4_preflight_errors() -> list[str]:
         errors.append(f"missing AgentLab sidecar lockfile at {lockfile}")
     return errors
 
-
-import sys as _sys
-
-from worldsim.phase_4 import postprocess as _postprocess
-from worldsim.phase_4._context import link_modules as _link_modules
-
-_link_modules(
-    [
-        _sys.modules[__name__],
-        # Execution is imported explicitly above; it is intentionally not
-        # linked into the runner's compatibility namespace.
-        _postprocess,
-    ]
-)
 
 __all__ = [name for name in globals() if not name.startswith("__")]

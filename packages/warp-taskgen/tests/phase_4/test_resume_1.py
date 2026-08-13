@@ -298,7 +298,7 @@ async def test_postprocess_one_task_resume_ignores_stale_processed_result(monkey
         fake_process_adversarial_result,
     )
 
-    processed = await phase_4_adversarial._postprocess_one_task(
+    processed = await phase_4_postprocess._postprocess_one_task(
         result=result,
         task_by_id={task["id"]: task},
         config=SimpleNamespace(instances=instances),
@@ -348,7 +348,7 @@ async def test_postprocess_one_task_forwards_agent_execution_to_variant_fingerpr
         "agent_task_timeout": 900,
     }
 
-    await phase_4_adversarial._postprocess_one_task(
+    await phase_4_postprocess._postprocess_one_task(
         result=result,
         task_by_id={task["id"]: task},
         config=SimpleNamespace(instances=instances),
@@ -392,12 +392,12 @@ async def test_postprocess_one_task_resume_ignores_malformed_processed_result(
         }
 
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_postprocess,
         "_process_adversarial_result",
         fake_process_adversarial_result,
     )
 
-    processed = await phase_4_adversarial._postprocess_one_task(
+    processed = await phase_4_postprocess._postprocess_one_task(
         result=result,
         task_by_id={task["id"]: task},
         config=SimpleNamespace(instances=instances),

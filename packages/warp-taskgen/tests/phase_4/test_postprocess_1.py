@@ -36,7 +36,7 @@ async def test_process_adversarial_result_emits_spec_shape(monkeypatch, tmp_path
     monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
     monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fake_strategy_variation)
 
-    result = await phase_4_adversarial._process_adversarial_result(
+    result = await phase_4_postprocess._process_adversarial_result(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -86,7 +86,7 @@ async def test_process_adversarial_result_marks_uninterpretable_variation_inconc
     monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
     monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fake_strategy_variation)
 
-    result = await phase_4_adversarial._process_adversarial_result(
+    result = await phase_4_postprocess._process_adversarial_result(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -128,7 +128,7 @@ async def test_process_adversarial_result_maps_unactionable_distracted_judge_to_
     monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
     monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fake_strategy_variation)
 
-    result = await phase_4_adversarial._process_adversarial_result(
+    result = await phase_4_postprocess._process_adversarial_result(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -167,7 +167,7 @@ async def test_process_adversarial_result_marks_judge_failed_variation_inconclus
     monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
     monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fake_strategy_variation)
 
-    result = await phase_4_adversarial._process_adversarial_result(
+    result = await phase_4_postprocess._process_adversarial_result(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -212,7 +212,7 @@ async def test_process_adversarial_result_marks_partial_capacity_inconclusive(
     monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
     monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fake_strategy_variation)
 
-    result = await phase_4_adversarial._process_adversarial_result(
+    result = await phase_4_postprocess._process_adversarial_result(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -253,7 +253,7 @@ async def test_process_adversarial_result_does_not_run_strategy_variation_after_
     monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", fake_placement_fix)
     monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fail_strategy_variation)
 
-    result = await phase_4_adversarial._process_adversarial_result(
+    result = await phase_4_postprocess._process_adversarial_result(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -296,7 +296,7 @@ async def test_process_adversarial_result_preserves_non_encountered_error_status
     monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", fake_placement_fix)
     monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fail_strategy_variation)
 
-    result = await phase_4_adversarial._process_adversarial_result(
+    result = await phase_4_postprocess._process_adversarial_result(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -450,7 +450,7 @@ async def test_phase_4_run_fails_on_gathered_postprocess_exception(monkeypatch, 
     monkeypatch.setattr(phase_4_adversarial, "make_agent_factory", lambda **kwargs: lambda: None)
     monkeypatch.setattr(phase_4_adversarial, "_load_site_profiles", lambda *args, **kwargs: {})
     monkeypatch.setattr(phase_4_adversarial, "run_tasks_by_site", fake_run_tasks_by_site)
-    monkeypatch.setattr(phase_4_adversarial, "_postprocess_one_task", fake_postprocess_one_task)
+    monkeypatch.setattr(phase_4_postprocess, "_postprocess_one_task", fake_postprocess_one_task)
 
     rc = await phase_4_adversarial.run(
         Namespace(
@@ -589,7 +589,7 @@ async def test_phase_4_run_marks_all_error_results_failed(monkeypatch, tmp_path)
     monkeypatch.setattr(phase_4_adversarial, "preflight_auth_check", lambda: None)
     monkeypatch.setattr(phase_4_adversarial, "make_agent_factory", lambda **kwargs: lambda: None)
     monkeypatch.setattr(phase_4_adversarial, "run_tasks_by_site", fake_run_tasks_by_site)
-    monkeypatch.setattr(phase_4_adversarial, "_postprocess_one_task", fake_postprocess_one_task)
+    monkeypatch.setattr(phase_4_postprocess, "_postprocess_one_task", fake_postprocess_one_task)
 
     rc = await phase_4_adversarial.run(
         Namespace(

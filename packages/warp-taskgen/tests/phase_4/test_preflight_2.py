@@ -302,7 +302,7 @@ async def test_phase_4_run_skip_host_bound_storage_state_auth_rewrites_only_mism
     monkeypatch.setattr(phase_4_adversarial, "make_agent_factory", lambda **kwargs: lambda: None)
     monkeypatch.setattr(phase_4_adversarial, "_load_site_profiles", lambda *args, **kwargs: {})
     monkeypatch.setattr(phase_4_adversarial, "run_tasks_by_site", fake_run_tasks_by_site)
-    monkeypatch.setattr(phase_4_adversarial, "_postprocess_one_task", fake_postprocess_one_task)
+    monkeypatch.setattr(phase_4_postprocess, "_postprocess_one_task", fake_postprocess_one_task)
 
     rc = await phase_4_adversarial.run(
         Namespace(
