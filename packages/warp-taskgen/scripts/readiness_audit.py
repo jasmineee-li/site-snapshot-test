@@ -135,6 +135,10 @@ LEGACY_PHASE_IMPORT_MODULES = frozenset(
         "worldsim.phases.phase_2c_artifacts",
         "worldsim.phases.phase_2c_config",
         "worldsim.phases.phase_4_adversarial",
+        "worldsim.phases.phase_1_generate_new_tasks_validation",
+        "worldsim.phases.phase_2_exposure_contract",
+        "worldsim.phases.phase_2_feasibility",
+        "worldsim.phases.phase_2_text_fill",
     }
 )
 
@@ -146,10 +150,6 @@ LEGACY_PHASE_IMPORT_ALLOWED_PREFIXES = (
 ACTIVE_COMPAT_FACADE_MODULES = frozenset(
     {
         "worldsim.main",
-        "worldsim.phases.phase_1_generate_new_tasks_validation",
-        "worldsim.phases.phase_2_exposure_contract",
-        "worldsim.phases.phase_2_feasibility",
-        "worldsim.phases.phase_2_text_fill",
     }
 )
 ACTIVE_COMPAT_FACADE_ALLOWED_PREFIXES = (
