@@ -776,7 +776,6 @@ def _agentlab_phase4_preflight_errors() -> list[str]:
 
 import sys as _sys
 
-from worldsim.phase_4 import eval_awareness_iterator as _eval_awareness_iterator
 from worldsim.phase_4 import postprocess as _postprocess
 from worldsim.phase_4 import strategy_variation as _strategy_variation
 from worldsim.phase_4._context import link_modules as _link_modules
@@ -786,7 +785,6 @@ _link_modules(
         _sys.modules[__name__],
         # Execution is imported explicitly above; it is intentionally not
         # linked into the runner's compatibility namespace.
-        _eval_awareness_iterator,
         _postprocess,
         _strategy_variation,
     ]

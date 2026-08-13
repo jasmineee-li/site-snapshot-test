@@ -14,6 +14,7 @@ EXECUTION_MODULE = "execution"
 RESUME_MODULE = "resume"
 VARIANT_EVAL_MODULE = "variant_eval"
 PLACEMENT_LOOP_MODULE = "placement_loop"
+EVAL_AWARENESS_ITERATOR_MODULE = "eval_awareness_iterator"
 
 
 def _source(name: str) -> str:
@@ -266,6 +267,66 @@ def test_variant_eval_imports_in_either_order() -> None:
             cwd=PACKAGE_ROOT,
             env={"PYTHONPATH": package_root},
         )
+
+
+def test_eval_awareness_iterator_owns_explicit_dependencies_and_runner_does_not_link_it() -> None:
+    source = _source(EVAL_AWARENESS_ITERATOR_MODULE)
+    runner = _source("runner")
+    assert "install_context" not in source
+    assert "ruff: noqa: F821" not in source
+    assert "from worldsim.phase_4._context" not in source
+    assert (
+        "from worldsim.phase_4 import eval_awareness_iterator as _eval_awareness_iterator"
+        not in runner
+    )
+    assert "        _eval_awareness_iterator,\n" not in runner
+    for dependency in (
+        "import asyncio",
+        "import json",
+        "import logging",
+        "from collections.abc import Callable, Mapping",
+        "from pathlib import Path",
+        "from typing import Any",
+        "from worldsim.config import BenchmarkInstance",
+        "from worldsim.agent_runtime import AgentRunner",
+        "from worldsim.phase_4 import result_summary as phase4_result_summary",
+        "from worldsim.phase_4.options import",
+        "from worldsim.task_paths import safe_task_path_component",
+    ):
+        assert dependency in source
+    assert "logger = logging.getLogger(__name__)" in source
+
+
+def test_eval_awareness_iterator_imports_in_either_order() -> None:
+    package_root = str(PACKAGE_ROOT)
+    for statement in (
+        "from worldsim.phase_4 import eval_awareness_iterator, runner; "
+        "assert eval_awareness_iterator.run_eval_awareness_iterator; assert runner.run",
+        "from worldsim.phase_4 import runner, eval_awareness_iterator; "
+        "assert eval_awareness_iterator.run_eval_awareness_iterator; assert runner.run",
+    ):
+        subprocess.run(
+            [sys.executable, "-c", statement],
+            check=True,
+            cwd=PACKAGE_ROOT,
+            env={"PYTHONPATH": package_root},
+        )
+
+
+def test_eval_awareness_iterator_tests_do_not_patch_runner_iterator_exports() -> None:
+    test_root = PACKAGE_ROOT / "tests"
+    iterator_names = ("_prior_iteration_feedback",)
+    for path in (
+        *test_root.glob("test_*.py"),
+        *test_root.glob("phase_4/test_*.py"),
+        test_root / "crash_resume_scenarios.py",
+    ):
+        if path.name == "test_leaf_context_boundary.py":
+            continue
+        source = path.read_text()
+        for name in iterator_names:
+            assert f"phase_4_adversarial.{name}" not in source
+            assert f'setattr(phase_4_adversarial, "{name}"' not in source
 
 
 def test_placement_loop_owns_explicit_dependencies_and_runner_does_not_link_it() -> None:
