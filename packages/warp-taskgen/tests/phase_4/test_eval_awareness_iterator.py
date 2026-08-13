@@ -48,9 +48,9 @@ async def test_process_adversarial_result_uses_eval_awareness_iterator_by_defaul
     async def fail_strategy_variation(*args, **kwargs):
         raise AssertionError("default Phase 4 path should not use legacy strategy variation")
 
-    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
-    monkeypatch.setattr(phase_4_adversarial, "run_eval_awareness_iterator", fake_iterator)
-    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fail_strategy_variation)
+    monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_postprocess, "run_eval_awareness_iterator", fake_iterator)
+    monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fail_strategy_variation)
 
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,
@@ -116,9 +116,9 @@ async def test_process_adversarial_result_runs_eval_awareness_iterator_on_compli
     async def fail_strategy_variation(*args, **kwargs):
         raise AssertionError("default Phase 4 path should not use legacy strategy variation")
 
-    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
-    monkeypatch.setattr(phase_4_adversarial, "run_eval_awareness_iterator", fake_iterator)
-    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fail_strategy_variation)
+    monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_postprocess, "run_eval_awareness_iterator", fake_iterator)
+    monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fail_strategy_variation)
 
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,
@@ -180,8 +180,8 @@ async def test_process_adversarial_result_preserves_resistant_baseline_when_iter
             ],
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
-    monkeypatch.setattr(phase_4_adversarial, "run_eval_awareness_iterator", fake_iterator)
+    monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_postprocess, "run_eval_awareness_iterator", fake_iterator)
 
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,
@@ -222,9 +222,9 @@ async def test_legacy_strategy_generation_failure_stays_inconclusive(monkeypatch
     async def fail_iterator(*args, **kwargs):
         raise AssertionError("legacy strategy-variation mode should not run iterator")
 
-    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
-    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fake_strategy_variation)
-    monkeypatch.setattr(phase_4_adversarial, "run_eval_awareness_iterator", fail_iterator)
+    monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fake_strategy_variation)
+    monkeypatch.setattr(phase_4_postprocess, "run_eval_awareness_iterator", fail_iterator)
 
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,
@@ -271,8 +271,8 @@ async def test_process_adversarial_result_preserves_complied_tp_real_iterator_en
             },
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
-    monkeypatch.setattr(phase_4_adversarial, "run_eval_awareness_iterator", fake_iterator)
+    monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_postprocess, "run_eval_awareness_iterator", fake_iterator)
 
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,
@@ -309,8 +309,8 @@ async def test_process_adversarial_result_records_iterator_skip_for_non_encounte
     async def fail_iterator(*args, **kwargs):
         raise AssertionError("non-encountered rows should not run iterator rewrites")
 
-    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
-    monkeypatch.setattr(phase_4_adversarial, "run_eval_awareness_iterator", fail_iterator)
+    monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_postprocess, "run_eval_awareness_iterator", fail_iterator)
 
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,
@@ -358,9 +358,9 @@ async def test_process_adversarial_result_can_select_legacy_strategy_variation(
     async def fail_iterator(*args, **kwargs):
         raise AssertionError("legacy strategy-variation mode should not run iterator")
 
-    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
-    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fake_strategy_variation)
-    monkeypatch.setattr(phase_4_adversarial, "run_eval_awareness_iterator", fail_iterator)
+    monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fake_strategy_variation)
+    monkeypatch.setattr(phase_4_postprocess, "run_eval_awareness_iterator", fail_iterator)
 
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,
@@ -441,13 +441,13 @@ async def test_eval_awareness_iterator_runs_sequential_rewrites_until_tp_real(
         fake_rewrite,
     )
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_eval_awareness_iterator,
         "build_variant_contract_qa",
         lambda *args, **kwargs: {"status": "pass", "failure_classes": []},
     )
-    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate)
+    monkeypatch.setattr(phase_4_eval_awareness_iterator, "_evaluate_variant", fake_evaluate)
 
-    result = await phase_4_adversarial.run_eval_awareness_iterator(
+    result = await phase_4_eval_awareness_iterator.run_eval_awareness_iterator(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -503,9 +503,9 @@ async def test_eval_awareness_iterator_marks_protected_eval_cues_inapplicable(
         "generate_eval_awareness_rewrite_api",
         fail_rewrite,
     )
-    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fail_evaluate)
+    monkeypatch.setattr(phase_4_eval_awareness_iterator, "_evaluate_variant", fail_evaluate)
 
-    result = await phase_4_adversarial.run_eval_awareness_iterator(
+    result = await phase_4_eval_awareness_iterator.run_eval_awareness_iterator(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -559,9 +559,9 @@ async def test_eval_awareness_iterator_stops_on_trajectory_only_cues(monkeypatch
         "generate_eval_awareness_rewrite_api",
         fail_rewrite,
     )
-    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fail_evaluate)
+    monkeypatch.setattr(phase_4_eval_awareness_iterator, "_evaluate_variant", fail_evaluate)
 
-    result = await phase_4_adversarial.run_eval_awareness_iterator(
+    result = await phase_4_eval_awareness_iterator.run_eval_awareness_iterator(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -642,9 +642,9 @@ async def test_eval_awareness_iterator_records_but_does_not_select_tp_regression
         "build_variant_contract_qa",
         lambda *args, **kwargs: {"status": "pass", "failure_classes": []},
     )
-    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate)
+    monkeypatch.setattr(phase_4_eval_awareness_iterator, "_evaluate_variant", fake_evaluate)
 
-    result = await phase_4_adversarial.run_eval_awareness_iterator(
+    result = await phase_4_eval_awareness_iterator.run_eval_awareness_iterator(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -733,9 +733,9 @@ async def test_eval_awareness_iterator_continues_after_tp_regression(monkeypatch
         "build_variant_contract_qa",
         lambda *args, **kwargs: {"status": "pass", "failure_classes": []},
     )
-    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate)
+    monkeypatch.setattr(phase_4_eval_awareness_iterator, "_evaluate_variant", fake_evaluate)
 
-    result = await phase_4_adversarial.run_eval_awareness_iterator(
+    result = await phase_4_eval_awareness_iterator.run_eval_awareness_iterator(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -1457,10 +1457,10 @@ async def test_eval_awareness_iterator_repairs_contract_qa_before_browser_eval(
         "generate_eval_awareness_rewrite_api",
         fake_rewrite,
     )
-    monkeypatch.setattr(phase_4_adversarial, "build_variant_contract_qa", fake_qa)
-    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate)
+    monkeypatch.setattr(phase_4_eval_awareness_iterator, "build_variant_contract_qa", fake_qa)
+    monkeypatch.setattr(phase_4_eval_awareness_iterator, "_evaluate_variant", fake_evaluate)
 
-    result = await phase_4_adversarial.run_eval_awareness_iterator(
+    result = await phase_4_eval_awareness_iterator.run_eval_awareness_iterator(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -1523,7 +1523,7 @@ async def test_eval_awareness_iterator_resume_respects_terminal_checkpoint(monke
         rewrite_mock,
     )
 
-    first = await phase_4_adversarial.run_eval_awareness_iterator(
+    first = await phase_4_eval_awareness_iterator.run_eval_awareness_iterator(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -1537,7 +1537,7 @@ async def test_eval_awareness_iterator_resume_respects_terminal_checkpoint(monke
     assert rewrite_mock.await_count == 1
 
     rewrite_mock.side_effect = AssertionError("terminal checkpoint should not resume rewriting")
-    second = await phase_4_adversarial.run_eval_awareness_iterator(
+    second = await phase_4_eval_awareness_iterator.run_eval_awareness_iterator(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -1630,13 +1630,13 @@ async def test_eval_awareness_iterator_resume_replays_started_record(monkeypatch
         eval_awareness_rewrite_api, "generate_eval_awareness_rewrite_api", fake_rewrite
     )
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_eval_awareness_iterator,
         "build_variant_contract_qa",
         lambda *args, **kwargs: {"status": "pass", "failure_classes": []},
     )
-    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate)
+    monkeypatch.setattr(phase_4_eval_awareness_iterator, "_evaluate_variant", fake_evaluate)
 
-    result = await phase_4_adversarial.run_eval_awareness_iterator(
+    result = await phase_4_eval_awareness_iterator.run_eval_awareness_iterator(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -1666,7 +1666,7 @@ async def test_eval_awareness_zero_budget_is_resistant(monkeypatch, tmp_path):
     async def no_fix(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
 
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,

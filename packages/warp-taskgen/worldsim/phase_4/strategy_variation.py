@@ -23,6 +23,7 @@ from worldsim.phase_4.resume import (
     _variant_generation_record_for_result,
     _write_json_atomic,
 )
+from worldsim.phase_4.variant_eval import _evaluate_variant
 
 install_context(globals())
 

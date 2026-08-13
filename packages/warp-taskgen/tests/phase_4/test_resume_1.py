@@ -519,7 +519,7 @@ async def test_evaluate_variant_resume_ignores_result_without_matching_metadata(
 
     monkeypatch.setattr(phase_4_execution, "run_adversarial_task", fake_run_adversarial_task)
 
-    result = await phase_4_adversarial._evaluate_variant(
+    result = await phase_4_variant_eval._evaluate_variant(
         task=task,
         variant=variant,
         instance=instances[0],
@@ -563,7 +563,7 @@ async def test_evaluate_variant_resume_ignores_malformed_result_metadata_json(
 
     monkeypatch.setattr(phase_4_execution, "run_adversarial_task", fake_run_adversarial_task)
 
-    result = await phase_4_adversarial._evaluate_variant(
+    result = await phase_4_variant_eval._evaluate_variant(
         task=task,
         variant=variant,
         instance=instances[0],

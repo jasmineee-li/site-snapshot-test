@@ -780,7 +780,6 @@ from worldsim.phase_4 import eval_awareness_iterator as _eval_awareness_iterator
 from worldsim.phase_4 import placement_loop as _placement_loop
 from worldsim.phase_4 import postprocess as _postprocess
 from worldsim.phase_4 import strategy_variation as _strategy_variation
-from worldsim.phase_4 import variant_eval as _variant_eval
 from worldsim.phase_4._context import link_modules as _link_modules
 
 _link_modules(
@@ -792,7 +791,6 @@ _link_modules(
         _placement_loop,
         _postprocess,
         _strategy_variation,
-        _variant_eval,
     ]
 )
 

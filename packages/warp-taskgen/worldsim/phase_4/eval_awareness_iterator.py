@@ -17,6 +17,7 @@ from worldsim.phase_4.resume import (
 )
 from worldsim.phase_4.variant_accounting import semantic_variant_accounting
 from worldsim.phase_4.variant_contract_qa import build_variant_contract_qa
+from worldsim.phase_4.variant_eval import _evaluate_variant, _merge_variant_task
 from worldsim.text_payload_contract import build_text_payload_contract
 
 install_context(globals())

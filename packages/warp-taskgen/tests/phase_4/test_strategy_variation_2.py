@@ -44,11 +44,11 @@ async def test_run_strategy_variation_handles_variant_generation_exceptions(monk
             "strategy": kwargs["strategy"]["strategy"],
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
-    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
-    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fake_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "generate_variant", fake_generate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "_evaluate_variant", fake_evaluate_variant)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    result = await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result={"trajectory_dir": str(tmp_path / "traj")},
         primary_instances=[instances[0]],
@@ -94,9 +94,9 @@ async def test_run_strategy_variation_treats_progress_callback_as_observational(
     async def failing_progress_callback(*args, **kwargs):
         raise RuntimeError("progress disk full")
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fake_run_judge)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    result = await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result={"trajectory_dir": str(tmp_path / "traj")},
         primary_instances=[instances[0]],
@@ -165,11 +165,11 @@ async def test_run_strategy_variation_marks_partial_capacity(monkeypatch, tmp_pa
             "strategy": kwargs["strategy"]["strategy"],
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
-    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
-    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fake_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "generate_variant", fake_generate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "_evaluate_variant", fake_evaluate_variant)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    result = await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result={"trajectory_dir": str(tmp_path / "traj")},
         primary_instances=[instances[0]],
@@ -203,10 +203,10 @@ async def test_run_strategy_variation_marks_all_variant_generation_exceptions_fa
     async def fake_generate_variant(*args, **kwargs):
         raise RuntimeError("sandbox crashed")
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
-    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fake_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "generate_variant", fake_generate_variant)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    result = await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result={"trajectory_dir": str(tmp_path / "traj")},
         primary_instances=[instances[0]],
@@ -260,11 +260,11 @@ async def test_run_strategy_variation_uses_ecological_validity_for_progress(monk
     async def record_progress(event, data):
         progress_events.append((event, dict(data)))
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
-    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
-    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fake_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "generate_variant", fake_generate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "_evaluate_variant", fake_evaluate_variant)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    result = await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result={"trajectory_dir": str(tmp_path / "traj")},
         primary_instances=[instances[0]],
@@ -319,11 +319,11 @@ async def test_run_strategy_variation_runs_adaptive_budget_rounds(monkeypatch, t
             "strategy": kwargs["strategy"]["strategy"],
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
-    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
-    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fake_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "generate_variant", fake_generate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "_evaluate_variant", fake_evaluate_variant)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    result = await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result={"trajectory_dir": str(tmp_path / "traj")},
         primary_instances=[instances[0], instances[1], instances[0]],
@@ -379,7 +379,7 @@ async def test_evaluate_variant_obeys_browser_worker_semaphore(monkeypatch, tmp_
 
     await asyncio.gather(
         *[
-            phase_4_adversarial._evaluate_variant(
+            phase_4_variant_eval._evaluate_variant(
                 task=task,
                 variant=variant,
                 instance=instances[0],
