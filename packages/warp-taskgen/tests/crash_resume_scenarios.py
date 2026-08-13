@@ -263,7 +263,7 @@ def _configure_phase_4(state_dir: Path) -> Path:
 
 async def _run_phase_2(mode: str, state_dir: Path) -> int:
     from worldsim.phase_2 import runner as phase_2_injections
-    from worldsim.phases.phase_2_text_fill import materialize_adversarial_seed
+    from worldsim.phase_2.text_fill.seed import materialize_adversarial_seed
 
     _configure_phase_2(state_dir)
 

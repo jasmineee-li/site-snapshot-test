@@ -31,13 +31,13 @@ from worldsim.phase_2.exposure_contract.constants import (
     PREFERRED_TOKEN_ORDER,
     TRANSITIVE_EXISTING_SOURCE_KINDS,
 )
+from worldsim.phase_2.text_fill.constants import PAYLOAD_PLACEHOLDER
 from worldsim.phases.phase_2_core_surfaces import (
     active_carrier_ineligible_reason,
     canonical_core_surface,
     is_active_carrier_surface,
     is_core_surface,
 )
-from worldsim.phases.phase_2_text_fill import PAYLOAD_PLACEHOLDER
 
 _EXPOSURE_REEXPORTED_SIGNATURE_HELPERS = (
     _signature.exposure_contract_signature,

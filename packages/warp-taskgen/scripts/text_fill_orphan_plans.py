@@ -46,7 +46,7 @@ from worldsim.phase_2.runner import (
     DEFAULT_TEXT_FILL_MODEL,
     DEFAULT_TEXTS_PER_PLAN,
 )
-from worldsim.phases.phase_2_text_fill import fill_texts_for_tasks
+from worldsim.phase_2.text_fill.service import fill_texts_for_tasks
 
 
 def _load_json_array(path: Path) -> list[dict[str, Any]]:

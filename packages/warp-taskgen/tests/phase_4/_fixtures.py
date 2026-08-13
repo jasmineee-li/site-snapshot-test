@@ -20,7 +20,7 @@ from worldsim.config import BenchmarkInstance
 from worldsim.instance_selection import select_task_site_instance
 from worldsim.phase_4.exposure_admission import exposure_admission_error
 from worldsim.phase_4 import runner as phase_4_adversarial
-from worldsim.phases import phase_2_text_fill
+from worldsim.phase_2 import text_fill as phase_2_text_fill
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
 

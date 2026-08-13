@@ -78,7 +78,7 @@ def test_validate_seed_template_contract_admits_mode_b_reddit_multi_editor_calls
     """validate_seed_template_contract takes the editor_calls path when
     editor_calls is non-empty and accepts a multi-call template as long as
     the placeholder appears exactly once in editor_calls[*].args."""
-    from worldsim.phases.phase_2_text_fill import validate_seed_template_contract
+    from worldsim.phase_2.text_fill.seed import validate_seed_template_contract
 
     seed_template = {
         "mechanism": "none",
