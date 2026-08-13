@@ -96,10 +96,10 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
     def fail_agent_factory():
         raise AssertionError("resume should reuse saved variant result")
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fail_run_judge)
-    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fail_generate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fail_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "generate_variant", fail_generate_variant)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    result = await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -228,11 +228,11 @@ async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_d
     async def fail_generate_variant(*args, **kwargs):
         raise AssertionError("resume should reuse saved variants")
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fail_run_judge)
-    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fail_generate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fail_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "generate_variant", fail_generate_variant)
     monkeypatch.setattr(phase_4_execution, "run_adversarial_task", fake_run_adversarial_task)
 
-    await phase_4_adversarial.run_strategy_variation(
+    await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -335,10 +335,10 @@ async def test_run_strategy_variation_resume_reuses_variant_result_fingerprint_w
     def fail_agent_factory():
         raise AssertionError("resume should reuse saved variant result")
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fail_run_judge)
-    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fail_generate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fail_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "generate_variant", fail_generate_variant)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    result = await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -456,11 +456,11 @@ async def test_run_strategy_variation_resume_reruns_refusal_variant_without_hist
         async def teardown(self):
             return None
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fail_run_judge)
-    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fail_generate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fail_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "generate_variant", fail_generate_variant)
     monkeypatch.setattr(phase_4_execution, "run_adversarial_task", fake_run_adversarial_task)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    result = await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],

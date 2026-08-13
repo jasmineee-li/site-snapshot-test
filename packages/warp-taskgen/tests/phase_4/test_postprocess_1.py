@@ -33,8 +33,8 @@ async def test_process_adversarial_result_emits_spec_shape(monkeypatch, tmp_path
             ],
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
-    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fake_strategy_variation)
+    monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fake_strategy_variation)
 
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,
@@ -83,8 +83,8 @@ async def test_process_adversarial_result_marks_uninterpretable_variation_inconc
             "variant_results": [],
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
-    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fake_strategy_variation)
+    monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fake_strategy_variation)
 
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,
@@ -125,8 +125,8 @@ async def test_process_adversarial_result_maps_unactionable_distracted_judge_to_
             "variant_results": [],
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
-    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fake_strategy_variation)
+    monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fake_strategy_variation)
 
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,
@@ -164,8 +164,8 @@ async def test_process_adversarial_result_marks_judge_failed_variation_inconclus
             "variant_results": [],
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
-    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fake_strategy_variation)
+    monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fake_strategy_variation)
 
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,
@@ -209,8 +209,8 @@ async def test_process_adversarial_result_marks_partial_capacity_inconclusive(
             ],
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
-    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fake_strategy_variation)
+    monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fake_strategy_variation)
 
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,
@@ -250,8 +250,8 @@ async def test_process_adversarial_result_does_not_run_strategy_variation_after_
     async def fail_strategy_variation(*args, **kwargs):
         raise AssertionError("strategy variation must not run on unresolved non-encounter")
 
-    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", fake_placement_fix)
-    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fail_strategy_variation)
+    monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", fake_placement_fix)
+    monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fail_strategy_variation)
 
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,
@@ -293,8 +293,8 @@ async def test_process_adversarial_result_preserves_non_encountered_error_status
     async def fail_strategy_variation(*args, **kwargs):
         raise AssertionError("strategy variation must not run on unresolved non-encounter")
 
-    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", fake_placement_fix)
-    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fail_strategy_variation)
+    monkeypatch.setattr(phase_4_postprocess, "_run_placement_fix_loop", fake_placement_fix)
+    monkeypatch.setattr(phase_4_postprocess, "run_strategy_variation", fail_strategy_variation)
 
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,
@@ -328,9 +328,9 @@ async def test_run_strategy_variation_marks_judge_failure_when_no_strategies_ret
     def fail_agent_factory():
         raise AssertionError("judge failures should not reach evaluation")
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fake_run_judge)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    result = await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result={"trajectory_dir": str(tmp_path / "traj")},
         primary_instances=[instances[0]],

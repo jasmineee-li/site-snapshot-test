@@ -12,6 +12,7 @@ PHASE_4_ROOT = PACKAGE_ROOT / "worldsim" / "phase_4"
 LEAF_MODULES = ("payload_text", "metrics", "admission", "preflight", "execution_helpers")
 EXECUTION_MODULE = "execution"
 RESUME_MODULE = "resume"
+VARIANT_EVAL_MODULE = "variant_eval"
 
 
 def _source(name: str) -> str:
@@ -201,6 +202,69 @@ def test_resume_tests_do_not_patch_runner_resume_exports() -> None:
         source = path.read_text()
         for name in resume_names:
             assert f"phase_4_adversarial.{name}" not in source
+
+
+def test_variant_eval_owns_explicit_dependencies_and_runner_does_not_link_it() -> None:
+    source = _source(VARIANT_EVAL_MODULE)
+    runner = _source("runner")
+    assert "install_context" not in source
+    assert "ruff: noqa: F821" not in source
+    assert "from worldsim.phase_4._context" not in source
+    assert "from worldsim.phase_4 import variant_eval as _variant_eval" not in runner
+    assert "        _variant_eval,\n" not in runner
+    for module in (
+        "execution_helpers",
+        "payload_text",
+        "resume",
+        "seeding",
+        "task_paths",
+        "config",
+    ):
+        assert f"worldsim.{module}" in source or f"worldsim.phase_4.{module}" in source
+    tree = ast.parse(source)
+    assert not any(
+        isinstance(node, ast.ImportFrom)
+        and node.module == "worldsim.phase_4"
+        and any(alias.name == "execution" for alias in node.names)
+        for node in tree.body
+    )
+    assert any(
+        isinstance(node, ast.ImportFrom)
+        and node.module == "worldsim.phase_4"
+        and any(alias.name == "execution" for alias in node.names)
+        for node in ast.walk(tree)
+    )
+    assert "from worldsim.phase_4.execution import run_adversarial_task" not in source
+
+
+def test_variant_consumers_import_variant_owner_directly() -> None:
+    expectations = {
+        "placement_loop": ("_merge_variant_task", "_rerun_adversarial_task"),
+        "strategy_variation": ("_evaluate_variant",),
+        "eval_awareness_iterator": ("_evaluate_variant", "_merge_variant_task"),
+        "admission": ("_rebase_adversarial_task",),
+    }
+    for module, names in expectations.items():
+        source = _source(module)
+        for name in names:
+            assert name in source
+            assert f"phase_4_adversarial.{name}" not in source
+
+
+def test_variant_eval_imports_in_either_order() -> None:
+    package_root = str(PACKAGE_ROOT)
+    for statement in (
+        "from worldsim.phase_4 import variant_eval, runner; "
+        "assert variant_eval._evaluate_variant; assert runner.run",
+        "from worldsim.phase_4 import runner, variant_eval; "
+        "assert variant_eval._evaluate_variant; assert runner.run",
+    ):
+        subprocess.run(
+            [sys.executable, "-c", statement],
+            check=True,
+            cwd=PACKAGE_ROOT,
+            env={"PYTHONPATH": package_root},
+        )
 
 
 def test_resume_imports_in_either_order() -> None:

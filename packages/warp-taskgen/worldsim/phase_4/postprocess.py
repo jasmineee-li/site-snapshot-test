@@ -4,13 +4,16 @@
 from __future__ import annotations
 
 from worldsim.phase_4._context import install_context
+from worldsim.phase_4.eval_awareness_iterator import run_eval_awareness_iterator
 from worldsim.phase_4.metrics import _ecologically_valid, _layout_telemetry
+from worldsim.phase_4.placement_loop import _run_placement_fix_loop
 from worldsim.phase_4.postprocess_progress import Phase4ProgressCallback
 from worldsim.phase_4.resume import (
     _CHECKPOINT_FINGERPRINT_KEY,
     _phase_4_postprocess_fingerprint,
     _write_json_atomic,
 )
+from worldsim.phase_4.strategy_variation import run_strategy_variation
 
 install_context(globals())
 

@@ -88,11 +88,11 @@ async def test_run_strategy_variation_resume_continues_partial_generation_checkp
             "strategy": kwargs["strategy"]["strategy"],
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fail_run_judge)
-    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
-    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fail_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "generate_variant", fake_generate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "_evaluate_variant", fake_evaluate_variant)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    result = await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -179,11 +179,11 @@ async def test_run_strategy_variation_resume_reruns_when_generation_records_miss
             "strategy": kwargs["strategy"]["strategy"],
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fail_run_judge)
-    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
-    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fail_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "generate_variant", fake_generate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "_evaluate_variant", fake_evaluate_variant)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    result = await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -267,9 +267,9 @@ async def test_run_strategy_variation_accepts_pre_variant_system_checkpoint(monk
     async def fail_run_judge(*args, **kwargs):
         raise AssertionError("legacy matching checkpoint should skip judge rerun")
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fail_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fail_run_judge)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    result = await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -334,11 +334,11 @@ async def test_run_strategy_variation_resume_ignores_stale_checkpoint(monkeypatc
             "strategy": "specificity",
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
-    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
-    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fake_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "generate_variant", fake_generate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "_evaluate_variant", fake_evaluate_variant)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    result = await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result={"trajectory_dir": str(tmp_path / "traj")},
         primary_instances=[instances[0]],
@@ -393,11 +393,11 @@ async def test_run_strategy_variation_resume_ignores_malformed_checkpoint(monkey
             "strategy": "specificity",
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
-    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
-    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "run_judge", fake_run_judge)
+    monkeypatch.setattr(phase_4_strategy_variation, "generate_variant", fake_generate_variant)
+    monkeypatch.setattr(phase_4_strategy_variation, "_evaluate_variant", fake_evaluate_variant)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    result = await phase_4_strategy_variation.run_strategy_variation(
         task=task,
         initial_result={"trajectory_dir": str(tmp_path / "traj")},
         primary_instances=[instances[0]],
@@ -508,7 +508,7 @@ async def test_placement_fix_resume_reuses_pending_iteration_result(monkeypatch,
     monkeypatch.setattr(phase_4_adversarial, "task_lock", lambda _task: _FakeLock())
     monkeypatch.setattr(phase_4_adversarial, "bind_task_to_instance", lambda task, *_: task)
 
-    result = await phase_4_adversarial._run_placement_fix_loop(
+    result = await phase_4_placement_loop._run_placement_fix_loop(
         task=task,
         initial_result=initial_result,
         instance=_FakeInstance(),
@@ -573,7 +573,7 @@ async def test_placement_fix_resume_reuses_completed_checkpoint(monkeypatch, tmp
         ),
     )
 
-    result = await phase_4_adversarial._run_placement_fix_loop(
+    result = await phase_4_placement_loop._run_placement_fix_loop(
         task=task,
         initial_result=initial_result,
         instance=_FakeInstance(),

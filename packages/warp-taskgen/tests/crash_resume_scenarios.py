@@ -587,7 +587,10 @@ async def _run_phase_4(
     real_variant_eval: bool = False,
 ) -> int:
     from worldsim.phase_4 import execution as phase_4_execution
+    from worldsim.phase_4 import placement_loop as phase_4_placement_loop
     from worldsim.phase_4 import runner as phase_4_adversarial
+    from worldsim.phase_4 import strategy_variation as phase_4_strategy_variation
+    from worldsim.phase_4 import variant_eval as phase_4_variant_eval
 
     instances_path = (
         state_dir / "instances.json" if mode == "resume" else _configure_phase_4(state_dir)
@@ -597,7 +600,7 @@ async def _run_phase_4(
     if mode == "resume":
         _apply_phase_4_mutation(state_dir, mutation)
     phase_4_adversarial.preflight_auth_check = lambda: None
-    phase_4_adversarial._run_placement_fix_loop = _async_none
+    phase_4_placement_loop._run_placement_fix_loop = _async_none
 
     # New 2026-04-18 preflight against Anthropic Messages API. The scenario
     # runs offline with mocked judge/variant, so short-circuit to "OK".
@@ -644,11 +647,12 @@ async def _run_phase_4(
             "strategy": strategy["strategy"],
         }
 
-    phase_4_adversarial.run_judge = fake_run_judge
-    phase_4_adversarial.generate_variant = fake_generate_variant
+    phase_4_strategy_variation.run_judge = fake_run_judge
+    phase_4_strategy_variation.generate_variant = fake_generate_variant
     phase_4_adversarial._probe_magento_base_urls = lambda config: []
     if not real_variant_eval:
-        phase_4_adversarial._evaluate_variant = fake_evaluate_variant
+        phase_4_strategy_variation._evaluate_variant = fake_evaluate_variant
+        phase_4_variant_eval._evaluate_variant = fake_evaluate_variant
 
     class FakeWorkerAgent:
         async def setup(self, server_url):

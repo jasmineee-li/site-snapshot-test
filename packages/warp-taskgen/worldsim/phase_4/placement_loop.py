@@ -20,6 +20,7 @@ from worldsim.phase_4.resume import (
     _placement_iteration_result_fingerprint,
     _write_placement_fix_checkpoint,
 )
+from worldsim.phase_4.variant_eval import _merge_variant_task, _rerun_adversarial_task
 
 install_context(globals())
 

@@ -1,10 +1,17 @@
 """Phase 4 variant evaluation helpers."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_4 import execution as _execution
-from worldsim.phase_4._context import install_context
+import asyncio
+import json
+import logging
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+from worldsim.agent_config import bind_task_to_instance, task_reset_endpoints
+from worldsim.agent_runtime import AgentRunner
+from worldsim.config import BenchmarkInstance
 from worldsim.phase_4.execution_helpers import _effective_adversarial_seed
 from worldsim.phase_4.payload_text import (
     _seed_preserves_exposure_contract_error,
@@ -18,8 +25,11 @@ from worldsim.phase_4.resume import (
     _variant_result_metadata_path,
     _write_json_atomic,
 )
+from worldsim.seeding import self_contained_adversarial_seed_error, validate_data_seed
+from worldsim.site_lock import task_lock
+from worldsim.task_paths import safe_task_path_component
 
-install_context(globals())
+logger = logging.getLogger(__name__)
 
 
 def _merge_variant_task(
@@ -177,6 +187,11 @@ async def _rerun_adversarial_task(
     browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
     """Run one revised adversarial task against a live benchmark instance."""
+    # Keep execution lazy: execution imports placement_loop, which imports
+    # these variant helpers. A function-local import preserves both canonical
+    # ownership and import-order safety during module initialization.
+    from worldsim.phase_4 import execution as _execution
+
     if resume and resume_fingerprint is not None:
         prior_result = _load_saved_placement_iteration_result(
             task_dir,
@@ -235,6 +250,11 @@ async def _evaluate_variant(
     agent_execution: dict[str, Any] | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
+    # See _rerun_adversarial_task: importing execution only after this module
+    # has initialized breaks the execution -> placement_loop -> variant_eval
+    # cycle without restoring linked-context lookups.
+    from worldsim.phase_4 import execution as _execution
+
     variant_dir = task_dir_root / safe_task_path_component(
         f"{task.get('id', 'unknown')}_variant_{index}"
     )
