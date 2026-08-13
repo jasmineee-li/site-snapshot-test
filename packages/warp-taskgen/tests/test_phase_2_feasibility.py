@@ -17,9 +17,9 @@ from typing import Any
 import pytest
 
 from worldsim.editors import EditorError
+from worldsim.phase_2.phase_2c import _impl as feas
 from worldsim.phase_2.phase_2c import _impl as phase_2c_impl
 from worldsim.phase_2.phase_2c import probes, source_data_preflight, source_preflight
-from worldsim.phases import phase_2_feasibility as feas
 from worldsim.phases import phase_2c_preflight
 
 
@@ -582,7 +582,7 @@ def test_sync_stamp_commit_ignores_missing_or_invalid_stamp(tmp_path):
     assert feas._sync_stamp_commit(tmp_path) is None
 
 
-def test_git_head_short_preserves_worldsim_sync_stamp_lookup(monkeypatch, tmp_path):
+def test_git_head_short_preserves_sync_stamp_lookup(monkeypatch, tmp_path):
     observed: list[Path] = []
 
     def fake_sync_stamp_commit(repo_root: Path) -> str | None:
@@ -591,13 +591,12 @@ def test_git_head_short_preserves_worldsim_sync_stamp_lookup(monkeypatch, tmp_pa
 
     monkeypatch.delenv("WORLDSIM_EDITOR_COMMIT_OVERRIDE", raising=False)
     monkeypatch.setattr(feas, "_sync_stamp_commit", fake_sync_stamp_commit)
-    feas._sync_legacy_patches()
 
     assert feas._git_head_short() == "stamp12345678"
     assert observed == [Path(__file__).resolve().parents[1] / "worldsim"]
 
 
-def test_safe_cleanup_observes_legacy_facade_editor_error_patch(monkeypatch):
+def test_safe_cleanup_observes_canonical_editor_error_patch(monkeypatch):
     class PatchedEditorError(Exception):
         def __init__(self) -> None:
             super().__init__("patched")
@@ -608,7 +607,7 @@ def test_safe_cleanup_observes_legacy_facade_editor_error_patch(monkeypatch):
             raise PatchedEditorError()
 
     monkeypatch.setattr(feas, "EditorError", PatchedEditorError)
-    feas._sync_legacy_patches()
+    feas._sync_outcome_patches()
 
     warnings: list[str] = []
     feas._safe_cleanup(Handle(), warnings, "task-1")
@@ -627,9 +626,9 @@ def test_impl_host_fingerprint_observes_direct_git_head_patch(monkeypatch):
     assert fingerprint["dataset_commit"] == "patchedhead12"
 
 
-def test_infeasible_task_observes_legacy_facade_first_method_patch(monkeypatch):
+def test_infeasible_task_observes_canonical_first_method_patch(monkeypatch):
     monkeypatch.setattr(feas, "_first_method", lambda task: "patched_method")
-    feas._sync_legacy_patches()
+    feas._sync_outcome_patches()
 
     result = feas._infeasible_task(
         {"id": "task-1", "adversarial_data_seed": {"editor_calls": []}},
@@ -3634,7 +3633,7 @@ def test_replica_stats_summary_logged(tmp_path, monkeypatch, caplog):
 
     import logging
 
-    with caplog.at_level(logging.INFO, logger="worldsim.phases.phase_2_feasibility"):
+    with caplog.at_level(logging.INFO, logger="worldsim.phase_2.phase_2c._impl"):
         asyncio.run(
             feas.verify_feasibility(
                 tasks_path,

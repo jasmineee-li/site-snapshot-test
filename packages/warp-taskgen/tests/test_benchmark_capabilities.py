@@ -16,7 +16,6 @@ from worldsim.benchmark_contracts import (
     BenchmarkCatalog as ContractBenchmarkCatalog,
 )
 from worldsim.phase_2 import runner as phase_2_injections
-from worldsim.phases import phase_2_feasibility
 
 
 def test_normalize_benchmark_aliases():
@@ -83,10 +82,6 @@ def test_legacy_capability_constructor_translates_to_exact_capabilities():
     )
     assert legacy_comparison.capabilities == frozenset({"comparison_ingestion"})
     assert legacy_comparison.phase_1_supported is False
-
-
-def test_phase_2c_compatibility_facade_keeps_capability_lookup_patch_seam():
-    assert phase_2_feasibility.get_benchmark_capabilities is get_benchmark_capabilities
 
 
 def _custom_capability(name: str) -> BenchmarkCapabilities:
