@@ -1,6 +1,8 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import generation
+from worldsim.phase_2 import runner_api
 from worldsim.phase_2 import eligibility
 from worldsim.phase_2 import plan_validation
 from worldsim.phase_2 import target_stage
@@ -22,7 +24,7 @@ async def test_generate_injections_for_site_emits_benign_target_resources_json(
         return []
 
     monkeypatch.setattr(
-        phase_2_injections,
+        runner_api,
         "generate_phase_2a_plans_api",
         fake_generate_phase_2a_plans_api,
     )
@@ -50,7 +52,7 @@ async def test_generate_injections_for_site_emits_benign_target_resources_json(
         "agent_context": {"authentication": {"credentials": {"username": "byteblaze"}}},
     }
 
-    await phase_2_injections._generate_injections_for_site(
+    await generation._generate_injections_for_site(
         site_name="gitlab",
         site_tasks=[gitlab_task],
         profile_path=profile_path,
@@ -77,7 +79,7 @@ async def test_generate_injections_for_site_passes_explicit_planning_model(monke
         return []
 
     monkeypatch.setattr(
-        phase_2_injections,
+        runner_api,
         "generate_phase_2a_plans_api",
         fake_generate_phase_2a_plans_api,
     )
@@ -87,7 +89,7 @@ async def test_generate_injections_for_site_passes_explicit_planning_model(monke
         lambda site_tasks, benign_target_resources, site_name: (site_tasks, []),
     )
 
-    result = await phase_2_injections._generate_injections_for_site(
+    result = await generation._generate_injections_for_site(
         site_name="shopping",
         site_tasks=[_benign_task()],
         profile_path=profile_path,
@@ -111,7 +113,7 @@ async def test_generate_injections_for_site_empty_after_eligibility_is_clean_noo
         return []
 
     monkeypatch.setattr(
-        phase_2_injections,
+        runner_api,
         "generate_phase_2a_plans_api",
         fake_generate_phase_2a_plans_api,
     )
@@ -121,7 +123,7 @@ async def test_generate_injections_for_site_empty_after_eligibility_is_clean_noo
         lambda site_tasks, benign_target_resources, site_name: ([], [{"task_id": "benign-1"}]),
     )
 
-    result = await phase_2_injections._generate_injections_for_site(
+    result = await generation._generate_injections_for_site(
         site_name="shopping",
         site_tasks=[_benign_task()],
         all_site_tasks=[_benign_task()],
@@ -164,7 +166,7 @@ async def test_checkpoint_write_failure_does_not_promote_unbound_plans(
         lambda **kwargs: {},
     )
     monkeypatch.setattr(
-        phase_2_injections,
+        generation,
         "annotate_exposure_contracts_with_action_policy",
         lambda contracts, tasks, policy: contracts,
     )
@@ -175,14 +177,14 @@ async def test_checkpoint_write_failure_does_not_promote_unbound_plans(
         lambda tasks, resources, site, **kwargs: (tasks, []),
     )
     monkeypatch.setattr(eligibility, "_build_cell_targets", lambda *args: {})
-    monkeypatch.setattr(phase_2_injections, "generate_phase_2a_plans_api", generated)
+    monkeypatch.setattr(runner_api, "generate_phase_2a_plans_api", generated)
     monkeypatch.setattr(
-        phase_2_injections,
+        generation,
         "_materialize_strategy_plans_from_exposure",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        phase_2_injections,
+        generation,
         "_merge_immutable_fields",
         lambda *args, **kwargs: None,
     )
@@ -192,7 +194,7 @@ async def test_checkpoint_write_failure_does_not_promote_unbound_plans(
         lambda *args: ([plan], []),
     )
     monkeypatch.setattr(
-        phase_2_injections,
+        generation,
         "_materialize_validated_shard_tasks",
         lambda *args: [plan],
     )
@@ -207,12 +209,12 @@ async def test_checkpoint_write_failure_does_not_promote_unbound_plans(
         lambda tasks: None,
     )
     monkeypatch.setattr(
-        phase_2_injections,
+        generation,
         "write_planning_shard_checkpoint",
         lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")),
     )
 
-    result = await phase_2_injections._generate_injections_for_site(
+    result = await generation._generate_injections_for_site(
         site_name="shopping",
         site_tasks=[benign],
         profile_path=profile_path,

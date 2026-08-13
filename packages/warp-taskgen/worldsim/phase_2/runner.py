@@ -246,7 +246,7 @@ async def run(args: argparse.Namespace) -> int:
         sum(len(ts) for ts in tasks_by_site.values()),
     )
 
-    site_profiles, profile_errors = _collect_site_profiles(tasks_by_site, profiles_dir)
+    site_profiles, profile_errors = _generation._collect_site_profiles(tasks_by_site, profiles_dir)
     if profile_errors:
         logger.error(
             "Phase 2 cannot proceed because required site profiles are invalid:\n%s",
@@ -645,8 +645,9 @@ async def run(args: argparse.Namespace) -> int:
     return 0
 
 
-# Import sibling domains after defining run(), then link module globals so the
-# mechanically split functions preserve the old single-module lookup semantics.
+# Import sibling domains after defining run(), then link the remaining
+# compatibility surfaces so the runner retains its historical imports while
+# generation owns its helpers explicitly.
 import sys as _sys
 
 from worldsim.phase_2 import generation as _generation
@@ -657,7 +658,6 @@ from worldsim.phase_2.phase_2c import stage as _phase_2c_stage
 _link_modules(
     [
         _sys.modules[__name__],
-        _generation,
     ]
 )
 

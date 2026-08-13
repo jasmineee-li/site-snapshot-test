@@ -1,21 +1,44 @@
 """Phase 2 generation behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
+import json
+import logging
+from collections.abc import Iterable, Mapping
+from pathlib import Path
+from typing import Any
+
+from worldsim.adversarial_actions import (
+    annotate_exposure_contracts_with_action_policy,
+    compile_adversarial_final_state_check,
+    compile_adversarial_reward,
+)
+from worldsim.editors._registry import ContractRenderContext
 from worldsim.phase_2 import eligibility as _eligibility
 from worldsim.phase_2 import option_a as _option_a
 from worldsim.phase_2 import plan_validation as _plan_validation
+from worldsim.phase_2 import runner_api as _runner_api
 from worldsim.phase_2 import target_stage as _target_stage
-from worldsim.phase_2._context import install_context
+from worldsim.phase_2.exposure_contract import materialize_seed_template_from_contract
+from worldsim.phase_2.output import (
+    _sanitize_agent_context_for_output,
+    _sanitize_task_for_output,
+)
 from worldsim.phase_2.pause_control import write_planning_shard_checkpoint
 from worldsim.phase_2.planning_types import SiteInjectionResult
 from worldsim.phase_2.target_resolution.constants import (
     PHASE_2A_SYNTHETIC_PLACEHOLDERS as _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
 )
 from worldsim.phase_2.target_resolution.runner import derive_benign_target_resource
+from worldsim.phase_2.text_fill.tokens import derive_required_tokens
+from worldsim.phase_2.text_fill.voice import derive_length_budget, load_voice_registry
+from worldsim.profile_validation import load_and_validate_profile
+from worldsim.prompt_loading import load_prompt
+from worldsim.seed_contracts.surface import _find_surface_by_id
+from worldsim.seed_contracts.validation import _resolve_delivery_channel
+from worldsim.state import get_state_dir
 
-install_context(globals())
+logger = logging.getLogger(__name__)
 
 
 async def _generate_injections_for_site(
@@ -142,13 +165,7 @@ async def _generate_injections_for_site(
     sanitized_agent_context = (
         _sanitize_agent_context_for_output(agent_context) if agent_context is not None else None
     )
-    runner_module = sys.modules.get("worldsim.phase_2.runner")
-    phase_2a_plans_api = getattr(
-        runner_module,
-        "generate_phase_2a_plans_api",
-        generate_phase_2a_plans_api,
-    )
-    adv_tasks = await phase_2a_plans_api(
+    adv_tasks = await _runner_api.generate_phase_2a_plans_api(
         benign_tasks=sanitized_site_tasks,
         benign_target_resources=benign_target_resources,
         exposure_contracts=exposure_contracts,
