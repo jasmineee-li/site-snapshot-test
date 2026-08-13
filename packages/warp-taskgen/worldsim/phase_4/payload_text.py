@@ -1,11 +1,29 @@
 """Phase 4 payload text behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_4._context import install_context
+import json
+import logging
+import re
+from html.parser import HTMLParser
+from typing import Any
 
-install_context(globals())
+from worldsim.phase_2.text_fill.validation import validate_text_post_hoc
+
+logger = logging.getLogger(__name__)
+_PAYLOAD_BODY_FIELD_HINTS: tuple[str, ...] = (
+    "detail",
+    "body",
+    "content",
+    "message",
+    "comment",
+    "bio",
+    "description",
+    "text",
+    "value",
+    "html",
+)
+_MARKDOWN_SYSTEM_BLOCK_RE = re.compile(r"```system\s*(.*?)```", re.DOTALL | re.IGNORECASE)
 
 
 def _selected_rendered_payload(task: dict[str, Any]) -> str | None:

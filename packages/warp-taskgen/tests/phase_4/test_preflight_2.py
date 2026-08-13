@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 @pytest.mark.asyncio
 async def test_phase_4_run_checks_existing_storage_state_freshness(monkeypatch, tmp_path):
     from worldsim import storage_state_preflight
@@ -103,6 +104,7 @@ async def test_phase_4_run_checks_existing_storage_state_freshness(monkeypatch, 
     assert rc == 0
     assert checked_sites == ["gitlab"]
 
+
 @pytest.mark.asyncio
 async def test_phase_4_run_agent_runtime_error_precedes_host_api_preflight(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
@@ -196,6 +198,7 @@ async def test_phase_4_run_agent_runtime_error_precedes_host_api_preflight(monke
     assert rc == 1
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["reason"] == "agent_runtime_config_error"
+
 
 @pytest.mark.asyncio
 async def test_phase_4_run_skip_host_bound_storage_state_auth_rewrites_only_mismatched_instances(
@@ -317,6 +320,7 @@ async def test_phase_4_run_skip_host_bound_storage_state_auth_rewrites_only_mism
     assert instances[0].agent_auth["type"] == "none"
     assert instances[1].agent_auth["type"] == "http_headers"
 
+
 @pytest.mark.parametrize(
     ("selected_payload_index", "payload_factory", "match"),
     [
@@ -375,7 +379,8 @@ def test_effective_adversarial_seed_fails_closed_on_malformed_v2_payload_metadat
     }
 
     with pytest.raises(ValueError, match=match):
-        phase_4_adversarial._effective_adversarial_seed(task)
+        phase_4_execution_helpers._effective_adversarial_seed(task)
+
 
 def test_effective_adversarial_seed_requires_selected_payload_index():
     metadata = _v2_payload_contract_fields()
@@ -419,7 +424,8 @@ def test_effective_adversarial_seed_requires_selected_payload_index():
     }
 
     with pytest.raises(ValueError, match="selected_payload_index must be present"):
-        phase_4_adversarial._effective_adversarial_seed(task)
+        phase_4_execution_helpers._effective_adversarial_seed(task)
+
 
 def test_effective_adversarial_seed_rejects_invalid_seed_template_contract():
     metadata = _v2_payload_contract_fields()
@@ -448,7 +454,8 @@ def test_effective_adversarial_seed_rejects_invalid_seed_template_contract():
     }
 
     with pytest.raises(ValueError, match="mechanism"):
-        phase_4_adversarial._effective_adversarial_seed(task)
+        phase_4_execution_helpers._effective_adversarial_seed(task)
+
 
 def test_effective_adversarial_seed_rejects_malformed_non_selected_payload_entry():
     metadata = _v2_payload_contract_fields()
@@ -494,4 +501,4 @@ def test_effective_adversarial_seed_rejects_malformed_non_selected_payload_entry
     }
 
     with pytest.raises(ValueError, match=r"payload_texts\[1\].*rendered_payload"):
-        phase_4_adversarial._effective_adversarial_seed(task)
+        phase_4_execution_helpers._effective_adversarial_seed(task)

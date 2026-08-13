@@ -1,11 +1,69 @@
 """Phase 4 metrics behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_4._context import install_context
+import asyncio
+import logging
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
 
-install_context(globals())
+from worldsim import outcome_taxonomy
+from worldsim.adversarial_actions import (
+    action_metadata_for_task,
+    benign_reward_shape_from_task,
+    reward_signal_for_task,
+)
+from worldsim.adversarial_actions.tier3_fixtures import (
+    cleanup_tier3_delete_project_action_target,
+    cleanup_tier3_repository_action_target,
+)
+from worldsim.phase_4 import result_summary as phase4_result_summary
+from worldsim.phase_4.aer_trajectory_extract import ExtractedTrajectory
+from worldsim.phase_4.transcript_purpose_api import (
+    _failure_result as _transcript_purpose_failure_result,
+)
+from worldsim.phase_4.verbalized_eval_awareness_api import _failure_result as _vea_failure_result
+from worldsim.rewards import extract_network_action_attempt
+
+logger = logging.getLogger(__name__)
+_ACTION_REWARD_SIGNALS = frozenset({"network_action", "external_navigation"})
+_PVPO_METRIC_KEYS: frozenset[str] = frozenset(
+    {
+        "pvpo_status",
+        "pvpo_failure",
+        "pvpo_artifact_failure",
+        "transcript_purpose_classification",
+        "transcript_purpose_is_aware",
+        "transcript_purpose_was_refused",
+        "transcript_purpose_guess",
+        "transcript_purpose_explanation",
+        "transcript_purpose_failure",
+        "transcript_purpose_format",
+        "transcript_purpose_attempts",
+        "transcript_purpose_raw_response_path",
+        "transcript_purpose_apollo_continue_classification",
+        "transcript_purpose_apollo_continue_is_aware",
+        "transcript_purpose_apollo_continue_was_refused",
+        "transcript_purpose_apollo_continue_guess",
+        "transcript_purpose_apollo_continue_explanation",
+        "transcript_purpose_apollo_continue_failure",
+        "transcript_purpose_apollo_continue_attempts",
+        "transcript_purpose_apollo_continue_raw_response_path",
+        "verbalized_eval_awareness_classification",
+        "verbalized_eval_awareness_is_aware",
+        "verbalized_eval_awareness_evidence",
+        "verbalized_eval_awareness_failure",
+        "verbalized_eval_awareness_transcript_format",
+        "verbalized_eval_awareness_raw_response_path",
+        "verbalized_eval_awareness_attempts",
+    }
+)
+LAYOUT_SCROLL_BUCKETS: tuple[tuple[str, float], ...] = (
+    ("entry", 0),
+    ("near", 3000),
+    ("deep", 10000),
+)
 
 
 def _null_metric_keys() -> dict[str, Any]:

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from worldsim.phase_4._context import install_context
 from worldsim.phase_4.failure_context import build_variant_failure_context
+from worldsim.phase_4.metrics import _ecologically_valid
 from worldsim.phase_4.postprocess_progress import Phase4ProgressCallback
 
 install_context(globals())
@@ -355,9 +356,7 @@ async def run_strategy_variation(
 
     def _complied_count(results: list[dict[str, Any]]) -> int:
         return sum(
-            1
-            for item in results
-            if _ecologically_valid(item) and item.get("outcome") == "complied"
+            1 for item in results if _ecologically_valid(item) and item.get("outcome") == "complied"
         )
 
     def _best_refused_variant(results: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -613,7 +612,9 @@ async def run_strategy_variation(
             failure_context
             if round_index == 1
             else {
-                **build_variant_failure_context(task, prior_refused or initial_result, recommendation),
+                **build_variant_failure_context(
+                    task, prior_refused or initial_result, recommendation
+                ),
                 "adaptive_loop": {
                     "schema_version": "phase4_adaptive_strategy_loop_v1",
                     "budget_preset": budget_preset,
@@ -692,9 +693,7 @@ async def run_strategy_variation(
                     round_kind=round_kind,
                     round_variant_index=round_variant_index,
                     parent_variant_index=(
-                        int(parent_variant_index)
-                        if isinstance(parent_variant_index, int)
-                        else None
+                        int(parent_variant_index) if isinstance(parent_variant_index, int) else None
                     ),
                     round_failure_context=round_failure_context,
                 )
@@ -760,8 +759,7 @@ async def run_strategy_variation(
         real_variants = [
             (record.get("variant"), record.get("strategy"), record)
             for record in generation_records
-            if isinstance(record.get("variant"), dict)
-            and isinstance(record.get("strategy"), dict)
+            if isinstance(record.get("variant"), dict) and isinstance(record.get("strategy"), dict)
         ]
         if not real_variants:
             round_record["stop_reason"] = "no_valid_generation"

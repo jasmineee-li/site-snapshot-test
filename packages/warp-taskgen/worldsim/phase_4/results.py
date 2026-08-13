@@ -4,6 +4,11 @@
 from __future__ import annotations
 
 from worldsim.phase_4._context import install_context
+from worldsim.phase_4.metrics import (
+    _ecologically_valid,
+    _log_stratified_summary,
+    _normalize_task_origin,
+)
 from worldsim.phase_4.postprocess_progress import (
     Phase4ProgressState,
     compute_progress_extra,
@@ -41,7 +46,9 @@ def _write_phase_4_results(
             variant_results=[item for item in variant_results if isinstance(item, dict)],
             generation_errors=generation_errors,
         )
-        variation.setdefault("variant_outcome_accounting", {"schema_version": 1, **semantic_accounting})
+        variation.setdefault(
+            "variant_outcome_accounting", {"schema_version": 1, **semantic_accounting}
+        )
     write_json_atomic(
         output_dir / "results.json",
         final_results,
@@ -211,7 +218,9 @@ def _write_phase_4_results(
             variant_results=[item for item in variant_results if isinstance(item, dict)],
             generation_errors=generation_errors,
         )
-        variation.setdefault("variant_outcome_accounting", {"schema_version": 1, **semantic_accounting})
+        variation.setdefault(
+            "variant_outcome_accounting", {"schema_version": 1, **semantic_accounting}
+        )
         terminal_progress_state.variant_progress_by_task[task_id] = {
             "task_id": task_id,
             "event": "terminal",

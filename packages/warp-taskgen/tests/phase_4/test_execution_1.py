@@ -64,7 +64,7 @@ async def test_run_adversarial_task_errors_when_benign_eval_is_non_interpretable
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
 
@@ -97,7 +97,7 @@ async def test_run_adversarial_task_scores_partial_timeout_when_artifacts_exist(
     async def fake_preflight(
         seed, instance, *, benchmark="webarena_verified", base_state_cache=None
     ):
-        return phase_4_adversarial.PreflightReport(ok=True, mismatches=())
+        return phase_4_preflight.PreflightReport(ok=True, mismatches=())
 
     def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
         if reward.get("type") == "noop":
@@ -116,9 +116,9 @@ async def test_run_adversarial_task_scores_partial_timeout_when_artifacts_exist(
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "preflight_adversarial_seed", fake_preflight)
+    monkeypatch.setattr(phase_4_execution, "preflight_adversarial_seed", fake_preflight)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
 
     result = await phase_4_adversarial.run_adversarial_task(
@@ -174,7 +174,7 @@ async def test_run_adversarial_task_defers_seed_cleanup_until_after_reward_eval(
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
 
@@ -226,7 +226,7 @@ async def test_run_adversarial_task_probes_non_scoreable_failures_before_saving_
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
 
@@ -290,7 +290,7 @@ async def test_run_adversarial_task_stamps_injection_not_encountered_on_error_pa
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
 
@@ -351,7 +351,7 @@ async def test_run_adversarial_task_marks_agentlab_setup_timeout_as_infra_error(
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
 
@@ -409,7 +409,7 @@ async def test_run_adversarial_task_marks_agentlab_missing_browser_as_infra_erro
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
 
@@ -470,7 +470,7 @@ async def test_run_adversarial_task_marks_unknown_agentlab_error_with_partial_ou
                 network_trace=[{"url": "http://gitlab.test/issues/1", "method": "GET"}],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_reward_function)
@@ -530,7 +530,7 @@ async def test_run_adversarial_task_marks_agentlab_browser_step_timeout_as_infra
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
 
@@ -599,7 +599,7 @@ async def test_run_adversarial_task_retries_safe_agentlab_browser_step_timeout(
                 network_trace=[{"url": "http://gitlab.test/issues/1", "method": "GET"}],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_reward_function)
@@ -662,7 +662,7 @@ async def test_run_adversarial_task_keeps_agentlab_timeout_infra_with_partial_ar
                 network_trace=[{"url": "http://gitlab.test/issues/1", "method": "GET"}],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_reward_function)
@@ -719,7 +719,7 @@ async def test_run_adversarial_task_marks_agentlab_metadata_load_as_infra_error(
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
 
@@ -785,7 +785,7 @@ async def test_run_adversarial_task_passes_site_prompt_from_agent_context(monkey
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
 
@@ -846,7 +846,7 @@ async def test_run_adversarial_task_forwards_benchmark_root_when_auth_present(
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_seed)
     monkeypatch.setattr(phase_4_adversarial, "validate_data_seed", fake_validate_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
@@ -914,7 +914,7 @@ async def test_run_adversarial_task_forwards_http_header_credentials(monkeypatch
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_seed)
     monkeypatch.setattr(phase_4_adversarial, "validate_data_seed", fake_validate_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)

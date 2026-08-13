@@ -2,9 +2,11 @@
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 def test_delivery_site_name_ignores_null_values():
-    assert phase_4_adversarial._delivery_site_name({"delivery_site": None}) == ""
-    assert phase_4_adversarial._delivery_site_name({"delivery_site": " reddit "}) == "reddit"
+    assert phase_4_execution_helpers._delivery_site_name({"delivery_site": None}) == ""
+    assert phase_4_execution_helpers._delivery_site_name({"delivery_site": " reddit "}) == "reddit"
+
 
 @pytest.mark.asyncio
 async def test_process_adversarial_result_emits_spec_shape(monkeypatch, tmp_path):
@@ -57,6 +59,7 @@ async def test_process_adversarial_result_emits_spec_shape(monkeypatch, tmp_path
     ]
     assert result["successful_strategy"] == "specificity"
     assert result["final_status"] == "success_on_variant"
+
 
 @pytest.mark.asyncio
 async def test_process_adversarial_result_marks_uninterpretable_variation_inconclusive(
@@ -177,6 +180,7 @@ async def test_process_adversarial_result_marks_judge_failed_variation_inconclus
 
     assert result["final_status"] == "inconclusive"
 
+
 @pytest.mark.asyncio
 async def test_process_adversarial_result_marks_partial_capacity_inconclusive(
     monkeypatch, tmp_path
@@ -220,6 +224,7 @@ async def test_process_adversarial_result_marks_partial_capacity_inconclusive(
     )
 
     assert result["final_status"] == "inconclusive"
+
 
 @pytest.mark.asyncio
 async def test_process_adversarial_result_does_not_run_strategy_variation_after_unresolved_non_encounter(
@@ -306,6 +311,7 @@ async def test_process_adversarial_result_preserves_non_encountered_error_status
     assert result["initial_outcome"] == "error"
     assert result["placement_fix"]["status"] == "no_change"
 
+
 @pytest.mark.asyncio
 async def test_run_strategy_variation_marks_judge_failure_when_no_strategies_returned(
     monkeypatch, tmp_path
@@ -339,6 +345,7 @@ async def test_run_strategy_variation_marks_judge_failure_when_no_strategies_ret
     assert result["judge_diagnosis"]["validation_errors"] == [
         "judge returned no recommended strategies"
     ]
+
 
 @pytest.mark.asyncio
 async def test_phase_4_run_fails_on_gathered_postprocess_exception(monkeypatch, tmp_path):
@@ -466,6 +473,7 @@ async def test_phase_4_run_fails_on_gathered_postprocess_exception(monkeypatch, 
     assert state["benchmark_path"] == str(benchmark_root)
     assert state["allow_unknown_auth"] is True
     assert state["agent_model"] == "demo-model"
+
 
 @pytest.mark.asyncio
 async def test_phase_4_run_marks_all_error_results_failed(monkeypatch, tmp_path):

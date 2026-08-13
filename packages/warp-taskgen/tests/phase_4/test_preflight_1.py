@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 def test_agent_auth_runtime_gate_rejects_explicit_none_for_authed_surfaces():
     instance = BenchmarkInstance(
         site_name="gitlab",
@@ -14,7 +15,7 @@ def test_agent_auth_runtime_gate_rejects_explicit_none_for_authed_surfaces():
         ],
     }
 
-    errors = phase_4_adversarial._collect_agent_auth_runtime_errors(
+    errors = phase_4_admission._collect_agent_auth_runtime_errors(
         [instance],
         {"gitlab": profile},
     )
@@ -23,6 +24,7 @@ def test_agent_auth_runtime_gate_rejects_explicit_none_for_authed_surfaces():
         "site 'gitlab' requires agent_auth in instances.json because BENCHMARK_PROFILE "
         "has authed_user injection surfaces"
     ]
+
 
 def test_agent_auth_runtime_gate_accepts_http_headers_for_authed_surfaces():
     instance = BenchmarkInstance(
@@ -39,12 +41,13 @@ def test_agent_auth_runtime_gate_accepts_http_headers_for_authed_surfaces():
         ],
     }
 
-    errors = phase_4_adversarial._collect_agent_auth_runtime_errors(
+    errors = phase_4_admission._collect_agent_auth_runtime_errors(
         [instance],
         {"reddit": profile},
     )
 
     assert errors == []
+
 
 def test_agent_auth_runtime_gate_rejects_unresolvable_http_headers():
     instance = BenchmarkInstance(
@@ -61,13 +64,14 @@ def test_agent_auth_runtime_gate_rejects_unresolvable_http_headers():
         ],
     }
 
-    errors = phase_4_adversarial._collect_agent_auth_runtime_errors(
+    errors = phase_4_admission._collect_agent_auth_runtime_errors(
         [instance],
         {"reddit": profile},
     )
 
     assert len(errors) == 1
     assert "invalid http_headers agent_auth" in errors[0]
+
 
 def test_agent_context_with_instance_auth_redacts_runtime_credentials():
     context = {
@@ -85,13 +89,14 @@ def test_agent_context_with_instance_auth_redacts_runtime_credentials():
         },
     }
 
-    merged = phase_4_adversarial._agent_context_with_instance_auth(context, agent_auth)
+    merged = phase_4_execution_helpers._agent_context_with_instance_auth(context, agent_auth)
 
     assert merged["authentication"] == {
         "pre_authenticated": True,
         "credentials": None,
         "description": "Pre-authenticated via deployment config.",
     }
+
 
 def test_seed_target_benchmark_requires_metadata():
     with pytest.raises(ValueError, match="missing benchmark metadata"):
@@ -103,6 +108,7 @@ def test_seed_target_benchmark_requires_metadata():
                 },
             }
         )
+
 
 def test_seed_target_benchmark_rejects_mixed_metadata():
     with pytest.raises(ValueError, match="mixed benchmark metadata"):
@@ -121,6 +127,7 @@ def test_seed_target_benchmark_rejects_mixed_metadata():
                 },
             }
         )
+
 
 def test_seed_target_benchmark_normalizes_aliases():
     assert (
@@ -142,6 +149,7 @@ def test_seed_target_benchmark_normalizes_aliases():
         == "webarena_verified"
     )
 
+
 def test_seed_target_benchmark_uses_instance_metadata_fallback():
     assert (
         phase_4_adversarial._seed_target_benchmark(
@@ -155,6 +163,7 @@ def test_seed_target_benchmark_uses_instance_metadata_fallback():
         )
         == "webarena_verified"
     )
+
 
 def test_pvpo_endpoint_preflight_errors_allow_missing_and_duplicate_legacy_urls():
     instances = [
@@ -178,12 +187,13 @@ def test_pvpo_endpoint_preflight_errors_allow_missing_and_duplicate_legacy_urls(
         ),
     ]
 
-    errors = phase_4_adversarial._pvpo_endpoint_preflight_errors(
+    errors = phase_4_preflight._pvpo_endpoint_preflight_errors(
         instances,
         active_sites={"shopping", "gitlab"},
     )
 
     assert errors == []
+
 
 def test_pvpo_endpoint_preflight_errors_ignore_inactive_sites():
     instances = [
@@ -202,12 +212,13 @@ def test_pvpo_endpoint_preflight_errors_ignore_inactive_sites():
     ]
 
     assert (
-        phase_4_adversarial._pvpo_endpoint_preflight_errors(
+        phase_4_preflight._pvpo_endpoint_preflight_errors(
             instances,
             active_sites={"shopping"},
         )
         == []
     )
+
 
 def test_pvpo_endpoint_preflight_errors_accept_loopback_alias_duplicates():
     instances = [
@@ -225,12 +236,13 @@ def test_pvpo_endpoint_preflight_errors_accept_loopback_alias_duplicates():
         ),
     ]
 
-    errors = phase_4_adversarial._pvpo_endpoint_preflight_errors(
+    errors = phase_4_preflight._pvpo_endpoint_preflight_errors(
         instances,
         active_sites={"shopping"},
     )
 
     assert errors == []
+
 
 def test_benchmark_instance_rejects_invalid_pvpo_port():
     with pytest.raises(ValueError, match="invalid port"):
@@ -240,6 +252,7 @@ def test_benchmark_instance_rejects_invalid_pvpo_port():
             replica_index=0,
             pvpo_cdp_url="http://127.0.0.1:abc",
         )
+
 
 def test_normalize_saved_adversarial_result_preserves_preflight_error(tmp_path):
     normalized = phase_4_adversarial._normalize_saved_adversarial_result(
@@ -254,6 +267,7 @@ def test_normalize_saved_adversarial_result_preserves_preflight_error(tmp_path):
 
     assert normalized["error"] == "missing required args"
     assert normalized["benign_passed"] is False
+
 
 @pytest.mark.asyncio
 async def test_phase_4_run_fails_on_malformed_sql_seed(monkeypatch, tmp_path):
@@ -333,6 +347,7 @@ async def test_phase_4_run_fails_on_malformed_sql_seed(monkeypatch, tmp_path):
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["status"] == "failed"
     assert state["reason"] == "malformed_adversarial_tasks"
+
 
 @pytest.mark.asyncio
 async def test_phase_4_run_fails_fast_on_storage_state_preflight_error(monkeypatch, tmp_path):

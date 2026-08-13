@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 def test_effective_adversarial_seed_rejects_semantically_invalid_selected_payload():
     metadata = _v2_payload_contract_fields()
     task = {
@@ -47,14 +48,15 @@ def test_effective_adversarial_seed_rejects_semantically_invalid_selected_payloa
     }
 
     with pytest.raises(ValueError, match="inside concealed payload content"):
-        phase_4_adversarial._effective_adversarial_seed(task)
+        phase_4_execution_helpers._effective_adversarial_seed(task)
+
 
 @pytest.mark.asyncio
 async def test_run_adversarial_task_returns_seed_preflight_mismatch(monkeypatch, tmp_path):
     # This test needs real preflight to run so it can fail and produce a
     # mismatch. Restore the actual implementation (autouse fixture stubs it).
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_preflight,
         "preflight_editor_seed_calls",
         seeding.preflight_editor_seed_calls,
     )
@@ -99,9 +101,7 @@ async def test_run_adversarial_task_returns_seed_preflight_mismatch(monkeypatch,
         raise AssertionError("agent.run should not execute after seed preflight mismatch")
 
     agent = SimpleNamespace(run=should_not_run)
-    monkeypatch.setattr(
-        phase_4_adversarial, "_reset_task_environment", lambda task: asyncio.sleep(0)
-    )
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", lambda task: asyncio.sleep(0))
 
     result = await phase_4_adversarial.run_adversarial_task(
         task,
@@ -117,12 +117,13 @@ async def test_run_adversarial_task_returns_seed_preflight_mismatch(monkeypatch,
     saved = json.loads((tmp_path / "traj" / "result.json").read_text())
     assert saved["outcome"] == "seed_preflight_mismatch"
 
+
 @pytest.mark.asyncio
 async def test_run_adversarial_task_does_not_mark_reset_cache_clean_on_preflight_mismatch(
     monkeypatch, tmp_path
 ):
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_preflight,
         "preflight_editor_seed_calls",
         seeding.preflight_editor_seed_calls,
     )
@@ -179,9 +180,7 @@ async def test_run_adversarial_task_does_not_mark_reset_cache_clean_on_preflight
         raise AssertionError("agent.run should not execute after seed preflight mismatch")
 
     agent = SimpleNamespace(run=should_not_run)
-    monkeypatch.setattr(
-        phase_4_adversarial, "_reset_task_environment", lambda task: asyncio.sleep(0)
-    )
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", lambda task: asyncio.sleep(0))
 
     result = await phase_4_adversarial.run_adversarial_task(
         task,
@@ -194,12 +193,13 @@ async def test_run_adversarial_task_does_not_mark_reset_cache_clean_on_preflight
     assert result["outcome"] == "seed_preflight_mismatch"
     assert reset_cache.mark_clean_calls == 0
 
+
 @pytest.mark.asyncio
 async def test_run_adversarial_task_classifies_invalid_editor_shape_as_preflight_mismatch(
     monkeypatch, tmp_path
 ):
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_preflight,
         "preflight_editor_seed_calls",
         seeding.preflight_editor_seed_calls,
     )
@@ -244,9 +244,7 @@ async def test_run_adversarial_task_classifies_invalid_editor_shape_as_preflight
         raise AssertionError("agent.run should not execute after seed preflight mismatch")
 
     agent = SimpleNamespace(run=should_not_run)
-    monkeypatch.setattr(
-        phase_4_adversarial, "_reset_task_environment", lambda task: asyncio.sleep(0)
-    )
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", lambda task: asyncio.sleep(0))
 
     result = await phase_4_adversarial.run_adversarial_task(
         task,
@@ -259,6 +257,7 @@ async def test_run_adversarial_task_classifies_invalid_editor_shape_as_preflight
     assert "missing required args: note_body" in result["error"]
     assert result["seed_preflight_mismatch_records"][0]["kind"] == "invalid_args"
     assert result["seed_preflight_mismatch_records"][0]["site"] == "gitlab"
+
 
 @pytest.mark.asyncio
 async def test_run_adversarial_task_classifies_invalid_seed_shape_as_preflight_mismatch(
@@ -296,9 +295,7 @@ async def test_run_adversarial_task_classifies_invalid_seed_shape_as_preflight_m
         raise AssertionError("agent.run should not execute after seed preflight mismatch")
 
     agent = SimpleNamespace(run=should_not_run)
-    monkeypatch.setattr(
-        phase_4_adversarial, "_reset_task_environment", lambda task: asyncio.sleep(0)
-    )
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", lambda task: asyncio.sleep(0))
 
     result = await phase_4_adversarial.run_adversarial_task(
         task,
@@ -314,14 +311,15 @@ async def test_run_adversarial_task_classifies_invalid_seed_shape_as_preflight_m
     saved = json.loads((tmp_path / "traj-invalid-shape" / "result.json").read_text())
     assert saved["outcome"] == "seed_preflight_mismatch"
 
+
 @pytest.mark.asyncio
 async def test_preflight_adversarial_seed_converts_runtime_errors_to_mismatches(monkeypatch):
     def boom(seed, instance):
         raise RuntimeError("editor exploded")
 
-    monkeypatch.setattr(phase_4_adversarial, "preflight_editor_seed_calls", boom)
+    monkeypatch.setattr(phase_4_preflight, "preflight_editor_seed_calls", boom)
 
-    report = await phase_4_adversarial.preflight_adversarial_seed(
+    report = await phase_4_preflight.preflight_adversarial_seed(
         {
             "mechanism": "editor",
             "editor_calls": [
@@ -338,6 +336,7 @@ async def test_preflight_adversarial_seed_converts_runtime_errors_to_mismatches(
 
     assert report.ok is False
     assert any("editor exploded" in m.detail for m in report.mismatches)
+
 
 @pytest.mark.asyncio
 async def test_run_adversarial_task_threads_seed_benchmark_into_preflight(monkeypatch, tmp_path):
@@ -361,10 +360,10 @@ async def test_run_adversarial_task_threads_seed_benchmark_into_preflight(monkey
         seed, instance, *, benchmark="webarena_verified", base_state_cache=None
     ):
         captured["benchmark"] = benchmark
-        return phase_4_adversarial.PreflightReport(
+        return phase_4_preflight.PreflightReport(
             ok=False,
             mismatches=(
-                phase_4_adversarial.SeedPreflightMismatch(
+                phase_4_preflight.SeedPreflightMismatch(
                     call_index=-1,
                     site="shopping",
                     resource_type="base_state",
@@ -380,8 +379,8 @@ async def test_run_adversarial_task_threads_seed_benchmark_into_preflight(monkey
     async def should_not_run(*args, **kwargs):
         raise AssertionError("agent.run should not execute after seed preflight mismatch")
 
-    monkeypatch.setattr(phase_4_adversarial, "preflight_adversarial_seed", fake_preflight)
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "preflight_adversarial_seed", fake_preflight)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
 
     result = await phase_4_adversarial.run_adversarial_task(
         task,
@@ -392,6 +391,7 @@ async def test_run_adversarial_task_threads_seed_benchmark_into_preflight(monkey
 
     assert result["outcome"] == "seed_preflight_mismatch"
     assert captured["benchmark"] == "webarena_verified"
+
 
 def test_relative_storage_state_path_resolves_under_worldsim_state_dir(tmp_path, monkeypatch):
     """Phase 0d (writer) and Phase 4 (reader) anchor relative storage_state.path
@@ -425,6 +425,7 @@ def test_relative_storage_state_path_resolves_under_worldsim_state_dir(tmp_path,
         raise AssertionError("relative storage_state must not anchor under benchmark_root")
     except ValueError:
         pass
+
 
 def test_absolute_storage_state_path_unaffected_by_state_dir_or_benchmark_root(
     tmp_path, monkeypatch

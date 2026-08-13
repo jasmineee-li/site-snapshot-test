@@ -162,57 +162,6 @@ _VARIANT_RESULT_METADATA = "resume_metadata.json"
 _PHASE_4_RESUME_VERSION = "2026-04-20b"
 PLACEMENT_FIX_MAX_ITERATIONS = 2
 _LEGACY_AER_INFLIGHT_SENTINEL = ".aer_inflight"
-_ACTION_REWARD_SIGNALS = frozenset({"network_action", "external_navigation"})
-_PVPO_METRIC_KEYS: frozenset[str] = frozenset(
-    {
-        "pvpo_status",
-        "pvpo_failure",
-        "pvpo_artifact_failure",
-        "transcript_purpose_classification",
-        "transcript_purpose_is_aware",
-        "transcript_purpose_was_refused",
-        "transcript_purpose_guess",
-        "transcript_purpose_explanation",
-        "transcript_purpose_failure",
-        "transcript_purpose_format",
-        "transcript_purpose_attempts",
-        "transcript_purpose_raw_response_path",
-        "transcript_purpose_apollo_continue_classification",
-        "transcript_purpose_apollo_continue_is_aware",
-        "transcript_purpose_apollo_continue_was_refused",
-        "transcript_purpose_apollo_continue_guess",
-        "transcript_purpose_apollo_continue_explanation",
-        "transcript_purpose_apollo_continue_failure",
-        "transcript_purpose_apollo_continue_attempts",
-        "transcript_purpose_apollo_continue_raw_response_path",
-        "verbalized_eval_awareness_classification",
-        "verbalized_eval_awareness_is_aware",
-        "verbalized_eval_awareness_evidence",
-        "verbalized_eval_awareness_failure",
-        "verbalized_eval_awareness_transcript_format",
-        "verbalized_eval_awareness_raw_response_path",
-        "verbalized_eval_awareness_attempts",
-    }
-)
-_PAYLOAD_BODY_FIELD_HINTS: tuple[str, ...] = (
-    "detail",
-    "body",
-    "content",
-    "message",
-    "comment",
-    "bio",
-    "description",
-    "text",
-    "value",
-    "html",
-)
-_MARKDOWN_SYSTEM_BLOCK_RE = re.compile(r"```system\s*(.*?)```", re.DOTALL | re.IGNORECASE)
-STRICT_FEASIBILITY_ADMISSION = True
-LAYOUT_SCROLL_BUCKETS: tuple[tuple[str, float], ...] = (
-    ("entry", 0),
-    ("near", 3000),
-    ("deep", 10000),
-)
 _FINGERPRINT_RESULT_KEYS: tuple[str, ...] = (
     "task_id",
     "outcome",
@@ -276,10 +225,6 @@ _FINGERPRINT_RESULT_KEYS: tuple[str, ...] = (
     "signals",
     "classifier_version",
 )
-_RESET_TIMEOUT = 300
-_RESET_MAX_RETRIES = 2
-_RESET_RETRY_DELAY = 10
-
 _VARIANT_ROUNDS_KEY = "variant_rounds"
 
 

@@ -67,7 +67,7 @@ def test_stratified_summary_metrics_from_synthetic_results():
     scorable = [
         r for r in final_results if r["final_status"] not in {"error", "seed_preflight_mismatch"}
     ]
-    scorable_valid = [r for r in scorable if phase_4_adversarial._ecologically_valid(r)]
+    scorable_valid = [r for r in scorable if phase_4_metrics._ecologically_valid(r)]
 
     asr_valid = sum(1 for r in scorable_valid if r["final_status"] in complied_outcomes) / len(
         scorable_valid
@@ -78,7 +78,7 @@ def test_stratified_summary_metrics_from_synthetic_results():
     with_reward = sum(
         1
         for r in complied_valid
-        if phase_4_adversarial._final_compliant_result_has_adversarial_reward(r)
+        if phase_4_metrics._final_compliant_result_has_adversarial_reward(r)
     )
     without_reward = len(complied_valid) - with_reward
     assert with_reward == 2

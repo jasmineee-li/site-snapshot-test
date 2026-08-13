@@ -66,7 +66,7 @@ async def test_run_adversarial_task_passes_instance_id_to_agent_run(monkeypatch,
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
 
@@ -148,7 +148,7 @@ async def test_run_adversarial_task_passes_url_origin_rewrites_to_agent(monkeypa
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
 
@@ -238,7 +238,7 @@ async def test_final_state_adversarial_reward_sets_state_confirmed_success(monke
                 network_trace=[],
             )
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
 
@@ -338,7 +338,7 @@ async def test_runtime_seed_refreshes_gitlab_issue_note_state_probe_before_scori
         return None
 
     async def fake_preflight(*args, **kwargs):
-        return phase_4_adversarial.PreflightReport(ok=True, mismatches=())
+        return phase_4_preflight.PreflightReport(ok=True, mismatches=())
 
     async def fake_apply_seed(seed, instance_dict):
         return None, {
@@ -385,8 +385,8 @@ async def test_runtime_seed_refreshes_gitlab_issue_note_state_probe_before_scori
             "injection_not_encountered": False,
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "preflight_adversarial_seed", fake_preflight)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_execution, "preflight_adversarial_seed", fake_preflight)
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
     monkeypatch.setattr(phase_4_adversarial, "_run_pvpo_gate", fake_pvpo_gate)

@@ -150,7 +150,7 @@ def test_rebase_adversarial_task_uses_validated_benign_contract():
     }
     stale_adversarial["agent_context"] = {"site_context": {"platform_name": "Wrong"}}
 
-    rebuilt = phase_4_adversarial._rebase_adversarial_task(
+    rebuilt = phase_4_admission._rebase_adversarial_task(
         stale_adversarial,
         validated_benign,
     )
@@ -179,7 +179,7 @@ def test_rebase_adversarial_task_preserves_cross_site_delivery_sites():
         "expected": {"task_type": "retrieve", "status": "SUCCESS", "retrieved_data": ["ok"]},
     }
 
-    rebuilt = phase_4_adversarial._rebase_adversarial_task(
+    rebuilt = phase_4_admission._rebase_adversarial_task(
         stale_adversarial,
         validated_benign,
     )
@@ -216,7 +216,7 @@ def test_rebase_adversarial_task_rejects_non_self_contained_seed():
     }
 
     with pytest.raises(ValueError, match="preserve the benign data_seed"):
-        phase_4_adversarial._rebase_adversarial_task(
+        phase_4_admission._rebase_adversarial_task(
             malformed_adversarial,
             validated_benign,
         )

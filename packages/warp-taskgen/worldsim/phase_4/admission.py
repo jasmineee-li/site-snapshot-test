@@ -1,11 +1,27 @@
 """Phase 4 admission behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_4._context import install_context
+import json
+import logging
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlparse
 
-install_context(globals())
+from worldsim.agent_auth import resolve_agent_auth_headers
+from worldsim.agent_config import cap_tasks_per_site
+from worldsim.config import BenchmarkInstance, has_effective_agent_auth
+from worldsim.phase_4.exposure_admission import (
+    exposure_admission_error as _exposure_admission_error,
+)
+from worldsim.phase_4.metrics import _normalize_task_origin
+from worldsim.phase_4.resume import _task_reachable_sites
+from worldsim.phase_4.variant_eval import _rebase_adversarial_task
+from worldsim.profile_validation import load_and_validate_profile, profile_requires_agent_auth
+from worldsim.state import save_state
+
+logger = logging.getLogger(__name__)
+STRICT_FEASIBILITY_ADMISSION = True
 
 
 def _filter_tasks_by_sites(

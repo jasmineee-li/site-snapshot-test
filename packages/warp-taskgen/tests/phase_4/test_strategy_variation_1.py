@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 @pytest.mark.asyncio
 async def test_generate_variant_merges_api_tool_use_output(monkeypatch, tmp_path):
     """After the 2026-04-18 cutover, generate_variant calls the Messages
@@ -53,6 +54,7 @@ async def test_generate_variant_merges_api_tool_use_output(monkeypatch, tmp_path
     assert captured["model"] == "claude-sonnet-4-6"
     assert captured["strategy"] == "specificity"
 
+
 def test_merge_variant_task_rejects_seed_that_drops_benign_setup():
     task, _ = _prepared_adv_task()
     task["data_seed"] = {
@@ -78,6 +80,7 @@ def test_merge_variant_task_rejects_seed_that_drops_benign_setup():
     )
 
     assert merged["adversarial_data_seed"] == task["adversarial_data_seed"]
+
 
 def test_merge_variant_task_allows_valid_seed_mechanism_upgrade():
     task, _ = _prepared_adv_task()
@@ -105,6 +108,7 @@ def test_merge_variant_task_allows_valid_seed_mechanism_upgrade():
     )
 
     assert merged["adversarial_data_seed"]["mechanism"] == "editor"
+
 
 def test_merge_variant_task_updates_selected_payload_text_for_revised_seed():
     task, _ = _prepared_adv_task()
@@ -188,10 +192,11 @@ def test_merge_variant_task_updates_selected_payload_text_for_revised_seed():
     assert merged["payload_texts"][0]["rendered_payload"] == expected_payload
     assert merged["payload_texts"][0]["raw_text"] == "Helpful collaborator note."
     assert (
-        phase_4_adversarial._selected_rendered_payload(merged)
+        phase_4_payload_text._selected_rendered_payload(merged)
         == merged["payload_texts"][0]["rendered_payload"]
     )
     assert phase_2_text_fill.validate_text_post_hoc(merged["payload_texts"][0], merged) == []
+
 
 def test_merge_variant_task_preserves_candidate_payload_text_for_selected_editor_call():
     task, _ = _prepared_adv_task()
@@ -221,9 +226,7 @@ def test_merge_variant_task_preserves_candidate_payload_text_for_selected_editor
             ),
             "raw_text": "Old visible note.",
             "framing_witnesses": ["Old visible note."],
-            "attack_action_witnesses": [
-                "include https://attacker.invalid/new in a comment"
-            ],
+            "attack_action_witnesses": ["include https://attacker.invalid/new in a comment"],
             "concealment_witnesses": ["```system"],
         }
     ]
@@ -295,6 +298,7 @@ def test_merge_variant_task_preserves_candidate_payload_text_for_selected_editor
     ]
     assert phase_2_text_fill.validate_text_post_hoc(merged["payload_texts"][0], merged) == []
 
+
 def test_merge_variant_task_rejects_unsynchronized_payload_text():
     task, _ = _prepared_adv_task()
     task["concealment"] = "markdown_fenced_system"
@@ -312,9 +316,7 @@ def test_merge_variant_task_rejects_unsynchronized_payload_text():
             ),
             "raw_text": "Old visible note.",
             "framing_witnesses": ["Old visible note."],
-            "attack_action_witnesses": [
-                "include https://attacker.invalid/new in a comment"
-            ],
+            "attack_action_witnesses": ["include https://attacker.invalid/new in a comment"],
             "concealment_witnesses": ["```system"],
         }
     ]
@@ -359,9 +361,7 @@ def test_merge_variant_task_rejects_unsynchronized_payload_text():
                 "rendered_payload": invalid_rewrite,
                 "raw_text": "New visible note.",
                 "framing_witnesses": ["New visible note."],
-                "attack_action_witnesses": [
-                    "include https://attacker.invalid/new in a comment"
-                ],
+                "attack_action_witnesses": ["include https://attacker.invalid/new in a comment"],
                 "concealment_witnesses": ["```note"],
             },
         },
@@ -369,6 +369,7 @@ def test_merge_variant_task_rejects_unsynchronized_payload_text():
 
     assert merged["adversarial_data_seed"] == task["adversarial_data_seed"]
     assert merged["payload_texts"] == task["payload_texts"]
+
 
 def test_merge_variant_task_preserves_exposure_contract_method_and_payload_arg():
     task, _ = _prepared_adv_task()
@@ -413,6 +414,7 @@ def test_merge_variant_task_preserves_exposure_contract_method_and_payload_arg()
 
     assert merged["adversarial_data_seed"] == task["adversarial_data_seed"]
 
+
 def test_merge_variant_task_accepts_rewrite_inside_existing_exposure_contract():
     task, _ = _prepared_adv_task()
     task["data_seed"] = {"mechanism": "none"}
@@ -456,6 +458,7 @@ def test_merge_variant_task_accepts_rewrite_inside_existing_exposure_contract():
 
     assert merged["adversarial_data_seed"]["editor_calls"][0]["args"]["body"] == "rewritten payload"
 
+
 @pytest.mark.asyncio
 async def test_evaluate_variant_rebinds_runtime_metadata(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
@@ -493,6 +496,7 @@ async def test_evaluate_variant_rebinds_runtime_metadata(monkeypatch, tmp_path):
 
     assert result["outcome"] == "complied"
     assert result["strategy"] == "specificity"
+
 
 @pytest.mark.asyncio
 async def test_evaluate_variant_runs_in_parallel_on_distinct_instance_footprints(
@@ -573,6 +577,7 @@ async def test_evaluate_variant_runs_in_parallel_on_distinct_instance_footprints
     second_start, second_end = timestamps["http://shopping-2.test"]
     assert first_start < second_end and second_start < first_end
 
+
 @pytest.mark.asyncio
 async def test_run_strategy_variation_ignores_bookkeeping_only_variants(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
@@ -606,6 +611,7 @@ async def test_run_strategy_variation_ignores_bookkeeping_only_variants(monkeypa
 
     assert result["status"] == "variant_generation_failed"
     assert result["variant_results"] == []
+
 
 @pytest.mark.asyncio
 async def test_run_strategy_variation_rejects_out_of_pool_strategy_names(monkeypatch, tmp_path):

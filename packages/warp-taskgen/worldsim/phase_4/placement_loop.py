@@ -4,6 +4,13 @@
 from __future__ import annotations
 
 from worldsim.phase_4._context import install_context
+from worldsim.phase_4.metrics import (
+    _gate_miss_payload,
+    _null_metric_keys,
+    _observational_metrics_unavailable,
+    _trajectory_available_for_observational_metrics,
+)
+from worldsim.phase_4.payload_text import _adversarial_seed_equivalent
 
 install_context(globals())
 
