@@ -1,6 +1,8 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import target_stage
+
 
 class TestResolveBenignTargetResourcesForShard:
     """``_resolve_benign_target_resources_for_shard`` is the shim between
@@ -29,7 +31,7 @@ class TestResolveBenignTargetResourcesForShard:
             self._gitlab_site_task("t2", "__GITLAB__/a/b/-/merge_requests/9"),
         ]
         expanded, resources = asyncio.run(
-            phase_2_injections._resolve_benign_target_resources_for_shard(
+            target_stage._resolve_benign_target_resources_for_shard(
                 site_tasks=tasks,
                 instance=None,
                 site_name="gitlab",
@@ -70,11 +72,11 @@ class TestResolveBenignTargetResourcesForShard:
         def fake_acquire(*_, **__):
             return []
 
-        monkeypatch.setattr(phase_2_injections, "resolve_tasks", fake_resolve_tasks)
-        monkeypatch.setattr(phase_2_injections, "acquire_tokens_for_instances", fake_acquire)
+        monkeypatch.setattr(target_stage, "resolve_tasks", fake_resolve_tasks)
+        monkeypatch.setattr(target_stage, "acquire_tokens_for_instances", fake_acquire)
 
         expanded, resources = asyncio.run(
-            phase_2_injections._resolve_benign_target_resources_for_shard(
+            target_stage._resolve_benign_target_resources_for_shard(
                 site_tasks=tasks,
                 instance={"site_name": "gitlab", "site_url": "https://x"},
                 site_name="gitlab",
@@ -141,11 +143,11 @@ class TestResolveBenignTargetResourcesForShard:
                 ]
             }
 
-        monkeypatch.setattr(phase_2_injections, "resolve_tasks", fake_resolve_tasks)
-        monkeypatch.setattr(phase_2_injections, "acquire_tokens_for_instances", lambda *_: [])
+        monkeypatch.setattr(target_stage, "resolve_tasks", fake_resolve_tasks)
+        monkeypatch.setattr(target_stage, "acquire_tokens_for_instances", lambda *_: [])
 
         expanded, resources = asyncio.run(
-            phase_2_injections._resolve_benign_target_resources_for_shard(
+            target_stage._resolve_benign_target_resources_for_shard(
                 site_tasks=[task],
                 instance={"site_name": "gitlab", "site_url": "https://x"},
                 site_name="gitlab",
@@ -167,11 +169,11 @@ class TestResolveBenignTargetResourcesForShard:
         def fake_acquire(*_, **__):
             return []
 
-        monkeypatch.setattr(phase_2_injections, "resolve_tasks", fake_resolve_tasks)
-        monkeypatch.setattr(phase_2_injections, "acquire_tokens_for_instances", fake_acquire)
+        monkeypatch.setattr(target_stage, "resolve_tasks", fake_resolve_tasks)
+        monkeypatch.setattr(target_stage, "acquire_tokens_for_instances", fake_acquire)
 
         expanded, resources = asyncio.run(
-            phase_2_injections._resolve_benign_target_resources_for_shard(
+            target_stage._resolve_benign_target_resources_for_shard(
                 site_tasks=[self._gitlab_site_task("t_dash", None)],
                 instance={"site_name": "gitlab", "site_url": "https://x"},
                 site_name="gitlab",
@@ -191,12 +193,12 @@ class TestResolveBenignTargetResourcesForShard:
         def fake_acquire(*_, **__):
             return []
 
-        monkeypatch.setattr(phase_2_injections, "resolve_tasks", boom)
-        monkeypatch.setattr(phase_2_injections, "acquire_tokens_for_instances", fake_acquire)
+        monkeypatch.setattr(target_stage, "resolve_tasks", boom)
+        monkeypatch.setattr(target_stage, "acquire_tokens_for_instances", fake_acquire)
 
         tasks = [self._gitlab_site_task("t1", "__GITLAB__/a/b/-/issues/5")]
         expanded, resources = asyncio.run(
-            phase_2_injections._resolve_benign_target_resources_for_shard(
+            target_stage._resolve_benign_target_resources_for_shard(
                 site_tasks=tasks,
                 instance={"site_name": "gitlab", "site_url": "https://x"},
                 site_name="gitlab",
@@ -210,13 +212,13 @@ class TestResolveBenignTargetResourcesForShard:
     def test_token_failure_falls_back_to_l1_l2(self, tmp_path, monkeypatch):
         monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
         monkeypatch.setattr(
-            phase_2_injections,
+            target_stage,
             "acquire_tokens_for_instances",
             lambda *_: ["bad credentials"],
         )
         tasks = [self._gitlab_site_task("t1", "__GITLAB__/a/b/-/issues/5")]
         expanded, resources = asyncio.run(
-            phase_2_injections._resolve_benign_target_resources_for_shard(
+            target_stage._resolve_benign_target_resources_for_shard(
                 site_tasks=tasks,
                 instance={"site_name": "gitlab", "site_url": "https://x"},
                 site_name="gitlab",
@@ -240,7 +242,7 @@ class TestResolveBenignTargetResourcesForShard:
             )
         ]
         expanded, resources = asyncio.run(
-            phase_2_injections._resolve_benign_target_resources_for_shard(
+            target_stage._resolve_benign_target_resources_for_shard(
                 site_tasks=tasks,
                 instance={
                     "site_name": "gitlab",
@@ -259,7 +261,7 @@ class TestResolveBenignTargetResourcesForShard:
         monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
         tasks = [self._gitlab_site_task("t1", "__GITLAB__/a/b/-/issues/5")]
         expanded, resources = asyncio.run(
-            phase_2_injections._resolve_benign_target_resources_for_shard(
+            target_stage._resolve_benign_target_resources_for_shard(
                 site_tasks=tasks,
                 instance={
                     "site_name": "gitlab",
@@ -284,7 +286,7 @@ class TestResolveBenignTargetResourcesForShard:
             )
         ]
         expanded, resources = asyncio.run(
-            phase_2_injections._resolve_benign_target_resources_for_shard(
+            target_stage._resolve_benign_target_resources_for_shard(
                 site_tasks=tasks,
                 instance={
                     "site_name": "gitlab",
@@ -313,7 +315,7 @@ class TestResolveBenignTargetResourcesForShard:
             }
         ]
         expanded, resources = asyncio.run(
-            phase_2_injections._resolve_benign_target_resources_for_shard(
+            target_stage._resolve_benign_target_resources_for_shard(
                 site_tasks=tasks,
                 instance={
                     "site_name": "reddit",
@@ -341,7 +343,7 @@ class TestResolveBenignTargetResourcesForShard:
             }
         ]
         expanded, resources = asyncio.run(
-            phase_2_injections._resolve_benign_target_resources_for_shard(
+            target_stage._resolve_benign_target_resources_for_shard(
                 site_tasks=tasks,
                 instance={
                     "site_name": "reddit",
@@ -377,11 +379,11 @@ class TestResolveBenignTargetResourcesForShard:
         def fake_acquire(*_, **__):
             return []
 
-        monkeypatch.setattr(phase_2_injections, "resolve_tasks", fake_resolve_tasks)
-        monkeypatch.setattr(phase_2_injections, "acquire_tokens_for_instances", fake_acquire)
+        monkeypatch.setattr(target_stage, "resolve_tasks", fake_resolve_tasks)
+        monkeypatch.setattr(target_stage, "acquire_tokens_for_instances", fake_acquire)
 
         asyncio.run(
-            phase_2_injections._resolve_benign_target_resources_for_shard(
+            target_stage._resolve_benign_target_resources_for_shard(
                 site_tasks=[self._gitlab_site_task("t1", None)],
                 instance={"site_name": "gitlab", "site_url": "https://x"},
                 site_name="gitlab",
@@ -396,11 +398,11 @@ class TestResolveBenignTargetResourcesForShard:
     def test_target_resolution_persistence_merges_existing_shards(self, tmp_path, monkeypatch):
         monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
 
-        phase_2_injections._persist_target_resolution(
+        target_stage._persist_target_resolution(
             site_name="gitlab",
             resources={"t1": {"kind": "gitlab_issue", "layer": "L3"}},
         )
-        phase_2_injections._persist_target_resolution(
+        target_stage._persist_target_resolution(
             site_name="gitlab",
             resources={"t2": {"kind": "gitlab_mr", "layer": "L4"}},
         )

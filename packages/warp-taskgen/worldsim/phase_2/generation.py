@@ -3,8 +3,13 @@
 
 from __future__ import annotations
 
+from worldsim.phase_2 import target_stage as _target_stage
 from worldsim.phase_2._context import install_context
 from worldsim.phase_2.pause_control import write_planning_shard_checkpoint
+from worldsim.phase_2.target_resolution.constants import (
+    PHASE_2A_SYNTHETIC_PLACEHOLDERS as _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
+)
+from worldsim.phase_2.target_resolution.runner import derive_benign_target_resource
 
 install_context(globals())
 
@@ -71,7 +76,10 @@ async def _generate_injections_for_site(
     # concrete per-item records via suffixed-ID clones. Absent an
     # instance, the offline L1/L2-only path mirrors today's behavior
     # exactly and the task count is preserved.
-    site_tasks, benign_target_resources = await _resolve_benign_target_resources_for_shard(
+    (
+        site_tasks,
+        benign_target_resources,
+    ) = await _target_stage._resolve_benign_target_resources_for_shard(
         site_tasks=site_tasks,
         instance=instance,
         site_name=site_name,
@@ -82,7 +90,7 @@ async def _generate_injections_for_site(
     # expansion with the validator/merge step that runs against
     # *all_site_tasks* by substituting the expanded list whenever
     # expansion actually happened.
-    if any(L4_TASK_ID_SUFFIX in str(t.get("id", "")) for t in site_tasks):
+    if any(_target_stage.L4_TASK_ID_SUFFIX in str(t.get("id", "")) for t in site_tasks):
         all_site_tasks = site_tasks
     exposure_contracts = _build_exposure_contracts_for_shard(
         site_tasks=site_tasks,
@@ -187,7 +195,7 @@ async def _generate_injections_for_site(
     except ValueError as exc:
         return SiteInjectionResult(site_name, [], [f"plan enrichment failed: {exc}"])
     enriched = _select_balanced_subset(enriched, cell_targets)
-    _normalize_l4_benign_task_ids_in_place(enriched)
+    _target_stage._normalize_l4_benign_task_ids_in_place(enriched)
 
     # Persist this shard's validated output to disk immediately so a later
     # orchestrator failure (or another shard's failure) cannot discard it.

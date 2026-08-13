@@ -1,6 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import target_inputs, target_stage
 
 
 def test_validate_reusable_phase_2_task_rejects_legacy_reddit_comment_contract():
@@ -133,7 +134,7 @@ async def test_phase_2_run_reuses_existing_final_tasks_for_text_fill_resume(monk
         status="running",
         phase_2_stage="text_fill",
         sandbox_model="demo",
-        phase_2a_resolution_signature=phase_2_injections._phase_2a_resolution_signature(
+        phase_2a_resolution_signature=target_inputs._phase_2a_resolution_signature(
             Namespace(skip_feasibility=True, sandbox_model="demo")
         ),
     )
@@ -207,7 +208,7 @@ async def test_phase_2_run_reuses_legacy_final_tasks_without_phase_2_stage(monke
         "phase_2",
         status="running",
         sandbox_model="demo",
-        phase_2a_resolution_signature=phase_2_injections._phase_2a_resolution_signature(
+        phase_2a_resolution_signature=target_inputs._phase_2a_resolution_signature(
             Namespace(skip_feasibility=True, sandbox_model="demo")
         ),
     )
@@ -323,7 +324,7 @@ def test_normalize_l4_benign_task_ids_restores_source_id():
         }
     ]
 
-    phase_2_injections._normalize_l4_benign_task_ids_in_place(tasks)
+    target_stage._normalize_l4_benign_task_ids_in_place(tasks)
 
     assert tasks[0]["benign_task_id"] == "benign-1"
 
@@ -345,7 +346,7 @@ async def test_phase_2_run_reuses_legacy_saved_plans_without_phase_2_stage(monke
         "phase_2",
         status="running",
         sandbox_model="demo",
-        phase_2a_resolution_signature=phase_2_injections._phase_2a_resolution_signature(
+        phase_2a_resolution_signature=target_inputs._phase_2a_resolution_signature(
             Namespace(skip_feasibility=True, sandbox_model="demo")
         ),
     )
@@ -390,7 +391,7 @@ async def test_phase_2_run_rejects_stale_same_site_reused_tasks(monkeypatch, tmp
         status="running",
         phase_2_stage="text_fill",
         sandbox_model="demo",
-        phase_2a_resolution_signature=phase_2_injections._phase_2a_resolution_signature(
+        phase_2a_resolution_signature=target_inputs._phase_2a_resolution_signature(
             Namespace(skip_feasibility=True, sandbox_model="demo")
         ),
     )
@@ -433,7 +434,7 @@ async def test_phase_2_run_rejects_reuse_when_texts_per_plan_increases(monkeypat
         status="running",
         phase_2_stage="text_fill",
         sandbox_model="demo",
-        phase_2a_resolution_signature=phase_2_injections._phase_2a_resolution_signature(
+        phase_2a_resolution_signature=target_inputs._phase_2a_resolution_signature(
             Namespace(
                 phase_2b_texts_per_plan=2,
                 skip_feasibility=True,
