@@ -9,11 +9,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from worldsim.phase_2.target_resolution.resolver import derive_benign_target_resource
-from worldsim.phase_2.target_resolution.url_matching import (
+from warp_taskgen.phase_2.target_resolution.resolver import derive_benign_target_resource
+from warp_taskgen.phase_2.target_resolution.url_matching import (
     _disambiguate_root_segment,
 )
-from worldsim.placeholders import placeholders_for_site_urls
+from warp_taskgen.placeholders import placeholders_for_site_urls
 
 PLACEHOLDERS = placeholders_for_site_urls(
     [

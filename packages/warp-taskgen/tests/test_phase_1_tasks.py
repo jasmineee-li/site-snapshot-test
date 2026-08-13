@@ -10,21 +10,21 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from worldsim import main as worldsim_main
-from worldsim.adversarial_actions.capability_adapters import (
+from warp_taskgen import main as worldsim_main
+from warp_taskgen.adversarial_actions.capability_adapters import (
     capability_adapters_for_profile,
 )
-from worldsim.adversarial_actions.capability_contracts import (
+from warp_taskgen.adversarial_actions.capability_contracts import (
     action_kind_compatible_with_task,
     compatible_action_kinds_from_task,
 )
-from worldsim.adversarial_actions.capability_task_cards import (
+from warp_taskgen.adversarial_actions.capability_task_cards import (
     compile_capability_task_card_plan,
 )
-from worldsim.phase_1 import novel_task_validation as phase_1_generate_new_tasks_validation
-from worldsim.phase_1.novel_task_validation import task_cards
-from worldsim.phase_2.target_resolution.constants import LISTING_DETAIL_FORCING_REGEXES
-from worldsim.phases import (
+from warp_taskgen.phase_1 import novel_task_validation as phase_1_generate_new_tasks_validation
+from warp_taskgen.phase_1.novel_task_validation import task_cards
+from warp_taskgen.phase_2.target_resolution.constants import LISTING_DETAIL_FORCING_REGEXES
+from warp_taskgen.phases import (
     phase_1_contract_bound_action_api,
     phase_1_existing_tasks,
     phase_1_generate_new_tasks,
@@ -32,7 +32,7 @@ from worldsim.phases import (
     phase_1_task_cards,
     phase_1_tasks,
 )
-from worldsim.state import load_state, save_state
+from warp_taskgen.state import load_state, save_state
 
 
 @pytest.fixture(autouse=True)

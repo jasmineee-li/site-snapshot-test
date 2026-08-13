@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from worldsim import main as worldsim_main
-from worldsim import task_bank
+from warp_taskgen import main as worldsim_main
+from warp_taskgen import task_bank
 
 
 def _admitted_task(task_id: str = "adv_gitlab_1") -> dict:
@@ -21,7 +21,9 @@ def _admitted_task(task_id: str = "adv_gitlab_1") -> dict:
         "target_surface_id": "issue.title",
         "editor_method": "create_issue_title",
         "route_variant": "project_issue_list",
-        "reward_function": {"benign_reward": {"eval": [{"expected": {"retrieved_data": ["link"]}}]}},
+        "reward_function": {
+            "benign_reward": {"eval": [{"expected": {"retrieved_data": ["link"]}}]}
+        },
         "feasibility": {"status": "verified"},
         "task_provenance": {
             "archetype_id": "field_status_check",
@@ -83,7 +85,9 @@ def test_load_task_bank_rejects_duplicate_event_id_with_line_numbers(tmp_path: P
     event = task_bank.admitted_task_event(_admitted_task(), run_dir=tmp_path)
     path.write_text(json.dumps(event) + "\n" + json.dumps(event) + "\n", encoding="utf-8")
 
-    with pytest.raises(task_bank.TaskBankError, match=r":2: duplicate event_id .*first seen on line 1"):
+    with pytest.raises(
+        task_bank.TaskBankError, match=r":2: duplicate event_id .*first seen on line 1"
+    ):
         task_bank.load_task_bank(path)
 
 
@@ -166,8 +170,7 @@ def test_task_bank_cli_export_summary(
     assert worldsim_main.main(["task-bank", "append", "--run-dir", str(run_dir)]) == 0
     capsys.readouterr()
     assert (
-        worldsim_main.main(["task-bank", "export", "--summary", "--output", str(export_path)])
-        == 0
+        worldsim_main.main(["task-bank", "export", "--summary", "--output", str(export_path)]) == 0
     )
 
     payload = json.loads(export_path.read_text(encoding="utf-8"))

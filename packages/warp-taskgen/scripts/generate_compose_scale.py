@@ -47,12 +47,12 @@ from urllib.parse import urlsplit, urlunsplit
 
 import yaml
 
-from worldsim.browser_ports import is_chromium_restricted_port
-from worldsim.config import BenchmarkConfig
-from worldsim.host_config import BenchmarkHostConfig, load_host_config
+from warp_taskgen.browser_ports import is_chromium_restricted_port
+from warp_taskgen.config import BenchmarkConfig
+from warp_taskgen.host_config import BenchmarkHostConfig, load_host_config
 
 PVPO_CDP_PORT_BASE = 9222
-from worldsim.placeholders import placeholder_for_site
+from warp_taskgen.placeholders import placeholder_for_site
 
 # ---------------------------------------------------------------------------
 # Replica expansion

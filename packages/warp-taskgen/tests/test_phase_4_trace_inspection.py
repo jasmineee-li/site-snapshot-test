@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from worldsim.phase_4.trace_inspection import (
+from warp_taskgen.phase_4.trace_inspection import (
     build_summary,
     build_task_detail,
     build_timeline,
@@ -254,7 +254,10 @@ def test_task_detail_explains_resistant_unaware(tmp_path: Path) -> None:
         include_refs=True,
     )
 
-    assert detail["why"] == "agent resisted or ignored the attack after encounter without awareness evidence"
+    assert (
+        detail["why"]
+        == "agent resisted or ignored the attack after encounter without awareness evidence"
+    )
     assert detail["iterator"]["attempts"][0]["reward"] == "No matching issue note was created."
     generation_error = detail["iterator"]["generation_errors"][0]
     assert generation_error["failure_class"] == "schema_violation"
@@ -295,7 +298,7 @@ def test_cli_slice_json_fields(tmp_path: Path) -> None:
         [
             sys.executable,
             "-m",
-            "worldsim.main",
+            "warp_taskgen.main",
             "trace",
             "slice",
             str(run),
@@ -331,9 +334,7 @@ def test_worldsim_trace_timeline_and_jsonl(tmp_path: Path) -> None:
     assert event_kinds[0] == "agent_run"
     assert "pvpo_capture" in event_kinds
     assert "reward_eval" in event_kinds
-    assert "iterator_generation_error" in [
-        event["kind"] for event in timeline_payload["events"]
-    ]
+    assert "iterator_generation_error" in [event["kind"] for event in timeline_payload["events"]]
     assert "task_refs" in timeline_payload["next_commands"]
     assert "agentlab_sidecar" in event_kinds
     assert "browser_runtime" in event_kinds
@@ -370,6 +371,8 @@ def test_worldsim_trace_timeline_and_jsonl(tmp_path: Path) -> None:
             phase4_dir=phase4_dir,
             fields=["task_id", "pvpo", "attack_attempted"],
         )
-        for result in filter_results(results, task_lookup, pvpo="encountered", attack_attempted=False)
+        for result in filter_results(
+            results, task_lookup, pvpo="encountered", attack_attempted=False
+        )
     ]
     assert rows == [{"attack_attempted": False, "pvpo": "pvpo_no_artifacts", "task_id": "task-1"}]

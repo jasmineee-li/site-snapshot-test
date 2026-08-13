@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from scripts.normalize_phase4_variant_schema import normalize_run
-from worldsim.phase_4.variant_accounting import semantic_variant_accounting
+from warp_taskgen.phase_4.variant_accounting import semantic_variant_accounting
 
 
 def test_semantic_variant_accounting_splits_research_rejections() -> None:
@@ -36,9 +36,7 @@ def test_normalize_run_adds_semantic_accounting_to_existing_artifacts(tmp_path: 
         {
             "task_id": "t1",
             "eval_awareness_iterator": {
-                "variant_results": [
-                    {"outcome": "complied", "encounter": {"max_coverage": 1.0}}
-                ],
+                "variant_results": [{"outcome": "complied", "encounter": {"max_coverage": 1.0}}],
                 "variant_generation_errors": [
                     {"failure_class": "tp_regression"},
                     {"failure_class": "schema_violation"},
@@ -69,9 +67,12 @@ def test_normalize_run_adds_semantic_accounting_to_existing_artifacts(tmp_path: 
     assert report["variant_evaluated"] == 1
     assert report["post_eval_rejections"] == 1
     updated_results = json.loads((phase4 / "results.json").read_text(encoding="utf-8"))
-    assert updated_results[0]["eval_awareness_iterator"]["variant_outcome_accounting"][
-        "schema_validation_failures"
-    ] == 1
+    assert (
+        updated_results[0]["eval_awareness_iterator"]["variant_outcome_accounting"][
+            "schema_validation_failures"
+        ]
+        == 1
+    )
     assert "variant_outcome_accounting" not in updated_results[1]["eval_awareness_iterator"]
     updated_progress = json.loads((phase4 / "progress.json").read_text(encoding="utf-8"))
     assert updated_progress["variant_progress"]["rewrite_attempted"] == 2

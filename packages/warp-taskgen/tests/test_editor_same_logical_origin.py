@@ -13,9 +13,9 @@ from __future__ import annotations
 
 from urllib.parse import urlparse
 
-from worldsim import http_proxy
-from worldsim.editors.base import _same_logical_origin
-from worldsim.http_proxy import ProxyInfo
+from warp_taskgen import http_proxy
+from warp_taskgen.editors.base import _same_logical_origin
+from warp_taskgen.http_proxy import ProxyInfo
 
 
 def _u(url: str):

@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).parents[3]
-PHASE_2_ROOT = PACKAGE_ROOT / "worldsim" / "phase_2"
+PHASE_2_ROOT = PACKAGE_ROOT / "warp_taskgen" / "phase_2"
 STAGE_ROOT = PHASE_2_ROOT / "phase_2c"
 
 
@@ -30,18 +30,18 @@ def test_phase_2c_stage_has_explicit_owner_dependencies() -> None:
     source = _source("stage.py")
     assert "install_context" not in source
     assert "ruff: noqa: F821" not in source
-    assert "from worldsim.phase_2.phase_2c import artifacts as _phase_2c_artifacts" in source
-    assert "from worldsim.phase_2.phase_2c.runner import verify_feasibility" in source
-    assert "from worldsim.phase_2.phase_2c.types import FeasibilityReport" in source
+    assert "from warp_taskgen.phase_2.phase_2c import artifacts as _phase_2c_artifacts" in source
+    assert "from warp_taskgen.phase_2.phase_2c.runner import verify_feasibility" in source
+    assert "from warp_taskgen.phase_2.phase_2c.types import FeasibilityReport" in source
 
 
 def test_phase_2c_stage_and_runner_import_in_either_order() -> None:
     """Import order must not decide whether stage dependencies exist."""
     _import_smoke(
-        "from worldsim.phase_2.phase_2c import stage, runner; "
+        "from warp_taskgen.phase_2.phase_2c import stage, runner; "
         "assert stage._run_feasibility_stage; assert runner.verify_feasibility"
     )
     _import_smoke(
-        "from worldsim.phase_2.phase_2c import runner, stage; "
+        "from warp_taskgen.phase_2.phase_2c import runner, stage; "
         "assert stage._run_feasibility_stage; assert runner.verify_feasibility"
     )

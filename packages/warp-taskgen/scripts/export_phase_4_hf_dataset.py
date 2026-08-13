@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from worldsim.phase_4.hf_dataset_export import (
+from warp_taskgen.phase_4.hf_dataset_export import (
     DEFAULT_DATASET_ID,
     export_hf_dataset,
     parse_run_specs,

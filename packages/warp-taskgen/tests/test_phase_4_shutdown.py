@@ -4,8 +4,8 @@ import asyncio
 import os
 import time
 
-from worldsim import browser_use_agent
-from worldsim.main import (
+from warp_taskgen import browser_use_agent
+from warp_taskgen.main import (
     _phase4_async_shutdown_timeout,
     _run_phase4_with_bounded_async_shutdown,
 )

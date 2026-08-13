@@ -1,4 +1,4 @@
-"""Unit tests for ``worldsim.instance_selection``.
+"""Unit tests for ``warp_taskgen.instance_selection``.
 
 Covers both the ``BenchmarkInstance``-typed :func:`select_task_site_instance`
 and the dict-valued :func:`select_task_site_instance_dict` used by Phase 2c
@@ -13,8 +13,8 @@ from typing import Any
 
 import pytest
 
-from worldsim.config import BenchmarkInstance
-from worldsim.instance_selection import (
+from warp_taskgen.config import BenchmarkInstance
+from warp_taskgen.instance_selection import (
     replica_key,
     select_task_site_instance,
     select_task_site_instance_dict,

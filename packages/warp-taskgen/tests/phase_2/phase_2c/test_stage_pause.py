@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.phase_2.phase_2c import stage as phase_2_stage
-from worldsim.phase_2.phase_2c.types import FeasibilityReport
-from worldsim.run_control import PauseBoundaryReached, request_pause
+from warp_taskgen.phase_2.phase_2c import stage as phase_2_stage
+from warp_taskgen.phase_2.phase_2c.types import FeasibilityReport
+from warp_taskgen.run_control import PauseBoundaryReached, request_pause
 
 
 def _task() -> dict[str, object]:

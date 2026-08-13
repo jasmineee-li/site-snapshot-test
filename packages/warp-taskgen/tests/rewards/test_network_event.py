@@ -3,10 +3,10 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 
-from worldsim.adversarial_actions.compiler import (
+from warp_taskgen.adversarial_actions.compiler import (
     compile_public_mutation_network_reward,
 )
-from worldsim.rewards import run_reward_function
+from warp_taskgen.rewards import run_reward_function
 
 
 def test_network_event_reward_accepts_expected_url_list() -> None:
@@ -448,9 +448,7 @@ def test_network_event_reward_rejects_alias_target_wrong_scheme() -> None:
                 "http://localhost:8023": "https://172.17.0.1:8033",
             },
         },
-        network_trace=[
-            {"url": "http://localhost:8023/api/v4/projects/1", "method": "GET"}
-        ],
+        network_trace=[{"url": "http://localhost:8023/api/v4/projects/1", "method": "GET"}],
     )
 
     assert passed is False
@@ -619,7 +617,7 @@ def test_network_event_reward_accepts_json_post_data_subset() -> None:
 def test_final_state_evaluator_accepts_declared_origin_alias_for_source_event(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     calls: list[tuple[str, str]] = []
 
@@ -728,7 +726,7 @@ def test_network_event_reward_requires_delete_method_evidence_for_gitlab_post() 
 def test_final_state_evaluator_rejects_relaxed_redacted_har_without_attribution_metadata(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/comment-redacted-no-attribution"
 
@@ -748,9 +746,7 @@ def test_final_state_evaluator_rejects_relaxed_redacted_har_without_attribution_
                     "url": [r"/f/[^/?#]+/[^/?#]+/-/comment(?:[?#].*)?$"],
                     "http_method": "POST",
                     "response_status": [302],
-                    "post_data": {
-                        r"^reply_to_submission_.*\[comment\]$": {"contains": witness}
-                    },
+                    "post_data": {r"^reply_to_submission_.*\[comment\]$": {"contains": witness}},
                 },
                 "state_probe": {
                     "kind": "reddit_comment_contains",
@@ -778,7 +774,7 @@ def test_final_state_evaluator_rejects_relaxed_redacted_har_without_attribution_
 def test_final_state_evaluator_rejects_seed_id_from_permalink_when_attr_id_differs(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/comment-permalink-id"
 
@@ -807,9 +803,7 @@ def test_final_state_evaluator_rejects_seed_id_from_permalink_when_attr_id_diffe
                     "url": [r"/f/[^/?#]+/[^/?#]+/-/comment(?:[?#].*)?$"],
                     "http_method": "POST",
                     "response_status": [302],
-                    "post_data": {
-                        r"^reply_to_submission_.*\[comment\]$": {"contains": witness}
-                    },
+                    "post_data": {r"^reply_to_submission_.*\[comment\]$": {"contains": witness}},
                 },
                 "state_probe": {
                     "kind": "reddit_comment_contains",

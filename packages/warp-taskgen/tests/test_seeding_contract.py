@@ -3,13 +3,13 @@ refactor).
 
 Covers:
 
-* :class:`worldsim.seeding.UnboundTokenError` payload shape + behavior.
-* :func:`worldsim.seeding._assert_benign_tokens_bound` accepts valid
+* :class:`warp_taskgen.seeding.UnboundTokenError` payload shape + behavior.
+* :func:`warp_taskgen.seeding._assert_benign_tokens_bound` accepts valid
   tokens, rejects phantom tokens, and no-ops on records without a
   ``benign_target_resource`` or with a null kind.
-* :func:`worldsim.seeding._collect_benign_tokens` walks nested values
+* :func:`warp_taskgen.seeding._collect_benign_tokens` walks nested values
   correctly.
-* :func:`worldsim.phase_2.phase_2c._impl._verify_one` categorizes
+* :func:`warp_taskgen.phase_2.phase_2c._impl._verify_one` categorizes
   ``UnboundTokenError`` as ``error.kind = "contract_violation"``,
   distinct from ``"schema_mismatch"``.
 """
@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from worldsim.seeding import (
+from warp_taskgen.seeding import (
     UnboundTokenError,
     _assert_benign_tokens_bound,
     _collect_benign_tokens,
@@ -195,6 +195,6 @@ class TestFeasibilityCategorization:
         # guard — a full integration test would require a live instance.
         from pathlib import Path
 
-        src = Path("worldsim/phase_2/phase_2c/_impl.py").read_text()
+        src = Path("warp_taskgen/phase_2/phase_2c/_impl.py").read_text()
         assert "except UnboundTokenError" in src
         assert 'kind="contract_violation"' in src

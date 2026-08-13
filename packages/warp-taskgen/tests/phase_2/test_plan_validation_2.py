@@ -1,8 +1,8 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
-from worldsim.phase_2 import plan_validation
-from worldsim.seed_contracts import validation as seed_validation
+from warp_taskgen.phase_2 import plan_validation
+from warp_taskgen.seed_contracts import validation as seed_validation
 
 
 def test_validate_generated_adversarial_tasks_rejects_legacy_shaped_task_with_payload_texts():
@@ -109,7 +109,7 @@ def test_unresolved_http_template_token_regex_narrowed_to_identifier_shape(text,
     ``{name}`` tokens so realistic UGC bodies (embedded JSON, curl snippets, shell
     expansions) do not false-positive as unresolved templates.
 
-    See worldsim.seed_contracts.validation:_UNRESOLVED_HTTP_TEMPLATE_TOKEN and
+    See warp_taskgen.seed_contracts.validation:_UNRESOLVED_HTTP_TEMPLATE_TOKEN and
     the adv-175-urgency-plaintext incident where a generated curl example
     containing ``{"cart_id": "test-123"}`` tripped the old ``\\{[^}/]+\\}`` pattern.
     """

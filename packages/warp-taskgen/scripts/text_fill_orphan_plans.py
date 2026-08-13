@@ -37,16 +37,16 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-# Match worldsim.main:28 — load .env before any module that may need
+# Match warp_taskgen.main:28 — load .env before any module that may need
 # Anthropic credentials is imported.
 load_dotenv(override=True)
 
-from worldsim.phase_2.text_fill.constants import (
+from warp_taskgen.phase_2.text_fill.constants import (
     DEFAULT_TEXT_FILL_CONCURRENCY,
     DEFAULT_TEXT_FILL_MODEL,
     DEFAULT_TEXTS_PER_PLAN,
 )
-from worldsim.phase_2.text_fill.service import fill_texts_for_tasks
+from warp_taskgen.phase_2.text_fill.service import fill_texts_for_tasks
 
 
 def _load_json_array(path: Path) -> list[dict[str, Any]]:

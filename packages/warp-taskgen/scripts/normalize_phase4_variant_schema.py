@@ -16,8 +16,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from worldsim.atomic_io import write_json_atomic
-from worldsim.phase_4.variant_accounting import semantic_variant_accounting
+from warp_taskgen.atomic_io import write_json_atomic
+from warp_taskgen.phase_4.variant_accounting import semantic_variant_accounting
 
 
 def _load_json(path: Path) -> Any:
@@ -50,7 +50,11 @@ def _variation_entered(variation: dict[str, Any]) -> bool:
 def _variant_accounting_for_variation(variation: dict[str, Any]) -> dict[str, int]:
     raw_variants = variation.get("variant_results")
     raw_errors = variation.get("variant_generation_errors")
-    variant_results = [item for item in raw_variants if isinstance(item, dict)] if isinstance(raw_variants, list) else []
+    variant_results = (
+        [item for item in raw_variants if isinstance(item, dict)]
+        if isinstance(raw_variants, list)
+        else []
+    )
     generation_errors = raw_errors if isinstance(raw_errors, list) else []
     return semantic_variant_accounting(
         variant_results=variant_results,

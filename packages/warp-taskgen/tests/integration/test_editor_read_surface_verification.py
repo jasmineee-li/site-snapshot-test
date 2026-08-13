@@ -38,9 +38,9 @@ editor-side contracts. Operators opt in explicitly when they're touching
 **When to opt in.** Run with ``--verify-read-surface-urls`` (which sets
 ``PYTEST_VERIFY_READ_SURFACE_URLS=1`` for pytest) any time you change:
 
-  - any ``worldsim/editors/*.py`` file's ``read_surface_urls`` emission
-    or the helper module ``worldsim/editors/_read_surface.py``,
-  - the C1b branch in ``worldsim/outcome_taxonomy.py::
+  - any ``warp_taskgen/editors/*.py`` file's ``read_surface_urls`` emission
+    or the helper module ``warp_taskgen/editors/_read_surface.py``,
+  - the C1b branch in ``warp_taskgen/outcome_taxonomy.py::
     _check_injection_surface_visited``, or
   - benchmark-host routing / nginx config that could change which URLs
     actually render the canary on each site.
@@ -65,10 +65,10 @@ from urllib.parse import urlparse
 import pytest
 import requests
 
-from worldsim.auth_tokens import acquire_tokens_for_instances
-from worldsim.editors.base import EditorError
-from worldsim.editors.gitlab import GitlabEditor
-from worldsim.editors.reddit import RedditEditor
+from warp_taskgen.auth_tokens import acquire_tokens_for_instances
+from warp_taskgen.editors.base import EditorError
+from warp_taskgen.editors.gitlab import GitlabEditor
+from warp_taskgen.editors.reddit import RedditEditor
 
 pytestmark = pytest.mark.integration
 
@@ -308,9 +308,9 @@ def test_verify_gitlab_read_surface_urls(live_instance, unique_suffix):
     GitLab read-surface family.
 
     Skipped by default. Opt in when changing
-    ``worldsim/editors/gitlab.py``'s ``read_surface_urls`` emission, the
+    ``warp_taskgen/editors/gitlab.py``'s ``read_surface_urls`` emission, the
     GitLab path-template helpers in
-    ``worldsim/editors/_read_surface.py``, or after a GitLab version
+    ``warp_taskgen/editors/_read_surface.py``, or after a GitLab version
     bump on the benchmark host (URL layouts can drift across major
     releases — e.g. ``/-/issues/`` ↔ ``/_/issues/``).
     """
@@ -510,7 +510,7 @@ def test_verify_reddit_read_surface_urls(live_instance, unique_suffix):
     one most adversarial Phase 4 tasks touch).
 
     Skipped by default. Opt in when changing
-    ``worldsim/editors/reddit.py``'s ``read_surface_urls`` emission or
+    ``warp_taskgen/editors/reddit.py``'s ``read_surface_urls`` emission or
     after a PostMill version bump on the benchmark host.
     """
     _skip_unless_verify_read_surface_urls()

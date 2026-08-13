@@ -5,9 +5,9 @@ import copy
 import pytest
 import requests
 
-from worldsim.auth_tokens import acquire_tokens_for_instances
-from worldsim.editors.base import EditorError
-from worldsim.editors.gitlab import GitlabEditor
+from warp_taskgen.auth_tokens import acquire_tokens_for_instances
+from warp_taskgen.editors.base import EditorError
+from warp_taskgen.editors.gitlab import GitlabEditor
 
 pytestmark = pytest.mark.integration
 
@@ -155,12 +155,16 @@ def test_gitlab_live_issue_mr_repo_and_profile_methods(live_instance, unique_suf
 
             assert issue_payload["title"] == issue_title
             assert isinstance(issue_notes, list) and any(
-                isinstance(note, dict) and note.get("id") == issue_note["note_id"] and note.get("body") == issue_note_body
+                isinstance(note, dict)
+                and note.get("id") == issue_note["note_id"]
+                and note.get("body") == issue_note_body
                 for note in issue_notes
             )
             assert merge_request_payload["title"] == mr_title
             assert isinstance(mr_notes, list) and any(
-                isinstance(note, dict) and note.get("id") == mr_note["note_id"] and note.get("body") == mr_note_body
+                isinstance(note, dict)
+                and note.get("id") == mr_note["note_id"]
+                and note.get("body") == mr_note_body
                 for note in mr_notes
             )
             assert repo_file["commit_id"] not in (None, "")

@@ -7,16 +7,16 @@ from typing import Any
 
 import pytest
 
-from worldsim.phase_2.phase_2c import source_data_preflight
-from worldsim.phase_2.phase_2c.policy import (
+from warp_taskgen.phase_2.phase_2c import source_data_preflight
+from warp_taskgen.phase_2.phase_2c.policy import (
     FeasibilityPolicyCatalog,
     PreflightClassification,
     ProbeTarget,
     SourceDataDecision,
     default_feasibility_policy_catalog,
 )
-from worldsim.phase_2.phase_2c.webarena_policy import WebArenaFeasibilityPolicy
-from worldsim.phases.phase_2c_preflight import _task_probe_targets, preflight_benign_targets
+from warp_taskgen.phase_2.phase_2c.webarena_policy import WebArenaFeasibilityPolicy
+from warp_taskgen.phases.phase_2c_preflight import _task_probe_targets, preflight_benign_targets
 
 
 @dataclass(frozen=True)
@@ -287,8 +287,8 @@ def test_canonical_source_preflight_threads_policy_catalog_to_probe(monkeypatch)
 
 
 def test_legacy_policy_facade_preserves_registry_lifecycle() -> None:
-    from worldsim.phase_2c import policy as legacy_policy
-    from worldsim.phase_2c import webarena as legacy_webarena
+    from warp_taskgen.phase_2c import policy as legacy_policy
+    from warp_taskgen.phase_2c import webarena as legacy_webarena
 
     legacy_policy = importlib.reload(legacy_policy)
     assert legacy_policy.get_feasibility_policy("WebArena Verified", "gitlab") is not None

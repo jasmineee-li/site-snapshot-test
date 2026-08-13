@@ -12,14 +12,14 @@ import json
 
 import pytest
 
-from worldsim.editors import _registry
-from worldsim.editors._method_spec import (
+from warp_taskgen.editors import _registry
+from warp_taskgen.editors._method_spec import (
     FreeText,
     SelectorGroup,
     Token,
     editor_method,
 )
-from worldsim.editors._registry import (
+from warp_taskgen.editors._registry import (
     EditorMethodSpec,
     KindContract,
     RegistryError,

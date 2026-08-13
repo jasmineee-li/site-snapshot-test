@@ -3,7 +3,7 @@
 Phase 2's URL-shape resolver disambiguates ``/<segment>`` gitlab URLs as
 user_profile vs group via ``agent_context.gitlab.{user_handles,group_handles}``.
 The lists are produced by Phase 0c (see
-:mod:`worldsim.phases.phase_0c_handle_enrichment`) and threaded through
+:mod:`warp_taskgen.phases.phase_0c_handle_enrichment`) and threaded through
 Phase 1's existing ``_attach_agent_context_to_tasks`` flow. If anyone
 later rewrites that flow to drop unknown agent_context keys, the
 resolver silently degrades for every gitlab new_task entry. This test
@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from worldsim.phases import phase_1_generate_new_tasks
+from warp_taskgen.phases import phase_1_generate_new_tasks
 
 
 def _profile(uncovered: list[str]) -> dict:

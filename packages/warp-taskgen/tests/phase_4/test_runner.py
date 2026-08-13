@@ -72,7 +72,7 @@ async def test_phase_4_run_rejects_non_worldsim_v5_benchmark(monkeypatch, tmp_pa
 
 @pytest.mark.asyncio
 async def test_phase_4_run_clears_storage_error_after_retry_success(monkeypatch, tmp_path):
-    from worldsim import storage_state_preflight
+    from warp_taskgen import storage_state_preflight
 
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "phase_2").mkdir(parents=True)

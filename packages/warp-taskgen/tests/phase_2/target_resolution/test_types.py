@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_2_target_resolver.py; shared helpers live in tests/phase_2/target_resolution/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 class TestAnchorContractConformance:
     def test_none_kind_passes(self) -> None:
         _assert_anchor_contract_conformance({"kind": None, "anchors": {}})

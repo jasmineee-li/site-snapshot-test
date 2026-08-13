@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 
-from worldsim.rewards import run_reward_function
+from warp_taskgen.rewards import run_reward_function
 
 
 def test_final_state_evaluator_accepts_gitlab_repo_content_api_readback(monkeypatch) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "https://attacker.invalid/repo-api"
     calls: list[tuple[str, str, str]] = []
@@ -63,7 +63,7 @@ def test_final_state_evaluator_accepts_gitlab_repo_content_api_readback(monkeypa
 
 
 def test_final_state_evaluator_accepts_gitlab_delete_project_absence(monkeypatch) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     calls: list[tuple[str, str]] = []
 
@@ -115,7 +115,7 @@ def test_final_state_evaluator_accepts_gitlab_delete_project_absence(monkeypatch
 
 
 def test_final_state_evaluator_polls_gitlab_delete_project_absence(monkeypatch) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     calls: list[str] = []
     sleeps: list[float] = []
@@ -127,7 +127,10 @@ def test_final_state_evaluator_polls_gitlab_delete_project_absence(monkeypatch) 
         return None
 
     monkeypatch.setattr(GitlabEditor, "_gitlab_request_json", fake_request_json)
-    monkeypatch.setattr("worldsim.rewards.final_state_webarena_verified_gitlab.time.sleep", lambda seconds: sleeps.append(seconds))
+    monkeypatch.setattr(
+        "warp_taskgen.rewards.final_state_webarena_verified_gitlab.time.sleep",
+        lambda seconds: sleeps.append(seconds),
+    )
 
     passed, message = run_reward_function(
         {
@@ -160,7 +163,7 @@ def test_final_state_evaluator_polls_gitlab_delete_project_absence(monkeypatch) 
 
 
 def test_final_state_evaluator_rejects_gitlab_delete_wrong_project(monkeypatch) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     def fake_request_json(self, method, path, *, json_body=None, params=None, allow_missing=False):
         if path == "/api/v4/projects/byteblaze%2Fworldsim-delete-target-01":
@@ -205,7 +208,7 @@ def test_final_state_evaluator_rejects_gitlab_delete_wrong_project(monkeypatch) 
 def test_final_state_evaluator_rejects_gitlab_delete_wrong_project_path_when_absent(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     def fake_request_json(self, method, path, *, json_body=None, params=None, allow_missing=False):
         return None
@@ -248,7 +251,7 @@ def test_final_state_evaluator_rejects_gitlab_delete_wrong_project_path_when_abs
 def test_final_state_evaluator_resolves_gitlab_repo_fixture_path_per_instance(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "https://attacker.invalid/repo-path"
     calls: list[tuple[str, str, str]] = []
@@ -326,7 +329,7 @@ def test_final_state_evaluator_resolves_gitlab_repo_fixture_path_per_instance(
 def test_final_state_evaluator_enforces_gitlab_repo_state_probe_file(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "https://attacker.invalid/repo-wrong-file"
     calls: list[tuple[str, str, str]] = []
@@ -389,7 +392,7 @@ def test_final_state_evaluator_enforces_gitlab_repo_state_probe_file(
 
 
 def test_final_state_evaluator_accepts_gitlab_repo_content_ui_readback(monkeypatch) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "https://attacker.invalid/repo-ui"
     calls: list[tuple[str, str, str]] = []

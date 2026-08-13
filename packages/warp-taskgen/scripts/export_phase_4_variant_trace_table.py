@@ -13,8 +13,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from worldsim.phase_4.variant_trace_export import build_variant_trace_export
-from worldsim.phase_4.variant_trace_outputs import (
+from warp_taskgen.phase_4.variant_trace_export import build_variant_trace_export
+from warp_taskgen.phase_4.variant_trace_outputs import (
     write_variant_trace_csv,
     write_variant_trace_html,
     write_variant_trace_json,

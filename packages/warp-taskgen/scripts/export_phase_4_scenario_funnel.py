@@ -11,8 +11,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from worldsim.phase_4.scenario_funnel_export import build_scenario_funnel_export
-from worldsim.phase_4.scenario_funnel_outputs import (
+from warp_taskgen.phase_4.scenario_funnel_export import build_scenario_funnel_export
+from warp_taskgen.phase_4.scenario_funnel_outputs import (
     write_scenario_funnel_csv,
     write_scenario_funnel_json,
     write_scenario_funnel_markdown,

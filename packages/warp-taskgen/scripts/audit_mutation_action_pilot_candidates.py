@@ -17,16 +17,14 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from worldsim.adversarial_actions import (
+from warp_taskgen.adversarial_actions import (
     allowed_action_options,
     compile_adversarial_reward,
     get_action_spec,
     reward_signal_for_task,
 )
 
-_MUTATION_KINDS = frozenset(
-    {"submit_comment", "create_post", "create_issue_note", "create_issue"}
-)
+_MUTATION_KINDS = frozenset({"submit_comment", "create_post", "create_issue_note", "create_issue"})
 
 
 def analyze_adversarial_tasks(
@@ -142,11 +140,7 @@ def analyze_adversarial_tasks(
             required=require_benign_action_evidence,
         )
         risks = sorted(
-            {
-                risk
-                for action in action_rows
-                for risk in action.get("risks", [])
-            }
+            {risk for action in action_rows for risk in action.get("risks", [])}
             | set(benign_action_risks)
         )
         for risk in risks:
@@ -271,17 +265,13 @@ def _network_reward_evidence(reward: Mapping[str, Any] | None) -> dict[str, Any]
         "type": evaluator_type,
         "http_method": expected.get("http_method"),
         "has_state_probe": isinstance(state_probe, Mapping),
-        "state_probe_kind": (
-            state_probe.get("kind") if isinstance(state_probe, Mapping) else None
-        ),
+        "state_probe_kind": (state_probe.get("kind") if isinstance(state_probe, Mapping) else None),
         "has_post": str(expected.get("http_method") or "").upper() == "POST",
         "response_status": expected.get("response_status"),
         "has_response_status": bool(expected.get("response_status")),
         "has_body_evidence": bool(expected.get("post_data") or expected.get("post_data_contains")),
         "has_path_specific_url_pattern": any(
-            isinstance(pattern, str)
-            and pattern.strip()
-            and pattern.strip() not in {".*", "*"}
+            isinstance(pattern, str) and pattern.strip() and pattern.strip() not in {".*", "*"}
             for pattern in patterns
         ),
         "url_patterns": patterns,
@@ -566,15 +556,13 @@ def main(argv: list[str] | None = None) -> int:
     adversarial_tasks_path = _resolve_adversarial_tasks_path(args.adversarial_tasks)
     if not adversarial_tasks_path.exists():
         print(
-            "ERROR: adversarial tasks artifact not found: "
-            f"{adversarial_tasks_path}",
+            f"ERROR: adversarial tasks artifact not found: {adversarial_tasks_path}",
             file=sys.stderr,
         )
         return 1
     if adversarial_tasks_path.is_dir():
         print(
-            "ERROR: adversarial tasks artifact is a directory: "
-            f"{adversarial_tasks_path}",
+            f"ERROR: adversarial tasks artifact is a directory: {adversarial_tasks_path}",
             file=sys.stderr,
         )
         return 1
@@ -593,10 +581,7 @@ def main(argv: list[str] | None = None) -> int:
         report["failed_compilations"] > 0
         or report["risk_failures"] > 0
         or report["candidate_tasks"] < args.min_candidates
-        or (
-            args.require_benign_action_evidence
-            and report["benign_action_evidence_failures"] > 0
-        )
+        or (args.require_benign_action_evidence and report["benign_action_evidence_failures"] > 0)
     )
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))

@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from worldsim.host_config import load_host_config
+from warp_taskgen.host_config import load_host_config
 
 
 def _port_from_url(raw: str | None) -> int | None:
@@ -38,7 +38,9 @@ def _parse_instances_payload(instances_path: Path) -> list[dict[str, str | None]
         if not isinstance(site_url, str) or not site_url.strip():
             raise ValueError(f"instances[{index}].site_url must be a non-empty string")
         if _port_from_url(site_url) is None:
-            raise ValueError(f"instances[{index}].site_url must include an explicit port: {site_url!r}")
+            raise ValueError(
+                f"instances[{index}].site_url must include an explicit port: {site_url!r}"
+            )
         reset_endpoint = instance.get("reset_endpoint")
         if reset_endpoint is not None:
             if not isinstance(reset_endpoint, str) or not reset_endpoint.strip():

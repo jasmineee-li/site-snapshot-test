@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from worldsim.browser_use_agent import _NetworkTraceRecorder
+from warp_taskgen.browser_use_agent import _NetworkTraceRecorder
 
 
 def _recorder(tmp_path: Path) -> _NetworkTraceRecorder:

@@ -1,8 +1,8 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from .._fixtures import *  # noqa: F403,F401
-from worldsim.phase_2 import plan_validation, reuse
-from worldsim.phase_2.phase_2c import stage as phase_2_stage
+from warp_taskgen.phase_2 import plan_validation, reuse
+from warp_taskgen.phase_2.phase_2c import stage as phase_2_stage
 
 
 @pytest.mark.asyncio

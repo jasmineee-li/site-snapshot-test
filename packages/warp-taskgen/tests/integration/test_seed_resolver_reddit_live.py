@@ -5,9 +5,9 @@ import re
 import pytest
 import requests
 
-from worldsim.auth_tokens import acquire_tokens_for_instances
-from worldsim.editors.base import EditorError
-from worldsim.editors.reddit import RedditEditor
+from warp_taskgen.auth_tokens import acquire_tokens_for_instances
+from warp_taskgen.editors.base import EditorError
+from warp_taskgen.editors.reddit import RedditEditor
 
 pytestmark = pytest.mark.integration
 

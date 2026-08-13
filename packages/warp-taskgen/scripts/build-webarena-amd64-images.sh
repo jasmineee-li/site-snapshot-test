@@ -17,7 +17,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WEBARENA_SOURCE_DIR="${WEBARENA_SOURCE_DIR:-}"
-FINGERPRINT_LABEL="worldsim.source_fingerprint"
+FINGERPRINT_LABEL="warp_taskgen.source_fingerprint"
 
 SITES=(
     "gitlab"

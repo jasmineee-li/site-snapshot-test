@@ -1,9 +1,9 @@
 """Tests for the editor-side HTTP auth + form-login plumbing.
 
-These helpers used to live as private symbols in ``worldsim.seeding`` and
+These helpers used to live as private symbols in ``warp_taskgen.seeding`` and
 were tested via ``tests/test_seeding.py``. After the editor migration the
-helpers moved to ``worldsim.auth_tokens.build_auth_headers`` and
-``worldsim.editors._form_login`` (their sole callers); this file covers
+helpers moved to ``warp_taskgen.auth_tokens.build_auth_headers`` and
+``warp_taskgen.editors._form_login`` (their sole callers); this file covers
 the new public surface.
 """
 
@@ -15,13 +15,13 @@ from unittest.mock import MagicMock
 import pytest
 import requests
 
-from worldsim import auth_tokens
-from worldsim.auth_tokens import (
+from warp_taskgen import auth_tokens
+from warp_taskgen.auth_tokens import (
     _BLOCKED_CALL_HEADER_NAMES,
     build_auth_headers,
     pick_auth_lane,
 )
-from worldsim.editors._form_login import (
+from warp_taskgen.editors._form_login import (
     extract_csrf_token,
     looks_like_login_page,
     perform_web_login_if_needed,

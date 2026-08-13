@@ -7,7 +7,7 @@ import argparse
 import json
 from pathlib import Path
 
-from worldsim.phases.phase_0c_audit import audit_phase_0c_profiles
+from warp_taskgen.phases.phase_0c_audit import audit_phase_0c_profiles
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -40,9 +40,7 @@ def main(argv: list[str] | None = None) -> int:
         for finding in report["errors"][:20]:
             print(f"ERROR {finding.get('site')}: {finding.get('code')}: {finding.get('message')}")
         for finding in report["warnings"][:20]:
-            print(
-                f"WARN {finding.get('site')}: {finding.get('code')}: {finding.get('message')}"
-            )
+            print(f"WARN {finding.get('site')}: {finding.get('code')}: {finding.get('message')}")
     return 1 if report["summary"]["errors"] else 0
 
 

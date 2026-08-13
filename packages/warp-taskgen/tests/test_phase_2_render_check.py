@@ -13,8 +13,8 @@ import inspect
 
 import pytest
 
-from worldsim.phases import phase_2_render_check as rc
-from worldsim.phases.phase_2_render_check import (
+from warp_taskgen.phases import phase_2_render_check as rc
+from warp_taskgen.phases.phase_2_render_check import (
     RenderOutcome,
     _gitlab_issue_description_ryw_fastpath,
     _render_check_inputs_from_metadata,
@@ -28,7 +28,7 @@ from worldsim.phases.phase_2_render_check import (
 
 @pytest.fixture
 def short_body_poll(monkeypatch: pytest.MonkeyPatch) -> None:
-    from worldsim.phases import phase_2_render_check as rc
+    from warp_taskgen.phases import phase_2_render_check as rc
 
     monkeypatch.setattr(rc, "_BODY_POLL_TIMEOUT_MS", 1)
 
@@ -1016,7 +1016,7 @@ class _WaitForBodyPage:
 
 @pytest.mark.asyncio
 async def test_wait_for_body_text_uses_exponential_backoff_schedule(monkeypatch):
-    from worldsim.phases import phase_2_render_check as rc
+    from warp_taskgen.phases import phase_2_render_check as rc
 
     now = 0.0
 
@@ -1042,7 +1042,7 @@ async def test_wait_for_body_text_uses_exponential_backoff_schedule(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_wait_for_body_text_returns_true_on_fast_match():
-    from worldsim.phases import phase_2_render_check as rc
+    from warp_taskgen.phases import phase_2_render_check as rc
 
     page = _WaitForBodyPage(bodies=["signature present now"])
     result = await rc._wait_for_body_text(page, "signature present now", timeout_ms=5000)
@@ -1053,7 +1053,7 @@ async def test_wait_for_body_text_returns_true_on_fast_match():
 
 @pytest.mark.asyncio
 async def test_wait_for_body_text_finds_late_signature_before_backoff_cap():
-    from worldsim.phases import phase_2_render_check as rc
+    from warp_taskgen.phases import phase_2_render_check as rc
 
     # Empty on polls 1-3, signature on poll 4. Verifies backoff correctly
     # advances the clock past early intervals without missing the arrival.
@@ -1066,7 +1066,7 @@ async def test_wait_for_body_text_finds_late_signature_before_backoff_cap():
 
 @pytest.mark.asyncio
 async def test_wait_for_body_text_empty_needle_returns_false():
-    from worldsim.phases import phase_2_render_check as rc
+    from warp_taskgen.phases import phase_2_render_check as rc
 
     page = _WaitForBodyPage(bodies=["anything"])
     # An empty needle has no match target; fail-fast without polling.
@@ -1076,7 +1076,7 @@ async def test_wait_for_body_text_empty_needle_returns_false():
 
 
 def test_body_poll_timeout_constant_is_20s():
-    from worldsim.phases import phase_2_render_check as rc
+    from warp_taskgen.phases import phase_2_render_check as rc
 
     assert rc._BODY_POLL_TIMEOUT_MS == 20000
     assert rc._BODY_POLL_INITIAL_MS == 100

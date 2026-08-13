@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock
 import pytest
 from PIL import Image
 
-from worldsim.phase_4.pvpo_capture import (
+from warp_taskgen.phase_4.pvpo_capture import (
     Rect,
     StepCapture,
     _await_cdp_deadline,

@@ -21,13 +21,13 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
-from worldsim.adversarial_actions import (
+from warp_taskgen.adversarial_actions import (
     annotate_exposure_contracts_with_action_policy,
     compile_adversarial_final_state_check,
     compile_adversarial_reward,
     get_action_spec,
 )
-from worldsim.adversarial_actions.tier3 import (
+from warp_taskgen.adversarial_actions.tier3 import (
     TIER3_PILOT_POLICY,
     TIER3_UNALIGNED_CONTROL_POLICY,
     option_marks_host_ready,
@@ -244,7 +244,9 @@ def _analyze_selected_tasks(
         for risk in risks:
             risk_counts[risk] += 1
         _increment_bucket(by_site, row["site"], "passed" if ok else "failed")
-        _increment_bucket(by_surface, str(row["surface"] or "unknown"), "passed" if ok else "failed")
+        _increment_bucket(
+            by_surface, str(row["surface"] or "unknown"), "passed" if ok else "failed"
+        )
         _increment_bucket(
             by_editor_method,
             str(row["editor_method"] or "unknown"),
@@ -309,9 +311,7 @@ def _network_reward_evidence(reward: Mapping[str, Any] | None) -> dict[str, Any]
     }
     method_requirements = expected.get("method_requirements")
     post_requirements = (
-        method_requirements.get("POST")
-        if isinstance(method_requirements, Mapping)
-        else None
+        method_requirements.get("POST") if isinstance(method_requirements, Mapping) else None
     )
     has_post_delete_evidence = bool(
         isinstance(post_requirements, Mapping)
@@ -334,9 +334,7 @@ def _network_reward_evidence(reward: Mapping[str, Any] | None) -> dict[str, Any]
             else []
         ),
         "has_path_specific_url_pattern": any(
-            isinstance(pattern, str)
-            and pattern.strip()
-            and pattern.strip() not in {".*", "*"}
+            isinstance(pattern, str) and pattern.strip() and pattern.strip() not in {".*", "*"}
             for pattern in patterns
         ),
         "url_patterns": patterns,
@@ -355,8 +353,7 @@ def _benign_action_evidence(
         benign_task.get("reward_function")
     )
     evidences = [
-        _network_reward_evidence(config)
-        for config in _network_reward_configs(benign_reward)
+        _network_reward_evidence(config) for config in _network_reward_configs(benign_reward)
     ]
     ok = any(_network_evidence_is_action_specific(evidence) for evidence in evidences)
     return {
@@ -404,12 +401,8 @@ def _final_state_evidence(check: Mapping[str, Any] | None) -> dict[str, Any]:
         "present": True,
         "action_kind": expected.get("action_kind"),
         "has_network_event": isinstance(network_event, Mapping),
-        "state_probe_kind": (
-            state_probe.get("kind") if isinstance(state_probe, Mapping) else None
-        ),
-        "state_probe_site": (
-            state_probe.get("site") if isinstance(state_probe, Mapping) else None
-        ),
+        "state_probe_kind": (state_probe.get("kind") if isinstance(state_probe, Mapping) else None),
+        "state_probe_site": (state_probe.get("site") if isinstance(state_probe, Mapping) else None),
         "has_project_anchor": bool(
             isinstance(state_probe, Mapping)
             and (state_probe.get("project_id") or state_probe.get("project_path"))
@@ -451,7 +444,10 @@ def _task_risks(
     if action_kind == "delete_or_transfer_resource":
         if evidence.get("has_delete") is not True:
             risks.append("missing_delete_method")
-        if evidence.get("has_post") is True and evidence.get("has_post_delete_evidence") is not True:
+        if (
+            evidence.get("has_post") is True
+            and evidence.get("has_post_delete_evidence") is not True
+        ):
             risks.append("missing_post_delete_evidence")
     if evidence.get("has_path_specific_url_pattern") is not True:
         risks.append("broad_only_endpoint_pattern")
@@ -548,10 +544,7 @@ def _site_for_row(
     contract: Mapping[str, Any],
 ) -> str:
     return str(
-        (benign_task or {}).get("site")
-        or contract.get("site")
-        or row.get("site")
-        or "unknown"
+        (benign_task or {}).get("site") or contract.get("site") or row.get("site") or "unknown"
     )
 
 
@@ -640,8 +633,7 @@ def _default_run_artifact_paths(run_dir: Path) -> Iterable[Path]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Audit a WorldSim run directory for Tier 3 repository-content "
-            "mutation pilot readiness."
+            "Audit a WorldSim run directory for Tier 3 repository-content mutation pilot readiness."
         )
     )
     parser.add_argument("run_dir", type=Path)

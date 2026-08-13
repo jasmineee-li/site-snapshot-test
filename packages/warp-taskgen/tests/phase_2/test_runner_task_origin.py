@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from worldsim.phase_2 import runner
+from warp_taskgen.phase_2 import runner
 
 
 def test_phase_2_task_origin_filter_keeps_only_new_tasks():

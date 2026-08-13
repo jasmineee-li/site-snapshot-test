@@ -6,7 +6,7 @@ denominators and numerators can be asserted precisely.
 
 from __future__ import annotations
 
-from worldsim.outcome_taxonomy import (
+from warp_taskgen.outcome_taxonomy import (
     ClassifiedOutcome,
     TrajectorySignals,
     format_stratified_summary_log,

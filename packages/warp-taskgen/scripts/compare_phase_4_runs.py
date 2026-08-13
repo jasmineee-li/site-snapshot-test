@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from worldsim.phase_4.artifact_audit import (
+from warp_taskgen.phase_4.artifact_audit import (
     compare_phase4_runs,
     default_task_paths,
     load_json,
@@ -77,13 +77,9 @@ def _format_text_report(
     )
     lines.append(f"Transitions: {_fmt_count_map(report['transition_counts'])}.")
     if report["baseline_only_tasks"]:
-        lines.append(
-            "Baseline-only tasks: " + ", ".join(report["baseline_only_tasks"][:10])
-        )
+        lines.append("Baseline-only tasks: " + ", ".join(report["baseline_only_tasks"][:10]))
     if report["candidate_only_tasks"]:
-        lines.append(
-            "Candidate-only tasks: " + ", ".join(report["candidate_only_tasks"][:10])
-        )
+        lines.append("Candidate-only tasks: " + ", ".join(report["candidate_only_tasks"][:10]))
     if report["rows"] and row_limit != 0:
         lines.append("Task transitions:")
         for row in report["rows"][: max(row_limit, 0)]:
@@ -102,7 +98,9 @@ def _format_text_report(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Compare two Phase 4 result sets.")
     parser.add_argument("baseline", type=Path, help="Baseline state dir, phase_4 dir, or results.")
-    parser.add_argument("candidate", type=Path, help="Candidate state dir, phase_4 dir, or results.")
+    parser.add_argument(
+        "candidate", type=Path, help="Candidate state dir, phase_4 dir, or results."
+    )
     parser.add_argument(
         "--baseline-tasks",
         type=Path,

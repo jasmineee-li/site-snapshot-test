@@ -141,6 +141,28 @@ build_and_smoke_package() {
     uv venv --python "$python_version" "$isolated_env"
     uv pip install --python "$isolated_env/bin/python" "${wheels[0]}"
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/warp-taskgen" --help
+    PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/worldsim" --help
+    PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" -m warp_taskgen.main --help
+    PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" -m worldsim.main --help
+    PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" - <<'PY'
+from importlib import import_module
+from pathlib import Path
+
+import warp_taskgen
+import worldsim
+
+assert worldsim is warp_taskgen
+canonical = import_module("warp_taskgen.phase_4.pvpo_capture")
+legacy = import_module("worldsim.phase_4.pvpo_capture")
+assert legacy is canonical
+package_root = Path(warp_taskgen.__file__).parent
+for resource in (
+    "prompts/profile-site.md",
+    "voice_exemplars/registry.json",
+    "phase_4/pvpo_capture.py",
+):
+    assert (package_root / resource).is_file(), resource
+PY
 }
 
 run_package_proof() {

@@ -4,8 +4,8 @@ from typing import Any
 
 import pytest
 
-from worldsim.editors.base import EditorError
-from worldsim.editors.gitlab import GitlabEditor
+from warp_taskgen.editors.base import EditorError
+from warp_taskgen.editors.gitlab import GitlabEditor
 
 
 def _editor() -> GitlabEditor:
@@ -509,6 +509,7 @@ def test_update_user_profile_raises_when_verified_state_does_not_change(monkeypa
     with pytest.raises(EditorError, match="did not persist field"):
         editor.update_user_profile(name="new name")
 
+
 def test_update_user_profile_form_fallback_logs_in_with_seed_credentials():
     class _Response:
         def __init__(
@@ -565,7 +566,9 @@ def test_update_user_profile_form_fallback_logs_in_with_seed_credentials():
 
 def test_update_user_profile_form_login_rejects_redirect_back_to_login():
     class _Response:
-        def __init__(self, status_code: int, text: str = "", headers: dict[str, str] | None = None) -> None:
+        def __init__(
+            self, status_code: int, text: str = "", headers: dict[str, str] | None = None
+        ) -> None:
             self.status_code = status_code
             self.text = text
             self.headers = headers or {}
@@ -833,9 +836,11 @@ def test_ensure_project_falls_back_to_create_when_path_template_lookup_404s(monk
     monkeypatch.setattr(
         editor,
         "_gitlab_get_json",
-        lambda path, *, allow_missing=False: None
-        if "missing" in path
-        else {"id": 5, "path_with_namespace": "x/fallback", "default_branch": "main"},
+        lambda path, *, allow_missing=False: (
+            None
+            if "missing" in path
+            else {"id": 5, "path_with_namespace": "x/fallback", "default_branch": "main"}
+        ),
     )
 
     created: list[dict[str, Any]] = []

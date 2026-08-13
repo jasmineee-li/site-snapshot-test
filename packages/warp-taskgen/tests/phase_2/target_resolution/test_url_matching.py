@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_2_target_resolver.py; shared helpers live in tests/phase_2/target_resolution/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 def test_gitlab_issue_l1_from_eval_json_suffix():
     task = _gitlab_task(eval_url="__GITLAB__/primer/design/-/issues/104.json")
     result = derive_benign_target_resource(task, PLACEHOLDERS)
@@ -13,12 +14,14 @@ def test_gitlab_issue_l1_from_eval_json_suffix():
     }
     assert result["attach_surfaces"][0]["surface_id"] == "note_on_issue"
 
+
 def test_gitlab_issue_l1_from_regex_anchored_eval_url():
     task = _gitlab_task(eval_url=r"^__GITLAB__/a11yproject/a11yproject.com/-/issues/1478.*$")
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["kind"] == "gitlab_issue"
     assert result["anchors"]["project_path"] == "a11yproject/a11yproject.com"
     assert result["anchors"]["issue_iid"] == "1478"
+
 
 def test_gitlab_issue_network_event_ranked_before_agent_response():
     task = _gitlab_task(eval_url="__GITLAB__/primer/design/-/issues/104.json")
@@ -32,6 +35,7 @@ def test_gitlab_issue_network_event_ranked_before_agent_response():
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["kind"] == "gitlab_issue"
 
+
 def test_gitlab_issue_l2_fallback_from_start_url():
     task = _gitlab_task(
         eval_url=None,
@@ -41,6 +45,7 @@ def test_gitlab_issue_l2_fallback_from_start_url():
     assert result["layer"] == "L2"
     assert result["kind"] == "gitlab_issue"
     assert result["anchors"]["issue_iid"] == "7"
+
 
 def test_gitlab_mr_l1_basic():
     task = _gitlab_task(eval_url="__GITLAB__/byteblaze/a11y-webring.club/-/merge_requests/42")
@@ -52,11 +57,13 @@ def test_gitlab_mr_l1_basic():
     }
     assert result["attach_surfaces"][0]["surface_id"] == "note_on_mr"
 
+
 def test_gitlab_mr_l1_regex_anchored_with_tail_path():
     task = _gitlab_task(eval_url=r"^__GITLAB__/keycloak/keycloak/-/merge_requests/4321/diffs$")
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["kind"] == "gitlab_mr"
     assert result["anchors"]["mr_iid"] == "4321"
+
 
 def test_gitlab_search_result_l2_from_search_start_url():
     task = _gitlab_task(
@@ -73,6 +80,7 @@ def test_gitlab_search_result_l2_from_search_start_url():
         "scope": "issues",
     }
 
+
 def test_gitlab_search_result_preserves_mr_scope():
     task = _gitlab_task(
         eval_url=None,
@@ -81,6 +89,7 @@ def test_gitlab_search_result_preserves_mr_scope():
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["kind"] == "gitlab_search_result"
     assert result["anchors"]["scope"] == "merge_requests"
+
 
 def test_gitlab_search_result_via_project_issues_api():
     task = _gitlab_task(eval_url="__GITLAB__/api/v4/projects/138/issues")
@@ -93,6 +102,7 @@ def test_gitlab_search_result_via_project_issues_api():
     # listings also support a created child title row as a visible core surface.
     surface_ids = {s["surface_id"] for s in result["attach_surfaces"]}
     assert surface_ids == {"issue.title", "issue.description", "note_on_issue", "note_on_mr"}
+
 
 def test_gitlab_issue_latest_comment_instruction_marks_exact_comment_region_forced():
     task = _gitlab_task(
@@ -107,6 +117,7 @@ def test_gitlab_issue_latest_comment_instruction_marks_exact_comment_region_forc
     assert result["transition_forced_by_task"] is True
     assert result["exact_comment_region_forced_by_task"] is True
 
+
 def test_gitlab_project_issue_list_detail_instruction_marks_transition_forced():
     task = _gitlab_task(
         start_urls=["__GITLAB__/primer/design/-/issues"],
@@ -119,6 +130,7 @@ def test_gitlab_project_issue_list_detail_instruction_marks_transition_forced():
     assert result["anchors"]["project_path"] == "primer/design"
     assert result["start_url_resolved"] == "https://gitlab.local/primer/design/-/issues"
     assert result["transition_forced_by_task"] is True
+
 
 def test_gitlab_dashboard_todos_l1_from_array_of_urls():
     task = _gitlab_task(
@@ -136,6 +148,7 @@ def test_gitlab_dashboard_todos_l1_from_array_of_urls():
     assert result["encounter_requirements"]["requires_at_mention"] == "byteblaze"
     assert result["encounter_requirements"]["must_appear_on_list"] is True
 
+
 def test_gitlab_dashboard_merge_requests_l1():
     task = _gitlab_task(
         eval_url="__GITLAB__/dashboard/merge_requests",
@@ -143,6 +156,7 @@ def test_gitlab_dashboard_merge_requests_l1():
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["kind"] == "gitlab_dashboard_list"
     assert result["anchors"]["dashboard"] == "merge_requests"
+
 
 def test_gitlab_dashboard_l1_preserves_reward_query_params():
     task = _gitlab_task(eval_url="__GITLAB__/dashboard/merge_requests")
@@ -158,11 +172,13 @@ def test_gitlab_dashboard_l1_preserves_reward_query_params():
         "https://gitlab.local/dashboard/merge_requests?assignee_username=byteblaze&state=opened"
     )
 
+
 def test_gitlab_dashboard_without_username_omits_at_mention():
     task = _gitlab_task(eval_url="__GITLAB__/dashboard/todos", username="")
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["kind"] == "gitlab_dashboard_list"
     assert "requires_at_mention" not in result["encounter_requirements"]
+
 
 def test_reddit_submission_l1_comment_post():
     task = _reddit_task(eval_url="__REDDIT__/f/books/59421/-/comment")
@@ -171,6 +187,7 @@ def test_reddit_submission_l1_comment_post():
     assert result["anchors"] == {"forum_name": "books", "submission_id": "59421"}
     assert result["attach_surfaces"][0]["surface_id"] == "comment_body_thread"
 
+
 def test_reddit_submission_l1_reply_to_specific_comment():
     task = _reddit_task(eval_url="__REDDIT__/f/singularity/69404/-/comment/1042264")
     result = derive_benign_target_resource(task, PLACEHOLDERS)
@@ -178,6 +195,7 @@ def test_reddit_submission_l1_reply_to_specific_comment():
     # reply-to-comment URL just carries more tail path.
     assert result["kind"] == "reddit_submission"
     assert result["anchors"]["submission_id"] == "69404"
+
 
 def test_reddit_submission_latest_comment_marks_exact_region_forced():
     task = _reddit_task(
@@ -189,6 +207,7 @@ def test_reddit_submission_latest_comment_marks_exact_region_forced():
     assert result["transition_forced_by_task"] is True
     assert result["exact_comment_region_forced_by_task"] is True
 
+
 def test_reddit_forum_l1_via_submit_shortcut():
     task = _reddit_task(eval_url="__REDDIT__/submit/books")
     result = derive_benign_target_resource(task, PLACEHOLDERS)
@@ -197,11 +216,13 @@ def test_reddit_forum_l1_via_submit_shortcut():
     assert result["encounter_requirements"]["requires_post_sort_order"] == "recent"
     assert result["encounter_requirements"]["must_appear_on_list"] is True
 
+
 def test_reddit_forum_l1_regex_anchored():
     task = _reddit_task(eval_url=r"^__REDDIT__/submit/BuyItForLife/?.*$")
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["kind"] == "reddit_forum"
     assert result["anchors"]["forum_name"] == "BuyItForLife"
+
 
 def test_reddit_forum_latest_post_body_marks_transition_forced():
     task = _reddit_task(
@@ -212,6 +233,7 @@ def test_reddit_forum_latest_post_body_marks_transition_forced():
     assert result["kind"] == "reddit_forum"
     assert result["transition_forced_by_task"] is True
 
+
 def test_reddit_dashboard_list_submitted():
     task = _reddit_task(
         eval_url="__REDDIT__/user/MarvelsGrantMan136/submitted",
@@ -220,6 +242,7 @@ def test_reddit_dashboard_list_submitted():
     assert result["kind"] == "reddit_dashboard_list"
     assert result["anchors"]["dashboard"] == "submitted"
     assert result["encounter_requirements"]["requires_at_mention"] == "MarvelsGrantMan136"
+
 
 def test_reddit_dashboard_list_comments_via_l2():
     task = _reddit_task(
@@ -230,6 +253,7 @@ def test_reddit_dashboard_list_comments_via_l2():
     assert result["layer"] == "L2"
     assert result["kind"] == "reddit_dashboard_list"
     assert result["anchors"]["dashboard"] == "comments"
+
 
 def test_bare_gitlab_intent_only_routes_to_l3_pending():
     task = _gitlab_task(
@@ -246,6 +270,7 @@ def test_bare_gitlab_intent_only_routes_to_l3_pending():
     assert result["pending_layer"] == "L3"
     assert result["start_url_resolved"] == "https://gitlab.local"
 
+
 def test_bare_reddit_intent_only_routes_to_l3_pending():
     task = _reddit_task(
         eval_url=None,
@@ -254,6 +279,7 @@ def test_bare_reddit_intent_only_routes_to_l3_pending():
     )
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["pending_layer"] == "L3"
+
 
 def test_non_wasp_site_short_circuits_without_pending_layer():
     task = {
@@ -267,12 +293,14 @@ def test_non_wasp_site_short_circuits_without_pending_layer():
     assert "pending_layer" not in result
     assert result["attach_surfaces"] == []
 
+
 def test_sync_entrypoint_refuses_l3_dispatch():
     # resolve_l3 is the correct async entrypoint; the sync one must
     # refuse L3 so L1/L2 callers can't accidentally hit the API.
     task = _gitlab_task(eval_url="__GITLAB__/byteblaze/dotfiles/-/issues/3")
     with pytest.raises(NotImplementedError):
         derive_benign_target_resource(task, PLACEHOLDERS, allow_layers=("L1", "L2", "L3"))
+
 
 def test_project_path_does_not_leak_hostname():
     # Regression: earlier greedy-regex version captured
@@ -281,6 +309,7 @@ def test_project_path_does_not_leak_hostname():
     task = _gitlab_task(eval_url="https://gitlab.local/primer/design/-/issues/104")
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["anchors"]["project_path"] == "primer/design"
+
 
 def test_gitlab_dashboard_l4_uses_assigned_filter_and_visible_links(monkeypatch):
     calls: list[tuple[str, dict[str, Any]]] = []
@@ -350,6 +379,7 @@ def test_gitlab_dashboard_l4_uses_assigned_filter_and_visible_links(monkeypatch)
     assert records[0]["iid"] == 7
     assert records[0]["_entry_visible_href"] == "/org/repo/-/merge_requests/7"
 
+
 def test_gitlab_dashboard_l4_drops_regex_encoded_state_and_scope(monkeypatch):
     """Regression: WebArena eval URLs encode `state=^(opened|)$` and
     `scope=^(all|)$`. Forwarding them literally to GitLab's REST API
@@ -405,6 +435,7 @@ def test_gitlab_dashboard_l4_drops_regex_encoded_state_and_scope(monkeypatch):
         )
     assert len(records) == 1
 
+
 def test_gitlab_dashboard_l4_fails_closed_without_visible_link_evidence(monkeypatch):
     async def fake_probe(*_args, **_kwargs):
         return [
@@ -436,6 +467,7 @@ def test_gitlab_dashboard_l4_fails_closed_without_visible_link_evidence(monkeypa
 
     assert records == []
 
+
 def test_resolve_tasks_does_not_l4_expand_reddit_forum():
     task = _reddit_task(
         task_id="forum-read",
@@ -457,6 +489,7 @@ def test_resolve_tasks_does_not_l4_expand_reddit_forum():
     record = out["forum-read"][0]
     assert record["kind"] == "reddit_forum"
     assert record["anchors"] == {"forum_name": "books"}
+
 
 def test_l1_search_result_from_project_issues_api_keeps_resolved_start_fallback():
     # _PROJECT_ISSUES_API_RE captures project_id only; without `query` the

@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from worldsim import run_materialization
-from worldsim.cli import _impl as cli_impl
-from worldsim.cli.derived_run import dispatch_derived_resume
-from worldsim.run_materialization import materialize_derived_run
-from worldsim.run_transition import resolve_run_request
-from worldsim.state import get_state_dir, save_state
+from warp_taskgen import run_materialization
+from warp_taskgen.cli import _impl as cli_impl
+from warp_taskgen.cli.derived_run import dispatch_derived_resume
+from warp_taskgen.run_materialization import materialize_derived_run
+from warp_taskgen.run_transition import resolve_run_request
+from warp_taskgen.state import get_state_dir, save_state
 
 
 def _identified_source(tmp_path: Path) -> tuple[Path, dict[str, object]]:

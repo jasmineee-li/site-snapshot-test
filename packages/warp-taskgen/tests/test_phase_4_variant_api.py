@@ -5,9 +5,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from worldsim.adversarial_actions.tier3 import tier3_payload_action_contract
-from worldsim.phase_4 import strategy_catalog, variant_api
-from worldsim.phase_4.variant_api import generate_variant_api
+from warp_taskgen.adversarial_actions.tier3 import tier3_payload_action_contract
+from warp_taskgen.phase_4 import strategy_catalog, variant_api
+from warp_taskgen.phase_4.variant_api import generate_variant_api
 
 
 @pytest.fixture
@@ -483,7 +483,7 @@ async def test_overlong_applied_strategy_description_is_compacted_metadata(
 async def test_variant_api_uses_provider_safe_output_budget(
     patched_anthropic_client, sample_task, strategy
 ):
-    from worldsim.phase_4 import variant_api
+    from warp_taskgen.phase_4 import variant_api
 
     patched_anthropic_client.messages.create.return_value = _variant_response(
         {

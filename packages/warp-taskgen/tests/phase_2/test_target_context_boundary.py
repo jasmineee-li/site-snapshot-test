@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).parents[2]
-PHASE_2_ROOT = PACKAGE_ROOT / "worldsim" / "phase_2"
+PHASE_2_ROOT = PACKAGE_ROOT / "warp_taskgen" / "phase_2"
 
 
 def _source(name: str) -> str:
@@ -22,7 +22,7 @@ def test_target_resolution_modules_do_not_use_linked_context() -> None:
 
 def test_plan_validation_owns_reuse_exposure_guard() -> None:
     """Validation must not need reuse-to-runner global linking."""
-    from worldsim.phase_2 import plan_validation
+    from warp_taskgen.phase_2 import plan_validation
 
     reason = plan_validation._stale_reusable_exposure_contract_reason(
         {

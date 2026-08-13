@@ -5,13 +5,13 @@ from typing import Any
 
 import pytest
 
-from worldsim.rewards import (
+from warp_taskgen.rewards import (
     FinalStateEvaluationRequest,
     FinalStateEvaluatorCatalog,
     default_final_state_evaluator_catalog,
     run_reward_function,
 )
-from worldsim.rewards.evidence import EvidencePolicy
+from warp_taskgen.rewards.evidence import EvidencePolicy
 
 
 @dataclass(frozen=True)
@@ -186,7 +186,7 @@ def test_homebrew_composite_threads_injected_final_state_catalog() -> None:
 def test_canonical_task_id_keeps_vendor_evaluator_authority(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from worldsim.rewards import dispatcher
+    from warp_taskgen.rewards import dispatcher
 
     calls: list[dict[str, Any]] = []
 

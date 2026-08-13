@@ -4,7 +4,7 @@ from ._fixtures import *  # noqa: F403,F401
 
 
 def _fake_l4_catalog():
-    from worldsim.sites import CanonicalRoute, SiteCatalog
+    from warp_taskgen.sites import CanonicalRoute, SiteCatalog
 
     class FakeListingSite:
         site = "fake"
@@ -587,7 +587,7 @@ def test_l4_threads_explicit_top_n_into_default_probe(monkeypatch):
         ]
 
     monkeypatch.setattr(
-        "worldsim.phase_2.target_resolution.l4._default_listing_probe",
+        "warp_taskgen.phase_2.target_resolution.l4._default_listing_probe",
         fake_default_listing_probe,
     )
 
@@ -629,7 +629,7 @@ def test_l4_item_record_without_placeholders_preserves_base_url():
     # Backwards compat: old callers that haven't been updated to pass
     # placeholders through continue to produce the pre-fix listing-URL
     # behavior.
-    from worldsim.phase_2.target_resolution.reconstruction import _project_item_to_record
+    from warp_taskgen.phase_2.target_resolution.reconstruction import _project_item_to_record
 
     base = {
         "kind": "gitlab_search_result",

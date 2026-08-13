@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from worldsim.rewards import run_reward_function
+from warp_taskgen.rewards import run_reward_function
 
 
 class _AgentResult:
     def __init__(self, final_result: str, *, is_done: bool = True) -> None:
         self.final_result = final_result
         self.is_done = is_done
+
 
 def test_agent_response_fallback_rejects_plaintext_final_answer() -> None:
     passed, message = run_reward_function(

@@ -8,9 +8,9 @@ from argparse import Namespace
 from pathlib import Path
 from typing import Any
 
-from worldsim.browser_use_agent import AgentResult
-from worldsim.state import load_state
-from worldsim.trajectory import save_result
+from warp_taskgen.browser_use_agent import AgentResult
+from warp_taskgen.state import load_state
+from warp_taskgen.trajectory import save_result
 
 
 def _write_json(path: Path, payload: Any) -> None:
@@ -262,10 +262,10 @@ def _configure_phase_4(state_dir: Path) -> Path:
 
 
 async def _run_phase_2(mode: str, state_dir: Path) -> int:
-    from worldsim.phase_2 import generation
-    from worldsim.phase_2 import runner as phase_2_injections
-    from worldsim.phase_2.planning_types import SiteInjectionResult
-    from worldsim.phase_2.text_fill.seed import materialize_adversarial_seed
+    from warp_taskgen.phase_2 import generation
+    from warp_taskgen.phase_2 import runner as phase_2_injections
+    from warp_taskgen.phase_2.planning_types import SiteInjectionResult
+    from warp_taskgen.phase_2.text_fill.seed import materialize_adversarial_seed
 
     _configure_phase_2(state_dir)
 
@@ -376,7 +376,7 @@ async def _run_phase_2(mode: str, state_dir: Path) -> int:
 
 
 async def _run_phase_0d(mode: str, state_dir: Path) -> int:
-    from worldsim.phases import phase_0d_auth_bootstrap as phase_0d
+    from warp_taskgen.phases import phase_0d_auth_bootstrap as phase_0d
 
     if mode == "resume":
         benchmark_root = state_dir / "benchmark"
@@ -392,7 +392,7 @@ async def _run_phase_0d(mode: str, state_dir: Path) -> int:
 
 
 async def _run_phase_0c(mode: str, state_dir: Path) -> int:
-    from worldsim.phases import phase_0_recon
+    from warp_taskgen.phases import phase_0_recon
 
     benchmark_root, site_file = _configure_phase_0c(state_dir)
 
@@ -569,7 +569,7 @@ def _apply_phase_4_mutation(state_dir: Path, mutation: str | None) -> None:
 
 
 async def _run_phase_3(mode: str, state_dir: Path, mutation: str | None = None) -> int:
-    from worldsim.phases import phase_3_benign
+    from warp_taskgen.phases import phase_3_benign
 
     if mode != "resume":
         _configure_phase_3(state_dir)
@@ -586,11 +586,11 @@ async def _run_phase_4(
     *,
     real_variant_eval: bool = False,
 ) -> int:
-    from worldsim.phase_4 import execution as phase_4_execution
-    from worldsim.phase_4 import placement_loop as phase_4_placement_loop
-    from worldsim.phase_4 import runner as phase_4_adversarial
-    from worldsim.phase_4 import strategy_variation as phase_4_strategy_variation
-    from worldsim.phase_4 import variant_eval as phase_4_variant_eval
+    from warp_taskgen.phase_4 import execution as phase_4_execution
+    from warp_taskgen.phase_4 import placement_loop as phase_4_placement_loop
+    from warp_taskgen.phase_4 import runner as phase_4_adversarial
+    from warp_taskgen.phase_4 import strategy_variation as phase_4_strategy_variation
+    from warp_taskgen.phase_4 import variant_eval as phase_4_variant_eval
 
     instances_path = (
         state_dir / "instances.json" if mode == "resume" else _configure_phase_4(state_dir)
@@ -604,7 +604,7 @@ async def _run_phase_4(
 
     # New 2026-04-18 preflight against Anthropic Messages API. The scenario
     # runs offline with mocked judge/variant, so short-circuit to "OK".
-    from worldsim.phase_4 import anthropic_client as _ac_module
+    from warp_taskgen.phase_4 import anthropic_client as _ac_module
 
     async def _fake_preflight(**_kwargs: Any) -> tuple[bool, None]:
         return (True, None)
@@ -714,7 +714,7 @@ async def _run_phase_4(
             {"status": "SUCCESS", "final_result": "ignored", "errors": []},
         )
         if resume_fingerprint is not None:
-            from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
+            from warp_taskgen.resume_metadata import RESULT_FINGERPRINT_KEY
 
             extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
         save_result(task_dir, task, result, True, "outcome=refused_or_ignored", **extra)

@@ -1,4 +1,4 @@
-from worldsim.agent_prompt import build_agent_prompt
+from warp_taskgen.agent_prompt import build_agent_prompt
 
 
 def _agent_context() -> dict:

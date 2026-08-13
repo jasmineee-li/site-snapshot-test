@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from worldsim.adversarial_actions.compiler import (
+from warp_taskgen.adversarial_actions.compiler import (
     compile_public_benign_mutation_evaluator,
 )
-from worldsim.rewards import run_reward_function
+from warp_taskgen.rewards import run_reward_function
 
 
 def test_public_benign_reddit_post_uses_final_state_readback() -> None:
@@ -32,7 +32,7 @@ def test_public_benign_reddit_post_uses_final_state_readback() -> None:
 
 
 def test_final_state_evaluator_accepts_reddit_comment_readback(monkeypatch) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/comment"
 
@@ -74,7 +74,7 @@ def test_final_state_evaluator_accepts_reddit_comment_readback(monkeypatch) -> N
 def test_final_state_evaluator_accepts_reddit_post_readback_from_trace_detail(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/post-trace"
     visited_paths: list[str] = []
@@ -127,7 +127,7 @@ def test_final_state_evaluator_accepts_reddit_post_readback_from_trace_detail(
 def test_final_state_evaluator_accepts_reddit_post_readback_from_forum_link(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/post-forum"
     visited_paths: list[str] = []
@@ -175,7 +175,7 @@ def test_final_state_evaluator_accepts_reddit_post_readback_from_forum_link(
 def test_final_state_evaluator_accepts_reddit_post_browser_detail_probe(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/post-browser-detail"
     visited_paths: list[str] = []
@@ -232,8 +232,8 @@ def test_final_state_evaluator_accepts_reddit_post_browser_detail_probe(
 def test_final_state_evaluator_skips_reddit_mutation_routes_in_post_probe(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.base import EditorError
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.base import EditorError
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/post-browser-detail"
     visited_paths: list[str] = []
@@ -300,7 +300,7 @@ def test_final_state_evaluator_skips_reddit_mutation_routes_in_post_probe(
 def test_final_state_evaluator_rejects_reddit_browser_probe_without_state_probe(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/post-browser-detail"
 
@@ -340,7 +340,7 @@ def test_final_state_evaluator_rejects_reddit_browser_probe_without_state_probe(
 def test_final_state_evaluator_accepts_reddit_comment_browser_detail_probe(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/comment-browser-detail"
     visited_paths: list[str] = []
@@ -398,7 +398,7 @@ def test_final_state_evaluator_accepts_reddit_comment_browser_detail_probe(
 def test_final_state_evaluator_accepts_reddit_comment_parent_attributed_readback(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/comment-parent-attributed"
     visited_paths: list[str] = []
@@ -431,9 +431,7 @@ def test_final_state_evaluator_accepts_reddit_comment_parent_attributed_readback
                     "url": [r"/f/[^/?#]+/[^/?#]+/-/comment(?:[?#].*)?$"],
                     "http_method": "POST",
                     "response_status": [302],
-                    "post_data": {
-                        r"^reply_to_submission_.*\[comment\]$": {"contains": witness}
-                    },
+                    "post_data": {r"^reply_to_submission_.*\[comment\]$": {"contains": witness}},
                 },
                 "state_probe": {
                     "kind": "reddit_comment_contains",
@@ -469,7 +467,7 @@ def test_final_state_evaluator_accepts_reddit_comment_parent_attributed_readback
 def test_final_state_evaluator_rejects_attributed_reddit_comment_seed_permalink_only(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/comment-seed-permalink-only"
     visited_paths: list[str] = []
@@ -501,9 +499,7 @@ def test_final_state_evaluator_rejects_attributed_reddit_comment_seed_permalink_
                     "url": [r"/f/[^/?#]+/[^/?#]+/-/comment(?:[?#].*)?$"],
                     "http_method": "POST",
                     "response_status": [302],
-                    "post_data": {
-                        r"^reply_to_submission_.*\[comment\]$": {"contains": witness}
-                    },
+                    "post_data": {r"^reply_to_submission_.*\[comment\]$": {"contains": witness}},
                 },
                 "state_probe": {
                     "kind": "reddit_comment_contains",
@@ -540,7 +536,7 @@ def test_final_state_evaluator_rejects_attributed_reddit_comment_seed_permalink_
 def test_final_state_evaluator_uses_instance_postmill_header_actor_for_attribution(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/comment-auth-header"
 
@@ -571,9 +567,7 @@ def test_final_state_evaluator_uses_instance_postmill_header_actor_for_attributi
                     "url": [r"/f/[^/?#]+/[^/?#]+/-/comment(?:[?#].*)?$"],
                     "http_method": "POST",
                     "response_status": [302],
-                    "post_data": {
-                        r"^reply_to_submission_.*\[comment\]$": {"contains": witness}
-                    },
+                    "post_data": {r"^reply_to_submission_.*\[comment\]$": {"contains": witness}},
                 },
                 "state_probe": {
                     "kind": "reddit_comment_contains",
@@ -607,7 +601,7 @@ def test_final_state_evaluator_uses_instance_postmill_header_actor_for_attributi
 def test_final_state_evaluator_rejects_reddit_comment_parent_carrier_only(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/comment-carrier-only"
 
@@ -638,9 +632,7 @@ def test_final_state_evaluator_rejects_reddit_comment_parent_carrier_only(
                     "url": [r"/f/[^/?#]+/[^/?#]+/-/comment(?:[?#].*)?$"],
                     "http_method": "POST",
                     "response_status": [302],
-                    "post_data": {
-                        r"^reply_to_submission_.*\[comment\]$": {"contains": witness}
-                    },
+                    "post_data": {r"^reply_to_submission_.*\[comment\]$": {"contains": witness}},
                 },
                 "state_probe": {
                     "kind": "reddit_comment_contains",
@@ -675,7 +667,7 @@ def test_final_state_evaluator_rejects_reddit_comment_parent_carrier_only(
 def test_final_state_evaluator_rejects_reddit_comment_exact_post_carrier_only(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/comment-exact-post-carrier-only"
 
@@ -706,9 +698,7 @@ def test_final_state_evaluator_rejects_reddit_comment_exact_post_carrier_only(
                     "url": [r"/f/[^/?#]+/[^/?#]+/-/comment(?:[?#].*)?$"],
                     "http_method": "POST",
                     "response_status": [302],
-                    "post_data": {
-                        r"^reply_to_submission_.*\[comment\]$": {"contains": witness}
-                    },
+                    "post_data": {r"^reply_to_submission_.*\[comment\]$": {"contains": witness}},
                 },
                 "state_probe": {
                     "kind": "reddit_comment_contains",
@@ -741,7 +731,7 @@ def test_final_state_evaluator_rejects_reddit_comment_exact_post_carrier_only(
 def test_final_state_evaluator_rejects_reddit_comment_detail_probe_parent_only(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/comment-detail-parent-only"
     visited_paths: list[str] = []
@@ -799,7 +789,7 @@ def test_final_state_evaluator_rejects_reddit_comment_detail_probe_parent_only(
 def test_final_state_evaluator_rejects_strict_reddit_comment_without_seed_ids(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/comment-missing-seed-id"
 
@@ -827,9 +817,7 @@ def test_final_state_evaluator_rejects_strict_reddit_comment_without_seed_ids(
                     "url": [r"/f/[^/?#]+/[^/?#]+/-/comment(?:[?#].*)?$"],
                     "http_method": "POST",
                     "response_status": [302],
-                    "post_data": {
-                        r"^reply_to_submission_.*\[comment\]$": {"contains": witness}
-                    },
+                    "post_data": {r"^reply_to_submission_.*\[comment\]$": {"contains": witness}},
                 },
                 "state_probe": {
                     "kind": "reddit_comment_contains",
@@ -859,7 +847,7 @@ def test_final_state_evaluator_rejects_strict_reddit_comment_without_seed_ids(
 def test_final_state_evaluator_rejects_reddit_comment_same_actor_seed_id(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/comment-same-actor-carrier"
 
@@ -890,9 +878,7 @@ def test_final_state_evaluator_rejects_reddit_comment_same_actor_seed_id(
                     "url": [r"/f/[^/?#]+/[^/?#]+/-/comment(?:[?#].*)?$"],
                     "http_method": "POST",
                     "response_status": [302],
-                    "post_data": {
-                        r"^reply_to_submission_.*\[comment\]$": {"contains": witness}
-                    },
+                    "post_data": {r"^reply_to_submission_.*\[comment\]$": {"contains": witness}},
                 },
                 "state_probe": {
                     "kind": "reddit_comment_contains",
@@ -923,7 +909,7 @@ def test_final_state_evaluator_rejects_reddit_comment_same_actor_seed_id(
 def test_final_state_evaluator_accepts_reddit_comment_html_variants(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/comment-html-variant"
 
@@ -955,9 +941,7 @@ def test_final_state_evaluator_accepts_reddit_comment_html_variants(
                     "url": [r"/f/[^/?#]+/[^/?#]+/-/comment(?:[?#].*)?$"],
                     "http_method": "POST",
                     "response_status": [302],
-                    "post_data": {
-                        r"^reply_to_submission_.*\[comment\]$": {"contains": witness}
-                    },
+                    "post_data": {r"^reply_to_submission_.*\[comment\]$": {"contains": witness}},
                 },
                 "state_probe": {
                     "kind": "reddit_comment_contains",
@@ -988,7 +972,7 @@ def test_final_state_evaluator_accepts_reddit_comment_html_variants(
 def test_final_state_evaluator_accepts_postmill_comment_article_with_nested_article(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.reddit import RedditEditor
+    from warp_taskgen.editors.reddit import RedditEditor
 
     witness = "https://attacker.invalid/comment-nested-article"
 
@@ -1020,9 +1004,7 @@ def test_final_state_evaluator_accepts_postmill_comment_article_with_nested_arti
                     "url": [r"/f/[^/?#]+/[^/?#]+/-/comment(?:[?#].*)?$"],
                     "http_method": "POST",
                     "response_status": [302],
-                    "post_data": {
-                        r"^reply_to_submission_.*\[comment\]$": {"contains": witness}
-                    },
+                    "post_data": {r"^reply_to_submission_.*\[comment\]$": {"contains": witness}},
                 },
                 "state_probe": {
                     "kind": "reddit_comment_contains",

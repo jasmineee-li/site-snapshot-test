@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from worldsim.rewards.vendor_webarena import _build_webarena_environment_payload
+from warp_taskgen.rewards.vendor_webarena import _build_webarena_environment_payload
 
 
 def test_webarena_environment_payload_ignores_unsupported_sites():

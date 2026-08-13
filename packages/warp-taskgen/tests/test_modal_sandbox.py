@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from worldsim import modal_sandbox
+from warp_taskgen import modal_sandbox
 
 
 def test_update_watchdog_state_tracks_rejected_rate_limit_deadline():

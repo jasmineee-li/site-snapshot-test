@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from worldsim.phase_4.aer_trajectory_extract import (
+from warp_taskgen.phase_4.aer_trajectory_extract import (
     ExtractedStep,
     ExtractedTrajectory,
     as_aer_view,
@@ -426,7 +426,7 @@ def test_extract_task_intent_warns_when_no_intent_field(caplog):
     """Empty dict returns ``""`` but emits a WARNING so operators can spot
     tasks that silently feed empty intent to the classifiers."""
     caplog.clear()
-    with caplog.at_level("WARNING", logger="worldsim.phase_4.aer_trajectory_extract"):
+    with caplog.at_level("WARNING", logger="warp_taskgen.phase_4.aer_trajectory_extract"):
         result = extract_task_intent({"id": "opaque-task"})
     assert result == ""
     assert any("opaque-task" in record.message for record in caplog.records)
@@ -443,7 +443,7 @@ def test_extract_task_intent_is_stable_across_phase_4_judges():
     """
     # Import lazily to avoid coupling this module's tests to the two API
     # modules' own import-time side effects.
-    from worldsim.phase_4 import transcript_purpose_api, verbalized_eval_awareness_api
+    from warp_taskgen.phase_4 import transcript_purpose_api, verbalized_eval_awareness_api
 
     for fields in (
         {"task_intent": "TI"},

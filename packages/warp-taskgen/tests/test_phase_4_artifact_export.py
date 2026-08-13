@@ -108,12 +108,9 @@ def test_manifest_includes_compact_files_and_excludes_large_raw_trace_files(tmp_
     paths = {row["path"] for row in manifest["files"]}
     assert "logs/phase4_deadlines_model/phase_4/results.json" in paths
     assert (
-        "logs/phase4_deadlines_model/phase_4/20260501_000000/task_a/"
-        "processed_result.json"
+        "logs/phase4_deadlines_model/phase_4/20260501_000000/task_a/processed_result.json"
     ) in paths
-    assert (
-        "logs/phase4_deadlines_model/phase_4/20260501_000000/task_a/pvpo/step_1.json"
-    ) in paths
+    assert ("logs/phase4_deadlines_model/phase_4/20260501_000000/task_a/pvpo/step_1.json") in paths
     assert (
         "logs/phase4_deadlines_model/phase_4/20260501_000000/task_a/"
         "variant_generation/0_specificity/initial/host_validation.json"
@@ -190,7 +187,9 @@ def test_local_export_extracts_manifest_and_compact_files(tmp_path: Path) -> Non
     assert (output / "logs" / "run" / "phase_4" / "20260501" / "task" / "result.json").exists()
 
 
-def test_remote_dry_run_uses_ssh_without_local_extraction(monkeypatch, tmp_path: Path, capsys) -> None:
+def test_remote_dry_run_uses_ssh_without_local_extraction(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
     exporter = _load_export_module()
     host_config = tmp_path / "r5.yaml"
     host_config.write_text(

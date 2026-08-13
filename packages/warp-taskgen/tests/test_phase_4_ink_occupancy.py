@@ -21,11 +21,11 @@ from typing import Any
 import pytest
 from PIL import Image, ImageDraw, ImageFont
 
-from worldsim.phase_4.ink_occupancy import (
+from warp_taskgen.phase_4.ink_occupancy import (
     char_is_inked,
     ink_occupancy_vector,
 )
-from worldsim.phase_4.pvpo_capture import Rect
+from warp_taskgen.phase_4.pvpo_capture import Rect
 
 
 def _png_with_glyph(char: str, *, size: tuple[int, int] = (24, 24)) -> tuple[bytes, Rect]:

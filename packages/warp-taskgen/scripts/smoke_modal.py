@@ -27,7 +27,7 @@ import modal
 
 modal.enable_output()
 
-from worldsim.modal_sandbox import run_claude_in_sandbox
+from warp_taskgen.modal_sandbox import run_claude_in_sandbox
 
 SMOKE_MODEL = "claude-haiku-4-5-20251001"
 

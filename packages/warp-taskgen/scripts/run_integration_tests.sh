@@ -147,7 +147,7 @@ import shlex
 import urllib.parse
 from pathlib import Path
 
-from worldsim.config import BenchmarkConfig
+from warp_taskgen.config import BenchmarkConfig
 
 
 def replace_url_host(url: str, host: str) -> str:

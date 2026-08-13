@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from worldsim.host_config import BenchmarkHostConfig, load_host_config
+from warp_taskgen.host_config import BenchmarkHostConfig, load_host_config
 
 
 def test_load_host_config_defaults_db_bind_and_compose_file(tmp_path: Path) -> None:

@@ -6,15 +6,15 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.phase_2.pause_control import (
+from warp_taskgen.phase_2.pause_control import (
     planning_shard_checkpoint_matches,
     run_planning_shards,
     write_planning_shard_checkpoint,
 )
-from worldsim.phase_2.run_lock import Phase2AlreadyRunning, phase_2_run_lock
-from worldsim.run_control import PauseBoundaryReached, request_pause
-from worldsim.run_definition import define_run
-from worldsim.run_transition import resolve_run_request
+from warp_taskgen.phase_2.run_lock import Phase2AlreadyRunning, phase_2_run_lock
+from warp_taskgen.run_control import PauseBoundaryReached, request_pause
+from warp_taskgen.run_definition import define_run
+from warp_taskgen.run_transition import resolve_run_request
 
 
 def _write_identified_planning_state(root: Path) -> object:
@@ -112,7 +112,7 @@ def test_empty_planning_checkpoint_does_not_satisfy_nonempty_shard(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from worldsim.phase_2.shards import _load_reusable_planning_shard
+    from warp_taskgen.phase_2.shards import _load_reusable_planning_shard
 
     monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
     definition = _write_identified_planning_state(tmp_path)

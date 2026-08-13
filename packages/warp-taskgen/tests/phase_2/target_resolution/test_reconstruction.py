@@ -112,7 +112,7 @@ def test_l4_item_record_reconstructs_start_url_strips_localhost_prefix():
     # But resource.anchors.project_path can also carry an authority
     # prefix like "localhost:8023/byteblaze/a11y-webring.club" (observed
     # in the 0/107 feasibility report). _clean_project_path strips it.
-    from worldsim.phase_2.target_resolution.reconstruction import _project_item_to_record
+    from warp_taskgen.phase_2.target_resolution.reconstruction import _project_item_to_record
 
     base = {
         "kind": "gitlab_search_result",
@@ -141,7 +141,7 @@ def test_l4_item_record_reconstructs_start_url_strips_localhost_prefix():
 
 
 def test_reconstruction_helper_handles_unknown_kind():
-    from worldsim.phase_2.target_resolution.reconstruction import (
+    from warp_taskgen.phase_2.target_resolution.reconstruction import (
         _reconstruct_start_url_from_anchors,
     )
 
@@ -152,7 +152,7 @@ def test_reconstruction_helper_handles_unknown_kind():
 
 
 def test_reconstruction_helper_returns_none_when_anchors_insufficient():
-    from worldsim.phase_2.target_resolution.reconstruction import (
+    from warp_taskgen.phase_2.target_resolution.reconstruction import (
         _reconstruct_start_url_from_anchors,
     )
 
@@ -165,7 +165,7 @@ def test_reconstruction_helper_returns_none_when_anchors_insufficient():
 
 
 def test_canonicalize_strips_localhost_authority():
-    from worldsim.phase_2.target_resolution.url_matching import _canonicalize_project_path
+    from warp_taskgen.phase_2.target_resolution.url_matching import _canonicalize_project_path
 
     assert (
         _canonicalize_project_path("localhost:8023/a11yproject/a11yproject.com")
@@ -174,25 +174,25 @@ def test_canonicalize_strips_localhost_authority():
 
 
 def test_canonicalize_strips_full_https_url():
-    from worldsim.phase_2.target_resolution.url_matching import _canonicalize_project_path
+    from warp_taskgen.phase_2.target_resolution.url_matching import _canonicalize_project_path
 
     assert _canonicalize_project_path("https://gitlab.local/primer/design") == "primer/design"
 
 
 def test_canonicalize_strips_bare_gitlab_local():
-    from worldsim.phase_2.target_resolution.url_matching import _canonicalize_project_path
+    from warp_taskgen.phase_2.target_resolution.url_matching import _canonicalize_project_path
 
     assert _canonicalize_project_path("gitlab.local/foo/bar") == "foo/bar"
 
 
 def test_canonicalize_preserves_subgroup_paths():
-    from worldsim.phase_2.target_resolution.url_matching import _canonicalize_project_path
+    from warp_taskgen.phase_2.target_resolution.url_matching import _canonicalize_project_path
 
     assert _canonicalize_project_path("namespace/subgroup/project") == "namespace/subgroup/project"
 
 
 def test_canonicalize_idempotent_on_clean_path():
-    from worldsim.phase_2.target_resolution.url_matching import _canonicalize_project_path
+    from warp_taskgen.phase_2.target_resolution.url_matching import _canonicalize_project_path
 
     canonical = "primer/design"
     assert _canonicalize_project_path(canonical) == canonical
@@ -200,14 +200,14 @@ def test_canonicalize_idempotent_on_clean_path():
 
 
 def test_canonicalize_handles_empty_input():
-    from worldsim.phase_2.target_resolution.url_matching import _canonicalize_project_path
+    from warp_taskgen.phase_2.target_resolution.url_matching import _canonicalize_project_path
 
     assert _canonicalize_project_path("") == ""
     assert _canonicalize_project_path("   ") == ""
 
 
 def test_canonicalize_strips_leading_and_trailing_slashes():
-    from worldsim.phase_2.target_resolution.url_matching import _canonicalize_project_path
+    from warp_taskgen.phase_2.target_resolution.url_matching import _canonicalize_project_path
 
     assert _canonicalize_project_path("/primer/design/") == "primer/design"
 

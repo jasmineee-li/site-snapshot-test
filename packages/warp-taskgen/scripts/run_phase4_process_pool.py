@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from worldsim.phase_4.process_pool import main
+from warp_taskgen.phase_4.process_pool import main
 
 if __name__ == "__main__":
     raise SystemExit(main())

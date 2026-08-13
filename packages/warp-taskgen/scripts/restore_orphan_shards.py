@@ -44,7 +44,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from worldsim.phase_2.target_stage import _normalize_l4_benign_task_ids_in_place
+from warp_taskgen.phase_2.target_stage import _normalize_l4_benign_task_ids_in_place
 
 
 def _site_of(task: dict[str, Any]) -> str:

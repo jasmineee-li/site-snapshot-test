@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 from PIL import Image
 
-from worldsim.phase_4.encounter_detection import (
+from warp_taskgen.phase_4.encounter_detection import (
     EncounterResult,
     determine_encounter,
 )
@@ -422,7 +422,7 @@ def test_reference_png_vanishing_after_loop_fails_closed(tmp_path: Path):
     # delete the file after the loop reads its contents — so everything the
     # loop needs succeeds, but the Path.is_file() re-check at the end sees
     # a missing file.
-    from worldsim.phase_4 import encounter_detection as _ed
+    from warp_taskgen.phase_4 import encounter_detection as _ed
 
     original_read_bytes = Path.read_bytes
     deleted = {"done": False}
@@ -477,7 +477,7 @@ def test_reference_symlink_fails_closed(tmp_path: Path):
     png_path = screenshots / "step_0.png"
     png_path.write_bytes(_make_png_with_ink([(10, 10, 5, 5)]))
 
-    from worldsim.phase_4 import encounter_detection as _ed
+    from warp_taskgen.phase_4 import encounter_detection as _ed
 
     original_read_bytes = Path.read_bytes
     swapped = {"done": False}
@@ -519,7 +519,7 @@ def test_reference_dangling_symlink_fails_closed(tmp_path: Path):
     png_path = screenshots / "step_0.png"
     png_path.write_bytes(_make_png_with_ink([(10, 10, 5, 5)]))
 
-    from worldsim.phase_4 import encounter_detection as _ed
+    from warp_taskgen.phase_4 import encounter_detection as _ed
 
     original_read_bytes = Path.read_bytes
     swapped = {"done": False}

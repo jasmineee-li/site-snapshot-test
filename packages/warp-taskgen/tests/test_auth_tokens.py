@@ -1,4 +1,4 @@
-"""Tests for worldsim.auth_tokens -- runtime token acquisition and validation."""
+"""Tests for warp_taskgen.auth_tokens -- runtime token acquisition and validation."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from worldsim import auth_tokens
+from warp_taskgen import auth_tokens
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -802,7 +802,7 @@ def test_acquire_tokens_for_instances_rejects_failed_inline_validation(monkeypat
 
 def test_config_accepts_token_generator():
     """BenchmarkInstance validates bearer_token with token_generator."""
-    from worldsim.config import BenchmarkInstance
+    from warp_taskgen.config import BenchmarkInstance
 
     instance = BenchmarkInstance(
         site_name="gitlab",
@@ -818,7 +818,7 @@ def test_config_accepts_token_generator():
 
 
 def test_config_rejects_token_source_without_validation_endpoint():
-    from worldsim.config import BenchmarkInstance
+    from warp_taskgen.config import BenchmarkInstance
 
     with pytest.raises(ValueError, match="validation_endpoint must be a non-empty string"):
         BenchmarkInstance(
@@ -834,7 +834,7 @@ def test_config_rejects_token_source_without_validation_endpoint():
 
 def test_config_rejects_token_generator_without_credentials():
     """BenchmarkInstance rejects token_generator without credentials."""
-    from worldsim.config import BenchmarkInstance
+    from warp_taskgen.config import BenchmarkInstance
 
     with pytest.raises(ValueError, match="credentials must be a non-empty object"):
         BenchmarkInstance(
@@ -848,7 +848,7 @@ def test_config_rejects_token_generator_without_credentials():
 
 
 def test_config_rejects_gitlab_pat_partial_credentials():
-    from worldsim.config import BenchmarkInstance
+    from warp_taskgen.config import BenchmarkInstance
 
     with pytest.raises(ValueError, match=r"credentials\.password must be a non-empty string"):
         BenchmarkInstance(
@@ -863,7 +863,7 @@ def test_config_rejects_gitlab_pat_partial_credentials():
 
 
 def test_config_rejects_gitlab_pat_whitespace_password():
-    from worldsim.config import BenchmarkInstance
+    from warp_taskgen.config import BenchmarkInstance
 
     with pytest.raises(ValueError, match=r"credentials\.password must be a non-empty string"):
         BenchmarkInstance(
@@ -878,7 +878,7 @@ def test_config_rejects_gitlab_pat_whitespace_password():
 
 
 def test_config_accepts_loopback_pvpo_cdp_url():
-    from worldsim.config import BenchmarkInstance
+    from warp_taskgen.config import BenchmarkInstance
 
     instance = BenchmarkInstance(
         site_name="shopping",
@@ -890,7 +890,7 @@ def test_config_accepts_loopback_pvpo_cdp_url():
 
 
 def test_config_rejects_remote_pvpo_cdp_url_without_override(monkeypatch):
-    from worldsim.config import BenchmarkInstance
+    from warp_taskgen.config import BenchmarkInstance
 
     monkeypatch.delenv("WORLDSIM_ALLOW_REMOTE_PVPO_CDP_URL", raising=False)
     with pytest.raises(ValueError, match="loopback CDP endpoint"):
@@ -902,7 +902,7 @@ def test_config_rejects_remote_pvpo_cdp_url_without_override(monkeypatch):
 
 
 def test_benchmark_config_rejects_empty_instances(tmp_path):
-    from worldsim.config import BenchmarkConfig
+    from warp_taskgen.config import BenchmarkConfig
 
     with pytest.raises(ValueError, match="at least one instance"):
         BenchmarkConfig.model_validate(
@@ -945,7 +945,7 @@ def test_seeding_resolve_bearer_token_uses_token_generator(monkeypatch):
         MagicMock(return_value=_FakeResponse(status_code=200)),
     )
 
-    from worldsim.auth_tokens import resolve_bearer_token
+    from warp_taskgen.auth_tokens import resolve_bearer_token
 
     token = resolve_bearer_token(
         {
@@ -987,7 +987,7 @@ def test_seeding_resolve_bearer_token_uses_validated_runtime_cache(monkeypatch):
 
 def test_seeding_runtime_errors_accepts_token_generator():
     """collect_seed_runtime_errors passes for token_generator auth."""
-    from worldsim import seeding
+    from warp_taskgen import seeding
 
     errors = seeding.collect_seed_runtime_errors(
         [
@@ -1140,13 +1140,13 @@ def test_bootstrap_gitlab_pat_revokes_runtime_tokens_and_accepts_token_json_key(
 
 
 def test_gitlab_editor_wraps_invalid_bearer_token_as_auth_missing(monkeypatch):
-    from worldsim.editors.base import EditorError
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.base import EditorError
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     fake_session = MagicMock()
     fake_session.__enter__.return_value = fake_session
     fake_session.__exit__.return_value = None
-    monkeypatch.setattr("worldsim.editors.gitlab.requests.Session", lambda: fake_session)
+    monkeypatch.setattr("warp_taskgen.editors.gitlab.requests.Session", lambda: fake_session)
     monkeypatch.setattr(
         auth_tokens.requests,
         "get",

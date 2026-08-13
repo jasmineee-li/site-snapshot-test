@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from tests.sites.test_read_surface import FakeReadSurfaceSite
-from worldsim.sites import ReadbackDecision, ReadbackFailure, ReadbackObservation, SiteCatalog
-from worldsim.sites.gitlab import GitLabSite
-from worldsim.sites.reddit import RedditSite
+from warp_taskgen.sites import ReadbackDecision, ReadbackFailure, ReadbackObservation, SiteCatalog
+from warp_taskgen.sites.gitlab import GitLabSite
+from warp_taskgen.sites.reddit import RedditSite
 
 
 def test_gitlab_interprets_exact_note_and_description() -> None:

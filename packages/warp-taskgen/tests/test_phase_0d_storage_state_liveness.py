@@ -27,9 +27,9 @@ from typing import Any
 import pytest
 import requests
 
-from worldsim.editors.reddit import RedditEditor
-from worldsim.phases import phase_0d_auth_bootstrap as bootstrap
-from worldsim.storage_state_preflight import (
+from warp_taskgen.editors.reddit import RedditEditor
+from warp_taskgen.phases import phase_0d_auth_bootstrap as bootstrap
+from warp_taskgen.storage_state_preflight import (
     read_storage_state_meta,
     write_storage_state_meta,
 )

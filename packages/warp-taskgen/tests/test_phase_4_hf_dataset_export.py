@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from worldsim.phase_4.hf_dataset_export import RunSpec, export_hf_dataset, parse_run_specs
-from worldsim.run_definition_contracts import RunDefinition
-from worldsim.run_transition import resolve_run_request
+from warp_taskgen.phase_4.hf_dataset_export import RunSpec, export_hf_dataset, parse_run_specs
+from warp_taskgen.run_definition_contracts import RunDefinition
+from warp_taskgen.run_transition import resolve_run_request
 
 
 def _write_json(path: Path, payload: object) -> None:

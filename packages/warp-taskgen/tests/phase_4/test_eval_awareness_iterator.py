@@ -382,7 +382,7 @@ async def test_process_adversarial_result_can_select_legacy_strategy_variation(
 async def test_eval_awareness_iterator_runs_sequential_rewrites_until_tp_real(
     monkeypatch, tmp_path
 ):
-    from worldsim.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
+    from warp_taskgen.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
 
     task, instances = _prepared_adv_task()
     initial_result = {
@@ -469,7 +469,7 @@ async def test_eval_awareness_iterator_runs_sequential_rewrites_until_tp_real(
 async def test_eval_awareness_iterator_marks_protected_eval_cues_inapplicable(
     monkeypatch, tmp_path
 ):
-    from worldsim.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
+    from warp_taskgen.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
 
     task, instances = _prepared_adv_task()
     protected = "this is an evaluation benchmark control phrase"
@@ -526,7 +526,7 @@ async def test_eval_awareness_iterator_marks_protected_eval_cues_inapplicable(
 
 @pytest.mark.asyncio
 async def test_eval_awareness_iterator_stops_on_trajectory_only_cues(monkeypatch, tmp_path):
-    from worldsim.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
+    from warp_taskgen.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
 
     task, instances = _prepared_adv_task()
     initial_result = {
@@ -585,7 +585,7 @@ async def test_eval_awareness_iterator_stops_on_trajectory_only_cues(monkeypatch
 async def test_eval_awareness_iterator_records_but_does_not_select_tp_regression(
     monkeypatch, tmp_path
 ):
-    from worldsim.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
+    from warp_taskgen.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
 
     task, instances = _prepared_adv_task()
     initial_result = {
@@ -669,7 +669,7 @@ async def test_eval_awareness_iterator_records_but_does_not_select_tp_regression
 
 @pytest.mark.asyncio
 async def test_eval_awareness_iterator_continues_after_tp_regression(monkeypatch, tmp_path):
-    from worldsim.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
+    from warp_taskgen.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
 
     task, instances = _prepared_adv_task()
     initial_result = {
@@ -760,7 +760,7 @@ async def test_eval_awareness_iterator_continues_after_tp_regression(monkeypatch
 
 
 def test_eval_awareness_tp_transition_classifies_monotonic_progress():
-    from worldsim.phase_4.eval_awareness_tp_transition import classify_tp_transition
+    from warp_taskgen.phase_4.eval_awareness_tp_transition import classify_tp_transition
 
     assert (
         classify_tp_transition("Capability Evaluation", "Alignment Evaluation")["direction"]
@@ -811,7 +811,7 @@ def test_postprocess_fingerprint_changes_with_variant_system():
 
 
 def test_eval_awareness_cue_prompt_uses_xml_inputs_without_research_framing():
-    from worldsim.phase_4 import eval_awareness_cue_api
+    from warp_taskgen.phase_4 import eval_awareness_cue_api
 
     task, _instances = _prepared_adv_task()
     result = {
@@ -854,7 +854,7 @@ def test_eval_awareness_cue_prompt_uses_xml_inputs_without_research_framing():
 
 
 def test_eval_awareness_rewrite_prompt_uses_benign_xml_problem_sheet():
-    from worldsim.phase_4 import eval_awareness_rewrite_api
+    from warp_taskgen.phase_4 import eval_awareness_rewrite_api
 
     task, _instances = _prepared_adv_task()
     cue_diagnosis = {
@@ -1007,7 +1007,7 @@ def test_eval_awareness_prior_iteration_feedback_is_bounded_and_control_safe():
 
 
 def test_eval_awareness_rewrite_prompt_includes_preserved_action_contract():
-    from worldsim.phase_4 import eval_awareness_rewrite_api
+    from warp_taskgen.phase_4 import eval_awareness_rewrite_api
 
     task, _instances = _prepared_adv_task()
     task["adversarial_action"] = {"kind": "create_issue_note"}
@@ -1056,7 +1056,7 @@ def test_eval_awareness_rewrite_prompt_includes_preserved_action_contract():
 
 
 def test_eval_awareness_rewrite_action_contract_uses_raw_navigation_metadata():
-    from worldsim.phase_4 import eval_awareness_rewrite_api
+    from warp_taskgen.phase_4 import eval_awareness_rewrite_api
 
     task, _instances = _prepared_adv_task()
     task["adversarial_action"] = {"kind": "open_required_url"}
@@ -1094,13 +1094,13 @@ def test_eval_awareness_rewrite_action_contract_uses_raw_navigation_metadata():
 
 
 def test_eval_awareness_rewrite_uses_three_structured_attempts():
-    from worldsim.phase_4 import eval_awareness_rewrite_api
+    from warp_taskgen.phase_4 import eval_awareness_rewrite_api
 
     assert eval_awareness_rewrite_api._STRUCTURED_ATTEMPTS == 3
 
 
 def test_eval_awareness_rewrite_schema_accepts_payload_only_seed_host_owned():
-    from worldsim.phase_4.eval_awareness_rewrite_api import build_eval_awareness_rewrite
+    from warp_taskgen.phase_4.eval_awareness_rewrite_api import build_eval_awareness_rewrite
 
     task, _instances = _prepared_adv_task()
     payload = build_eval_awareness_rewrite.model_validate(
@@ -1125,7 +1125,7 @@ def test_eval_awareness_rewrite_schema_accepts_payload_only_seed_host_owned():
 
 
 def test_eval_awareness_rewrite_truncates_diagnostic_fields_before_validation():
-    from worldsim.phase_4.eval_awareness_rewrite_api import build_eval_awareness_rewrite
+    from warp_taskgen.phase_4.eval_awareness_rewrite_api import build_eval_awareness_rewrite
 
     task, _instances = _prepared_adv_task()
     payload = build_eval_awareness_rewrite.model_validate(
@@ -1155,7 +1155,7 @@ def test_eval_awareness_rewrite_truncates_diagnostic_fields_before_validation():
 
 
 def test_eval_awareness_rewrite_materializes_payload_inside_existing_editor_seed():
-    from worldsim.phase_4.eval_awareness_rewrite_api import _merge_rewrite
+    from warp_taskgen.phase_4.eval_awareness_rewrite_api import _merge_rewrite
 
     task, _instances = _prepared_adv_task()
     merged = _merge_rewrite(
@@ -1178,7 +1178,7 @@ def test_eval_awareness_rewrite_materializes_payload_inside_existing_editor_seed
 
 
 def test_eval_awareness_rewrite_updates_selected_payload_text_for_sequential_rewrites():
-    from worldsim.phase_4.eval_awareness_rewrite_api import (
+    from warp_taskgen.phase_4.eval_awareness_rewrite_api import (
         _materialize_rewrite_seed,
         _merge_rewrite,
     )
@@ -1242,7 +1242,7 @@ def test_eval_awareness_rewrite_updates_selected_payload_text_for_sequential_rew
 
 
 def test_eval_awareness_rewrite_ignores_model_seed_mechanism_labels():
-    from worldsim.phase_4.eval_awareness_rewrite_api import _merge_rewrite
+    from warp_taskgen.phase_4.eval_awareness_rewrite_api import _merge_rewrite
 
     task, _instances = _prepared_adv_task()
     merged = _merge_rewrite(
@@ -1265,7 +1265,7 @@ def test_eval_awareness_rewrite_ignores_model_seed_mechanism_labels():
 
 
 def test_eval_awareness_rewrite_schema_renders_markdown_fenced_slots():
-    from worldsim.phase_4.eval_awareness_rewrite_api import build_eval_awareness_rewrite
+    from warp_taskgen.phase_4.eval_awareness_rewrite_api import build_eval_awareness_rewrite
 
     task, _instances = _prepared_adv_task()
     task["concealment"] = "markdown_fenced_system"
@@ -1306,7 +1306,7 @@ def test_eval_awareness_rewrite_schema_renders_markdown_fenced_slots():
 
 
 def test_eval_awareness_rewrite_schema_infers_action_witnesses_from_slots():
-    from worldsim.phase_4.eval_awareness_rewrite_api import build_eval_awareness_rewrite
+    from warp_taskgen.phase_4.eval_awareness_rewrite_api import build_eval_awareness_rewrite
 
     task, _instances = _prepared_adv_task()
     task["concealment"] = "markdown_fenced_system"
@@ -1349,7 +1349,7 @@ def test_eval_awareness_rewrite_schema_infers_action_witnesses_from_slots():
 
 def test_eval_awareness_rewrite_schema_rejects_no_slot_delta():
     from pydantic import ValidationError
-    from worldsim.phase_4.eval_awareness_rewrite_api import build_eval_awareness_rewrite
+    from warp_taskgen.phase_4.eval_awareness_rewrite_api import build_eval_awareness_rewrite
 
     task, _instances = _prepared_adv_task()
     task["concealment"] = "plaintext"
@@ -1382,7 +1382,7 @@ def test_eval_awareness_rewrite_schema_rejects_no_slot_delta():
 async def test_eval_awareness_iterator_repairs_contract_qa_before_browser_eval(
     monkeypatch, tmp_path
 ):
-    from worldsim.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
+    from warp_taskgen.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
 
     task, instances = _prepared_adv_task()
     initial_result = {
@@ -1501,7 +1501,7 @@ async def test_eval_awareness_iterator_resume_respects_terminal_checkpoint(monke
         }
         return rewritten
 
-    from worldsim.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
+    from warp_taskgen.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
 
     monkeypatch.setattr(
         eval_awareness_cue_api,
@@ -1556,7 +1556,7 @@ async def test_eval_awareness_iterator_resume_respects_terminal_checkpoint(monke
 
 @pytest.mark.asyncio
 async def test_eval_awareness_iterator_resume_replays_started_record(monkeypatch, tmp_path):
-    from worldsim.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
+    from warp_taskgen.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
 
     task, instances = _prepared_adv_task()
     initial_result = {

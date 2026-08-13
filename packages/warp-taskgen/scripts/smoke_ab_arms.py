@@ -86,7 +86,7 @@ async def _call_llm(llm: object, label: str) -> None:
 
 
 async def main() -> int:
-    from worldsim.agent_config import make_llm
+    from warp_taskgen.agent_config import make_llm
 
     exit_code = 0
 

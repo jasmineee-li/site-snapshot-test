@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.phase_2 import option_a as phase_2_injections
+from warp_taskgen.phase_2 import option_a as phase_2_injections
 
 
 def _base_gitlab_plan() -> dict:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from worldsim.phase_4.pvpo_observations import classify_pvpo_observation
+from warp_taskgen.phase_4.pvpo_observations import classify_pvpo_observation
 
 
 @pytest.mark.parametrize(

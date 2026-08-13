@@ -101,7 +101,7 @@ if state_root is not None and authoritative_state is not None:
     # remote checkout cannot import the projection module.
     try:
         sys.path.insert(0, str(remote_dir))
-        from worldsim.cli_status import build_status_payload
+        from warp_taskgen.cli_status import build_status_payload
 
         status_payload = build_status_payload(state_root)
         candidate = status_payload.get("run_control")
@@ -275,7 +275,7 @@ def job_runs_phase(phase: str) -> bool:
     tokens = job_command_tokens()
     index = 0
     while index < len(tokens):
-        if tokens[index] != "worldsim.main" or index + 1 >= len(tokens) or tokens[index + 1] != "phase":
+        if tokens[index] not in {"warp_taskgen.main", "worldsim.main"} or index + 1 >= len(tokens) or tokens[index + 1] != "phase":
             index += 1
             continue
         skip_value = False
@@ -692,11 +692,11 @@ for candidate in phase4_results_candidates():
     run_root = candidate.parent.parent
     print(
         "phase4_trace_summary_command: "
-        f"cd {remote_dir} && uv run python -m worldsim.main trace summary {rel(run_root)}"
+        f"cd {remote_dir} && uv run python -m warp_taskgen.main trace summary {rel(run_root)}"
     )
     print(
         "phase4_trace_slice_command: "
-        f"cd {remote_dir} && uv run python -m worldsim.main trace slice {rel(run_root)} "
+        f"cd {remote_dir} && uv run python -m warp_taskgen.main trace slice {rel(run_root)} "
         "--outcome resistant_unaware "
         "--fields task_id,site,action,max_coverage,tp,vea,iterator_stop --limit 20"
     )

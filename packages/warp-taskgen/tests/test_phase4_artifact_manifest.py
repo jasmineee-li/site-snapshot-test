@@ -35,9 +35,7 @@ def test_phase4_artifact_manifest_hashes_inputs(tmp_path: Path) -> None:
     manifest = json.loads(output.read_text())
     assert manifest["kind"] == "phase4_artifact_manifest"
     assert manifest["artifacts_source"] == "s3://bucket/run"
-    assert manifest["instances"]["sha256"] == write_phase4_artifact_manifest.sha256_file(
-        instances
-    )
+    assert manifest["instances"]["sha256"] == write_phase4_artifact_manifest.sha256_file(instances)
     artifact_by_path = {artifact["path"]: artifact for artifact in manifest["artifacts"]}
     assert artifact_by_path["phase_0c"]["file_count"] == 1
     assert artifact_by_path["phase_2"]["file_count"] == 1

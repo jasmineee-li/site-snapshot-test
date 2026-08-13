@@ -4,9 +4,9 @@ import builtins
 import json
 import types
 
-import worldsim.rewards.vendor_webarena as vendor_webarena
-from worldsim.rewards import run_reward_function
-from worldsim.rewards.vendor_webarena import (
+import warp_taskgen.rewards.vendor_webarena as vendor_webarena
+from warp_taskgen.rewards import run_reward_function
+from warp_taskgen.rewards.vendor_webarena import (
     WEBARENA_EVAL_MODULE,
     WEBARENA_EVAL_PYTHON_ENV,
     _apply_webarena_vendor_shims,

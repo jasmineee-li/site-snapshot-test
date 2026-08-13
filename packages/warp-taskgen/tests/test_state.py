@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from worldsim import main as worldsim_main
-from worldsim.browser_use_agent import AgentResult
-from worldsim.eval_worker_pool import load_completed_results
-from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
-from worldsim.run_transition import resolve_run_request
-from worldsim.state import bind_run_definition, get_state_dir, load_state, save_state
-from worldsim.trajectory import save_result
+from warp_taskgen import main as worldsim_main
+from warp_taskgen.browser_use_agent import AgentResult
+from warp_taskgen.eval_worker_pool import load_completed_results
+from warp_taskgen.resume_metadata import RESULT_FINGERPRINT_KEY
+from warp_taskgen.run_transition import resolve_run_request
+from warp_taskgen.state import bind_run_definition, get_state_dir, load_state, save_state
+from warp_taskgen.trajectory import save_result
 
 
 def test_state_dir_honors_runtime_env_override(monkeypatch, tmp_path):
@@ -121,7 +121,7 @@ def test_run_definition_context_rejects_existing_identity_mismatch(monkeypatch, 
 
 
 def test_fresh_cli_phase_binds_identity_before_first_checkpoint(monkeypatch, tmp_path):
-    from worldsim.cli import _impl as cli_impl
+    from warp_taskgen.cli import _impl as cli_impl
 
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path / "fresh"))
@@ -149,7 +149,7 @@ def test_fresh_cli_phase_binds_identity_before_first_checkpoint(monkeypatch, tmp
 
 
 def test_direct_phase_keeps_existing_legacy_state_without_logs_dir(monkeypatch, tmp_path):
-    from worldsim.cli import _impl as cli_impl
+    from warp_taskgen.cli import _impl as cli_impl
 
     monkeypatch.chdir(tmp_path)
     state_dir = tmp_path / "legacy"
@@ -1219,7 +1219,7 @@ def test_install_verification_proxy_ignores_loopback_instances(monkeypatch, tmp_
         nonlocal called
         called = True
 
-    monkeypatch.setattr("worldsim.http_proxy.install_proxy", fake_install_proxy)
+    monkeypatch.setattr("warp_taskgen.http_proxy.install_proxy", fake_install_proxy)
 
     worldsim_main._install_verification_proxy_from_args(
         Namespace(instances=instances_path, feasibility_instances=None)
@@ -1245,7 +1245,7 @@ def test_install_verification_proxy_keeps_remote_instances(monkeypatch, tmp_path
     def fake_install_proxy(**kwargs):
         captured.update(kwargs)
 
-    monkeypatch.setattr("worldsim.http_proxy.install_proxy", fake_install_proxy)
+    monkeypatch.setattr("warp_taskgen.http_proxy.install_proxy", fake_install_proxy)
 
     worldsim_main._install_verification_proxy_from_args(
         Namespace(instances=instances_path, feasibility_instances=None)
@@ -1276,7 +1276,7 @@ def test_install_verification_proxy_reads_token_env(monkeypatch, tmp_path):
     def fake_install_proxy(**kwargs):
         captured.update(kwargs)
 
-    monkeypatch.setattr("worldsim.http_proxy.install_proxy", fake_install_proxy)
+    monkeypatch.setattr("warp_taskgen.http_proxy.install_proxy", fake_install_proxy)
 
     worldsim_main._install_verification_proxy_from_args(
         Namespace(instances=instances_path, feasibility_instances=None)
@@ -1307,7 +1307,7 @@ def test_install_verification_proxy_reads_token_file(monkeypatch, tmp_path):
     def fake_install_proxy(**kwargs):
         captured.update(kwargs)
 
-    monkeypatch.setattr("worldsim.http_proxy.install_proxy", fake_install_proxy)
+    monkeypatch.setattr("warp_taskgen.http_proxy.install_proxy", fake_install_proxy)
 
     worldsim_main._install_verification_proxy_from_args(
         Namespace(instances=instances_path, feasibility_instances=None)
@@ -1337,7 +1337,7 @@ def test_install_verification_proxy_missing_external_token_disables_proxy(monkey
         nonlocal called
         called = True
 
-    monkeypatch.setattr("worldsim.http_proxy.install_proxy", fake_install_proxy)
+    monkeypatch.setattr("warp_taskgen.http_proxy.install_proxy", fake_install_proxy)
 
     worldsim_main._install_verification_proxy_from_args(
         Namespace(instances=instances_path, feasibility_instances=None)
@@ -1360,7 +1360,7 @@ def test_phase4_run_lock_rejects_concurrent_run(tmp_path):
 
 def test_load_completed_results_finds_valid_results(tmp_path):
     """Completed tasks with valid result.json are returned."""
-    from worldsim.task_paths import safe_task_path_component
+    from warp_taskgen.task_paths import safe_task_path_component
 
     task_dir = tmp_path / safe_task_path_component("42")
     task_dir.mkdir()
@@ -1383,7 +1383,7 @@ def test_load_completed_results_finds_valid_results(tmp_path):
 
 def test_load_completed_results_skips_corrupt_files(tmp_path):
     """Corrupt result.json files are skipped, allowing re-run."""
-    from worldsim.task_paths import safe_task_path_component
+    from warp_taskgen.task_paths import safe_task_path_component
 
     task_dir = tmp_path / safe_task_path_component("7")
     task_dir.mkdir()
@@ -1395,7 +1395,7 @@ def test_load_completed_results_skips_corrupt_files(tmp_path):
 
 def test_load_completed_results_ignores_incomplete_tasks(tmp_path):
     """Tasks with history.json but no result.json are not counted as complete."""
-    from worldsim.task_paths import safe_task_path_component
+    from warp_taskgen.task_paths import safe_task_path_component
 
     task_dir = tmp_path / safe_task_path_component("incomplete")
     task_dir.mkdir()
@@ -1419,7 +1419,7 @@ def test_load_completed_results_nonexistent_dir(tmp_path):
 
 def test_load_completed_results_skips_variant_and_rerun_dirs(tmp_path):
     """Variant/rerun result.json files are skipped to avoid dict-key collision."""
-    from worldsim.task_paths import safe_task_path_component
+    from warp_taskgen.task_paths import safe_task_path_component
 
     # Initial run dir (name matches canonical path for task_id "10")
     initial_dir = tmp_path / safe_task_path_component("10")

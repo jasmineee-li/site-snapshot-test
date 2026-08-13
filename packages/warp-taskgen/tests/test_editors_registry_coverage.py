@@ -7,7 +7,7 @@ Commit 2 (R2) — asserts that:
   import time, reasserted here for defensive coverage).
 * Every binding arg name maps to a real Python parameter of the method,
   either directly or through the seeding alias map
-  (``worldsim.seeding._editor_arg_name``) that translates LLM-facing names
+  (``warp_taskgen.seeding._editor_arg_name``) that translates LLM-facing names
   like ``"body"`` into Python-facing names like ``"note_body"``.
 * :func:`attach_surfaces_for_kind` output matches the legacy
   ``_LEGACY_ATTACH_SURFACES`` golden fixture byte-for-byte. Commit 3 swapped the
@@ -24,8 +24,8 @@ import inspect
 
 import pytest
 
-from worldsim.editors import EDITOR_REGISTRY
-from worldsim.editors._registry import (
+from warp_taskgen.editors import EDITOR_REGISTRY
+from warp_taskgen.editors._registry import (
     _REGISTRY,
     attach_surfaces_for_kind,
     iter_specs,
@@ -116,7 +116,7 @@ _LEGACY_ATTACH_SURFACES: dict[str, list[dict[str, object]]] = {
 
 # Map (site, method, llm_arg) -> python_param for LLM-facing args that
 # don't match the Python signature directly. Mirrors
-# ``worldsim.seeding._editor_arg_name``'s alias table — if those aliases
+# ``warp_taskgen.seeding._editor_arg_name``'s alias table — if those aliases
 # change, this map must change in lockstep.
 LLM_TO_PYTHON_ARG_ALIASES: dict[tuple[str, str, str], str] = {
     ("gitlab", "create_issue_note", "body"): "note_body",
@@ -281,7 +281,7 @@ class TestSurfaceIdConsistency:
 
 class TestSerializeRegistrySanity:
     def test_serialize_registry_covers_all_methods(self) -> None:
-        from worldsim.editors._registry import serialize_registry
+        from warp_taskgen.editors._registry import serialize_registry
 
         serialized = serialize_registry()
         assert len(serialized["specs"]) == 23

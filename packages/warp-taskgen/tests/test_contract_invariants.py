@@ -29,17 +29,17 @@ import json
 
 import pytest
 
-from worldsim.editors._registry import (
+from warp_taskgen.editors._registry import (
     _REGISTRY,
     IDENTITY_TOKENS,
     iter_specs,
     kind_contract,
     serialize_registry,
 )
-from worldsim.phase_2.option_a import (
+from warp_taskgen.phase_2.option_a import (
     _validate_option_a_placement_registry,
 )
-from worldsim.seeding import UnboundTokenError, _assert_benign_tokens_bound
+from warp_taskgen.seeding import UnboundTokenError, _assert_benign_tokens_bound
 
 # ---------------------------------------------------------------------------
 # Structural invariants
@@ -333,7 +333,7 @@ class TestTelemetryModule:
     def test_telemetry_path_respects_state_dir(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path
     ) -> None:
-        from worldsim.phases._contract_telemetry import telemetry_path
+        from warp_taskgen.phases._contract_telemetry import telemetry_path
 
         monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
         path = telemetry_path()
@@ -341,7 +341,7 @@ class TestTelemetryModule:
         assert path.name == "contract_events.ndjson"
 
     def test_emit_writes_ndjson_line(self, monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
-        from worldsim.phases._contract_telemetry import (
+        from warp_taskgen.phases._contract_telemetry import (
             emit_contract_event,
             telemetry_path,
         )
@@ -366,7 +366,7 @@ class TestTelemetryModule:
     def test_emit_never_propagates_ioerror(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Telemetry is observational — I/O errors must not fail the
         pipeline."""
-        from worldsim.phases import _contract_telemetry
+        from warp_taskgen.phases import _contract_telemetry
 
         def _boom(*args, **kwargs):
             raise PermissionError("nope")

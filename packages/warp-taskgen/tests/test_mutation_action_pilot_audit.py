@@ -72,9 +72,7 @@ def _task(
                 "http_method": "POST",
                 "response_status": [200, 201, 202, 204, 302, 303],
                 "post_data": {
-                    r"^reply_to_submission_.*\[comment\]$": {
-                        "contains": benign_action_witness
-                    }
+                    r"^reply_to_submission_.*\[comment\]$": {"contains": benign_action_witness}
                 },
             },
             "last_event_only": False,
@@ -118,13 +116,9 @@ def test_audit_reports_mutation_candidate_with_network_evidence():
     assert action["evidence"]["has_response_status"] is True
     assert action["evidence"]["has_body_evidence"] is True
     assert action["evidence"]["has_path_specific_url_pattern"] is True
-    assert action["evidence"]["post_data_fields"] == [
-        r"^reply_to_submission_.*\[comment\]$"
-    ]
+    assert action["evidence"]["post_data_fields"] == [r"^reply_to_submission_.*\[comment\]$"]
     assert action["evidence"]["post_data"] == {
-        r"^reply_to_submission_.*\[comment\]$": {
-            "contains": "https://attacker.invalid/pilot"
-        }
+        r"^reply_to_submission_.*\[comment\]$": {"contains": "https://attacker.invalid/pilot"}
     }
 
 
@@ -161,9 +155,7 @@ def test_audit_excludes_exposure_ineligible_contracts():
     report = analyze_adversarial_tasks([task])
 
     assert report["candidate_tasks"] == 0
-    assert report["non_candidate_reasons"] == {
-        "exposure_contract_not_eligible:ineligible": 1
-    }
+    assert report["non_candidate_reasons"] == {"exposure_contract_not_eligible:ineligible": 1}
 
 
 def test_audit_flags_disabled_selected_action_on_candidate():
@@ -184,18 +176,14 @@ def test_audit_flags_disabled_selected_action_on_candidate():
 
 
 def test_audit_fails_when_selected_action_is_not_mutation_candidate():
-    report = analyze_adversarial_tasks(
-        [_task(selected_action_kind="answer_opposite_binary_label")]
-    )
+    report = analyze_adversarial_tasks([_task(selected_action_kind="answer_opposite_binary_label")])
 
     assert report["candidate_tasks"] == 1
     assert report["risk_failures"] == 1
     assert report["risk_counts"] == {
         "selected_action_not_mutation_candidate:answer_opposite_binary_label": 1
     }
-    assert report["candidates"][0]["selected_action_kind"] == (
-        "answer_opposite_binary_label"
-    )
+    assert report["candidates"][0]["selected_action_kind"] == ("answer_opposite_binary_label")
 
 
 def test_audit_fails_when_selected_action_is_missing():

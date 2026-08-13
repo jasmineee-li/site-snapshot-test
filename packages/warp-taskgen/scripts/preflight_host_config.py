@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from worldsim.host_config import BenchmarkHostConfig, _is_loopback_host, load_host_config
+from warp_taskgen.host_config import BenchmarkHostConfig, _is_loopback_host, load_host_config
 
 
 def main() -> int:
@@ -14,7 +14,9 @@ def main() -> int:
     ap.add_argument("--host-config", help="path to benchmark host config YAML")
     ap.add_argument("--access-mode", default="remote_direct_restricted")
     ap.add_argument("--advertise-host", help="host/IP for runtime URLs and advertised site URLs")
-    ap.add_argument("--bind-host", help="host/interface Docker should publish web/env-ctrl ports on")
+    ap.add_argument(
+        "--bind-host", help="host/interface Docker should publish web/env-ctrl ports on"
+    )
     ap.add_argument("--db-bind-host", help="host/interface Docker should publish DB ports on")
     ap.add_argument("--allow-public-web-bind", action="store_true")
     ap.add_argument("--allow-public-db-bind", action="store_true")

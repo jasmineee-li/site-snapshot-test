@@ -400,8 +400,8 @@ def test_relative_storage_state_path_resolves_under_worldsim_state_dir(tmp_path,
     host caused Phase 4 to read a stale 5-day-old artifact in the vendors tree
     while Phase 0d wrote the fresh artifact under <repo>/logs.
     """
-    from worldsim.agent_auth import _resolve_declared_storage_state_path
-    from worldsim.phases.phase_0d_auth_bootstrap import phase_0d_artifact_path
+    from warp_taskgen.agent_auth import _resolve_declared_storage_state_path
+    from warp_taskgen.phases.phase_0d_auth_bootstrap import phase_0d_artifact_path
 
     state_dir = tmp_path / "logs"
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
@@ -432,7 +432,7 @@ def test_absolute_storage_state_path_unaffected_by_state_dir_or_benchmark_root(
 ):
     """Absolute declared storage_state paths inside an allowed root resolve
     unchanged regardless of WORLDSIM_STATE_DIR or benchmark_root specifics."""
-    from worldsim.agent_auth import _resolve_declared_storage_state_path
+    from warp_taskgen.agent_auth import _resolve_declared_storage_state_path
 
     state_dir = tmp_path / "logs"
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))

@@ -5,7 +5,7 @@ from typing import ClassVar
 
 import pytest
 
-from worldsim import _sandbox_validator, seeding
+from warp_taskgen import _sandbox_validator, seeding
 
 
 class _FakeResponse:
@@ -1279,7 +1279,7 @@ def test_validate_data_seed_accepts_editor_calls():
 
 
 def test_impl_validate_data_seed_observes_direct_editor_registry_patch(monkeypatch):
-    from worldsim.seeding import _impl
+    from warp_taskgen.seeding import _impl
 
     class CustomEditor:
         supported_methods = frozenset({"custom_method"})
@@ -1306,7 +1306,7 @@ def test_impl_validate_data_seed_observes_direct_editor_registry_patch(monkeypat
 
 
 def test_impl_validate_data_seed_observes_direct_selector_guard_patch(monkeypatch):
-    from worldsim.seeding import _impl
+    from warp_taskgen.seeding import _impl
 
     calls: list[tuple[str, dict[str, object]]] = []
 

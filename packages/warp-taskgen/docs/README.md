@@ -19,10 +19,10 @@ the overview, runbooks, and handoffs.
 ## Naming
 
 The current project/distribution name is WARP Taskgen and the preferred console
-script is `warp-taskgen`. The Python package, compatibility CLI, and many
-artifact fields remain `worldsim`, but active spec filenames use WARP Taskgen
-names. Do not infer that code or artifacts are stale from the word `worldsim`
-alone.
+script is `warp-taskgen`. The canonical Python package is `warp_taskgen`; the
+temporary `worldsim` import/CLI adapter remains for one compatibility cycle.
+Historical artifact fields and deployed identifiers may remain `worldsim`.
+Do not infer that code or artifacts are stale from the word `worldsim` alone.
 
 ## Current Scope
 

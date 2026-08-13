@@ -45,7 +45,7 @@ def test_deploy_proxy_loads_scale_map_from_topology(tmp_path: Path) -> None:
         (
             "source scripts/deploy_benchmark_proxy.sh; "
             "load_port_map; "
-            "printf '%s:%s:%s\\n' \"${SITE_NAMES[0]}\" \"${REAL_PORTS[0]}\" \"${PROXY_PORTS[0]}\""
+            'printf \'%s:%s:%s\\n\' "${SITE_NAMES[0]}" "${REAL_PORTS[0]}" "${PROXY_PORTS[0]}"'
         ),
         env={
             "PORT_MAP_FILE": "",
@@ -60,11 +60,9 @@ def test_deploy_proxy_loads_scale_map_from_topology(tmp_path: Path) -> None:
 
 def test_deploy_proxy_validates_verify_host_and_token() -> None:
     result = _bash(
-
-            "source scripts/deploy_benchmark_proxy.sh; "
-            "if validate_verify_host 'bad;host' || validate_proxy_token 'not-a-token'; "
-            "then echo bad; else echo ok; fi"
-
+        "source scripts/deploy_benchmark_proxy.sh; "
+        "if validate_verify_host 'bad;host' || validate_proxy_token 'not-a-token'; "
+        "then echo bad; else echo ok; fi"
     )
 
     assert result.returncode == 0, result.stderr
@@ -79,7 +77,7 @@ def test_deploy_proxy_skips_invalid_port_map_entries(tmp_path: Path) -> None:
         (
             "source scripts/deploy_benchmark_proxy.sh; "
             "load_port_map; "
-            "printf '%s:%s:%s\\n' \"${SITE_NAMES[0]}\" \"${REAL_PORTS[0]}\" \"${PROXY_PORTS[0]}\""
+            'printf \'%s:%s:%s\\n\' "${SITE_NAMES[0]}" "${REAL_PORTS[0]}" "${PROXY_PORTS[0]}"'
         ),
         env={
             "PORT_MAP_FILE": str(port_map),
@@ -207,7 +205,7 @@ def test_benchmark_host_loads_proxy_port_map_from_metadata(tmp_path: Path) -> No
             "source scripts/benchmark_host.sh; "
             "load_proxy_metadata; "
             "load_proxy_port_map_text; "
-            "printf '%s\\n%s\\n' \"$PORT_MAP_SOURCE\" \"$PORT_MAP_TEXT\""
+            'printf \'%s\\n%s\\n\' "$PORT_MAP_SOURCE" "$PORT_MAP_TEXT"'
         ),
         env={
             "PROXY_TOKEN_FILE": str(token_file),
@@ -224,11 +222,9 @@ def test_benchmark_host_loads_proxy_port_map_from_metadata(tmp_path: Path) -> No
 
 def test_benchmark_host_verify_proxy_on_start_requires_configuration() -> None:
     result = _bash(
-
-            "source scripts/benchmark_host.sh; "
-            "VERIFY_PROXY_ON_START=1; "
-            "if should_verify_proxy_on_start && ! proxy_verification_configured; then exit 7; fi"
-
+        "source scripts/benchmark_host.sh; "
+        "VERIFY_PROXY_ON_START=1; "
+        "if should_verify_proxy_on_start && ! proxy_verification_configured; then exit 7; fi"
     )
 
     assert result.returncode == 7

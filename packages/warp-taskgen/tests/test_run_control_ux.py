@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.cli import _impl as cli_impl
-from worldsim.cli.derived_run import dispatch_derived_resume
-from worldsim.cli.run_control import dispatch_phase_with_run_control
-from worldsim.run_control import RunInterrupted, acknowledge_pause, request_pause
-from worldsim.run_control_history import load_transition_history
-from worldsim.run_control_status import build_run_control_projection
-from worldsim.run_control_wait import wait_for_pause
-from worldsim.run_definition import define_run, plan_resume
+from warp_taskgen.cli import _impl as cli_impl
+from warp_taskgen.cli.derived_run import dispatch_derived_resume
+from warp_taskgen.cli.run_control import dispatch_phase_with_run_control
+from warp_taskgen.run_control import RunInterrupted, acknowledge_pause, request_pause
+from warp_taskgen.run_control_history import load_transition_history
+from warp_taskgen.run_control_status import build_run_control_projection
+from warp_taskgen.run_control_wait import wait_for_pause
+from warp_taskgen.run_definition import define_run, plan_resume
 
 
 def _running(root: Path, *, stage: str = "planning") -> None:
@@ -352,7 +352,7 @@ def test_derive_resume_plan_json_does_not_materialize_child(
     }
     state_path = tmp_path / "pipeline_state.json"
     state_path.write_text(json.dumps(state), encoding="utf-8")
-    monkeypatch.setattr("worldsim.cli.derived_run._load_source_state", lambda: state)
+    monkeypatch.setattr("warp_taskgen.cli.derived_run._load_source_state", lambda: state)
 
     rc = dispatch_derived_resume(
         Namespace(

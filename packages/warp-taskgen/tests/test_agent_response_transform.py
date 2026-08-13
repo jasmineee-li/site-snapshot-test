@@ -1,4 +1,4 @@
-"""Tests for ``worldsim.agent_response_transform``.
+"""Tests for ``warp_taskgen.agent_response_transform``.
 
 Covers the four extraction strategies and the negative cases so the
 evaluator-parity transform stays byte-compatible with the vendor helper at
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import textwrap
 
-from worldsim.agent_response_transform import (
+from warp_taskgen.agent_response_transform import (
     detect_strategy,
     extract_json_by_brace_matching,
     extract_json_from_markdown_code_block,

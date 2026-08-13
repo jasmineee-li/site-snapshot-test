@@ -11,15 +11,15 @@ from __future__ import annotations
 import types
 from typing import Any, ClassVar
 
-from worldsim import seeding
-from worldsim.editors._read_surface import (
+from warp_taskgen import seeding
+from warp_taskgen.editors._read_surface import (
     collect_platform_urls,
     host_and_path_forms,
     normalize_surface_urls,
 )
-from worldsim.editors.base import EditorError
-from worldsim.editors.gitlab import GitlabEditor
-from worldsim.editors.reddit import RedditEditor
+from warp_taskgen.editors.base import EditorError
+from warp_taskgen.editors.gitlab import GitlabEditor
+from warp_taskgen.editors.reddit import RedditEditor
 
 
 def test_collect_platform_urls_extracts_nested_paths():
@@ -143,7 +143,7 @@ def test_gitlab_create_issue_falls_back_to_constructed_path_when_web_url_missing
 
     urls = result["read_surface_urls"]
     # _issue_surface_urls emits the HTML page + the /discussions.json
-    # plaintext source (worldsim/editors/gitlab.py:1417-1428) — the
+    # plaintext source (warp_taskgen/editors/gitlab.py:1417-1428) — the
     # HTML alone only exposes ~8 KB while notes lazy-load, so the JSON
     # feed is what Phase 2c's render verifier can dependably grep.
     assert urls == [

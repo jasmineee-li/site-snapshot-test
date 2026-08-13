@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from worldsim.editors.gitlab import GitlabEditor
+from warp_taskgen.editors.gitlab import GitlabEditor
 
 
 def _gitlab_editor() -> GitlabEditor:

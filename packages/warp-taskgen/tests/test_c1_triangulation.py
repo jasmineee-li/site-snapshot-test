@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from worldsim.outcome_taxonomy import (
+from warp_taskgen.outcome_taxonomy import (
     TrajectorySignals,
     _check_injection_surface_visited,
     _classify_action,

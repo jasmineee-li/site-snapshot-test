@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from scripts import summarize_phase_4_results
-from worldsim.phase_4 import result_summary
+from warp_taskgen.phase_4 import result_summary
 
 
 def _write_json(path: Path, data: object) -> None:

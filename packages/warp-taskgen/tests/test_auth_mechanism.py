@@ -19,14 +19,14 @@ from types import ModuleType
 
 import pytest
 
-from worldsim import _sandbox_validator as validator
-from worldsim.browser_use_agent import (
+from warp_taskgen import _sandbox_validator as validator
+from warp_taskgen.browser_use_agent import (
     AuthArtifactMissingError,
     _phase_0d_fallback_path,
     _resolve_auth,
     _ScopedHeaderAuthInjector,
 )
-from worldsim.main import _dispatch_phase, _unknown_auth_sites, build_parser
+from warp_taskgen.main import _dispatch_phase, _unknown_auth_sites, build_parser
 
 
 def _valid_agent_context_with_auth(auth_mechanism: dict | None) -> dict:
@@ -56,11 +56,11 @@ def _valid_agent_context_with_auth(auth_mechanism: dict | None) -> dict:
 
 def _install_fake_phase_4_runner(monkeypatch: pytest.MonkeyPatch, run) -> None:
     """Install a tiny Phase 4 runner module for dispatch-gate tests."""
-    module = ModuleType("worldsim.phase_4.runner")
+    module = ModuleType("warp_taskgen.phase_4.runner")
     module.run = run
     monkeypatch.setitem(sys.modules, module.__name__, module)
 
-    import worldsim.phase_4 as phase_4
+    import warp_taskgen.phase_4 as phase_4
 
     monkeypatch.setattr(phase_4, "runner", module, raising=False)
 
@@ -455,7 +455,7 @@ class TestResolveAuth:
             _resolve_auth(auth, task=None, benchmark_root=None)
 
     def test_http_headers_rejects_empty(self):
-        from worldsim.browser_use_agent import AuthArtifactMissingError
+        from warp_taskgen.browser_use_agent import AuthArtifactMissingError
 
         auth = {"type": "http_headers", "http_headers": {"headers": {}}}
         with pytest.raises(AuthArtifactMissingError):
@@ -760,11 +760,11 @@ class TestUnknownAuthGate:
             return 0
 
         # Patch the already-loaded dispatch seam instead of resolving
-        # ``worldsim.phase_4.runner``. The refusal gate must return before
+        # ``warp_taskgen.phase_4.runner``. The refusal gate must return before
         # Phase 4's heavy runner graph is imported, and this guard still
         # proves that execution never reaches the bounded runner call.
         monkeypatch.setattr(
-            "worldsim.main._run_phase4_with_bounded_async_shutdown",
+            "warp_taskgen.main._run_phase4_with_bounded_async_shutdown",
             fake_phase_4_run,
         )
 

@@ -8,13 +8,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from worldsim.benchmark_capabilities import infer_benchmark_from_metadata
-from worldsim.comparison_ingestion import (
+from warp_taskgen.benchmark_capabilities import infer_benchmark_from_metadata
+from warp_taskgen.comparison_ingestion import (
     ComparisonRecord,
     ingest_comparison_payload,
     write_comparison_result,
 )
-from worldsim.runners import agentlab as agentlab_runner
+from warp_taskgen.runners import agentlab as agentlab_runner
 
 _OUTCOME_MODES = {
     "wasp": "resistance",

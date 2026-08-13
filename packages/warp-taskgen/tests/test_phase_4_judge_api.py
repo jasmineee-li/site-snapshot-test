@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from worldsim.phase_4.judge_api import run_judge_api
+from warp_taskgen.phase_4.judge_api import run_judge_api
 
 
 @pytest.fixture

@@ -2,19 +2,19 @@
 
 Covers:
 
-* :func:`worldsim.editors._registry.render_contract_table` — one section
+* :func:`warp_taskgen.editors._registry.render_contract_table` — one section
   per kind, correct selector-group / token / free-text formatting,
   dashboard-list body-mention hint preserved.
 * Anchor-aware token masking (Fix 1, R4/R5 split-brain closure): the
   renderer declares only tokens reachable via the per-kind anchor union
   in the shard, and skips methods whose required bindings are
   unsatisfiable under the masked token set.
-* :func:`worldsim.prompt_loading.load_prompt` sentinel handling:
+* :func:`warp_taskgen.prompt_loading.load_prompt` sentinel handling:
   replacement when ``contract_context`` is provided, raise when missing,
   no-op when the file lacks the sentinel.
 * Byte-identical prompt rendering between the sandbox path
   (``_render_generation_prompt`` in ``phase_2_injections``) and the API
-  path (``_build_messages`` in ``worldsim.phase_2.runner_api``) when given
+  path (``_build_messages`` in ``warp_taskgen.phase_2.runner_api``) when given
   the same shard input.
 """
 
@@ -25,14 +25,14 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.adversarial_actions import ACTION_KINDS
-from worldsim.editors._registry import (
+from warp_taskgen.adversarial_actions import ACTION_KINDS
+from warp_taskgen.editors._registry import (
     EDITOR_CONTRACT_TABLE_SENTINEL,
     ContractRenderContext,
     kind_anchors_from_resources,
     render_contract_table,
 )
-from worldsim.prompt_loading import PromptRenderError, load_prompt
+from warp_taskgen.prompt_loading import PromptRenderError, load_prompt
 
 # Anchor sets that keep every token reachable for the kind under test.
 # Sourced from the gitlab editor's create_issue_note / create_mr_note
@@ -51,7 +51,7 @@ def _ctx(site: str, kind_anchors: dict[str, frozenset[str]]) -> ContractRenderCo
 
 
 def test_model_facing_prompt_sources_are_not_platform_hardcoded() -> None:
-    prompt_dir = Path("worldsim/prompts")
+    prompt_dir = Path("warp_taskgen/prompts")
     prompt_names = [
         "generate-benign-tasks.md",
         "generate-injections.md",
@@ -66,7 +66,7 @@ def test_model_facing_prompt_sources_are_not_platform_hardcoded() -> None:
 
 
 def test_phase_2_prompt_action_kind_list_matches_default_action_kinds() -> None:
-    text = Path("worldsim/prompts/generate-injections.md").read_text(encoding="utf-8")
+    text = Path("warp_taskgen/prompts/generate-injections.md").read_text(encoding="utf-8")
     match = re.search(r'"kind": "(<one of[^"]+)"', text)
     assert match is not None, (
         "expected the adversarial_action.kind field to describe host-injected "
@@ -281,7 +281,7 @@ class TestSandboxApiPathParity:
     between the two paths for the same shard input."""
 
     def test_byte_identical_prompts(self) -> None:
-        from worldsim.phase_2 import generation, runner_api
+        from warp_taskgen.phase_2 import generation, runner_api
 
         benign_target_resources = {
             "t1": {
@@ -333,7 +333,7 @@ class TestSandboxApiPathParity:
     def test_api_path_without_site_does_not_render(self) -> None:
         """Backward compat: if site is not passed, the prompt still loads
         (no contract_context → sentinel raises)."""
-        from worldsim.phase_2 import runner_api
+        from warp_taskgen.phase_2 import runner_api
 
         with pytest.raises(PromptRenderError):
             runner_api._build_messages(

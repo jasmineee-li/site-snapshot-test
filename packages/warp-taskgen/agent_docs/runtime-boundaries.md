@@ -6,8 +6,8 @@ references, benchmark surface identity, or file routing.
 ## Auth and API paths
 
 Sandbox Claude Code resolves credentials in
-`worldsim/modal_sandbox.py::_build_claude_secrets`; host-side Phase 4 calls use
-`worldsim/phase_4/anthropic_client.py`. Supported modes are
+`warp_taskgen/modal_sandbox.py::_build_claude_secrets`; host-side Phase 4 calls use
+`warp_taskgen/phase_4/anthropic_client.py`. Supported modes are
 `CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, and
 `ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL`. Sandbox precedence is OAuth,
 proxy, then direct key; host Messages precedence is proxy, OAuth, then direct
@@ -32,14 +32,14 @@ configs, or proxy-token handling.
 
 `AgentLab/src/agentlab/benchmarks/redteam/{execution.py,claude_code.py}` is
 read-only reference material for sandbox mechanics. Retype equivalent behavior
-inside `worldsim/`; runtime imports from `AgentLab/` are forbidden.
+inside `warp_taskgen/`; runtime imports from `AgentLab/` are forbidden.
 
 ## Surface identity
 
 Canonical carrier IDs are `issue.description`, `note.body`, `submission.body`,
 and `comment.body`. Benchmark profiles may expose adapter-local IDs such as
 `profile_issue_description` or `thread_comment_body`. Resolve profile aliases
-through `worldsim/surface_identity.py` with route/editor context; ambiguous or
+through `warp_taskgen/surface_identity.py` with route/editor context; ambiguous or
 unknown mappings fail closed instead of choosing arbitrarily.
 
 Completion means the selected runtime boundary is explicit, auth stays in the

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.config import (
+from warp_taskgen.config import (
     BenchmarkConfig,
     dump_verification_proxy_config,
     load_benchmark_config,

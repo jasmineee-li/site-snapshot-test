@@ -6,7 +6,7 @@ import ast
 from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).parents[2]
-PHASE_2_ROOT = PACKAGE_ROOT / "worldsim" / "phase_2"
+PHASE_2_ROOT = PACKAGE_ROOT / "warp_taskgen" / "phase_2"
 
 
 def _source(name: str) -> str:
@@ -15,8 +15,8 @@ def _source(name: str) -> str:
 
 def test_site_injection_result_has_one_feature_local_owner() -> None:
     """The shared shard result type is imported, not inherited from runner globals."""
-    from worldsim.phase_2 import generation, shards
-    from worldsim.phase_2.planning_types import SiteInjectionResult
+    from warp_taskgen.phase_2 import generation, shards
+    from warp_taskgen.phase_2.planning_types import SiteInjectionResult
 
     assert generation.SiteInjectionResult is SiteInjectionResult
     assert shards.SiteInjectionResult is SiteInjectionResult
@@ -39,7 +39,7 @@ def test_shards_are_explicitly_imported_and_not_linked() -> None:
 
     assert "install_context" not in shards_source
     assert "ruff: noqa: F821" not in shards_source
-    assert "from worldsim.phase_2 import shards as _shards" in runner_source
+    assert "from warp_taskgen.phase_2 import shards as _shards" in runner_source
     assert "_shards._" in runner_source
     assert "link_modules" not in runner_source
 
@@ -62,8 +62,8 @@ def test_runner_and_feature_import_in_either_order() -> None:
 
     package_root = str(PACKAGE_ROOT)
     for statement in (
-        "from worldsim.phase_2 import runner, generation; assert runner.run; assert generation._generate_injections_for_site",
-        "from worldsim.phase_2 import generation, runner; assert runner.run; assert generation._generate_injections_for_site",
+        "from warp_taskgen.phase_2 import runner, generation; assert runner.run; assert generation._generate_injections_for_site",
+        "from warp_taskgen.phase_2 import generation, runner; assert runner.run; assert generation._generate_injections_for_site",
     ):
         subprocess.run(
             [sys.executable, "-c", statement],

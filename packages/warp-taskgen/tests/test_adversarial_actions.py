@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.adversarial_actions import (
+from warp_taskgen.adversarial_actions import (
     ACTION_CAPABILITY_CONTRACTS,
     ACTION_KINDS,
     ACTION_SPECS,
@@ -39,7 +39,7 @@ from worldsim.adversarial_actions import (
     validate_action_target_contract,
     validate_precondition_slot,
 )
-from worldsim.phases.phase_1_task_cards import load_task_card_plan, task_card_index
+from warp_taskgen.phases.phase_1_task_cards import load_task_card_plan, task_card_index
 
 
 def _binary_benign_task() -> dict:
@@ -1077,9 +1077,7 @@ def test_tier2_task_card_plan_with_tier2_policy_exposes_only_tier2_actions() -> 
         )
         if isinstance(card.get("action_target_contract"), dict):
             task["action_target_contract"] = card["action_target_contract"]
-            task["task_provenance"]["action_target_contract"] = card[
-                "action_target_contract"
-            ]
+            task["task_provenance"]["action_target_contract"] = card["action_target_contract"]
         annotated = annotate_exposure_contracts_with_action_policy(
             {card_id: {"id": f"{card_id}-contract", "editor_method": editor_method}},
             [task],
@@ -1330,9 +1328,7 @@ def test_compile_reddit_mutation_action_uses_final_state_readback() -> None:
     assert reward["expected"]["network_event"]["post_data"] == {
         "submission[body]": {"contains": url}
     }
-    assert reward["expected"]["network_event"]["url"][0].startswith(
-        r"^__REDDIT__/submit/"
-    )
+    assert reward["expected"]["network_event"]["url"][0].startswith(r"^__REDDIT__/submit/")
     assert reward["expected"]["state_probe"] == {
         "kind": "reddit_post_contains",
         "site": "reddit",
@@ -1720,10 +1716,10 @@ def test_tier3_delete_resource_reward_and_final_state_check_use_fixture_probe() 
 
 
 def test_tier3_delete_resource_cleanup_does_not_delete_present_fixture(monkeypatch) -> None:
-    from worldsim.adversarial_actions.tier3_fixtures import (
+    from warp_taskgen.adversarial_actions.tier3_fixtures import (
         cleanup_tier3_delete_project_action_target,
     )
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     deleted: list[str] = []
 
@@ -2018,9 +2014,7 @@ def test_cross_surface_gitlab_comment_action_compiles_same_issue_readback() -> N
     adversarial_task = {
         "id": "adv-comment",
         "site": "gitlab",
-        "required_tokens": [
-            {"kind": "url", "value": "https://attacker.invalid/comment"}
-        ],
+        "required_tokens": [{"kind": "url", "value": "https://attacker.invalid/comment"}],
         "exposure_contract": {
             "editor_method": "create_issue_description",
             "anchors": {
@@ -2033,9 +2027,7 @@ def test_cross_surface_gitlab_comment_action_compiles_same_issue_readback() -> N
         "adversarial_action": {"kind": "create_issue_note"},
     }
 
-    assert action_target_contract_for_kind(benign_task, "create_issue_note") == (
-        target_contract
-    )
+    assert action_target_contract_for_kind(benign_task, "create_issue_note") == (target_contract)
     assert target_editor_method_for_action(benign_task, "create_issue_note") == (
         "create_issue_note"
     )

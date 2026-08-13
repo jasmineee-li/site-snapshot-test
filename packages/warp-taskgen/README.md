@@ -75,7 +75,7 @@ uv run warp-taskgen phase 4 \
 ## Prerequisites
 
 1. **Modal account.** Sign up at <https://modal.com>, then run `modal token new` to write `~/.modal.toml`, or set `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` in your environment.
-2. **Claude authentication.** Credentials are used by (a) Claude Code inside the Modal sandbox for code-reading and generation steps (injected via `modal.Secret.from_dict`), and (b) host-side Anthropic Messages API calls for Phase 2a/2b structured generation plus Phase 4 refusal judging, variant generation, Transcript Purpose, VEA, placement-fix, eval-awareness cue diagnosis, and eval-awareness rewrite (`worldsim/phase_4/anthropic_client.py`). Three auth methods are supported, pick whichever you have:
+2. **Claude authentication.** Credentials are used by (a) Claude Code inside the Modal sandbox for code-reading and generation steps (injected via `modal.Secret.from_dict`), and (b) host-side Anthropic Messages API calls for Phase 2a/2b structured generation plus Phase 4 refusal judging, variant generation, Transcript Purpose, VEA, placement-fix, eval-awareness cue diagnosis, and eval-awareness rewrite (`warp_taskgen/phase_4/anthropic_client.py`). Three auth methods are supported, pick whichever you have:
 
    - **`CLAUDE_CODE_OAUTH_TOKEN`** (preferred if you have a Claude Pro / Claude Max subscription):
 
@@ -96,7 +96,7 @@ uv run warp-taskgen phase 4 \
      export ANTHROPIC_API_KEY=sk-ant-...
      ```
 
-   **Auth precedence differs by execution path.** For Modal Claude Code, OAuth wins: `worldsim/modal_sandbox.py:_build_claude_secrets` drops `ANTHROPIC_API_KEY` from the sandbox env because Claude Code's internal auth precedence would otherwise silently bill against API credits instead of your subscription. For host-side Anthropic Messages calls, `worldsim/phase_4/anthropic_client.py` prefers OpenRouter/proxy envs, then OAuth, then API key.
+   **Auth precedence differs by execution path.** For Modal Claude Code, OAuth wins: `warp_taskgen/modal_sandbox.py:_build_claude_secrets` drops `ANTHROPIC_API_KEY` from the sandbox env because Claude Code's internal auth precedence would otherwise silently bill against API credits instead of your subscription. For host-side Anthropic Messages calls, `warp_taskgen/phase_4/anthropic_client.py` prefers OpenRouter/proxy envs, then OAuth, then API key.
 
    For CI / shared workspaces, you can opt into a named Modal secret instead:
 
@@ -356,13 +356,13 @@ Five phases:
 | 3 | Contract Validity Gate | Agent-free schema check over every benign contract (reward function, start URLs, data seed) and every adversarial task's benign reference; writes `phase_3/contracts.json` |
 | 4 | Adversarial Evaluation | Runs the agent against injected seeds; applies the PVPO encounter gate and attack-effectiveness gate; the default `eval-awareness-iterator` records an iterator envelope for every PVPO-valid default-path baseline trajectory and tries bounded payload rewrites only when Transcript Purpose calls for them. Legacy refusal-judge strategy variation remains opt-in via `--phase-4-variant-system strategy-variation`. Reports baseline capability as a byproduct |
 
-The **authoritative technical spec** lives at [`docs/warp-taskgen-technical-spec.md`](docs/warp-taskgen-technical-spec.md). Every module in `worldsim/` implements a section of that spec.
+The **authoritative technical spec** lives at [`docs/warp-taskgen-technical-spec.md`](docs/warp-taskgen-technical-spec.md). Every module in `warp_taskgen/` implements a section of that spec.
 
 ## Repository layout
 
 ```
 .
-├── worldsim/                     # core Python import package
+├── warp_taskgen/                     # core Python import package
 │   ├── main.py                   # CLI entrypoint
 │   ├── config.py                 # benchmark instance schema
 │   ├── modal_sandbox.py          # run_claude_in_sandbox + base image

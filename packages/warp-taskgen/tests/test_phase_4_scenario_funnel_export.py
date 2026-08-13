@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 
 from scripts.export_phase_4_scenario_funnel import main as export_scenario_funnel_main
-from worldsim.phase_4.scenario_funnel_export import build_scenario_funnel_export
-from worldsim.phase_4.scenario_funnel_outputs import write_scenario_funnel_csv
+from warp_taskgen.phase_4.scenario_funnel_export import build_scenario_funnel_export
+from warp_taskgen.phase_4.scenario_funnel_outputs import write_scenario_funnel_csv
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -186,9 +186,7 @@ def test_scenario_funnel_classifies_benign_answer_miss(tmp_path: Path) -> None:
                 "id": "task-1",
                 "instruction": "Read and answer.",
                 "reward_function": {
-                    "adversarial_final_state_check": {
-                        "expected": {"contains": "witness"}
-                    }
+                    "adversarial_final_state_check": {"expected": {"contains": "witness"}}
                 },
             }
         ],
@@ -337,10 +335,7 @@ def test_scenario_funnel_reports_repo_target_artifact_without_created_issue_warn
     assert row["created_issue"]["iid"] == "42"
     assert row["target_artifact"]["kind"] == "modify_repository_content"
     assert row["target_artifact"]["project_path"] == "byteblaze/worldsim-tier3-fixture-01"
-    assert (
-        row["target_artifact"]["file_path"]
-        == "worldsim-fixtures/worldsim-action-witness-a.txt"
-    )
+    assert row["target_artifact"]["file_path"] == "worldsim-fixtures/worldsim-action-witness-a.txt"
     assert row["warnings"] == []
 
 

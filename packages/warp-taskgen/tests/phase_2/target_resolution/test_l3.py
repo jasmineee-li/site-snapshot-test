@@ -2,7 +2,8 @@
 # Auto-split from tests/test_phase_2_target_resolver.py; shared helpers live in tests/phase_2/target_resolution/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
-from worldsim.sites import GitLabSite, RedditSite, SiteCatalog
+from warp_taskgen.sites import GitLabSite, RedditSite, SiteCatalog
+
 
 def test_l3_happy_path_gitlab_issue():
     task = _gitlab_task(
@@ -42,6 +43,7 @@ def test_l3_happy_path_gitlab_issue():
     assert result["seeded_detail_url"] == "https://gitlab.local/byteblaze/design/-/issues/104"
     assert "transition_forced_by_task" not in result
 
+
 def test_l3_forced_gitlab_issue_comment_preserves_listing_provenance():
     task = _gitlab_task(
         eval_url=None,
@@ -71,6 +73,7 @@ def test_l3_forced_gitlab_issue_comment_preserves_listing_provenance():
     assert result["benign_read_url"] == "https://gitlab.local/primer/design/-/issues"
     assert result["seeded_detail_url"] == "https://gitlab.local/primer/design/-/issues/42"
     assert result["transition_forced_by_task"] is True
+
 
 def test_l3_null_kind_marks_task_out_of_scope_without_probe():
     # Pure actions (fork/follow/invite/edit-own-profile) have no Option-A
@@ -113,6 +116,7 @@ def test_l3_null_kind_marks_task_out_of_scope_without_probe():
     assert "pending_layer" not in result
     assert probe_called is False
 
+
 def test_l3_probe_returns_nothing_excludes_task():
     task = _gitlab_task(
         eval_url=None,
@@ -141,6 +145,7 @@ def test_l3_probe_returns_nothing_excludes_task():
     assert "pending_layer" not in result
     assert "no anchors" in result["reason"]
 
+
 def test_l3_classifier_failure_leaves_task_pending_for_retry():
     # classifier returns None (API 5xx / parse failure). Transient; the
     # task stays pending_layer="L3" so the caller may retry.
@@ -163,6 +168,7 @@ def test_l3_classifier_failure_leaves_task_pending_for_retry():
     assert result["kind"] is None
     assert result.get("pending_layer") == "L3"
 
+
 def test_l3_unknown_kind_string_triggers_pending_for_retry():
     task = _gitlab_task(eval_url=None, start_urls=["__GITLAB__"])
     classifier = _make_classifier(
@@ -180,6 +186,7 @@ def test_l3_unknown_kind_string_triggers_pending_for_retry():
     )
     assert result["kind"] is None
     assert result.get("pending_layer") == "L3"
+
 
 def test_l3_reddit_submission_via_forum_title_match():
     task = _reddit_task(
@@ -211,6 +218,7 @@ def test_l3_reddit_submission_via_forum_title_match():
     assert result["seeded_detail_url"] == "https://reddit.local/f/singularity/69404"
     assert "transition_forced_by_task" not in result
 
+
 def test_l3_reddit_reply_task_marks_submission_transition_forced():
     task = _reddit_task(
         eval_url=None,
@@ -240,6 +248,7 @@ def test_l3_reddit_reply_task_marks_submission_transition_forced():
     assert result["seeded_detail_url"] == "https://reddit.local/f/books/59421"
     assert result["transition_forced_by_task"] is True
 
+
 def test_l3_non_wasp_site_short_circuits_before_classifier():
     # classifier must not be called when the site is out of WASP scope.
     called = False
@@ -266,6 +275,7 @@ def test_l3_non_wasp_site_short_circuits_before_classifier():
     )
     assert result["kind"] is None
     assert called is False
+
 
 def test_l3_dashboard_probe_api_maps_to_gitlab_dashboard_anchor():
     task = _gitlab_task(
@@ -294,6 +304,7 @@ def test_l3_dashboard_probe_api_maps_to_gitlab_dashboard_anchor():
     assert result["anchors"]["dashboard"] == "todos"
     assert result["layer"] == "L3"
 
+
 def test_l3_reddit_dashboard_probe_api_maps_to_dashboard_anchor():
     task = _reddit_task(
         task_id="t_dash",
@@ -321,6 +332,7 @@ def test_l3_reddit_dashboard_probe_api_maps_to_dashboard_anchor():
     assert result["anchors"]["dashboard"] == "submitted"
     assert result["layer"] == "L3"
 
+
 def test_l3_pending_record_keeps_raw_start_url():
     # Bare __GITLAB__ with no eval URL → L3-pending; reconstruction
     # cannot run (no anchors yet) and resolved_start is preserved.
@@ -328,6 +340,7 @@ def test_l3_pending_record_keeps_raw_start_url():
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result.get("pending_layer") == "L3"
     assert result["start_url_resolved"] == "https://gitlab.local"
+
 
 def test_l3_out_of_scope_kind_is_clean_terminal():
     task = _gitlab_task(
@@ -364,6 +377,7 @@ def test_l3_out_of_scope_kind_is_clean_terminal():
     assert probe_called["n"] == 0
     assert "out_of_scope_for_option_a" in result["reason"]
 
+
 def test_l3_coherence_blocks_dashboard_kind_with_project_probe():
     # gitlab_dashboard_list anchors only allow {dashboard: ...}; running
     # list_project_issues_recent would silently produce zero anchors.
@@ -395,6 +409,7 @@ def test_l3_coherence_blocks_dashboard_kind_with_project_probe():
     assert "probe-kind mismatch" in result["reason"]
     assert probe_called["n"] == 0
 
+
 def test_l3_coherence_admits_user_dashboard_probe_for_dashboard_kind():
     # list_user_todos is the canonical probe for gitlab_dashboard_list.
     task = _gitlab_task(eval_url=None, instruction="Show my todos")
@@ -416,6 +431,7 @@ def test_l3_coherence_admits_user_dashboard_probe_for_dashboard_kind():
     assert result["layer"] == "L3"
     assert result["kind"] == "gitlab_dashboard_list"
     assert result["anchors"]["dashboard"] == "todos"
+
 
 def test_l3_coherence_blocks_none_api_with_concrete_kind():
     # api='none' is the abstain sentinel; pairing it with a concrete kind
@@ -473,10 +489,11 @@ def test_l3_malformed_probe_query_fails_closed_before_probe():
     assert result["l3_probe_query"] == {}
     assert probe_called is False
 
+
 def test_l3_classifier_failure_records_exception_class_name():
     """When the classifier returns None, resolve_l3 reads the contextvar
     and includes the exception class name in the reason for triage."""
-    from worldsim.phase_2.target_resolution.l3 import _l3_failure_class_var
+    from warp_taskgen.phase_2.target_resolution.l3 import _l3_failure_class_var
 
     task = _gitlab_task(eval_url=None, start_urls=["__GITLAB__"], instruction="anything")
 

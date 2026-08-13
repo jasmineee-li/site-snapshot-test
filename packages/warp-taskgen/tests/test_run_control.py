@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from worldsim import main as worldsim_main
-from worldsim import run_control
-from worldsim.atomic_io import write_json_atomic
-from worldsim.cli import run_control as cli_run_control
-from worldsim.cli.run_control import dispatch_phase_with_run_control
-from worldsim.cli_status import build_status_payload, format_status_payload
-from worldsim.run_control import (
+from warp_taskgen import main as worldsim_main
+from warp_taskgen import run_control
+from warp_taskgen.atomic_io import write_json_atomic
+from warp_taskgen.cli import run_control as cli_run_control
+from warp_taskgen.cli.run_control import dispatch_phase_with_run_control
+from warp_taskgen.cli_status import build_status_payload, format_status_payload
+from warp_taskgen.run_control import (
     PauseBoundaryReached,
     acknowledge_pause,
     load_pause_request,
@@ -20,7 +20,7 @@ from worldsim.run_control import (
     pause_aware_map,
     request_pause,
 )
-from worldsim.state import save_state
+from warp_taskgen.state import save_state
 
 
 def _write_running_phase_4(root: Path, *, stage: str = "initial_evaluation") -> None:

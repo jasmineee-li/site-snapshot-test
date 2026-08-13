@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from worldsim.main import build_parser
-from worldsim.phase_4 import phase_4_variant_budget_choices as public_phase_4_variant_budget_choices
-from worldsim.phase_4.options import (
+from warp_taskgen.main import build_parser
+from warp_taskgen.phase_4 import (
+    phase_4_variant_budget_choices as public_phase_4_variant_budget_choices,
+)
+from warp_taskgen.phase_4.options import (
     PHASE_4_VARIANT_BUDGET_PRESETS,
     PHASE_4_VARIANT_SYSTEMS,
     phase_4_variant_budget_choices,

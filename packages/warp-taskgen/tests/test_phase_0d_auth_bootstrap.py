@@ -22,7 +22,7 @@ from typing import Any
 
 import pytest
 
-from worldsim.phases import phase_0d_auth_bootstrap as bootstrap
+from warp_taskgen.phases import phase_0d_auth_bootstrap as bootstrap
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
@@ -1051,7 +1051,7 @@ class TestContractFailures:
 
 class TestCliDispatch:
     def test_cli_parses_phase_0d(self):
-        from worldsim.main import build_parser
+        from warp_taskgen.main import build_parser
 
         parser = build_parser()
         args = parser.parse_args(["phase", "0d", "--benchmark", "/tmp/bench"])
@@ -1059,7 +1059,7 @@ class TestCliDispatch:
         assert args.benchmark == Path("/tmp/bench")
 
     def test_cli_requires_benchmark_for_phase_0d(self, tmp_path, monkeypatch, capsys):
-        from worldsim.main import _dispatch_phase
+        from warp_taskgen.main import _dispatch_phase
 
         monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
         args = argparse.Namespace(
@@ -1595,7 +1595,7 @@ class TestDispatchPrecedence:
 
 class TestValidatorFormLogin:
     def test_validator_accepts_nested_form_login_under_storage_state(self):
-        from worldsim._sandbox_validator import validate_agent_context
+        from warp_taskgen._sandbox_validator import validate_agent_context
 
         data = {
             "response_format": {
@@ -1639,7 +1639,7 @@ def test_verify_generate_signature_rejects_positional_only_required_params(tmp_p
         bootstrap._verify_generate_signature(module.generate, str(script))
 
     def test_validator_rejects_form_login_without_credentials(self):
-        from worldsim._sandbox_validator import validate_agent_context
+        from warp_taskgen._sandbox_validator import validate_agent_context
 
         data = {
             "response_format": {
@@ -1672,7 +1672,7 @@ def test_verify_generate_signature_rejects_positional_only_required_params(tmp_p
         )
 
     def test_validator_accepts_success_url_substring_canonical_name(self):
-        from worldsim._sandbox_validator import _validate_auth_mechanism
+        from warp_taskgen._sandbox_validator import _validate_auth_mechanism
 
         mech = {
             "type": "form_login",
@@ -1687,7 +1687,7 @@ def test_verify_generate_signature_rejects_positional_only_required_params(tmp_p
         assert _validate_auth_mechanism(mech) == []
 
     def test_validator_accepts_legacy_success_substring_alias(self):
-        from worldsim._sandbox_validator import _validate_auth_mechanism
+        from warp_taskgen._sandbox_validator import _validate_auth_mechanism
 
         mech = {
             "type": "form_login",
@@ -1702,7 +1702,7 @@ def test_verify_generate_signature_rejects_positional_only_required_params(tmp_p
         assert _validate_auth_mechanism(mech) == []
 
     def test_validator_rejects_form_login_without_any_success_marker(self):
-        from worldsim._sandbox_validator import _validate_auth_mechanism
+        from warp_taskgen._sandbox_validator import _validate_auth_mechanism
 
         mech = {
             "type": "form_login",

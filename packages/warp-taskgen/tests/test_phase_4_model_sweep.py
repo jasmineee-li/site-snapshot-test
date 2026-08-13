@@ -128,7 +128,7 @@ def test_resume_command_uses_same_phase4_contract_without_recopied_source() -> N
         "logs/phase4_no_title_sonnet46_16ps_20260502T000000Z",
     )
 
-    assert "worldsim.main resume" in command
+    assert "warp_taskgen.main resume" in command
     assert "--benchmark /home/ubuntu/vendors/webarena-verified" in command
     assert "--instances instances.scale.json" in command
     assert "--sites gitlab,reddit" in command

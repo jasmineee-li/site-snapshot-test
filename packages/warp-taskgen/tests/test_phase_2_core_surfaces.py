@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from worldsim.phases.phase_2_core_surfaces import (
+from warp_taskgen.phases.phase_2_core_surfaces import (
     CORE_SURFACES,
     active_carrier_ineligible_reason,
     canonical_core_surface,
@@ -70,10 +70,7 @@ def test_title_surfaces_are_core_metadata_but_retired_as_active_carriers():
 
     assert retired_carrier_reason("gitlab", "issue.title") == "retired_title_carrier_surface"
     assert retired_carrier_reason("gitlab", "mr.title") == "retired_title_carrier_surface"
-    assert (
-        retired_carrier_reason("reddit", "submission.title")
-        == "retired_title_carrier_surface"
-    )
+    assert retired_carrier_reason("reddit", "submission.title") == "retired_title_carrier_surface"
 
     assert not is_active_carrier_surface("gitlab", "issue.title")
     assert not is_active_carrier_surface("gitlab", "mr.title")

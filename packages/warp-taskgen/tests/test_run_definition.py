@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.cli_status import build_status_payload, format_status_payload
-from worldsim.run_definition import define_run, plan_resume
-from worldsim.run_definition_contracts import RunDefinition
-from worldsim.run_transition import resolve_run_request
+from warp_taskgen.cli_status import build_status_payload, format_status_payload
+from warp_taskgen.run_definition import define_run, plan_resume
+from warp_taskgen.run_definition_contracts import RunDefinition
+from warp_taskgen.run_transition import resolve_run_request
 
 
 def _state(tmp_path: Path, **overrides: object) -> dict[str, object]:

@@ -6,17 +6,17 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.agent_config import run_tasks_by_site
-from worldsim.config import BenchmarkInstance
-from worldsim.eval_worker_pool import (
+from warp_taskgen.agent_config import run_tasks_by_site
+from warp_taskgen.config import BenchmarkInstance
+from warp_taskgen.eval_worker_pool import (
     _normalize_completed_result,
     _worker_stagger_delay_s,
     load_completed_results,
     run_eval,
 )
-from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
-from worldsim.run_control import PauseBoundaryReached, RunInterrupted
-from worldsim.task_paths import safe_task_path_component
+from warp_taskgen.resume_metadata import RESULT_FINGERPRINT_KEY
+from warp_taskgen.run_control import PauseBoundaryReached, RunInterrupted
+from warp_taskgen.task_paths import safe_task_path_component
 
 
 class _NoopAgent:
@@ -33,7 +33,7 @@ class _NoopAgent:
 
 @pytest.mark.asyncio
 async def test_run_eval_stops_dequeue_after_active_task_reaches_pause(monkeypatch, tmp_path):
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
     paused = False
     started: list[str] = []
 
@@ -58,7 +58,7 @@ async def test_run_eval_stops_dequeue_after_active_task_reaches_pause(monkeypatc
 
 @pytest.mark.asyncio
 async def test_run_eval_propagates_handled_process_interruption(monkeypatch, tmp_path):
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
 
     async def task_runner(task, agent, instance, task_dir):
         raise RunInterrupted("SIGTERM")
@@ -75,7 +75,7 @@ async def test_run_eval_propagates_handled_process_interruption(monkeypatch, tmp
 
 @pytest.mark.asyncio
 async def test_site_router_propagates_handled_process_interruption(monkeypatch, tmp_path):
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
 
     async def task_runner(task, agent, instance, task_dir):
         raise RunInterrupted("SIGTERM")
@@ -97,7 +97,7 @@ def test_worker_stagger_delay_accepts_env_override(monkeypatch):
 
 
 def test_worker_stagger_delay_rejects_negative_env_override(monkeypatch):
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 5.0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 5.0)
     monkeypatch.setenv("WORLDSIM_WORKER_STAGGER_DELAY_S", "-0.5")
 
     assert _worker_stagger_delay_s() == 5.0
@@ -105,7 +105,7 @@ def test_worker_stagger_delay_rejects_negative_env_override(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_run_eval_marks_all_tasks_failed_when_setup_fails(monkeypatch, tmp_path):
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
 
     results = await run_eval(
         tasks=[{"id": "task-a"}, {"id": "task-b"}],
@@ -121,7 +121,7 @@ async def test_run_eval_marks_all_tasks_failed_when_setup_fails(monkeypatch, tmp
 
 @pytest.mark.asyncio
 async def test_run_eval_sanitizes_task_directory_names(monkeypatch, tmp_path):
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
     seen_task_dirs: list[Path] = []
 
     async def task_runner(task, agent, instance, task_dir):
@@ -143,7 +143,7 @@ async def test_run_eval_sanitizes_task_directory_names(monkeypatch, tmp_path):
 
 @pytest.mark.asyncio
 async def test_run_eval_calls_result_callback_for_completed_tasks(monkeypatch, tmp_path):
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
     callback_results: list[str] = []
 
     async def task_runner(task, agent, instance, task_dir):
@@ -167,7 +167,7 @@ async def test_run_eval_calls_result_callback_for_completed_tasks(monkeypatch, t
 
 @pytest.mark.asyncio
 async def test_run_eval_deterministically_routes_tasks_despite_setup_race(monkeypatch, tmp_path):
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
 
     instances = [
         BenchmarkInstance(
@@ -232,9 +232,9 @@ async def test_run_eval_deterministically_routes_tasks_despite_setup_race(monkey
 
 @pytest.mark.asyncio
 async def test_run_eval_global_max_workers_caps_active_agents(monkeypatch, tmp_path):
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
     monkeypatch.setattr(
-        "worldsim.eval_worker_pool._worker_index_for_task",
+        "warp_taskgen.eval_worker_pool._worker_index_for_task",
         lambda task, *, replica_count, site_name: int(task["worker"]),
     )
 
@@ -287,7 +287,7 @@ async def test_run_eval_global_max_workers_caps_active_agents(monkeypatch, tmp_p
 
 @pytest.mark.asyncio
 async def test_run_eval_resume_keeps_task_on_same_replica(monkeypatch, tmp_path):
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
 
     instances = [
         BenchmarkInstance(
@@ -357,7 +357,7 @@ async def test_run_eval_resume_keeps_task_on_same_replica(monkeypatch, tmp_path)
 
 @pytest.mark.asyncio
 async def test_run_eval_without_instances_returns_soft_failures(monkeypatch, tmp_path):
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
 
     results = await run_eval(
         tasks=[{"id": "task-a"}, {"id": "task-b"}],
@@ -374,7 +374,7 @@ async def test_run_eval_without_instances_returns_soft_failures(monkeypatch, tmp
 
 @pytest.mark.asyncio
 async def test_run_eval_with_mixed_site_instances_returns_soft_failures(monkeypatch, tmp_path):
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
 
     results = await run_eval(
         tasks=[{"id": "task-a"}],
@@ -399,7 +399,7 @@ async def test_run_eval_with_mixed_site_instances_returns_soft_failures(monkeypa
 @pytest.mark.asyncio
 async def test_run_eval_resume_skips_completed_and_merges(monkeypatch, tmp_path):
     """resume=True skips tasks with existing result.json and merges prior + new results."""
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
 
     # Pre-populate a completed result for task-a
     task_a_dir = tmp_path / safe_task_path_component("task-a")
@@ -537,7 +537,7 @@ def test_load_completed_results_requires_only_history_for_reprocessable_phase_4_
 @pytest.mark.asyncio
 async def test_run_eval_resume_all_completed_returns_prior_only(monkeypatch, tmp_path):
     """resume=True with all tasks completed returns prior results without starting workers."""
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
 
     for tid in ("task-a", "task-b"):
         d = tmp_path / safe_task_path_component(tid)
@@ -578,7 +578,7 @@ async def test_run_eval_resume_all_completed_returns_prior_only(monkeypatch, tmp
 @pytest.mark.asyncio
 async def test_run_eval_resume_empty_dir_behaves_like_fresh_run(monkeypatch, tmp_path):
     """resume=True with empty task_dir_root runs all tasks normally."""
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
 
     executed_ids: list[str] = []
 
@@ -602,7 +602,7 @@ async def test_run_eval_resume_empty_dir_behaves_like_fresh_run(monkeypatch, tmp
 @pytest.mark.asyncio
 async def test_run_eval_resume_nonexistent_dir_behaves_like_fresh_run(monkeypatch, tmp_path):
     """resume=True with nonexistent task_dir_root runs all tasks normally."""
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
 
     executed_ids: list[str] = []
 
@@ -627,7 +627,7 @@ async def test_run_eval_resume_nonexistent_dir_behaves_like_fresh_run(monkeypatc
 async def test_run_eval_resume_reruns_task_when_result_fingerprint_is_missing(
     monkeypatch, tmp_path
 ):
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
 
     task_dir = tmp_path / safe_task_path_component("task-a")
     task_dir.mkdir()
@@ -659,7 +659,7 @@ async def test_run_eval_resume_reruns_task_when_result_fingerprint_is_missing(
 async def test_run_eval_resume_reruns_task_when_result_fingerprint_mismatches(
     monkeypatch, tmp_path
 ):
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
 
     task_dir = tmp_path / safe_task_path_component("task-a")
     task_dir.mkdir()
@@ -696,7 +696,7 @@ async def test_run_eval_resume_reruns_task_when_result_fingerprint_mismatches(
 
 @pytest.mark.asyncio
 async def test_run_eval_resume_ignores_malformed_result_json(monkeypatch, tmp_path):
-    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
 
     task_dir = tmp_path / safe_task_path_component("task-a")
     task_dir.mkdir()

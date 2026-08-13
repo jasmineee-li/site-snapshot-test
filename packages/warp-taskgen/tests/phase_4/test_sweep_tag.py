@@ -4,7 +4,7 @@ import subprocess
 
 import pytest
 
-from worldsim.phase_4 import sweep_tag
+from warp_taskgen.phase_4 import sweep_tag
 
 
 def test_sweep_tag_skips_when_disabled_env(monkeypatch, caplog) -> None:

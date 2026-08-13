@@ -9,56 +9,56 @@ answer "what behavior owns this?" before it answers "what kind of code is this?"
 
 Current and target ownership should stay explicit:
 
-- `worldsim.phase_2`: injection generation, target resolution, exposure
+- `warp_taskgen.phase_2`: injection generation, target resolution, exposure
   contracts, text fill, and Phase 2c admission. Route/exposure/admission
   semantics still belong to the Phase 2 domain.
-- `worldsim.phase_2.text_fill`: host-side payload realization behavior split by
+- `warp_taskgen.phase_2.text_fill`: host-side payload realization behavior split by
   API calls, prompt rendering, payload views, seeding, validation, and voice
-  exemplars. The historical `worldsim.phases.phase_2_text_fill` facade was
+  exemplars. The historical `warp_taskgen.phases.phase_2_text_fill` facade was
   removed in Wave D; callers and patch points use this feature-owned package.
-- `worldsim.phase_2.phase_2c`: Phase 2c feasibility verification split by
+- `warp_taskgen.phase_2.phase_2c`: Phase 2c feasibility verification split by
   report types, constants, fingerprints, outcome stanzas, exposure projection,
   reddit attribution, admission guards, render/reachability probes,
   source-data preflight, per-task verification, and runner orchestration. The
-  historical `worldsim.phases.phase_2_feasibility` facade was removed in Wave D;
+  historical `warp_taskgen.phases.phase_2_feasibility` facade was removed in Wave D;
   callers and patch points use this feature-owned package.
-- `worldsim.phase_2.exposure_contract`: deterministic Phase 2 exposure
+- `warp_taskgen.phase_2.exposure_contract`: deterministic Phase 2 exposure
   contracts split by signature, builder, seed-template materialization, exposure
   modes, candidate selection, Phase 4 exposure gates, route metadata,
   verification contracts, and editor argument templates. The legacy
-  `worldsim.phases.phase_2_exposure_contract` facade was removed in Wave D;
+  `warp_taskgen.phases.phase_2_exposure_contract` facade was removed in Wave D;
   callers and patch points use this feature-owned package.
-- `worldsim.phase_4`: adversarial execution, PVPO placement, postprocess judges,
+- `warp_taskgen.phase_4`: adversarial execution, PVPO placement, postprocess judges,
   strategy variation, intermediate ASR post-hoc judging, resume, and results.
   Phase 4 must not own benign task eligibility.
-- `worldsim.phase_4.result_summary`: Phase 4 result aggregation split by final
+- `warp_taskgen.phase_4.result_summary`: Phase 4 result aggregation split by final
   metrics, task metadata labels, inspection index rows, action-tier metrics,
   variant regeneration audit, and top-level summary assembly.
-- `worldsim.outcome_taxonomy`: Phase 4 trajectory classification split by signal
+- `warp_taskgen.outcome_taxonomy`: Phase 4 trajectory classification split by signal
   extraction, read-surface matching, engagement checks, classification,
   stratified summaries, disk IO, and result-field serialization.
-- `worldsim.phase_1.novel_task_validation`: Phase 1 generated-task validation
+- `warp_taskgen.phase_1.novel_task_validation`: Phase 1 generated-task validation
   split by batch entry points, single-task orchestration, route alignment,
   task-card alignment, placement target checks, reward checks, answer stability,
   and ordering/eligibility. The legacy
-  `worldsim.phases.phase_1_generate_new_tasks_validation` facade was removed in
+  `warp_taskgen.phases.phase_1_generate_new_tasks_validation` facade was removed in
   Wave D; callers and patch points use this feature-owned package.
-- `worldsim.adversarial_actions`: host-owned adversarial action behavior split by
+- `warp_taskgen.adversarial_actions`: host-owned adversarial action behavior split by
   policies, allowed options, reward compilation, public mutation rewards,
   final-state compilers, and reward introspection. Keep the old
   `compiler.py` import surface as a facade while migrating callers to the
   behavior-owned modules.
 - Phase 0c profile rigor is split by behavior:
-  `worldsim/phases/phase_0_recon.py` remains the compatibility runner,
-  `worldsim/phases/phase_0_evidence_index.py` owns neutral source indexes,
-  `worldsim/phases/phase_0c_artifacts.py` owns provenance/reuse/trace artifacts,
-  and `worldsim/phases/phase_0c_audit.py` owns deterministic host audits. Do not
+  `warp_taskgen/phases/phase_0_recon.py` remains the compatibility runner,
+  `warp_taskgen/phases/phase_0_evidence_index.py` owns neutral source indexes,
+  `warp_taskgen/phases/phase_0c_artifacts.py` owns provenance/reuse/trace artifacts,
+  and `warp_taskgen/phases/phase_0c_audit.py` owns deterministic host audits. Do not
   move these concerns into Modal sandbox setup; `modal_sandbox.py` stays an
   infrastructure-only runner.
-- `worldsim.seed_contracts`: shared seed/editor-call contract behavior used by
+- `warp_taskgen.seed_contracts`: shared seed/editor-call contract behavior used by
   Phase 2, Phase 4, seeding, and sandbox validation. This package must preserve
   sandbox packaging constraints and parity tests.
-- `worldsim.benchmark_capabilities`: immutable Benchmark Contract identity,
+- `warp_taskgen.benchmark_capabilities`: immutable Benchmark Contract identity,
   alias normalization, explicit WARP phase admission versus comparison-only
   ingestion, runner declarations, and evaluator-authority decisions. It must
   not own Site HTTP behavior, auth/browser/reset lifecycle, runner execution,
@@ -66,49 +66,49 @@ Current and target ownership should stay explicit:
   metadata only; new callers must require the named capability before
   admission. Legacy phase flags remain derived compatibility readers during
   the current migration cycle.
-- `worldsim.comparison_ingestion`: native AgentLab comparison payload
+- `warp_taskgen.comparison_ingestion`: native AgentLab comparison payload
   validation, immutable comparison-result envelopes, provenance/artifact
   references, and atomic `comparison_result.json` persistence. This module
   must not import AgentLab, start browsers, reset Sites, enter WARP phase
   admission, or dispatch rewards. The AgentLab runner owns subprocess and
   reset orchestration and calls this module only after a native `run`.
-- `worldsim.run_definition`: immutable, non-secret Run Definition projection,
+- `warp_taskgen.run_definition`: immutable, non-secret Run Definition projection,
   deterministic Definition Digests, and read-only Resume Plans.
-  `worldsim.run_transition` owns pure Run-transition decisions, while
-  `worldsim.cli.run_identity` normalizes shared CLI defaults and binds those
-  decisions to dispatch. `worldsim.state` owns the state-root-scoped context
+  `warp_taskgen.run_transition` owns pure Run-transition decisions, while
+  `warp_taskgen.cli.run_identity` normalizes shared CLI defaults and binds those
+  decisions to dispatch. `warp_taskgen.state` owns the state-root-scoped context
   that persists an exact Run Definition into each atomic checkpoint, while the
   CLI consumes transition decisions. This seam must not accept checkpoints or
-  replace Phase 2/4 fingerprint policies. `worldsim.run_materialization` owns
+  replace Phase 2/4 fingerprint policies. `warp_taskgen.run_materialization` owns
   the atomic reservation and isolated child-root initialization for definition
   drift. It must not copy or accept feature checkpoints, mutate the source Run,
   update the shared discovery pointer, or dispatch the child automatically.
-- `worldsim.run_control`: non-secret cooperative pause requests and
+- `warp_taskgen.run_control`: non-secret cooperative pause requests and
   paused/interrupted lifecycle transitions. Normal Phase 4 scheduling remains
-  here; `worldsim.phase_2.pause_control` owns the Phase 2a planning queue and
-  its Run-bound shard manifests. `worldsim.phase_2.text_fill` owns the Phase
+  here; `warp_taskgen.phase_2.pause_control` owns the Phase 2a planning queue and
+  its Run-bound shard manifests. `warp_taskgen.phase_2.text_fill` owns the Phase
   2b task queue and Run-bound text-fill checkpoints. The feature-owned
-  `worldsim.phase_2.phase_2c.pause_control` owns bounded preflight admission,
+  `warp_taskgen.phase_2.phase_2c.pause_control` owns bounded preflight admission,
   verification claims, drain behavior, and the aggregate-promotion boundary;
   its task checkpoints remain owned by `phase_2.phase_2c.checkpoints`.
   It must not cancel admitted browser/API work, accept feature checkpoints,
   reinterpret `progress.json` as routing authority, or silently extend pause to
-  Phases 0, 1, or 3. `worldsim.phase_4.process_pool` owns its supervisor-specific
+  Phases 0, 1, or 3. `warp_taskgen.phase_4.process_pool` owns its supervisor-specific
   claim/launch boundary and worker/result orchestration;
-  `worldsim.phase_4.process_pool_control` owns root-local lifecycle metadata,
+  `warp_taskgen.phase_4.process_pool_control` owns root-local lifecycle metadata,
   output ownership, and the explicit wrapper continuation contract. Child
   runner and result-merge acceptance remain unchanged.
-  `worldsim.cli.run_control` is the thin parser/dispatch adapter that handles
+  `warp_taskgen.cli.run_control` is the thin parser/dispatch adapter that handles
   operator output and catchable process signals after the phase stack unwinds.
-- `worldsim.seeding`: host-side seed validation, context rendering, editor-call
+- `warp_taskgen.seeding`: host-side seed validation, context rendering, editor-call
   execution, read-surface/result metadata, reddit/map context resolution,
   runtime error validation, DB helpers, and editor-argument compatibility. This
   package remains a patchable public surface because many tests and hidden
-  callers monkeypatch `worldsim.seeding` directly.
-- `worldsim.cli`: WorldSim CLI parser, dispatch, phase-4 lock handling,
+  callers monkeypatch `warp_taskgen.seeding` directly.
+- `warp_taskgen.cli`: WorldSim CLI parser, dispatch, phase-4 lock handling,
   verification proxy setup, task-bank commands, resume flow, and auth
-  validation. `worldsim.main` remains the executable compatibility entrypoint.
-- `worldsim.rewards`: reward dispatch and scoring behavior. Keep the public
+  validation. `warp_taskgen.main` remains the executable compatibility entrypoint.
+- `warp_taskgen.rewards`: reward dispatch and scoring behavior. Keep the public
   facade thin; put behavior in reward-local modules by evidence type and
   benchmark surface. Request-level evidence belongs in `network_event.py` and
   `network_trace.py`; generic persisted-readback validation and catalog
@@ -120,8 +120,8 @@ Current and target ownership should stay explicit:
   `final_state_webarena_verified_reddit.py`; vendor adapter shims belong in
   `vendor_webarena.py`; non-scoring attempt telemetry belongs in
   `action_attempt.py`.
-- `worldsim.browser_use`: Browser Use runtime concerns when that runner is split.
-- `worldsim.sandbox_validator`: sandbox/profile/task validation when that module
+- `warp_taskgen.browser_use`: Browser Use runtime concerns when that runner is split.
+- `warp_taskgen.sandbox_validator`: sandbox/profile/task validation when that module
   is split. This domain has a stricter Modal runtime contract than ordinary host
   modules and should not be mechanically extracted.
 
@@ -198,10 +198,10 @@ sequencing reduces review risk:
   Phase 4 result-summary, outcome taxonomy, Phase 1 validation, then CLI.
 - Then remove pure compatibility wrappers in follow-up changes after downstream
   imports are moved and one validation cycle has had a chance to reveal hidden
-  consumers. Some `worldsim.phases.*` modules are still patchable compatibility
+  consumers. Some `warp_taskgen.phases.*` modules are still patchable compatibility
   surfaces, not pure shims. Do not delete those wholesale. Update remaining
-  internal and downstream imports to canonical `worldsim.phase_2.*`,
-  `worldsim.phase_4.*`, and `worldsim.seed_contracts.*` paths, then delete only
+  internal and downstream imports to canonical `warp_taskgen.phase_2.*`,
+  `warp_taskgen.phase_4.*`, and `warp_taskgen.seed_contracts.*` paths, then delete only
   wrappers that `scripts/readiness_audit.py` identifies as legacy import
   modules.
 - Unwind linked-context modules after wrapper removal. The `_context.py`
@@ -210,11 +210,11 @@ sequencing reduces review risk:
   split. Replace it with explicit imports domain by domain, starting with target
   resolution because it is smaller and has focused tests.
 - Split sandbox validation as a separate design task.
-  `worldsim/_sandbox_validator.py` is urgent by size, but it runs inside Modal
-  with stdlib-only and no-`worldsim` import constraints. Sharing seed-contract
+  `warp_taskgen/_sandbox_validator.py` is urgent by size, but it runs inside Modal
+  with stdlib-only and no-`warp_taskgen` import constraints. Sharing seed-contract
   behavior there needs either a generated standalone validator or a deliberately
   shipped sandbox validation package, plus parity tests against
-  `worldsim.seed_contracts`.
+  `warp_taskgen.seed_contracts`.
 - Keep other large files visible as debt instead of allowlisting them. Examples
   include the Browser Use runner, seeding, GitLab editor, Phase 2 feasibility,
   Phase 2 exposure contracts, the main CLI, and outcome taxonomy.

@@ -1,4 +1,4 @@
-"""Unit tests for ``worldsim.atomic_io``.
+"""Unit tests for ``warp_taskgen.atomic_io``.
 
 Focus: the permission-preservation behavior of ``write_json_atomic``.
 ``tempfile.mkstemp`` hardcodes ``0o600`` on new files; without the
@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from worldsim import atomic_io
+from warp_taskgen import atomic_io
 
 
 def _mode(path: Path) -> int:

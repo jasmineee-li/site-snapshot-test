@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from worldsim.agent_config import RUNTIME_METADATA_KEY
-from worldsim.task_reset_cache import (
+from warp_taskgen.agent_config import RUNTIME_METADATA_KEY
+from warp_taskgen.task_reset_cache import (
     TaskResetCache,
     callable_accepts_keyword,
     result_likely_mutated_state,

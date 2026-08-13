@@ -1,7 +1,7 @@
 import pytest
 from pydantic import BaseModel, Field, model_validator
 
-from worldsim.phase_4 import (
+from warp_taskgen.phase_4 import (
     eval_awareness_cue_api,
     eval_awareness_rewrite_api,
     judge_api,
@@ -10,7 +10,7 @@ from worldsim.phase_4 import (
     variant_api,
     verbalized_eval_awareness_api,
 )
-from worldsim.phase_4.eval_awareness_streaming_tool import (
+from warp_taskgen.phase_4.eval_awareness_streaming_tool import (
     StreamingToolTruncatedError,
     StreamingToolValidationError,
     _request_kwargs,
@@ -116,9 +116,7 @@ def test_phase_4_model_metadata_uses_warp_taskgen_ids() -> None:
     assert verbalized_eval_awareness_api._model_metadata() == {
         "user_id": "warp-taskgen-verbalized-eval-awareness"
     }
-    assert placement_api._model_metadata() == {
-        "user_id": "warp-taskgen-placement-fix"
-    }
+    assert placement_api._model_metadata() == {"user_id": "warp-taskgen-placement-fix"}
     assert judge_api._model_metadata({"id": "task-1"}) == {
         "user_id": "warp-taskgen-adversarial-judge"
     }

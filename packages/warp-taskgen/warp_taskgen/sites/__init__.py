@@ -1,0 +1,57 @@
+"""Explicit Site Targeting seam.
+
+The Site Targeting module is deliberately small.  Callers bind a benchmark
+profile and an immutable targeting context once, then ask the bound Site for
+route descriptors or a deterministic target.  Authentication, browser
+reachability, editors, exposure, and scoring remain outside this package.
+"""
+
+from warp_taskgen.sites.candidate_resolution import SourceListing, TargetCandidate
+from warp_taskgen.sites.catalog import BoundSite, SiteCatalog, default_catalog
+from warp_taskgen.sites.contracts import (
+    CanonicalRoute,
+    ResolvedTarget,
+    SiteAdapter,
+    SiteProfileRouteCapability,
+    SiteRouteContractFacts,
+    SiteTargetingDefinitionError,
+    SurfaceResolution,
+    TargetingContext,
+    TargetingFailure,
+)
+from warp_taskgen.sites.gitlab import GitLabSite
+from warp_taskgen.sites.listing_resolution import ListingItemCandidate, ListingSiteAdapter
+from warp_taskgen.sites.read_surface import (
+    ReadSurfacePlanFailure,
+    ReadSurfaceVerificationPlan,
+    SiteReadSurfaceCapability,
+)
+from warp_taskgen.sites.readback import ReadbackDecision, ReadbackFailure, ReadbackObservation
+from warp_taskgen.sites.reddit import RedditSite
+
+__all__ = [
+    "BoundSite",
+    "CanonicalRoute",
+    "GitLabSite",
+    "ListingItemCandidate",
+    "ListingSiteAdapter",
+    "ReadSurfacePlanFailure",
+    "ReadSurfaceVerificationPlan",
+    "ReadbackDecision",
+    "ReadbackFailure",
+    "ReadbackObservation",
+    "RedditSite",
+    "ResolvedTarget",
+    "SiteAdapter",
+    "SiteCatalog",
+    "SiteProfileRouteCapability",
+    "SiteReadSurfaceCapability",
+    "SiteRouteContractFacts",
+    "SiteTargetingDefinitionError",
+    "SourceListing",
+    "SurfaceResolution",
+    "TargetCandidate",
+    "TargetingContext",
+    "TargetingFailure",
+    "default_catalog",
+]

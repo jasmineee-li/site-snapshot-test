@@ -6,18 +6,18 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.phase_2 import text_fill as phase_2_text_fill
-from worldsim.phase_2.text_fill.checkpoint_runner import fill_plans_with_checkpoints
-from worldsim.phase_2.text_fill.checkpoints import (
+from warp_taskgen.phase_2 import text_fill as phase_2_text_fill
+from warp_taskgen.phase_2.text_fill.checkpoint_runner import fill_plans_with_checkpoints
+from warp_taskgen.phase_2.text_fill.checkpoints import (
     load_text_fill_checkpoint,
     text_fill_checkpoint_matches,
     text_fill_checkpoint_path,
     write_text_fill_checkpoint,
 )
-from worldsim.phase_2.text_fill.pause import run_text_fill_units
-from worldsim.phase_2.text_fill.seed import materialize_adversarial_seed
-from worldsim.run_control import PauseBoundaryReached, acknowledge_pause, request_pause
-from worldsim.run_transition import resolve_run_request
+from warp_taskgen.phase_2.text_fill.pause import run_text_fill_units
+from warp_taskgen.phase_2.text_fill.seed import materialize_adversarial_seed
+from warp_taskgen.run_control import PauseBoundaryReached, acknowledge_pause, request_pause
+from warp_taskgen.run_transition import resolve_run_request
 
 
 def _plan() -> dict:
@@ -296,7 +296,7 @@ async def test_exact_resume_reuses_completed_units_without_promoting_partial_out
         task = _completed_task(plan)
         return [task], [{"task_id": plan["id"], "status": "ok", "attempts": []}]
 
-    from worldsim.phase_2.text_fill.checkpoint_runner import fill_plans_with_checkpoints
+    from warp_taskgen.phase_2.text_fill.checkpoint_runner import fill_plans_with_checkpoints
 
     with pytest.raises(PauseBoundaryReached):
         await fill_plans_with_checkpoints(

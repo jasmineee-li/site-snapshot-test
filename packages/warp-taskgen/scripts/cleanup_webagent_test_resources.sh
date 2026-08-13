@@ -29,9 +29,9 @@ from pathlib import Path
 
 import requests
 
-from worldsim.auth_tokens import acquire_tokens_for_instances
-from worldsim.editors.gitlab import GitlabEditor
-from worldsim.editors.reddit import RedditEditor
+from warp_taskgen.auth_tokens import acquire_tokens_for_instances
+from warp_taskgen.editors.gitlab import GitlabEditor
+from warp_taskgen.editors.reddit import RedditEditor
 
 _PREFIXES = ("webagent-task-", "webagent-verify-")
 

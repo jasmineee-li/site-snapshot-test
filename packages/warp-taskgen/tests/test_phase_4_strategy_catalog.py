@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from worldsim.phase_4.strategy_catalog import (
+from warp_taskgen.phase_4.strategy_catalog import (
     ACTION_KIND_TRIGGER_TO_STRATEGIES,
     ALLOWED_STRATEGIES,
     BINARY_LABEL_TRIGGER_TO_STRATEGIES,

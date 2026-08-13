@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 
-from worldsim.prompt_corrections import ValidationIssue, render_validation_feedback
+from warp_taskgen.prompt_corrections import ValidationIssue, render_validation_feedback
 
 
 def test_render_validation_feedback_wraps_structured_errors():

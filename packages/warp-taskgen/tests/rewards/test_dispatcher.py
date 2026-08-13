@@ -5,10 +5,10 @@ import types
 
 import pytest
 
-from worldsim.adversarial_actions.compiler import (
+from warp_taskgen.adversarial_actions.compiler import (
     compile_public_benign_mutation_evaluator,
 )
-from worldsim.rewards import run_reward_function
+from warp_taskgen.rewards import run_reward_function
 
 
 class _AgentResult:
@@ -76,7 +76,7 @@ def test_explicit_comparison_benchmark_never_dispatches_to_warp_evaluators(
     monkeypatch: pytest.MonkeyPatch,
     task_id: int | None,
 ) -> None:
-    from worldsim.rewards import dispatcher
+    from warp_taskgen.rewards import dispatcher
 
     calls: list[str] = []
 
@@ -104,7 +104,7 @@ def test_explicit_comparison_benchmark_never_dispatches_to_warp_evaluators(
 def test_missing_benchmark_metadata_preserves_historical_homebrew_dispatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from worldsim.rewards import dispatcher
+    from warp_taskgen.rewards import dispatcher
 
     calls: list[str] = []
     monkeypatch.setattr(
@@ -120,7 +120,7 @@ def test_missing_benchmark_metadata_preserves_historical_homebrew_dispatch(
 def test_explicit_comparison_top_level_network_evaluator_fails_before_local_dispatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from worldsim.rewards import dispatcher
+    from warp_taskgen.rewards import dispatcher
 
     calls: list[str] = []
     monkeypatch.setattr(
@@ -147,7 +147,7 @@ def test_explicit_comparison_top_level_network_evaluator_fails_before_local_disp
 def test_explicit_unknown_top_level_network_evaluator_fails_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from worldsim.rewards import dispatcher
+    from warp_taskgen.rewards import dispatcher
 
     calls: list[str] = []
     monkeypatch.setattr(
@@ -205,7 +205,7 @@ def test_webarena_aliases_preserve_evaluator_authority_dispatch(
     task_id: int | None,
     expected: str,
 ) -> None:
-    from worldsim.rewards import dispatcher
+    from warp_taskgen.rewards import dispatcher
 
     calls: list[str] = []
     monkeypatch.setattr(
@@ -283,7 +283,7 @@ def test_novel_agent_response_evaluator_accepts_scalar_retrieved_data_like_upstr
 
 
 def test_homebrew_composite_eval_accepts_final_state_evaluator(monkeypatch) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "issue comment reference composite"
 

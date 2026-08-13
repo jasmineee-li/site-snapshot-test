@@ -42,7 +42,7 @@ stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 printf 'nightly-feasibility %s — starting (instances=%s, ttl_hours=%s)\n' \
     "$stamp" "$INSTANCES_FILE" "$TTL_HOURS"
 
-uv run python -m worldsim.main phase 2c \
+uv run python -m warp_taskgen.main phase 2c \
     --feasibility-instances "$INSTANCES_FILE" \
     --feasibility-concurrency "$CONCURRENCY" \
     --feasibility-ttl-hours "$TTL_HOURS"

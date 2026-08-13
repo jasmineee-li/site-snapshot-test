@@ -6,9 +6,9 @@ from types import SimpleNamespace
 import pytest
 
 from scripts.repair_process_pool_partial import repair_process_pool_partial
-from worldsim.config import BenchmarkConfig
-from worldsim.phase_4 import process_pool
-from worldsim.phase_4.process_pool import (
+from warp_taskgen.config import BenchmarkConfig
+from warp_taskgen.phase_4 import process_pool
+from warp_taskgen.phase_4.process_pool import (
     ProcessPoolArgs,
     WorkerOutcome,
     _active_worker_progress_payload,
@@ -25,9 +25,9 @@ from worldsim.phase_4.process_pool import (
     _write_worker_status,
     run_process_pool,
 )
-from worldsim.phase_4.process_pool_control import process_pool_output_lock
-from worldsim.run_control import acknowledge_pause, request_pause
-from worldsim.state import bind_state_paths
+from warp_taskgen.phase_4.process_pool_control import process_pool_output_lock
+from warp_taskgen.run_control import acknowledge_pause, request_pause
+from warp_taskgen.state import bind_state_paths
 
 
 def _pool_args(tmp_path: Path, **overrides) -> ProcessPoolArgs:
@@ -108,7 +108,7 @@ def test_worker_command_filters_to_single_task_and_worker(tmp_path):
 
     command = _worker_command(args, assignment)
 
-    assert command[:3][-2:] == ["-m", "worldsim.main"]
+    assert command[:3][-2:] == ["-m", "warp_taskgen.main"]
     assert "--phase-4-task-id" in command
     assert command[command.index("--phase-4-task-id") + 1] == "adv-1"
     assert command[command.index("--phase-4-max-workers") + 1] == "1"
