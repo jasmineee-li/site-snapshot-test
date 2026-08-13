@@ -1,6 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import target_stage
 
 
 @pytest.mark.asyncio
@@ -151,7 +152,7 @@ async def test_checkpoint_write_failure_does_not_promote_unbound_plans(
         return [plan]
 
     monkeypatch.setattr(
-        phase_2_injections,
+        target_stage,
         "_resolve_benign_target_resources_for_shard",
         resolved,
     )
@@ -199,7 +200,7 @@ async def test_checkpoint_write_failure_does_not_promote_unbound_plans(
         lambda tasks, targets: tasks,
     )
     monkeypatch.setattr(
-        phase_2_injections,
+        target_stage,
         "_normalize_l4_benign_task_ids_in_place",
         lambda tasks: None,
     )

@@ -1,6 +1,8 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import target_stage
+
 
 def test_merge_immutable_fields_redacts_agent_context_secrets():
     benign = _benign_task()
@@ -28,6 +30,7 @@ def test_merge_immutable_fields_redacts_agent_context_secrets():
     assert "admin1234" not in adv["agent_context"]["description"]
     assert "<redacted>" in adv["agent_context"]["description"]
 
+
 def test_merge_immutable_fields_redacts_email_password_examples_in_prose():
     benign = _benign_task()
     benign["agent_context"] = {
@@ -46,6 +49,7 @@ def test_merge_immutable_fields_redacts_email_password_examples_in_prose():
     assert "emma.lopez@gmail.com:Password.123" not in adv["agent_context"]["description"]
     assert "email:password" in adv["agent_context"]["description"]
     assert "<redacted>" in adv["agent_context"]["description"]
+
 
 def test_merge_immutable_fields_redacts_sensitive_benign_data_seed():
     benign = _benign_task()
@@ -116,6 +120,7 @@ def test_sanitize_task_for_output_redacts_data_seed_and_cookie_session_fields():
     assert sanitized["agent_context"]["auth_mechanism"]["cookies"] == {"session": "<redacted>"}
     assert sanitized["agent_context"]["auth_mechanism"]["session_cookie"] == "<redacted>"
 
+
 def test_write_dropped_source_data_sidecar_clears_full_run_stale_records(tmp_path):
     path = tmp_path / "adversarial_tasks.dropped_source_data.json"
     path.write_text(
@@ -133,6 +138,7 @@ def test_write_dropped_source_data_sidecar_clears_full_run_stale_records(tmp_pat
     phase_2_injections._write_dropped_source_data_sidecar(path, [], sites_filter=None)
 
     assert json.loads(path.read_text()) == []
+
 
 def test_write_dropped_source_data_sidecar_preserves_unfiltered_sites(tmp_path):
     path = tmp_path / "adversarial_tasks.dropped_source_data.json"
@@ -170,6 +176,7 @@ def test_write_dropped_source_data_sidecar_preserves_unfiltered_sites(tmp_path):
     assert [record["id"] for record in records] == ["old-reddit", "new-gitlab"]
     assert merged == records
 
+
 def test_write_dropped_source_data_sidecar_dedupes_by_site_and_id(tmp_path):
     path = tmp_path / "adversarial_tasks.dropped_source_data.json"
     duplicate = {
@@ -186,6 +193,7 @@ def test_write_dropped_source_data_sidecar_dedupes_by_site_and_id(tmp_path):
 
     assert merged == [duplicate]
     assert json.loads(path.read_text()) == [duplicate]
+
 
 def test_phase_2_injections_facade_exports_split_artifact_helpers():
     assert (
@@ -205,6 +213,7 @@ def test_phase_2_injections_facade_exports_split_artifact_helpers():
     assert callable(phase_2_injections._sanitize_agent_context_node)
     assert callable(phase_2_injections._collect_agent_context_secrets)
 
+
 def test_report_summary_can_count_merged_dropped_source_data():
     report = phase_2_injections.FeasibilityReport(
         verified=[],
@@ -223,7 +232,7 @@ def test_report_summary_can_count_merged_dropped_source_data():
         {"id": "current", "source_data_issue": {"kind": "not_found"}},
     ]
 
-    summary = phase_2_injections._report_summary_dict(
+    summary = target_stage._report_summary_dict(
         report,
         instances_path="instances.scale.json",
         dropped_source_data=merged,
@@ -231,6 +240,7 @@ def test_report_summary_can_count_merged_dropped_source_data():
 
     assert summary["source_data_dropped_count"] == 2
     assert summary["source_data_dropped_by_kind"] == {"gone": 1, "not_found": 1}
+
 
 def test_dropped_source_sidecar_observes_facade_merge_monkeypatch(monkeypatch, tmp_path):
     path = tmp_path / "adversarial_tasks.dropped_source_data.json"
@@ -259,6 +269,7 @@ def test_dropped_source_sidecar_observes_facade_merge_monkeypatch(monkeypatch, t
 
     assert [record["id"] for record in merged] == ["patched"]
     assert json.loads(path.read_text()) == merged
+
 
 @pytest.mark.asyncio
 async def test_generate_injections_for_site_api_path_sanitizes_prompt_inputs(monkeypatch, tmp_path):
@@ -336,6 +347,7 @@ async def test_generate_injections_for_site_api_path_sanitizes_prompt_inputs(mon
         captured["benign_tasks"][0]["data_seed"]["api_calls"][0]["headers"]["Authorization"]
         == "<redacted>"
     )
+
 
 @pytest.mark.asyncio
 async def test_generate_injections_for_site_api_path_sanitizes_agent_context_cookies(
@@ -416,6 +428,7 @@ async def test_generate_injections_for_site_api_path_sanitizes_agent_context_coo
     assert captured["agent_context"]["auth_mechanism"]["headers"] == {
         "X-Test-Auto-Login": "<redacted>"
     }
+
 
 def test_merge_preserving_unfiltered_sites_drops_quarantined_map_entries(tmp_path):
     path = tmp_path / "adversarial_tasks.json"

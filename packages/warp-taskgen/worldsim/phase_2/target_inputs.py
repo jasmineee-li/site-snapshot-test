@@ -1,12 +1,43 @@
 """Phase 2 target-resolution input preparation."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_2._context import install_context
+import argparse
+import hashlib
+import json
+import logging
+import os
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
+
+from worldsim.auth_tokens import acquire_tokens_for_instances
+from worldsim.phase_2.exposure_contract import (
+    signature_hash as exposure_contract_signature_hash,
+)
+from worldsim.phase_2.phase_2c.config import _extract_instances_list
+from worldsim.phase_2.target_resolution.constants import (
+    PHASE_2A_SYNTHETIC_PLACEHOLDERS as _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
+)
+from worldsim.phase_2.target_resolution.runner import derive_benign_target_resource
 from worldsim.sites import default_catalog
 
-install_context(globals())
+logger = logging.getLogger(__name__)
+
+
+def _l1_l2_resources_dict(
+    site_tasks: list[dict],
+    *,
+    benchmark: str = "webarena_verified",
+) -> dict[str, dict[str, Any]]:
+    return {
+        str(task.get("id")): derive_benign_target_resource(
+            task,
+            _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
+            benchmark=benchmark,
+        )
+        for task in site_tasks
+    }
 
 
 def _phase_2a_resolution_signature(args: argparse.Namespace) -> dict[str, Any]:

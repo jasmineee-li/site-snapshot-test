@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from worldsim.phase_2 import target_stage as _target_stage
 from worldsim.phase_2._context import install_context
 
 install_context(globals())
@@ -134,9 +135,9 @@ def _recover_orphaned_shards(
             len(orphans),
             dropped_count,
         )
-    _reconstruct_orphan_start_urls(orphans)
+    _target_stage._reconstruct_orphan_start_urls(orphans)
     merged = list(in_memory_plans) + orphans
-    _normalize_l4_benign_task_ids_in_place(merged)
+    _target_stage._normalize_l4_benign_task_ids_in_place(merged)
     recovered_ids = sorted(str(task.get("id") or "") for task in orphans)
     return merged, recovered_ids
 
@@ -176,8 +177,8 @@ def _load_reusable_planning_shard(
     )
     if dropped_count or len(reusable) != len(data):
         return None
-    _reconstruct_orphan_start_urls(reusable)
-    _normalize_l4_benign_task_ids_in_place(reusable)
+    _target_stage._reconstruct_orphan_start_urls(reusable)
+    _target_stage._normalize_l4_benign_task_ids_in_place(reusable)
     return reusable
 
 

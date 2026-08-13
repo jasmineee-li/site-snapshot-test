@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from worldsim.phase_2 import target_stage as _target_stage
 from worldsim.phase_2._context import install_context
 
 install_context(globals())
@@ -52,7 +53,7 @@ def _load_reusable_phase_2_plans(
     )
     if not filtered_plans:
         return None
-    _normalize_l4_benign_task_ids_in_place(
+    _target_stage._normalize_l4_benign_task_ids_in_place(
         filtered_plans,
         expected_ids=expected_benign_task_ids,
     )
@@ -137,7 +138,7 @@ def _load_reusable_phase_2_tasks(
     )
     if not tasks:
         return None
-    _normalize_l4_benign_task_ids_in_place(
+    _target_stage._normalize_l4_benign_task_ids_in_place(
         tasks,
         expected_ids=expected_benign_task_ids,
     )

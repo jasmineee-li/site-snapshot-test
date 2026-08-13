@@ -1,6 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import target_inputs
 
 
 @pytest.mark.asyncio
@@ -180,7 +181,7 @@ async def test_text_fill_pause_wins_zero_success_terminal_race(monkeypatch, tmp_
             status="running",
             phase_2_stage="text_fill",
             sandbox_model="demo",
-            phase_2a_resolution_signature=phase_2_injections._phase_2a_resolution_signature(args),
+            phase_2a_resolution_signature=target_inputs._phase_2a_resolution_signature(args),
         )
         with pytest.raises(PauseBoundaryReached):
             await phase_2_injections.run(args)

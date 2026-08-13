@@ -126,7 +126,7 @@ async def run(args: argparse.Namespace) -> int:
         "phase_2b_texts_per_plan": texts_per_plan,
         "phase_2_text_fill_concurrency": text_fill_concurrency,
         "phase_2_text_model": text_fill_model,
-        "phase_2a_resolution_signature": _phase_2a_resolution_signature(args),
+        "phase_2a_resolution_signature": _target_inputs._phase_2a_resolution_signature(args),
         "phase_2a_action_policy": phase_2a_action_policy,
         "exposure_contract_signature": exposure_contract_signature(),
     }
@@ -329,8 +329,8 @@ async def run(args: argparse.Namespace) -> int:
         # descriptor. None means the legacy L1/L2-only path (either
         # --no-l3-l4 was set, --feasibility-instances is absent, or the
         # wrapper file had no instances). See `_load_phase_2a_instance_by_site`.
-        instance_by_site = _load_phase_2a_instance_by_site(args)
-        _warm_phase_2a_instance_tokens(instance_by_site)
+        instance_by_site = _target_inputs._load_phase_2a_instance_by_site(args)
+        _target_inputs._warm_phase_2a_instance_tokens(instance_by_site)
 
         # Shard each site's tasks into chunks of TASKS_PER_SHARD and launch
         # bounded host-side API calls. Shopping (192 tasks) becomes ~8 shorter
@@ -660,7 +660,6 @@ from worldsim.phase_2 import plan_validation as _plan_validation
 from worldsim.phase_2 import reuse as _reuse
 from worldsim.phase_2 import shards as _shards
 from worldsim.phase_2 import target_inputs as _target_inputs
-from worldsim.phase_2 import target_stage as _target_stage
 from worldsim.phase_2._context import link_modules as _link_modules
 from worldsim.phase_2.phase_2c import stage as _phase_2c_stage
 
@@ -673,8 +672,6 @@ _link_modules(
         _plan_validation,
         _reuse,
         _shards,
-        _target_inputs,
-        _target_stage,
         _phase_2c_stage,
     ]
 )

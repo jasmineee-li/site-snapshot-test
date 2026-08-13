@@ -1,6 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import target_inputs
 
 
 def test_collect_site_profiles_returns_reusable_mapping(tmp_path):
@@ -185,7 +186,7 @@ def test_phase_2a_resolution_signature_ignores_api_auth_only_drift(tmp_path):
         )
     )
     args = Namespace(feasibility_instances=str(path), no_l3_l4=False)
-    first = phase_2_injections._phase_2a_resolution_signature(args)
+    first = target_inputs._phase_2a_resolution_signature(args)
 
     path.write_text(
         json.dumps(
@@ -203,7 +204,7 @@ def test_phase_2a_resolution_signature_ignores_api_auth_only_drift(tmp_path):
             }
         )
     )
-    second = phase_2_injections._phase_2a_resolution_signature(args)
+    second = target_inputs._phase_2a_resolution_signature(args)
 
     assert first["instances_sha256"] == second["instances_sha256"]
 
@@ -225,7 +226,7 @@ def test_phase_2a_resolution_signature_detects_benign_auth_drift(tmp_path):
         )
     )
     args = Namespace(feasibility_instances=str(path), no_l3_l4=False)
-    first = phase_2_injections._phase_2a_resolution_signature(args)
+    first = target_inputs._phase_2a_resolution_signature(args)
 
     path.write_text(
         json.dumps(
@@ -241,7 +242,7 @@ def test_phase_2a_resolution_signature_detects_benign_auth_drift(tmp_path):
             }
         )
     )
-    second = phase_2_injections._phase_2a_resolution_signature(args)
+    second = target_inputs._phase_2a_resolution_signature(args)
 
     assert first["instances_sha256"] != second["instances_sha256"]
 
@@ -262,7 +263,7 @@ def test_phase_2a_resolution_signature_detects_api_auth_only_mode_change(tmp_pat
         )
     )
     args = Namespace(feasibility_instances=str(path), no_l3_l4=False)
-    first = phase_2_injections._phase_2a_resolution_signature(args)
+    first = target_inputs._phase_2a_resolution_signature(args)
 
     path.write_text(
         json.dumps(
@@ -278,7 +279,7 @@ def test_phase_2a_resolution_signature_detects_api_auth_only_mode_change(tmp_pat
             }
         )
     )
-    second = phase_2_injections._phase_2a_resolution_signature(args)
+    second = target_inputs._phase_2a_resolution_signature(args)
 
     assert first["instances_sha256"] != second["instances_sha256"]
 
@@ -304,10 +305,10 @@ def test_phase_2a_resolution_signature_detects_env_backed_auth_drift(monkeypatch
     )
     args = Namespace(feasibility_instances=str(path), no_l3_l4=False)
     monkeypatch.setenv("WORLDSIM_TEST_AUTH", "alice:one")
-    first = phase_2_injections._phase_2a_resolution_signature(args)
+    first = target_inputs._phase_2a_resolution_signature(args)
 
     monkeypatch.setenv("WORLDSIM_TEST_AUTH", "alice:two")
-    second = phase_2_injections._phase_2a_resolution_signature(args)
+    second = target_inputs._phase_2a_resolution_signature(args)
 
     assert first["instances_sha256"] != second["instances_sha256"]
 
@@ -330,11 +331,11 @@ def test_phase_2a_resolution_signature_ignores_overwritten_duplicate_site_entrie
     }
     path.write_text(json.dumps(payload))
     args = Namespace(feasibility_instances=str(path), no_l3_l4=False)
-    first = phase_2_injections._phase_2a_resolution_signature(args)
+    first = target_inputs._phase_2a_resolution_signature(args)
 
     payload["instances"][0]["auth"]["headers"]["X-Test"] = "changed-but-overwritten"
     path.write_text(json.dumps(payload))
-    second = phase_2_injections._phase_2a_resolution_signature(args)
+    second = target_inputs._phase_2a_resolution_signature(args)
 
     assert first["instances_sha256"] == second["instances_sha256"]
 

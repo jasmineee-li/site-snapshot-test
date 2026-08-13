@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from worldsim.phase_2 import target_stage as _target_stage
 from worldsim.phase_2._context import install_context
 from worldsim.phase_2.phase_2c.pause_control import promotion_boundary
 from worldsim.run_definition import define_run
@@ -134,7 +135,7 @@ async def _run_feasibility_stage(
         logger.warning("Phase 2c: --skip-feasibility active; stamping tasks as unverified")
         stamped = [skipped_task_stanza(task) for task in selected_current]
         report_summary = {
-            "generated_at": _utcnow_iso(),
+            "generated_at": _target_stage._utcnow_iso(),
             "instances": str(instances_arg),
             "host_fingerprint": {},
             "elapsed_seconds": 0.0,
@@ -163,7 +164,7 @@ async def _run_feasibility_stage(
                 allow_unverified=True,
             )
             summary = artifact_result.summary
-            completed_at = _utcnow_iso()
+            completed_at = _target_stage._utcnow_iso()
             save_state(
                 "phase_2",
                 status=_terminal_phase_2_status(prior_phase_2_status),
@@ -329,7 +330,7 @@ async def _run_feasibility_stage(
         "feasibility_report_path": str(report_path),
         "feasibility_infeasible_path": str(infeasible_path),
         "feasibility_dropped_source_data_path": str(dropped_source_path),
-        "feasibility_completed_at": _utcnow_iso(),
+        "feasibility_completed_at": _target_stage._utcnow_iso(),
         "feasibility_verified_count": 0,
         "feasibility_infeasible_count": 0,
         "feasibility_skipped_count": 0,
@@ -351,7 +352,10 @@ async def _run_feasibility_stage(
             verified=report.verified,
             infeasible=report.infeasible,
             dropped_source_data=report.dropped_source_data,
-            report_summary=_report_summary_dict(report, instances_path=instances_path.name),
+            report_summary=_target_stage._report_summary_dict(
+                report,
+                instances_path=instances_path.name,
+            ),
             sites_filter=sites_filter,
         )
         summary = artifact_result.summary
@@ -361,7 +365,7 @@ async def _run_feasibility_stage(
         fresh_count = verified_count - skipped_count
         feasibility_metadata.update(
             {
-                "feasibility_completed_at": _utcnow_iso(),
+                "feasibility_completed_at": _target_stage._utcnow_iso(),
                 "feasibility_verified_count": verified_count,
                 "feasibility_infeasible_count": infeasible_count,
                 "feasibility_skipped_count": skipped_count,

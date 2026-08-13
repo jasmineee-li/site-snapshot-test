@@ -1,11 +1,35 @@
 """Phase 2 target_stage behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_2._context import install_context
+import json
+import logging
+import re
+import threading
+from collections.abc import Mapping
+from datetime import UTC, datetime
+from typing import Any
 
-install_context(globals())
+from worldsim.atomic_io import write_json_atomic
+from worldsim.auth_tokens import acquire_tokens_for_instances
+from worldsim.phase_2.output import _effective_task_site
+from worldsim.phase_2.phase_2c.types import FeasibilityReport
+from worldsim.phase_2.target_inputs import (
+    _instance_bearer_tokens_ready,
+    _instance_lacks_benign_probe_auth,
+    _l1_l2_resources_dict,
+    _l1_l2_resources_with_probe_fail_closed,
+)
+from worldsim.phase_2.target_resolution.constants import (
+    PHASE_2A_SYNTHETIC_PLACEHOLDERS as _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
+)
+from worldsim.phase_2.target_resolution.runner import resolve_tasks
+from worldsim.state import get_state_dir
+
+logger = logging.getLogger(__name__)
+_TARGET_RESOLUTION_WRITE_LOCK = threading.Lock()
+L4_TASK_ID_SUFFIX = "_l4_"
+_L4_CLONE_BENIGN_TASK_ID_RE = re.compile(r"^(?P<source>.+)_l4_(?P<index>\d+)$")
 
 
 def _report_summary_dict(
@@ -88,21 +112,6 @@ def _normalize_l4_benign_task_ids_in_place(
         canonical = _canonical_benign_task_id(task, expected_ids=expected_ids)
         if canonical:
             task["benign_task_id"] = canonical
-
-
-def _l1_l2_resources_dict(
-    site_tasks: list[dict],
-    *,
-    benchmark: str = "webarena_verified",
-) -> dict[str, dict[str, Any]]:
-    return {
-        str(task.get("id")): derive_benign_target_resource(
-            task,
-            _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
-            benchmark=benchmark,
-        )
-        for task in site_tasks
-    }
 
 
 async def _resolve_benign_target_resources_for_shard(
