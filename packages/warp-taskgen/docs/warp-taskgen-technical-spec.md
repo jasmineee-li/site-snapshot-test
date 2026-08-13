@@ -1534,8 +1534,7 @@ GitLab render verification may use resource-specific read-your-write probes as a
 
 **Entry point.** The canonical Phase 2c implementation lives under
 `worldsim/phase_2/phase_2c/` (`stage.py`, `runner.py`, `config.py`,
-`artifacts.py`, and `_impl.py`). `worldsim/phases/phase_2_feasibility.py` is a
-compatibility facade for older imports. The public runner shape is:
+`artifacts.py`, and `_impl.py`). The public runner shape is:
 
     async def verify_feasibility(
         tasks_path: Path,

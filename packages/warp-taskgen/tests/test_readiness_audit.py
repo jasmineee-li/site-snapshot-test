@@ -174,6 +174,31 @@ def test_legacy_import_audit_flags_phase_2_api_compat_path(tmp_path, monkeypatch
     ]
 
 
+def test_legacy_import_audit_flags_retired_feature_facades(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "worldsim" / "consumer.py"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "\n".join(
+            [
+                "from worldsim.phases import phase_1_generate_new_tasks_validation",
+                "from worldsim.phases import phase_2_exposure_contract",
+                "from worldsim.phases import phase_2_feasibility",
+                "from worldsim.phases import phase_2_text_fill",
+            ]
+        )
+    )
+
+    findings = readiness_audit._legacy_phase_import_findings(["worldsim/consumer.py"])
+
+    assert [finding.module for finding in findings] == [
+        "worldsim.phases.phase_1_generate_new_tasks_validation",
+        "worldsim.phases.phase_2_exposure_contract",
+        "worldsim.phases.phase_2_feasibility",
+        "worldsim.phases.phase_2_text_fill",
+    ]
+
+
 def test_legacy_import_audit_allows_cutover_tests(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     path = tmp_path / "tests" / "consumer.py"
@@ -220,7 +245,7 @@ def test_legacy_import_audit_relative_import_resolution_drops_levels() -> None:
     assert readiness_audit._resolve_relative_anchor("worldsim/phases/foo.py", 5) is None
 
 
-def test_active_facade_import_audit_flags_patchable_compat_paths(tmp_path, monkeypatch) -> None:
+def test_active_facade_import_audit_flags_only_main_adapter(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     path = tmp_path / "worldsim" / "consumer.py"
     path.parent.mkdir(parents=True)
@@ -238,8 +263,6 @@ def test_active_facade_import_audit_flags_patchable_compat_paths(tmp_path, monke
 
     assert [finding.module for finding in findings] == [
         "worldsim.main",
-        "worldsim.phases.phase_2_text_fill",
-        "worldsim.phases.phase_2_feasibility",
     ]
 
 

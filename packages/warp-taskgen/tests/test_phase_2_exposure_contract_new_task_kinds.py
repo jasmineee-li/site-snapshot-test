@@ -147,19 +147,3 @@ def test_package_signature_observes_impl_preferred_token_patch(monkeypatch):
         sig = package.exposure_contract_signature()
 
     assert sig["token_preference"] == ["{package_patched_token}"]
-
-
-def test_legacy_signature_observes_facade_preferred_token_patch(monkeypatch):
-    from worldsim.phase_2.exposure_contract import _impl, signature
-    from worldsim.phases import phase_2_exposure_contract as legacy
-
-    with monkeypatch.context() as patch:
-        # The facade synchronizes legacy globals into both canonical signature
-        # layers; register those destinations so teardown is exception-safe.
-        patch.setattr(_impl, "PREFERRED_TOKEN_ORDER", _impl.PREFERRED_TOKEN_ORDER)
-        patch.setattr(signature, "PREFERRED_TOKEN_ORDER", signature.PREFERRED_TOKEN_ORDER)
-        patch.setattr(legacy, "PREFERRED_TOKEN_ORDER", ("{legacy_patched_token}",))
-
-        sig = legacy.exposure_contract_signature()
-
-    assert sig["token_preference"] == ["{legacy_patched_token}"]

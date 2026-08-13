@@ -14,20 +14,20 @@ Current and target ownership should stay explicit:
   semantics still belong to the Phase 2 domain.
 - `worldsim.phase_2.text_fill`: host-side payload realization behavior split by
   API calls, prompt rendering, payload views, seeding, validation, and voice
-  exemplars. The legacy `worldsim.phases.phase_2_text_fill` path remains a
-  patchable compatibility facade during migration; do not treat it as removable
-  until in-repo imports and hidden consumers have moved.
+  exemplars. The historical `worldsim.phases.phase_2_text_fill` facade was
+  removed in Wave D; callers and patch points use this feature-owned package.
 - `worldsim.phase_2.phase_2c`: Phase 2c feasibility verification split by
   report types, constants, fingerprints, outcome stanzas, exposure projection,
   reddit attribution, admission guards, render/reachability probes,
   source-data preflight, per-task verification, and runner orchestration. The
-  legacy `worldsim.phases.phase_2_feasibility` path is the patchable
-  compatibility surface during migration.
+  historical `worldsim.phases.phase_2_feasibility` facade was removed in Wave D;
+  callers and patch points use this feature-owned package.
 - `worldsim.phase_2.exposure_contract`: deterministic Phase 2 exposure
   contracts split by signature, builder, seed-template materialization, exposure
   modes, candidate selection, Phase 4 exposure gates, route metadata,
   verification contracts, and editor argument templates. The legacy
-  `worldsim.phases.phase_2_exposure_contract` path is a compatibility facade.
+  `worldsim.phases.phase_2_exposure_contract` facade was removed in Wave D;
+  callers and patch points use this feature-owned package.
 - `worldsim.phase_4`: adversarial execution, PVPO placement, postprocess judges,
   strategy variation, intermediate ASR post-hoc judging, resume, and results.
   Phase 4 must not own benign task eligibility.
@@ -41,8 +41,8 @@ Current and target ownership should stay explicit:
   split by batch entry points, single-task orchestration, route alignment,
   task-card alignment, placement target checks, reward checks, answer stability,
   and ordering/eligibility. The legacy
-  `worldsim.phases.phase_1_generate_new_tasks_validation` path is only a
-  compatibility facade.
+  `worldsim.phases.phase_1_generate_new_tasks_validation` facade was removed in
+  Wave D; callers and patch points use this feature-owned package.
 - `worldsim.adversarial_actions`: host-owned adversarial action behavior split by
   policies, allowed options, reward compilation, public mutation rewards,
   final-state compilers, and reward introspection. Keep the old
