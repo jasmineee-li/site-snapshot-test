@@ -1,6 +1,8 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from .._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import plan_validation, reuse
+
 
 @pytest.mark.asyncio
 async def test_phase_2_feasibility_stage_verifies_only_filtered_sites(monkeypatch, tmp_path):
@@ -72,6 +74,7 @@ async def test_phase_2_feasibility_stage_verifies_only_filtered_sites(monkeypatc
     report = json.loads((output_dir / "feasibility_report.json").read_text())
     assert report["verified_count"] == 2
 
+
 @pytest.mark.asyncio
 async def test_phase_2_feasibility_stage_preserves_partial_complete_terminal_status(
     monkeypatch, tmp_path
@@ -133,6 +136,7 @@ async def test_phase_2_feasibility_stage_preserves_partial_complete_terminal_sta
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["status"] == "partial_complete"
 
+
 @pytest.mark.asyncio
 async def test_phase_2_skip_feasibility_completes_after_resuming_running_checkpoint(
     monkeypatch, tmp_path
@@ -169,6 +173,7 @@ async def test_phase_2_skip_feasibility_completes_after_resuming_running_checkpo
     assert report["per_site"]["shopping"]["unverified"] == 1
     assert report["per_site"]["shopping"]["verified"] == 0
 
+
 @pytest.mark.asyncio
 async def test_phase_2_skip_feasibility_clears_stale_infeasible_sidecar(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
@@ -199,6 +204,7 @@ async def test_phase_2_skip_feasibility_clears_stale_infeasible_sidecar(monkeypa
 
     assert rc == 0
     assert json.loads(infeasible_path.read_text()) == []
+
 
 @pytest.mark.asyncio
 async def test_phase_2_skip_feasibility_preserves_unfiltered_sites(monkeypatch, tmp_path):
@@ -253,6 +259,7 @@ async def test_phase_2_skip_feasibility_preserves_unfiltered_sites(monkeypatch, 
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["feasibility_skipped_count"] == 1
 
+
 @pytest.mark.asyncio
 async def test_phase_2_skip_feasibility_preserves_partial_complete_terminal_status(
     monkeypatch, tmp_path
@@ -283,11 +290,12 @@ async def test_phase_2_skip_feasibility_preserves_partial_complete_terminal_stat
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["status"] == "partial_complete"
 
+
 def test_validate_generated_adversarial_task_rejects_preseeded_feasibility():
     task = _plan_task()
     task["feasibility"] = {"status": "verified"}
 
-    problem = phase_2_injections._validate_generated_adversarial_task(
+    problem = plan_validation._validate_generated_adversarial_task(
         task,
         0,
         {"benign-1": _benign_task()},
@@ -296,11 +304,12 @@ def test_validate_generated_adversarial_task_rejects_preseeded_feasibility():
 
     assert "must not include Phase 2c output fields" in problem
 
+
 def test_validate_reusable_phase_2_task_rejects_preseeded_phase_2c_fields():
     task = _finalized_plan_task()
     task["feasibility"] = {"status": "verified"}
 
-    problem = phase_2_injections._validate_reusable_phase_2_task(
+    problem = reuse._validate_reusable_phase_2_task(
         task,
         task_index=0,
         texts_per_plan=1,

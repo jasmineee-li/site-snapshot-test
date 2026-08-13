@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from worldsim.phase_2 import reuse as _reuse
 from worldsim.phase_2._context import install_context
 from worldsim.phase_2.pause_control import run_planning_shards
 from worldsim.phase_2.text_fill.checkpoint_runner import (
@@ -278,7 +279,7 @@ async def run(args: argparse.Namespace) -> int:
 
     prior_state = load_state() or {}
     site_failures = list(prior_state.get("generation_failures") or [])
-    reusable_plans = _load_reusable_phase_2_plans(
+    reusable_plans = _reuse._load_reusable_phase_2_plans(
         prior_state=prior_state,
         plans_path=plans_path,
         sites_filter=sites_filter,
@@ -306,7 +307,7 @@ async def run(args: argparse.Namespace) -> int:
             and prior_state.get("phase_2_stage") == "text_fill"
         )
     ):
-        reusable_final_tasks = _load_reusable_phase_2_tasks(
+        reusable_final_tasks = _reuse._load_reusable_phase_2_tasks(
             prior_state=prior_state,
             output_path=output_path,
             sites_filter=sites_filter,
@@ -493,7 +494,7 @@ async def run(args: argparse.Namespace) -> int:
                 plans_path,
             )
 
-    text_fill_diagnostics = _load_text_fill_diagnostics(diagnostics_path)
+    text_fill_diagnostics = _reuse._load_text_fill_diagnostics(diagnostics_path)
     if reusable_final_tasks is None:
         candidate_plans = [
             plan
@@ -505,7 +506,7 @@ async def run(args: argparse.Namespace) -> int:
             prior_state.get("status") == "paused"
             and prior_state.get("phase_2_stage") == "text_fill"
         ):
-            reusable_final_tasks = _load_reusable_phase_2_tasks(
+            reusable_final_tasks = _reuse._load_reusable_phase_2_tasks(
                 prior_state=prior_state,
                 output_path=output_path,
                 sites_filter=sites_filter,
@@ -657,7 +658,6 @@ from worldsim.phase_2 import eligibility as _eligibility
 from worldsim.phase_2 import generation as _generation
 from worldsim.phase_2 import option_a as _option_a
 from worldsim.phase_2 import plan_validation as _plan_validation
-from worldsim.phase_2 import reuse as _reuse
 from worldsim.phase_2 import shards as _shards
 from worldsim.phase_2 import target_inputs as _target_inputs
 from worldsim.phase_2._context import link_modules as _link_modules
@@ -670,7 +670,6 @@ _link_modules(
         _generation,
         _option_a,
         _plan_validation,
-        _reuse,
         _shards,
         _phase_2c_stage,
     ]

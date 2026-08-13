@@ -1,7 +1,10 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import reuse
 from worldsim.phase_2 import target_inputs, target_stage
+from worldsim.phase_2.text_fill.constants import DEFAULT_TEXT_FILL_MODEL
+from worldsim.phase_2.text_fill.seed import materialize_adversarial_seed
 
 
 def test_validate_reusable_phase_2_task_rejects_legacy_reddit_comment_contract():
@@ -39,16 +42,14 @@ def test_validate_reusable_phase_2_task_rejects_legacy_reddit_comment_contract()
         }
     )
     task["payload_texts"][0]["rendered_payload"] = "attack"
-    task["adversarial_data_seed"] = phase_2_injections.materialize_adversarial_seed(
-        task["seed_template"], "attack"
-    )
+    task["adversarial_data_seed"] = materialize_adversarial_seed(task["seed_template"], "attack")
     reddit_benign = {**_reddit_benign_task(), "id": "benign-1"}
     task["instruction"] = reddit_benign["instruction"]
     task["start_urls"] = reddit_benign["start_urls"]
     task["data_seed"] = reddit_benign["data_seed"]
     task["reward_function"]["benign_reward"] = reddit_benign["reward_function"]
 
-    problem = phase_2_injections._validate_reusable_phase_2_task(
+    problem = reuse._validate_reusable_phase_2_task(
         task,
         task_index=0,
         texts_per_plan=1,
@@ -95,16 +96,14 @@ def test_validate_reusable_phase_2_task_rejects_reddit_comment_without_seed_visi
         }
     )
     task["payload_texts"][0]["rendered_payload"] = "attack"
-    task["adversarial_data_seed"] = phase_2_injections.materialize_adversarial_seed(
-        task["seed_template"], "attack"
-    )
+    task["adversarial_data_seed"] = materialize_adversarial_seed(task["seed_template"], "attack")
     reddit_benign = {**_reddit_benign_task(), "id": "benign-1"}
     task["instruction"] = reddit_benign["instruction"]
     task["start_urls"] = reddit_benign["start_urls"]
     task["data_seed"] = reddit_benign["data_seed"]
     task["reward_function"]["benign_reward"] = reddit_benign["reward_function"]
 
-    problem = phase_2_injections._validate_reusable_phase_2_task(
+    problem = reuse._validate_reusable_phase_2_task(
         task,
         task_index=0,
         texts_per_plan=1,
@@ -262,7 +261,7 @@ def test_load_reusable_phase_2_tasks_rejects_stale_legacy_tasks_when_benign_ids_
     output_path = tmp_path / "adversarial_tasks.json"
     output_path.write_text(json.dumps([stale_legacy_task], indent=2))
 
-    reusable = phase_2_injections._load_reusable_phase_2_tasks(
+    reusable = reuse._load_reusable_phase_2_tasks(
         prior_state={"step": "phase_2", "status": "running"},
         output_path=output_path,
         sites_filter=None,
@@ -279,7 +278,7 @@ def test_load_reusable_phase_2_tasks_rejects_stale_legacy_tasks_when_benign_ids_
         },
         site_profiles={"shopping": _single_surface_profile()},
         current_sandbox_model="claude-sonnet-4-6",
-        current_text_model=phase_2_injections.DEFAULT_TEXT_FILL_MODEL,
+        current_text_model=DEFAULT_TEXT_FILL_MODEL,
     )
 
     assert reusable is None
@@ -289,7 +288,7 @@ def test_load_reusable_phase_2_tasks_rejects_text_model_drift(tmp_path):
     output_path = tmp_path / "adversarial_tasks.json"
     output_path.write_text(json.dumps([_finalized_plan_task()], indent=2))
 
-    reusable = phase_2_injections._load_reusable_phase_2_tasks(
+    reusable = reuse._load_reusable_phase_2_tasks(
         prior_state={
             "step": "phase_2",
             "status": "running",
