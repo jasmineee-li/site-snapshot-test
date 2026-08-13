@@ -1,6 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from tests.phase_2._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import eligibility
 
 
 def test_self_contained_adversarial_seed_admits_mode_b_api_post_then_patch():
@@ -209,12 +210,12 @@ def test_seed_delivery_mechanism_returns_api_for_api_seed():
             {"method": "PUT", "path": "/api/v4/users/2", "body": {"bio": "{{PAYLOAD_TEXT}}"}},
         ],
     }
-    assert phase_2_injections._seed_delivery_mechanism(seed_template) == "api"
+    assert eligibility._seed_delivery_mechanism(seed_template) == "api"
 
 
 def test_seed_delivery_mechanism_rejects_api_seed_without_calls():
     with pytest.raises(ValueError, match="mechanism=api but no api_calls"):
-        phase_2_injections._seed_delivery_mechanism({"mechanism": "api", "api_calls": []})
+        eligibility._seed_delivery_mechanism({"mechanism": "api", "api_calls": []})
 
 
 def test_call_delivery_path_parses_absolute_urls_by_path_for_contract_matching():

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from worldsim.phase_2 import eligibility as _eligibility
 from worldsim.phase_2 import option_a as _option_a
 from worldsim.phase_2 import target_stage as _target_stage
 from worldsim.phase_2._context import install_context
@@ -94,20 +95,20 @@ async def _generate_injections_for_site(
     # expansion actually happened.
     if any(_target_stage.L4_TASK_ID_SUFFIX in str(t.get("id", "")) for t in site_tasks):
         all_site_tasks = site_tasks
-    exposure_contracts = _build_exposure_contracts_for_shard(
+    exposure_contracts = _eligibility._build_exposure_contracts_for_shard(
         site_tasks=site_tasks,
         benign_target_resources=benign_target_resources,
         site=site_name,
         benchmark=benchmark,
-        surface_visibility_by_id=_surface_visibility_by_id(site_profile),
+        surface_visibility_by_id=_eligibility._surface_visibility_by_id(site_profile),
     )
     exposure_contracts = annotate_exposure_contracts_with_action_policy(
         exposure_contracts,
         site_tasks,
         policy=action_policy or "default",
     )
-    _persist_exposure_contracts(site_name=site_name, contracts=exposure_contracts)
-    site_tasks, eligibility_drops = _phase_2a_eligible_tasks_for_benchmark(
+    _eligibility._persist_exposure_contracts(site_name=site_name, contracts=exposure_contracts)
+    site_tasks, eligibility_drops = _eligibility._phase_2a_eligible_tasks_for_benchmark(
         site_tasks,
         benign_target_resources,
         site_name,
@@ -115,13 +116,13 @@ async def _generate_injections_for_site(
         exposure_contracts=exposure_contracts,
     )
     if eligibility_drops:
-        _write_eligibility_drops(site_name, eligibility_drops)
+        _eligibility._write_eligibility_drops(site_name, eligibility_drops)
     if not site_tasks:
         logger.info(
             "Phase 2: shard %r has no eligible tasks after target-resolution filtering", label
         )
         return SiteInjectionResult(site_name, [], [])
-    cell_targets = _build_cell_targets(site_profile, site_tasks, all_site_tasks)
+    cell_targets = _eligibility._build_cell_targets(site_profile, site_tasks, all_site_tasks)
 
     agent_context_path = profile_path.parent / f"AGENT_CONTEXT_{site_name}.json"
     agent_context: dict[str, Any] | None = None
@@ -196,7 +197,7 @@ async def _generate_injections_for_site(
         enriched = _materialize_validated_shard_tasks(validated, site_profile)
     except ValueError as exc:
         return SiteInjectionResult(site_name, [], [f"plan enrichment failed: {exc}"])
-    enriched = _select_balanced_subset(enriched, cell_targets)
+    enriched = _eligibility._select_balanced_subset(enriched, cell_targets)
     _target_stage._normalize_l4_benign_task_ids_in_place(enriched)
 
     # Persist this shard's validated output to disk immediately so a later
@@ -490,7 +491,7 @@ def _materialize_strategy_plans_from_exposure(
             benign_seed=benign_seed,
         )
         plan["seed_template"] = seed_template
-        plan["delivery_mechanism"] = _seed_delivery_mechanism(seed_template)
+        plan["delivery_mechanism"] = _eligibility._seed_delivery_mechanism(seed_template)
 
 
 def _enrich_adversarial_plans(

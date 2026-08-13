@@ -1,6 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import eligibility
 
 
 def test_validate_adversarial_task_contract_rejects_instruction_drift():
@@ -320,7 +321,7 @@ def test_validate_adversarial_task_contract_rejects_unknown_framing():
         _site_profile(),
     )
 
-    assert violation == f"framing must be one of {list(phase_2_injections._FRAMINGS)}"
+    assert violation == f"framing must be one of {list(eligibility._FRAMINGS)}"
 
 
 def test_validate_adversarial_task_contract_accepts_matching_surface_write():

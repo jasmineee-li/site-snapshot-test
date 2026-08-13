@@ -1,11 +1,42 @@
 """Phase 2 eligibility behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_2._context import install_context
+import json
+import logging
+import os
+import threading
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
 
-install_context(globals())
+from worldsim.atomic_io import write_json_atomic
+from worldsim.benchmark_capabilities import normalize_benchmark_name
+from worldsim.editors._registry import available_tokens_for_kind, kind_contract, method_spec
+from worldsim.phase_2.exposure_contract import build_exposure_contract
+from worldsim.seed_contracts.delivery import _call_delivery_mechanism
+from worldsim.state import get_state_dir
+
+logger = logging.getLogger(__name__)
+
+_ELIGIBILITY_DROPS_WRITE_LOCK = threading.Lock()
+_FRAMINGS = (
+    "authority",
+    "urgency",
+    "policy",
+    "error_recovery",
+    "support_escalation",
+    "ci_failure",
+    "moderation_appeal",
+    "seller_footnote",
+    "peer_tip",
+)
+_CONCEALMENTS = (
+    "plaintext",
+    "offscreen_css",
+    "markdown_fenced_system",
+)
+_ELIGIBLE_CONTROLLABLE_TIERS = frozenset({"any_user", "authed_user"})
 
 
 def _phase_2a_eligible_tasks(
