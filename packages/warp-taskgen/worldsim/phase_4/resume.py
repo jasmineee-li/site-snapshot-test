@@ -1,12 +1,119 @@
 """Phase 4 resume behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_4._context import install_context
-from worldsim.phase_4.execution_helpers import _delivery_site_name
+import json
+import logging
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
 
-install_context(globals())
+from worldsim.agent_config import RUNTIME_METADATA_KEY
+from worldsim.agent_runtime import RUNNER_BROWSER_USE
+from worldsim.atomic_io import write_json_atomic
+from worldsim.benchmark_capabilities import infer_benchmark_name
+from worldsim.config import BenchmarkInstance
+from worldsim.phase_4.execution_helpers import _delivery_site_name
+from worldsim.phase_4.options import (
+    DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET as _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
+)
+from worldsim.phase_4.options import (
+    PHASE_4_EVAL_AWARENESS_ITERATOR_VERSION as _PHASE_4_EVAL_AWARENESS_ITERATOR_VERSION,
+)
+from worldsim.phase_4.options import (
+    normalize_eval_awareness_max_iterations as _normalize_eval_awareness_max_iterations,
+)
+from worldsim.phase_4.options import (
+    normalize_phase_4_variant_system as _normalize_phase_4_variant_system,
+)
+from worldsim.placeholders import normalize_site_name, normalize_task_sites, placeholder_for_site
+from worldsim.resume_metadata import (
+    RESULT_FINGERPRINT_KEY,
+    fingerprint_payload,
+    instance_identity,
+    instances_identity,
+)
+from worldsim.seeding import (
+    seed_has_actions as _seed_contract_has_actions,
+)
+from worldsim.seeding import (
+    seed_requires_reset as _seed_contract_requires_reset,
+)
+from worldsim.task_paths import safe_task_path_component
+
+logger = logging.getLogger(__name__)
+
+_CHECKPOINT_FINGERPRINT_KEY = "_source_fingerprint"
+_PLACEMENT_FIX_CHECKPOINT = "placement_fix_checkpoint.json"
+_VARIANT_GENERATION_RECORDS_KEY = "variant_generation_records"
+_VARIANT_RESULT_METADATA = "resume_metadata.json"
+_PHASE_4_RESUME_VERSION = "2026-04-20b"
+PLACEMENT_FIX_MAX_ITERATIONS = 2
+_LEGACY_AER_INFLIGHT_SENTINEL = ".aer_inflight"
+_FINGERPRINT_RESULT_KEYS: tuple[str, ...] = (
+    "task_id",
+    "outcome",
+    "encounter",
+    "final_status",
+    "seed_preflight_mismatches",
+    "seed_preflight_mismatch_records",
+    "benign_passed",
+    "benign_reward_message",
+    "adversarial_passed",
+    "adversarial_reward_message",
+    "adversarial_reward_signal",
+    "adversarial_final_state_checked",
+    "adversarial_final_state_passed",
+    "adversarial_final_state_message",
+    "adversarial_action_kind",
+    "adversarial_action_tier",
+    "adversarial_action_family",
+    "adversarial_action_enabled",
+    "attack_action_attempted",
+    "attack_action_attempt_reason",
+    "adversarial_action_attempted",
+    "adversarial_action_attempt_count",
+    "adversarial_action_attempt_evidence",
+    "adversarial_action_attempt_status",
+    "adversarial_action_attempt_last_status",
+    "adversarial_action_attempt_failed_reason",
+    "attack_action_success",
+    "state_confirmed_action_success",
+    "tier3_state_confirmed_action_success",
+    "semantic_hijack_success",
+    "benign_success_under_attack",
+    "stealth_success",
+    "trajectory_dir",
+    "elapsed",
+    "steps",
+    "final_result",
+    "error",
+    "pvpo_status",
+    "pvpo_failure",
+    "pvpo_observation",
+    "transcript_purpose_classification",
+    "transcript_purpose_is_aware",
+    "transcript_purpose_guess",
+    "transcript_purpose_explanation",
+    "transcript_purpose_failure",
+    "transcript_purpose_format",
+    "transcript_purpose_attempts",
+    "transcript_purpose_raw_response_path",
+    "verbalized_eval_awareness_classification",
+    "verbalized_eval_awareness_is_aware",
+    "verbalized_eval_awareness_evidence",
+    "verbalized_eval_awareness_failure",
+    "verbalized_eval_awareness_transcript_format",
+    "verbalized_eval_awareness_raw_response_path",
+    "verbalized_eval_awareness_attempts",
+    "infrastructure_retry",
+    "outcome_fine",
+    "flags",
+    "diagnosable_confidence",
+    "signals",
+    "classifier_version",
+)
+_VARIANT_ROUNDS_KEY = "variant_rounds"
 
 
 def _sweep_orphan_inflight_sentinels(task_dir_root: Path) -> int:

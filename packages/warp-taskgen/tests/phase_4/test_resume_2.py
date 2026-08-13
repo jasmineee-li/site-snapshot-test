@@ -19,7 +19,7 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
         ],
     }
     initial_result = {"trajectory_dir": str(tmp_path / "traj")}
-    checkpoint_fingerprint = phase_4_adversarial._phase_4_postprocess_fingerprint(
+    checkpoint_fingerprint = phase_4_resume._phase_4_postprocess_fingerprint(
         task,
         initial_result,
         primary_instances=[instances[0]],
@@ -30,17 +30,17 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
         site_profile=None,
         variant_system="strategy-variation",
     )
-    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path = phase_4_resume._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint_path.write_text(
         json.dumps(
             {
-                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: checkpoint_fingerprint,
+                phase_4_resume._CHECKPOINT_FINGERPRINT_KEY: checkpoint_fingerprint,
                 "judge_diagnosis": {
                     "diagnosis": "needs more specificity",
                     "recommended_strategies": [{"strategy": "specificity"}],
                 },
-                phase_4_adversarial._VARIANT_GENERATION_RECORDS_KEY: [
+                phase_4_resume._VARIANT_GENERATION_RECORDS_KEY: [
                     {
                         "index": 0,
                         "strategy": {"strategy": "specificity"},
@@ -67,11 +67,11 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
             }
         )
     )
-    (variant_dir / phase_4_adversarial._VARIANT_RESULT_METADATA).write_text(
+    (variant_dir / phase_4_resume._VARIANT_RESULT_METADATA).write_text(
         json.dumps(
             {
-                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: (
-                    phase_4_adversarial._phase_4_variant_fingerprint(
+                phase_4_resume._CHECKPOINT_FINGERPRINT_KEY: (
+                    phase_4_resume._phase_4_variant_fingerprint(
                         task,
                         variant,
                         {"strategy": "specificity"},
@@ -136,13 +136,13 @@ async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_d
         ],
     }
     initial_result = {"trajectory_dir": str(tmp_path / "traj")}
-    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path = phase_4_resume._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint_path.write_text(
         json.dumps(
             {
-                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: (
-                    phase_4_adversarial._phase_4_postprocess_fingerprint(
+                phase_4_resume._CHECKPOINT_FINGERPRINT_KEY: (
+                    phase_4_resume._phase_4_postprocess_fingerprint(
                         task,
                         initial_result,
                         primary_instances=[instances[0]],
@@ -158,7 +158,7 @@ async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_d
                     "diagnosis": "needs more specificity",
                     "recommended_strategies": [{"strategy": "specificity"}],
                 },
-                phase_4_adversarial._VARIANT_GENERATION_RECORDS_KEY: [
+                phase_4_resume._VARIANT_GENERATION_RECORDS_KEY: [
                     {
                         "index": 0,
                         "strategy": {"strategy": "specificity"},
@@ -185,11 +185,11 @@ async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_d
             }
         )
     )
-    (variant_dir / phase_4_adversarial._VARIANT_RESULT_METADATA).write_text(
+    (variant_dir / phase_4_resume._VARIANT_RESULT_METADATA).write_text(
         json.dumps(
             {
-                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: (
-                    phase_4_adversarial._phase_4_variant_fingerprint(
+                phase_4_resume._CHECKPOINT_FINGERPRINT_KEY: (
+                    phase_4_resume._phase_4_variant_fingerprint(
                         task,
                         variant,
                         {"strategy": "specificity"},
@@ -264,7 +264,7 @@ async def test_run_strategy_variation_resume_reuses_variant_result_fingerprint_w
         ],
     }
     initial_result = {"trajectory_dir": str(tmp_path / "traj")}
-    source_fingerprint = phase_4_adversarial._phase_4_variant_fingerprint(
+    source_fingerprint = phase_4_resume._phase_4_variant_fingerprint(
         task,
         variant,
         {"strategy": "specificity"},
@@ -275,13 +275,13 @@ async def test_run_strategy_variation_resume_reuses_variant_result_fingerprint_w
         sandbox_model="claude-sonnet-4-6",
         site_profile=None,
     )
-    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path = phase_4_resume._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint_path.write_text(
         json.dumps(
             {
-                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: (
-                    phase_4_adversarial._phase_4_postprocess_fingerprint(
+                phase_4_resume._CHECKPOINT_FINGERPRINT_KEY: (
+                    phase_4_resume._phase_4_postprocess_fingerprint(
                         task,
                         initial_result,
                         primary_instances=[instances[0]],
@@ -297,7 +297,7 @@ async def test_run_strategy_variation_resume_reuses_variant_result_fingerprint_w
                     "diagnosis": "needs more specificity",
                     "recommended_strategies": [{"strategy": "specificity"}],
                 },
-                phase_4_adversarial._VARIANT_GENERATION_RECORDS_KEY: [
+                phase_4_resume._VARIANT_GENERATION_RECORDS_KEY: [
                     {
                         "index": 0,
                         "strategy": {"strategy": "specificity"},
@@ -372,13 +372,13 @@ async def test_run_strategy_variation_resume_reruns_refusal_variant_without_hist
         ],
     }
     initial_result = {"trajectory_dir": str(tmp_path / "traj")}
-    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path = phase_4_resume._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint_path.write_text(
         json.dumps(
             {
-                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: (
-                    phase_4_adversarial._phase_4_postprocess_fingerprint(
+                phase_4_resume._CHECKPOINT_FINGERPRINT_KEY: (
+                    phase_4_resume._phase_4_postprocess_fingerprint(
                         task,
                         initial_result,
                         primary_instances=[instances[0]],
@@ -394,7 +394,7 @@ async def test_run_strategy_variation_resume_reruns_refusal_variant_without_hist
                     "diagnosis": "needs more specificity",
                     "recommended_strategies": [{"strategy": "specificity"}],
                 },
-                phase_4_adversarial._VARIANT_GENERATION_RECORDS_KEY: [
+                phase_4_resume._VARIANT_GENERATION_RECORDS_KEY: [
                     {
                         "index": 0,
                         "strategy": {"strategy": "specificity"},
@@ -418,7 +418,7 @@ async def test_run_strategy_variation_resume_reruns_refusal_variant_without_hist
                 "task_id": "adv-1",
                 "outcome": "refused_or_ignored",
                 "encounter": {"max_coverage": 0.5},
-                RESULT_FINGERPRINT_KEY: phase_4_adversarial._phase_4_variant_fingerprint(
+                RESULT_FINGERPRINT_KEY: phase_4_resume._phase_4_variant_fingerprint(
                     task,
                     variant,
                     {"strategy": "specificity"},

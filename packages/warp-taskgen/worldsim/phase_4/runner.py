@@ -24,6 +24,12 @@ from worldsim.phase_4.preflight import (
     _probe_seed_base_state_for_task_targets,
 )
 from worldsim.phase_4.results import _write_phase_4_results
+from worldsim.phase_4.resume import (
+    _phase_4_eval_context_for_task,
+    _phase_4_result_fingerprint,
+    _phase_4_state_metadata,
+    _sweep_orphan_inflight_sentinels,
+)
 from worldsim.run_control import pause_aware_map, pause_requested
 
 install_context(globals())
@@ -773,7 +779,6 @@ import sys as _sys
 from worldsim.phase_4 import eval_awareness_iterator as _eval_awareness_iterator
 from worldsim.phase_4 import placement_loop as _placement_loop
 from worldsim.phase_4 import postprocess as _postprocess
-from worldsim.phase_4 import resume as _resume
 from worldsim.phase_4 import strategy_variation as _strategy_variation
 from worldsim.phase_4 import variant_eval as _variant_eval
 from worldsim.phase_4._context import link_modules as _link_modules
@@ -786,7 +791,6 @@ _link_modules(
         _eval_awareness_iterator,
         _placement_loop,
         _postprocess,
-        _resume,
         _strategy_variation,
         _variant_eval,
     ]

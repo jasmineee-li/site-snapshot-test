@@ -782,7 +782,7 @@ def test_postprocess_fingerprint_changes_with_variant_system():
         "encounter": {"max_coverage": 0.5},
     }
 
-    base = phase_4_adversarial._phase_4_postprocess_fingerprint(
+    base = phase_4_resume._phase_4_postprocess_fingerprint(
         task,
         result,
         primary_instances=[instances[0]],
@@ -794,7 +794,7 @@ def test_postprocess_fingerprint_changes_with_variant_system():
         variant_system="eval-awareness-iterator",
         eval_awareness_max_iterations=3,
     )
-    changed = phase_4_adversarial._phase_4_postprocess_fingerprint(
+    changed = phase_4_resume._phase_4_postprocess_fingerprint(
         task,
         result,
         primary_instances=[instances[0]],
@@ -1566,7 +1566,7 @@ async def test_eval_awareness_iterator_resume_replays_started_record(monkeypatch
         "trajectory_dir": str(tmp_path / "traj"),
         "transcript_purpose_classification": "Capability Evaluation",
     }
-    fingerprint = phase_4_adversarial._phase_4_postprocess_fingerprint(
+    fingerprint = phase_4_resume._phase_4_postprocess_fingerprint(
         task,
         initial_result,
         primary_instances=[instances[0]],
@@ -1583,9 +1583,9 @@ async def test_eval_awareness_iterator_resume_replays_started_record(monkeypatch
     (task_dir / "eval_awareness_iterator_checkpoint.json").write_text(
         json.dumps(
             {
-                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: fingerprint,
+                phase_4_resume._CHECKPOINT_FINGERPRINT_KEY: fingerprint,
                 "algorithm": "eval-awareness-iterator",
-                "version": phase_4_adversarial._PHASE_4_EVAL_AWARENESS_ITERATOR_VERSION,
+                "version": phase_4_resume._PHASE_4_EVAL_AWARENESS_ITERATOR_VERSION,
                 "max_iterations": 3,
                 "baseline_attempt": {"iteration": 0, "kind": "baseline"},
                 "iterations": [{"iteration": 1, "parent_iteration": 0, "status": "started"}],

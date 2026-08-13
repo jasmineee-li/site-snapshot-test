@@ -1,6 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.resume_metadata import instances_identity
 
 
 @pytest.mark.asyncio
@@ -33,13 +34,13 @@ async def test_run_strategy_variation_resume_continues_partial_generation_checkp
         ],
     }
     initial_result = {"trajectory_dir": str(tmp_path / "traj")}
-    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path = phase_4_resume._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint_path.write_text(
         json.dumps(
             {
-                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: (
-                    phase_4_adversarial._phase_4_postprocess_fingerprint(
+                phase_4_resume._CHECKPOINT_FINGERPRINT_KEY: (
+                    phase_4_resume._phase_4_postprocess_fingerprint(
                         task,
                         initial_result,
                         primary_instances=[instances[0]],
@@ -58,7 +59,7 @@ async def test_run_strategy_variation_resume_continues_partial_generation_checkp
                         {"strategy": "authority_framing"},
                     ],
                 },
-                phase_4_adversarial._VARIANT_GENERATION_RECORDS_KEY: [
+                phase_4_resume._VARIANT_GENERATION_RECORDS_KEY: [
                     {
                         "index": 0,
                         "strategy": {"strategy": "specificity"},
@@ -105,7 +106,10 @@ async def test_run_strategy_variation_resume_continues_partial_generation_checkp
     assert generate_calls == ["authority_framing"]
     assert result["status"] == "varied"
     saved_checkpoint = json.loads(checkpoint_path.read_text())
-    assert len(saved_checkpoint[phase_4_adversarial._VARIANT_ROUNDS_KEY][0]["variant_generation_records"]) == 2
+    assert (
+        len(saved_checkpoint[phase_4_resume._VARIANT_ROUNDS_KEY][0]["variant_generation_records"])
+        == 2
+    )
 
 
 @pytest.mark.asyncio
@@ -126,13 +130,13 @@ async def test_run_strategy_variation_resume_reruns_when_generation_records_miss
         ],
     }
     initial_result = {"trajectory_dir": str(tmp_path / "traj")}
-    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path = phase_4_resume._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint_path.write_text(
         json.dumps(
             {
-                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: (
-                    phase_4_adversarial._phase_4_postprocess_fingerprint(
+                phase_4_resume._CHECKPOINT_FINGERPRINT_KEY: (
+                    phase_4_resume._phase_4_postprocess_fingerprint(
                         task,
                         initial_result,
                         primary_instances=[instances[0]],
@@ -195,9 +199,7 @@ async def test_run_strategy_variation_resume_reruns_when_generation_records_miss
 
 
 @pytest.mark.asyncio
-async def test_run_strategy_variation_accepts_pre_variant_system_checkpoint(
-    monkeypatch, tmp_path
-):
+async def test_run_strategy_variation_accepts_pre_variant_system_checkpoint(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
     initial_result = {
         "task_id": task["id"],
@@ -205,17 +207,17 @@ async def test_run_strategy_variation_accepts_pre_variant_system_checkpoint(
         "trajectory_dir": str(tmp_path / "traj"),
         "encounter": {"max_coverage": 0.5},
     }
-    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path = phase_4_resume._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
-    legacy_fingerprint = phase_4_adversarial._fingerprint_payload(
+    legacy_fingerprint = phase_4_resume._fingerprint_payload(
         task,
-        phase_4_adversarial._resume_fingerprint_result(initial_result),
+        phase_4_resume._resume_fingerprint_result(initial_result),
         {
             "phase": "phase_4_postprocess",
-            "resume_version": phase_4_adversarial._PHASE_4_RESUME_VERSION,
-            "primary_instances": phase_4_adversarial.instances_identity([instances[0]]),
-            "all_instances": phase_4_adversarial.instances_identity(
-                phase_4_adversarial._task_reachable_instances(task, instances)
+            "resume_version": phase_4_resume._PHASE_4_RESUME_VERSION,
+            "primary_instances": instances_identity([instances[0]]),
+            "all_instances": instances_identity(
+                phase_4_resume._task_reachable_instances(task, instances)
             ),
             "config_url_placeholders": None,
             "benchmark_root": None,
@@ -227,7 +229,7 @@ async def test_run_strategy_variation_accepts_pre_variant_system_checkpoint(
     checkpoint_path.write_text(
         json.dumps(
             {
-                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: legacy_fingerprint,
+                phase_4_resume._CHECKPOINT_FINGERPRINT_KEY: legacy_fingerprint,
                 "judge_diagnosis": {
                     "diagnosis": "legacy reusable",
                     "recommended_strategies": [{"strategy": "specificity"}],
@@ -280,18 +282,18 @@ async def test_run_strategy_variation_accepts_pre_variant_system_checkpoint(
 
     assert result["status"] == "varied"
     saved = json.loads(checkpoint_path.read_text())
-    assert saved[phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY] != legacy_fingerprint
+    assert saved[phase_4_resume._CHECKPOINT_FINGERPRINT_KEY] != legacy_fingerprint
 
 
 @pytest.mark.asyncio
 async def test_run_strategy_variation_resume_ignores_stale_checkpoint(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
-    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path = phase_4_resume._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint_path.write_text(
         json.dumps(
             {
-                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: "stale",
+                phase_4_resume._CHECKPOINT_FINGERPRINT_KEY: "stale",
                 "judge_diagnosis": {
                     "diagnosis": "stale",
                     "recommended_strategies": [{"strategy": "specificity"}],
@@ -355,7 +357,7 @@ async def test_run_strategy_variation_resume_ignores_stale_checkpoint(monkeypatc
 @pytest.mark.asyncio
 async def test_run_strategy_variation_resume_ignores_malformed_checkpoint(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
-    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path = phase_4_resume._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint_path.write_text("{bad-json", encoding="utf-8")
 
@@ -420,10 +422,10 @@ def test_sweep_orphan_inflight_sentinels_removes_legacy(tmp_path):
     """
     task_a = tmp_path / "task_a"
     task_a.mkdir()
-    legacy = task_a / phase_4_adversarial._LEGACY_AER_INFLIGHT_SENTINEL
+    legacy = task_a / phase_4_resume._LEGACY_AER_INFLIGHT_SENTINEL
     legacy.touch()
 
-    removed = phase_4_adversarial._sweep_orphan_inflight_sentinels(tmp_path)
+    removed = phase_4_resume._sweep_orphan_inflight_sentinels(tmp_path)
 
     assert removed == 1
     assert not legacy.exists()
@@ -432,7 +434,7 @@ def test_sweep_orphan_inflight_sentinels_removes_legacy(tmp_path):
 def test_sweep_orphan_inflight_sentinels_on_missing_dir(tmp_path):
     """No-op when the task-dir root hasn't been created yet."""
     missing = tmp_path / "nope"
-    assert phase_4_adversarial._sweep_orphan_inflight_sentinels(missing) == 0
+    assert phase_4_resume._sweep_orphan_inflight_sentinels(missing) == 0
 
 
 @pytest.mark.asyncio
@@ -452,12 +454,12 @@ async def test_placement_fix_resume_reuses_pending_iteration_result(monkeypatch,
         **task,
         "adversarial_data_seed": {"mechanism": "api", "actions": [{"moved": True}]},
     }
-    checkpoint_path = phase_4_adversarial._placement_fix_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path = phase_4_resume._placement_fix_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint_path.write_text(
         json.dumps(
             {
-                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
+                phase_4_resume._CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
                 "attempts": [initial_result],
                 "current_task": revised_task,
                 "current_result": initial_result,
@@ -468,7 +470,7 @@ async def test_placement_fix_resume_reuses_pending_iteration_result(monkeypatch,
     )
     iteration_dir = tmp_path / "placement-fix-resume__placement_1"
     iteration_dir.mkdir(parents=True)
-    iteration_fingerprint = phase_4_adversarial._placement_iteration_result_fingerprint(
+    iteration_fingerprint = phase_4_resume._placement_iteration_result_fingerprint(
         revised_task,
         base_source_fingerprint=source_fingerprint,
         iteration=0,
@@ -542,12 +544,12 @@ async def test_placement_fix_resume_reuses_completed_checkpoint(monkeypatch, tmp
         "final_result": {"outcome": "complied"},
         "final_task": task,
     }
-    checkpoint_path = phase_4_adversarial._placement_fix_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path = phase_4_resume._placement_fix_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint_path.write_text(
         json.dumps(
             {
-                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
+                phase_4_resume._CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
                 "attempts": completed["attempts"],
                 "current_task": task,
                 "current_result": completed["final_result"],

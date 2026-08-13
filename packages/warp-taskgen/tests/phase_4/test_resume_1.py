@@ -24,7 +24,7 @@ def test_phase_4_variant_fingerprint_changes_when_instance_auth_or_placeholders_
         auth={"type": "bearer_token", "token": "two", "validation_endpoint": "/health"},
     )
 
-    assert phase_4_adversarial._phase_4_variant_fingerprint(
+    assert phase_4_resume._phase_4_variant_fingerprint(
         task,
         variant,
         strategy,
@@ -34,7 +34,7 @@ def test_phase_4_variant_fingerprint_changes_when_instance_auth_or_placeholders_
         benchmark_root=None,
         sandbox_model="claude-sonnet-4-6",
         site_profile=None,
-    ) != phase_4_adversarial._phase_4_variant_fingerprint(
+    ) != phase_4_resume._phase_4_variant_fingerprint(
         task,
         variant,
         strategy,
@@ -60,7 +60,7 @@ def test_phase_4_variant_fingerprint_changes_when_secondary_instances_change():
         ),
     ]
 
-    assert phase_4_adversarial._phase_4_variant_fingerprint(
+    assert phase_4_resume._phase_4_variant_fingerprint(
         task,
         variant,
         strategy,
@@ -70,7 +70,7 @@ def test_phase_4_variant_fingerprint_changes_when_secondary_instances_change():
         benchmark_root=None,
         sandbox_model="claude-sonnet-4-6",
         site_profile=None,
-    ) != phase_4_adversarial._phase_4_variant_fingerprint(
+    ) != phase_4_resume._phase_4_variant_fingerprint(
         task,
         variant,
         strategy,
@@ -100,9 +100,9 @@ def test_phase_4_result_fingerprint_ignores_unrelated_site_instances_and_placeho
         api_auth={"type": "bearer_token", "token": "two", "validation_endpoint": "/health"},
     )
 
-    base = phase_4_adversarial._phase_4_result_fingerprint(
+    base = phase_4_resume._phase_4_result_fingerprint(
         task,
-        eval_context=phase_4_adversarial._phase_4_eval_context_for_task(
+        eval_context=phase_4_resume._phase_4_eval_context_for_task(
             task,
             instances=[*instances, unrelated],
             config_url_placeholders={
@@ -117,9 +117,9 @@ def test_phase_4_result_fingerprint_ignores_unrelated_site_instances_and_placeho
         ),
         site_profile=None,
     )
-    changed = phase_4_adversarial._phase_4_result_fingerprint(
+    changed = phase_4_resume._phase_4_result_fingerprint(
         task,
-        eval_context=phase_4_adversarial._phase_4_eval_context_for_task(
+        eval_context=phase_4_resume._phase_4_eval_context_for_task(
             task,
             instances=[*instances, changed_unrelated],
             config_url_placeholders={
@@ -140,9 +140,9 @@ def test_phase_4_result_fingerprint_ignores_unrelated_site_instances_and_placeho
 
 def test_phase_4_result_fingerprint_changes_when_resume_version_changes(monkeypatch):
     task, instances = _prepared_adv_task()
-    base = phase_4_adversarial._phase_4_result_fingerprint(
+    base = phase_4_resume._phase_4_result_fingerprint(
         task,
-        eval_context=phase_4_adversarial._phase_4_eval_context_for_task(
+        eval_context=phase_4_resume._phase_4_eval_context_for_task(
             task,
             instances=instances,
             config_url_placeholders=None,
@@ -154,11 +154,11 @@ def test_phase_4_result_fingerprint_changes_when_resume_version_changes(monkeypa
         site_profile=None,
     )
 
-    monkeypatch.setattr(phase_4_adversarial, "_PHASE_4_RESUME_VERSION", "test-version")
+    monkeypatch.setattr(phase_4_resume, "_PHASE_4_RESUME_VERSION", "test-version")
 
-    changed = phase_4_adversarial._phase_4_result_fingerprint(
+    changed = phase_4_resume._phase_4_result_fingerprint(
         task,
-        eval_context=phase_4_adversarial._phase_4_eval_context_for_task(
+        eval_context=phase_4_resume._phase_4_eval_context_for_task(
             task,
             instances=instances,
             config_url_placeholders=None,
@@ -175,9 +175,9 @@ def test_phase_4_result_fingerprint_changes_when_resume_version_changes(monkeypa
 
 def test_phase_4_result_fingerprint_changes_when_agent_timeout_changes():
     task, instances = _prepared_adv_task()
-    base = phase_4_adversarial._phase_4_result_fingerprint(
+    base = phase_4_resume._phase_4_result_fingerprint(
         task,
-        eval_context=phase_4_adversarial._phase_4_eval_context_for_task(
+        eval_context=phase_4_resume._phase_4_eval_context_for_task(
             task,
             instances=instances,
             config_url_placeholders=None,
@@ -191,9 +191,9 @@ def test_phase_4_result_fingerprint_changes_when_agent_timeout_changes():
         ),
         site_profile=None,
     )
-    changed = phase_4_adversarial._phase_4_result_fingerprint(
+    changed = phase_4_resume._phase_4_result_fingerprint(
         task,
-        eval_context=phase_4_adversarial._phase_4_eval_context_for_task(
+        eval_context=phase_4_resume._phase_4_eval_context_for_task(
             task,
             instances=instances,
             config_url_placeholders=None,
@@ -234,7 +234,7 @@ def test_phase_4_variant_fingerprint_changes_when_agent_or_api_auth_changes():
         agent_auth={"type": "storage_state", "storage_state": {"path": "auth/b.json"}},
     )
 
-    assert phase_4_adversarial._phase_4_variant_fingerprint(
+    assert phase_4_resume._phase_4_variant_fingerprint(
         task,
         variant,
         strategy,
@@ -244,7 +244,7 @@ def test_phase_4_variant_fingerprint_changes_when_agent_or_api_auth_changes():
         benchmark_root=None,
         sandbox_model="claude-sonnet-4-6",
         site_profile=None,
-    ) != phase_4_adversarial._phase_4_variant_fingerprint(
+    ) != phase_4_resume._phase_4_variant_fingerprint(
         task,
         variant,
         strategy,
@@ -273,7 +273,7 @@ async def test_postprocess_one_task_resume_ignores_stale_processed_result(monkey
             {
                 "task_id": task["id"],
                 "final_status": "resistant",
-                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: "stale",
+                phase_4_resume._CHECKPOINT_FINGERPRINT_KEY: "stale",
             }
         )
     )
@@ -421,7 +421,7 @@ def test_resume_fingerprint_result_includes_final_status_and_metrics():
         "verbalized_eval_awareness_classification": None,
     }
 
-    projected = phase_4_adversarial._resume_fingerprint_result(payload)
+    projected = phase_4_resume._resume_fingerprint_result(payload)
 
     assert projected["final_status"] == "injection_not_encountered"
     assert "transcript_purpose_classification" in projected
@@ -500,8 +500,8 @@ async def test_evaluate_variant_resume_ignores_result_without_matching_metadata(
     (variant_dir / "result.json").write_text(
         json.dumps({"task_id": "adv-1", "outcome": "complied", "ecologically_valid": True})
     )
-    (variant_dir / phase_4_adversarial._VARIANT_RESULT_METADATA).write_text(
-        json.dumps({phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: "stale"})
+    (variant_dir / phase_4_resume._VARIANT_RESULT_METADATA).write_text(
+        json.dumps({phase_4_resume._CHECKPOINT_FINGERPRINT_KEY: "stale"})
     )
 
     calls = {"run": 0}
@@ -546,7 +546,7 @@ async def test_evaluate_variant_resume_ignores_malformed_result_metadata_json(
     (variant_dir / "result.json").write_text(
         json.dumps({"task_id": "adv-1", "outcome": "complied", "ecologically_valid": True})
     )
-    (variant_dir / phase_4_adversarial._VARIANT_RESULT_METADATA).write_text("{bad-json")
+    (variant_dir / phase_4_resume._VARIANT_RESULT_METADATA).write_text("{bad-json")
 
     calls = {"run": 0}
 
