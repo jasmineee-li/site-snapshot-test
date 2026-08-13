@@ -45,6 +45,7 @@ from worldsim.phase_4.process_pool_control import (
 from worldsim.phase_4.process_pool_control import (
     source_run_definition as _source_run_definition,
 )
+from worldsim.phase_4.results import _write_phase_4_results
 from worldsim.placeholders import normalize_site_name
 from worldsim.run_control import (
     acknowledge_pause,
@@ -837,9 +838,7 @@ def _merge_outcomes(
         "process_pool_workers": args.workers,
     }
     _ = config
-    from worldsim.phase_4 import runner as phase_4_runner
-
-    return phase_4_runner._write_phase_4_results(
+    return _write_phase_4_results(
         state_dir=args.out_dir,
         state_metadata=state_metadata,
         final_results=final_results,

@@ -3,6 +3,7 @@
 from typing import Any
 
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_4 import results as phase_4_results
 
 
 def test_layout_telemetry_records_geometry_bucket():
@@ -21,10 +22,10 @@ def test_layout_telemetry_records_geometry_bucket():
 
 def test_write_phase_4_results_finalizes_progress_json(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
-    monkeypatch.setattr(phase_4_adversarial.cost_tracker, "log_phase_summary", lambda *_: None)
-    monkeypatch.setattr(phase_4_adversarial.cost_tracker, "save", lambda *_: None)
+    monkeypatch.setattr(phase_4_results.cost_tracker, "log_phase_summary", lambda *_: None)
+    monkeypatch.setattr(phase_4_results.cost_tracker, "save", lambda *_: None)
 
-    rc = phase_4_adversarial._write_phase_4_results(
+    rc = phase_4_results._write_phase_4_results(
         state_dir=tmp_path,
         state_metadata={
             "task_dir_root": str(tmp_path / "phase_4" / "run"),
@@ -52,10 +53,10 @@ def test_write_phase_4_results_finalizes_progress_json(monkeypatch, tmp_path):
 
 def test_write_phase_4_results_uses_strict_variant_success_evidence(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
-    monkeypatch.setattr(phase_4_adversarial.cost_tracker, "log_phase_summary", lambda *_: None)
-    monkeypatch.setattr(phase_4_adversarial.cost_tracker, "save", lambda *_: None)
+    monkeypatch.setattr(phase_4_results.cost_tracker, "log_phase_summary", lambda *_: None)
+    monkeypatch.setattr(phase_4_results.cost_tracker, "save", lambda *_: None)
 
-    rc = phase_4_adversarial._write_phase_4_results(
+    rc = phase_4_results._write_phase_4_results(
         state_dir=tmp_path,
         state_metadata={"task_dir_root": str(tmp_path / "phase_4" / "run")},
         final_results=[
@@ -88,15 +89,15 @@ def test_write_phase_4_results_uses_strict_variant_success_evidence(monkeypatch,
 
 def test_write_phase_4_results_ignores_terminal_progress_write_failure(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
-    monkeypatch.setattr(phase_4_adversarial.cost_tracker, "log_phase_summary", lambda *_: None)
-    monkeypatch.setattr(phase_4_adversarial.cost_tracker, "save", lambda *_: None)
+    monkeypatch.setattr(phase_4_results.cost_tracker, "log_phase_summary", lambda *_: None)
+    monkeypatch.setattr(phase_4_results.cost_tracker, "save", lambda *_: None)
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_results,
         "write_phase_4_progress",
         lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("disk full")),
     )
 
-    rc = phase_4_adversarial._write_phase_4_results(
+    rc = phase_4_results._write_phase_4_results(
         state_dir=tmp_path,
         state_metadata={"task_dir_root": str(tmp_path / "phase_4" / "run")},
         final_results=[{"task_id": "task-1", "final_status": "error"}],

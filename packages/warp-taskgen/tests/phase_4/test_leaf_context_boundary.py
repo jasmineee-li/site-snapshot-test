@@ -31,8 +31,10 @@ def test_phase4_leaf_modules_have_explicit_imports_and_local_constants() -> None
         tree = ast.parse(source)
         assigned: set[str] = set()
         for node in tree.body:
-            targets = node.targets if isinstance(node, ast.Assign) else (
-                [node.target] if isinstance(node, ast.AnnAssign) else []
+            targets = (
+                node.targets
+                if isinstance(node, ast.Assign)
+                else ([node.target] if isinstance(node, ast.AnnAssign) else [])
             )
             assigned.update(target.id for target in targets if isinstance(target, ast.Name))
         for constant in expected_local_constants[name]:
@@ -44,6 +46,20 @@ def test_runner_does_not_link_explicit_leaf_modules() -> None:
     assert "link_modules" in source
     for name in LEAF_MODULES:
         assert f"phase_4 import {name} as _{name}" not in source
+
+
+def test_results_module_has_explicit_dependencies() -> None:
+    source = _source("results")
+    assert "install_context" not in source
+    assert "ruff: noqa: F821" not in source
+    assert "from worldsim.phase_4._context" not in source
+
+
+def test_runner_calls_results_owner_directly() -> None:
+    source = _source("runner")
+    assert "from worldsim.phase_4.results import _write_phase_4_results" in source
+    assert "from worldsim.phase_4 import results as _results" not in source
+    assert "        _results,\n" not in source
 
 
 def test_leaf_modules_import_in_either_order() -> None:
@@ -61,3 +77,19 @@ def test_leaf_modules_import_in_either_order() -> None:
                 cwd=PACKAGE_ROOT,
                 env={"PYTHONPATH": package_root},
             )
+
+
+def test_results_module_imports_in_either_order() -> None:
+    package_root = str(PACKAGE_ROOT)
+    for statement in (
+        "from worldsim.phase_4 import results, runner; "
+        "assert results._write_phase_4_results; assert runner.run",
+        "from worldsim.phase_4 import runner, results; "
+        "assert results._write_phase_4_results; assert runner.run",
+    ):
+        subprocess.run(
+            [sys.executable, "-c", statement],
+            check=True,
+            cwd=PACKAGE_ROOT,
+            env={"PYTHONPATH": package_root},
+        )
