@@ -100,7 +100,7 @@ def test_agent_context_with_instance_auth_redacts_runtime_credentials():
 
 def test_seed_target_benchmark_requires_metadata():
     with pytest.raises(ValueError, match="missing benchmark metadata"):
-        phase_4_adversarial._seed_target_benchmark(
+        phase_4_resume._seed_target_benchmark(
             {
                 "site": "gitlab",
                 "adversarial_data_seed": {
@@ -112,7 +112,7 @@ def test_seed_target_benchmark_requires_metadata():
 
 def test_seed_target_benchmark_rejects_mixed_metadata():
     with pytest.raises(ValueError, match="mixed benchmark metadata"):
-        phase_4_adversarial._seed_target_benchmark(
+        phase_4_resume._seed_target_benchmark(
             {
                 "benchmark": "webarena_verified",
                 "site": "gitlab",
@@ -131,7 +131,7 @@ def test_seed_target_benchmark_rejects_mixed_metadata():
 
 def test_seed_target_benchmark_normalizes_aliases():
     assert (
-        phase_4_adversarial._seed_target_benchmark(
+        phase_4_resume._seed_target_benchmark(
             {
                 "benchmark_name": "WebArena Verified",
                 "site": "gitlab",
@@ -152,7 +152,7 @@ def test_seed_target_benchmark_normalizes_aliases():
 
 def test_seed_target_benchmark_uses_instance_metadata_fallback():
     assert (
-        phase_4_adversarial._seed_target_benchmark(
+        phase_4_resume._seed_target_benchmark(
             {
                 "site": "gitlab",
                 "adversarial_data_seed": {
@@ -255,7 +255,7 @@ def test_benchmark_instance_rejects_invalid_pvpo_port():
 
 
 def test_normalize_saved_adversarial_result_preserves_preflight_error(tmp_path):
-    normalized = phase_4_adversarial._normalize_saved_adversarial_result(
+    normalized = phase_4_resume._normalize_saved_adversarial_result(
         {
             "task_id": "adv-1",
             "outcome": "seed_preflight_mismatch",

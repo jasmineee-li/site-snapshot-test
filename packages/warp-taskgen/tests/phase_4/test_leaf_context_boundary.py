@@ -11,6 +11,7 @@ PACKAGE_ROOT = Path(__file__).parents[2]
 PHASE_4_ROOT = PACKAGE_ROOT / "worldsim" / "phase_4"
 LEAF_MODULES = ("payload_text", "metrics", "admission", "preflight", "execution_helpers")
 EXECUTION_MODULE = "execution"
+RESUME_MODULE = "resume"
 
 
 def _source(name: str) -> str:
@@ -134,6 +135,81 @@ def test_execution_imports_in_either_order() -> None:
         "assert execution.run_adversarial_task; assert runner.run",
         "from worldsim.phase_4 import runner, execution; "
         "assert execution.run_adversarial_task; assert runner.run",
+    ):
+        subprocess.run(
+            [sys.executable, "-c", statement],
+            check=True,
+            cwd=PACKAGE_ROOT,
+            env={"PYTHONPATH": package_root},
+        )
+
+
+def test_resume_owns_explicit_dependencies_and_runner_does_not_link_it() -> None:
+    source = _source(RESUME_MODULE)
+    runner = _source("runner")
+    assert "install_context" not in source
+    assert "ruff: noqa: F821" not in source
+    assert "from worldsim.phase_4._context" not in source
+    assert "from worldsim.phase_4 import resume as _resume" not in runner
+    assert "        _resume,\n" not in runner
+    for constant in (
+        "_CHECKPOINT_FINGERPRINT_KEY",
+        "_PHASE_4_RESUME_VERSION",
+        "_VARIANT_RESULT_METADATA",
+        "PLACEMENT_FIX_MAX_ITERATIONS",
+    ):
+        assert source.count(constant) >= 1
+
+
+def test_resume_consumers_import_resume_owner_directly() -> None:
+    expectations = {
+        "runner": ("_phase_4_state_metadata", "_phase_4_result_fingerprint"),
+        "preflight": ("_fingerprint_payload", "_seed_target_benchmark"),
+        "admission": ("_task_reachable_sites",),
+        "execution": ("_seed_has_actions", "_seed_requires_reset"),
+        "postprocess": ("_phase_4_postprocess_fingerprint", "_write_json_atomic"),
+        "placement_loop": (
+            "_load_saved_placement_iteration_result",
+            "_write_placement_fix_checkpoint",
+        ),
+        "strategy_variation": ("_strategy_variation_checkpoint_path", "_VARIANT_ROUNDS_KEY"),
+        "eval_awareness_iterator": ("_phase_4_postprocess_fingerprint", "_variant_changes_seed"),
+        "variant_eval": ("_load_saved_variant_result", "_phase_4_variant_fingerprint"),
+    }
+    for module, names in expectations.items():
+        source = _source(module)
+        assert "from worldsim.phase_4.resume import" in source
+        for name in names:
+            assert name in source
+
+
+def test_resume_tests_do_not_patch_runner_resume_exports() -> None:
+    test_root = PACKAGE_ROOT / "tests"
+    resume_names = (
+        "_phase_4_result_fingerprint",
+        "_phase_4_postprocess_fingerprint",
+        "_phase_4_variant_fingerprint",
+        "_CHECKPOINT_FINGERPRINT_KEY",
+        "_VARIANT_RESULT_METADATA",
+        "_seed_target_benchmark",
+        "_normalize_saved_adversarial_result",
+        "_sweep_orphan_inflight_sentinels",
+    )
+    for path in (*test_root.glob("phase_4/test_*.py"), test_root / "crash_resume_scenarios.py"):
+        if path.name == "test_leaf_context_boundary.py":
+            continue
+        source = path.read_text()
+        for name in resume_names:
+            assert f"phase_4_adversarial.{name}" not in source
+
+
+def test_resume_imports_in_either_order() -> None:
+    package_root = str(PACKAGE_ROOT)
+    for statement in (
+        "from worldsim.phase_4 import resume, runner; "
+        "assert resume._phase_4_result_fingerprint; assert runner.run",
+        "from worldsim.phase_4 import runner, resume; "
+        "assert resume._phase_4_result_fingerprint; assert runner.run",
     ):
         subprocess.run(
             [sys.executable, "-c", statement],

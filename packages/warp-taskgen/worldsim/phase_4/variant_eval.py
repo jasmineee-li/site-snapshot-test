@@ -10,6 +10,14 @@ from worldsim.phase_4.payload_text import (
     _seed_preserves_exposure_contract_error,
     _synchronize_variant_payload_texts,
 )
+from worldsim.phase_4.resume import (
+    _CHECKPOINT_FINGERPRINT_KEY,
+    _load_saved_placement_iteration_result,
+    _load_saved_variant_result,
+    _phase_4_variant_fingerprint,
+    _variant_result_metadata_path,
+    _write_json_atomic,
+)
 
 install_context(globals())
 

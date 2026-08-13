@@ -50,7 +50,7 @@ async def test_generate_variant_merges_api_tool_use_output(monkeypatch, tmp_path
     )
 
     assert variant["adversarial_data_seed"]["editor_calls"][0]["args"]["entity_pk_value"] == 2
-    assert not phase_4_adversarial._tasks_equivalent(task, variant)
+    assert not phase_4_resume._tasks_equivalent(task, variant)
     assert captured["model"] == "claude-sonnet-4-6"
     assert captured["strategy"] == "specificity"
 

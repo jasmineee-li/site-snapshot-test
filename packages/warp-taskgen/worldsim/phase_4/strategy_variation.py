@@ -7,6 +7,22 @@ from worldsim.phase_4._context import install_context
 from worldsim.phase_4.failure_context import build_variant_failure_context
 from worldsim.phase_4.metrics import _ecologically_valid
 from worldsim.phase_4.postprocess_progress import Phase4ProgressCallback
+from worldsim.phase_4.resume import (
+    _CHECKPOINT_FINGERPRINT_KEY,
+    _PHASE_4_RESUME_VERSION,
+    _VARIANT_GENERATION_RECORDS_KEY,
+    _VARIANT_ROUNDS_KEY,
+    _fingerprint_payload,
+    _load_json_dict,
+    _phase_4_postprocess_fingerprint,
+    _resume_fingerprint_result,
+    _strategy_variation_checkpoint_path,
+    _task_reachable_instances,
+    _task_reachable_placeholders,
+    _variant_changes_seed,
+    _variant_generation_record_for_result,
+    _write_json_atomic,
+)
 
 install_context(globals())
 

@@ -11,6 +11,15 @@ from worldsim.phase_4.metrics import (
     _trajectory_available_for_observational_metrics,
 )
 from worldsim.phase_4.payload_text import _adversarial_seed_equivalent
+from worldsim.phase_4.resume import (
+    _CHECKPOINT_FINGERPRINT_KEY,
+    PLACEMENT_FIX_MAX_ITERATIONS,
+    _load_json_dict,
+    _load_saved_placement_iteration_result,
+    _placement_fix_checkpoint_path,
+    _placement_iteration_result_fingerprint,
+    _write_placement_fix_checkpoint,
+)
 
 install_context(globals())
 

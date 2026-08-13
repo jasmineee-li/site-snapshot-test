@@ -6,6 +6,11 @@ from __future__ import annotations
 from worldsim.phase_4._context import install_context
 from worldsim.phase_4.metrics import _ecologically_valid, _layout_telemetry
 from worldsim.phase_4.postprocess_progress import Phase4ProgressCallback
+from worldsim.phase_4.resume import (
+    _CHECKPOINT_FINGERPRINT_KEY,
+    _phase_4_postprocess_fingerprint,
+    _write_json_atomic,
+)
 
 install_context(globals())
 
