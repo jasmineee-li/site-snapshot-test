@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 @pytest.mark.asyncio
 async def test_phase_4_run_rejects_non_worldsim_v5_benchmark(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
@@ -67,6 +68,7 @@ async def test_phase_4_run_rejects_non_worldsim_v5_benchmark(monkeypatch, tmp_pa
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["reason"] == "unsupported_benchmark"
     assert "does not support WARP Taskgen Phase 4" in state["error"]
+
 
 @pytest.mark.asyncio
 async def test_phase_4_run_clears_storage_error_after_retry_success(monkeypatch, tmp_path):
@@ -171,6 +173,7 @@ async def test_phase_4_run_clears_storage_error_after_retry_success(monkeypatch,
     assert rc == 0
     assert attempts == 2
 
+
 @pytest.mark.asyncio
 async def test_phase_4_run_rejects_missing_benign_task_id(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
@@ -238,6 +241,7 @@ async def test_phase_4_run_rejects_missing_benign_task_id(monkeypatch, tmp_path)
     )
 
     assert rc == 1
+
 
 @pytest.mark.asyncio
 async def test_phase_4_run_filters_tasks_by_sites_before_rebase(monkeypatch, tmp_path):
@@ -375,9 +379,7 @@ async def test_phase_4_run_filters_tasks_by_sites_before_rebase(monkeypatch, tmp
 
 
 @pytest.mark.asyncio
-async def test_phase_4_run_writes_failed_progress_on_postprocess_exception(
-    monkeypatch, tmp_path
-):
+async def test_phase_4_run_writes_failed_progress_on_postprocess_exception(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "phase_2").mkdir(parents=True)
     (tmp_path / "phase_3").mkdir(parents=True)
@@ -467,7 +469,7 @@ async def test_phase_4_run_writes_failed_progress_on_postprocess_exception(
         lambda *args, **kwargs: [],
     )
     monkeypatch.setattr(phase_4_adversarial, "run_tasks_by_site", fake_run_tasks_by_site)
-    monkeypatch.setattr(phase_4_adversarial, "_postprocess_one_task", fail_postprocess)
+    monkeypatch.setattr(phase_4_postprocess, "_postprocess_one_task", fail_postprocess)
 
     rc = await phase_4_adversarial.run(
         Namespace(

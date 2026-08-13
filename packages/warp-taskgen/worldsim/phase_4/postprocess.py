@@ -1,11 +1,22 @@
 """Phase 4 postprocess behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_4._context import install_context
+import asyncio
+import json
+import logging
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+from worldsim.agent_config import instances_for_site
+from worldsim.agent_runtime import AgentRunner
+from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.phase_4.eval_awareness_iterator import run_eval_awareness_iterator
 from worldsim.phase_4.metrics import _ecologically_valid, _layout_telemetry
+from worldsim.phase_4.options import (
+    normalize_phase_4_variant_system as _normalize_phase_4_variant_system,
+)
 from worldsim.phase_4.placement_loop import _run_placement_fix_loop
 from worldsim.phase_4.postprocess_progress import Phase4ProgressCallback
 from worldsim.phase_4.resume import (
@@ -21,10 +32,10 @@ from worldsim.phase_4.strategy_variation import (
 from worldsim.phase_4.strategy_variation import (
     run_strategy_variation,
 )
+from worldsim.task_paths import safe_task_path_component
 
+logger = logging.getLogger(__name__)
 run_judge = _strategy_run_judge
-
-install_context(globals())
 
 
 async def _postprocess_one_task(
