@@ -1,6 +1,10 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from .._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2.phase_2c import artifacts as phase_2c_artifacts
+from worldsim.phase_2.phase_2c import stage as phase_2_stage
+from worldsim.phase_2.planning_types import SiteInjectionResult
+
 
 def test_phase_2c_artifact_writer_recomputes_per_site_after_partial_merge(tmp_path):
     output_path = tmp_path / "adversarial_tasks.json"
@@ -21,7 +25,7 @@ def test_phase_2c_artifact_writer_recomputes_per_site_after_partial_merge(tmp_pa
     infeasible_path.write_text(json.dumps([]))
     dropped_source_path.write_text(json.dumps([]))
 
-    result = phase_2_injections._write_phase_2c_artifacts(
+    result = phase_2_stage._write_phase_2c_artifacts(
         output_path=output_path,
         infeasible_path=infeasible_path,
         dropped_source_path=dropped_source_path,
@@ -50,7 +54,8 @@ def test_phase_2c_artifact_writer_recomputes_per_site_after_partial_merge(tmp_pa
         "reddit": {"verified": 1, "infeasible": 0, "skipped": 0, "unverified": 0},
         "gitlab": {"verified": 1, "infeasible": 0, "skipped": 0, "unverified": 0},
     }
-    assert isinstance(result, phase_2_injections.Phase2cArtifactWriteResult)
+    assert isinstance(result, phase_2c_artifacts.Phase2cArtifactWriteResult)
+
 
 def test_phase_2c_artifact_writer_validates_before_any_write(tmp_path):
     output_path = tmp_path / "adversarial_tasks.json"
@@ -63,7 +68,7 @@ def test_phase_2c_artifact_writer_validates_before_any_write(tmp_path):
     report_path.write_text(json.dumps({"old": True}))
 
     with pytest.raises(ValueError, match="verified dataset contains"):
-        phase_2_injections._write_phase_2c_artifacts(
+        phase_2_stage._write_phase_2c_artifacts(
             output_path=output_path,
             infeasible_path=infeasible_path,
             dropped_source_path=dropped_source_path,
@@ -85,6 +90,7 @@ def test_phase_2c_artifact_writer_validates_before_any_write(tmp_path):
     assert json.loads(dropped_source_path.read_text()) == [{"id": "old-drop"}]
     assert json.loads(report_path.read_text()) == {"old": True}
 
+
 def test_phase_2c_artifact_writer_observes_facade_helper_monkeypatch(
     monkeypatch,
     tmp_path,
@@ -102,13 +108,13 @@ def test_phase_2c_artifact_writer_observes_facade_helper_monkeypatch(
         raise RuntimeError("facade validation was used")
 
     monkeypatch.setattr(
-        phase_2_injections,
+        phase_2_stage,
         "_validate_phase_2c_artifact_payloads",
         fail_validation,
     )
 
     with pytest.raises(RuntimeError, match="facade validation was used"):
-        phase_2_injections._write_phase_2c_artifacts(
+        phase_2_stage._write_phase_2c_artifacts(
             output_path=output_path,
             infeasible_path=infeasible_path,
             dropped_source_path=dropped_source_path,
@@ -132,6 +138,7 @@ def test_phase_2c_artifact_writer_observes_facade_helper_monkeypatch(
         )
 
     assert json.loads(output_path.read_text()) == []
+
 
 @pytest.mark.asyncio
 async def test_phase_2_run_marks_feasibility_stage_running_before_2c(monkeypatch, tmp_path):
@@ -160,7 +167,7 @@ async def test_phase_2_run_marks_feasibility_stage_running_before_2c(monkeypatch
     async def fake_generate(
         site_name, site_tasks, all_site_tasks=None, profile_path=None, label=None, **kwargs
     ):
-        return phase_2_injections.SiteInjectionResult(site_name, [_plan_task()], [])
+        return SiteInjectionResult(site_name, [_plan_task()], [])
 
     async def fake_fill(*args, **kwargs):
         finalized = _finalized_plan_task()
@@ -173,7 +180,7 @@ async def test_phase_2_run_marks_feasibility_stage_running_before_2c(monkeypatch
     async def fake_verify_feasibility(*args, **kwargs):
         captured_state.update(json.loads((tmp_path / "pipeline_state.json").read_text()))
         tasks_path = args[0]
-        return phase_2_injections.FeasibilityReport(
+        return phase_2_stage.FeasibilityReport(
             verified=[
                 _with_feasibility_status(task, "verified")
                 for task in json.loads(tasks_path.read_text())
@@ -189,7 +196,7 @@ async def test_phase_2_run_marks_feasibility_stage_running_before_2c(monkeypatch
 
     monkeypatch.setattr(phase_2_injections, "_generate_injections_for_site", fake_generate)
     monkeypatch.setattr(phase_2_injections, "fill_texts_for_tasks", fake_fill)
-    monkeypatch.setattr(phase_2_injections, "verify_feasibility", fake_verify_feasibility)
+    monkeypatch.setattr(phase_2_stage, "verify_feasibility", fake_verify_feasibility)
 
     rc = await phase_2_injections.run(
         Namespace(
@@ -206,6 +213,7 @@ async def test_phase_2_run_marks_feasibility_stage_running_before_2c(monkeypatch
     assert rc == 0
     assert captured_state["status"] == "running"
     assert captured_state["phase_2_stage"] == "feasibility"
+
 
 @pytest.mark.asyncio
 async def test_phase_2_feasibility_only_marks_stage_running_before_2c(monkeypatch, tmp_path):
@@ -232,7 +240,7 @@ async def test_phase_2_feasibility_only_marks_stage_running_before_2c(monkeypatc
 
     async def fake_verify_feasibility(*args, **kwargs):
         captured_state.update(json.loads((tmp_path / "pipeline_state.json").read_text()))
-        return phase_2_injections.FeasibilityReport(
+        return phase_2_stage.FeasibilityReport(
             verified=[
                 _with_feasibility_status(task, "verified")
                 for task in json.loads(output_path.read_text())
@@ -246,7 +254,7 @@ async def test_phase_2_feasibility_only_marks_stage_running_before_2c(monkeypatc
             phase_2_status="complete",
         )
 
-    monkeypatch.setattr(phase_2_injections, "verify_feasibility", fake_verify_feasibility)
+    monkeypatch.setattr(phase_2_stage, "verify_feasibility", fake_verify_feasibility)
 
     rc = await phase_2_injections.run(
         Namespace(
@@ -270,6 +278,7 @@ async def test_phase_2_feasibility_only_marks_stage_running_before_2c(monkeypatc
     assert captured_state["feasibility_retry_count"] == 0
     assert captured_state["feasibility_ttl_hours"] == 24.0
     assert captured_state["force_reverify"] is True
+
 
 @pytest.mark.asyncio
 async def test_phase_2_feasibility_only_completes_after_resuming_running_checkpoint(
@@ -296,7 +305,7 @@ async def test_phase_2_feasibility_only_completes_after_resuming_running_checkpo
     save_state("phase_2", status="running", phase_2_stage="feasibility", sandbox_model="demo")
 
     async def fake_verify_feasibility(*args, **kwargs):
-        return phase_2_injections.FeasibilityReport(
+        return phase_2_stage.FeasibilityReport(
             verified=[
                 _with_feasibility_status(task, "verified")
                 for task in json.loads(output_path.read_text())
@@ -310,7 +319,7 @@ async def test_phase_2_feasibility_only_completes_after_resuming_running_checkpo
             phase_2_status="running",
         )
 
-    monkeypatch.setattr(phase_2_injections, "verify_feasibility", fake_verify_feasibility)
+    monkeypatch.setattr(phase_2_stage, "verify_feasibility", fake_verify_feasibility)
 
     rc = await phase_2_injections.run(
         Namespace(
@@ -329,6 +338,7 @@ async def test_phase_2_feasibility_only_completes_after_resuming_running_checkpo
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["status"] == "complete"
     assert state["phase_2_stage"] == "feasibility"
+
 
 @pytest.mark.asyncio
 async def test_phase_2_feasibility_stage_writes_report_after_dataset(monkeypatch, tmp_path):
@@ -359,7 +369,7 @@ async def test_phase_2_feasibility_stage_writes_report_after_dataset(monkeypatch
         infeasible = _finalized_plan_task()
         infeasible["id"] = "adv-bad"
         infeasible = _with_feasibility_status(infeasible, "infeasible")
-        return phase_2_injections.FeasibilityReport(
+        return phase_2_stage.FeasibilityReport(
             verified=[verified],
             infeasible=[infeasible],
             skipped_already_verified=[],
@@ -371,16 +381,16 @@ async def test_phase_2_feasibility_stage_writes_report_after_dataset(monkeypatch
         )
 
     write_order: list[str] = []
-    real_write_json_atomic = phase_2_injections.write_json_atomic
+    real_write_json_atomic = phase_2_stage.write_json_atomic
 
     def recording_write_json_atomic(path, payload, *, failpoint_base=None):
         write_order.append(Path(path).name)
         return real_write_json_atomic(path, payload, failpoint_base=failpoint_base)
 
-    monkeypatch.setattr(phase_2_injections, "verify_feasibility", fake_verify_feasibility)
-    monkeypatch.setattr(phase_2_injections, "write_json_atomic", recording_write_json_atomic)
+    monkeypatch.setattr(phase_2_stage, "verify_feasibility", fake_verify_feasibility)
+    monkeypatch.setattr(phase_2_stage, "write_json_atomic", recording_write_json_atomic)
 
-    rc = await phase_2_injections._run_feasibility_stage(
+    rc = await phase_2_stage._run_feasibility_stage(
         args=Namespace(
             skip_feasibility=False,
             feasibility_only=True,
@@ -403,6 +413,7 @@ async def test_phase_2_feasibility_stage_writes_report_after_dataset(monkeypatch
         "adversarial_tasks.json",
         "feasibility_report.json",
     ]
+
 
 @pytest.mark.asyncio
 async def test_phase_2_feasibility_stage_preserves_unfiltered_source_sidecar_with_sites(
@@ -436,7 +447,7 @@ async def test_phase_2_feasibility_stage_preserves_unfiltered_source_sidecar_wit
     )
 
     async def fake_verify_feasibility(*args, **kwargs):
-        return phase_2_injections.FeasibilityReport(
+        return phase_2_stage.FeasibilityReport(
             verified=[],
             infeasible=[],
             skipped_already_verified=[],
@@ -448,9 +459,9 @@ async def test_phase_2_feasibility_stage_preserves_unfiltered_source_sidecar_wit
             dropped_source_data=[],
         )
 
-    monkeypatch.setattr(phase_2_injections, "verify_feasibility", fake_verify_feasibility)
+    monkeypatch.setattr(phase_2_stage, "verify_feasibility", fake_verify_feasibility)
 
-    rc = await phase_2_injections._run_feasibility_stage(
+    rc = await phase_2_stage._run_feasibility_stage(
         args=Namespace(
             skip_feasibility=False,
             feasibility_only=True,

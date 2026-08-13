@@ -1,15 +1,42 @@
 """Phase 2 phase_2c stage behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_2 import target_stage as _target_stage
-from worldsim.phase_2._context import install_context
-from worldsim.phase_2.phase_2c.pause_control import promotion_boundary
-from worldsim.run_definition import define_run
-from worldsim.state import load_state_for_current_root
+import argparse
+import json
+import logging
+import tempfile
+from pathlib import Path
+from typing import Any
 
-install_context(globals())
+from worldsim.atomic_io import write_json_atomic
+from worldsim.phase_2 import target_stage as _target_stage
+from worldsim.phase_2.output import _effective_task_site, _merge_preserving_unfiltered_sites
+from worldsim.phase_2.phase_2c import artifacts as _phase_2c_artifacts
+from worldsim.phase_2.phase_2c.artifacts import (
+    _merged_dropped_source_data,
+    _phase_2c_report_summary_with_artifacts,
+    _validate_phase_2c_artifact_payloads,
+)
+from worldsim.phase_2.phase_2c.config import (
+    _extract_instances_list,
+    _filter_instances_for_phase_2c,
+    _filter_records_for_sites,
+    _gate_phase_2_skip_benchmark,
+    _gate_phase_2c_benchmark,
+    _sites_filter_from_value,
+    _terminal_phase_2_status,
+    _validate_phase_2c_instances_payload,
+    _with_benchmark,
+)
+from worldsim.phase_2.phase_2c.outcomes import skipped_task_stanza
+from worldsim.phase_2.phase_2c.pause_control import promotion_boundary
+from worldsim.phase_2.phase_2c.runner import verify_feasibility
+from worldsim.phase_2.phase_2c.types import FeasibilityReport
+from worldsim.run_definition import define_run
+from worldsim.state import load_state_for_current_root, save_state
+
+logger = logging.getLogger(__name__)
 
 
 def _phase_2c_artifact_facade_bindings() -> dict[str, Any]:

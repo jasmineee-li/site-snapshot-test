@@ -142,7 +142,7 @@ async def run(args: argparse.Namespace) -> int:
             )
             return 1
         prior_state = load_state() or {}
-        return await _run_feasibility_stage(
+        return await _phase_2c_stage._run_feasibility_stage(
             args=args,
             output_path=output_path,
             output_dir=output_dir,
@@ -609,7 +609,7 @@ async def run(args: argparse.Namespace) -> int:
         **state_metadata,
     )
 
-    feasibility_rc = await _run_feasibility_stage(
+    feasibility_rc = await _phase_2c_stage._run_feasibility_stage(
         args=args,
         output_path=output_path,
         output_dir=output_dir,
@@ -660,7 +660,6 @@ _link_modules(
         _sys.modules[__name__],
         _generation,
         _plan_validation,
-        _phase_2c_stage,
     ]
 )
 

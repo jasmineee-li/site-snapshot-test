@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.phase_2 import runner as phase_2_runner
+from worldsim.phase_2.phase_2c import stage as phase_2_stage
+from worldsim.phase_2.phase_2c.types import FeasibilityReport
 from worldsim.run_control import PauseBoundaryReached, request_pause
 
 
@@ -57,7 +58,7 @@ async def test_pause_before_aggregate_promotion_keeps_canonical_files_unchanged(
         # The request wins before the feature-owned promotion boundary. The
         # stage must not write even a partial sidecar or canonical aggregate.
         request_pause(tmp_path)
-        return phase_2_runner.FeasibilityReport(
+        return FeasibilityReport(
             verified=[{**_task(), "feasibility": {"status": "verified"}}],
             infeasible=[],
             skipped_already_verified=[],
@@ -68,10 +69,10 @@ async def test_pause_before_aggregate_promotion_keeps_canonical_files_unchanged(
             phase_2_status="complete",
         )
 
-    monkeypatch.setattr(phase_2_runner, "verify_feasibility", fake_verify)
+    monkeypatch.setattr(phase_2_stage, "verify_feasibility", fake_verify)
 
     with pytest.raises(PauseBoundaryReached):
-        await phase_2_runner._run_feasibility_stage(
+        await phase_2_stage._run_feasibility_stage(
             args=_args(instances_path),
             output_path=output_path,
             output_dir=output_dir,
