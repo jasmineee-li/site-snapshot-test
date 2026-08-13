@@ -21,12 +21,13 @@ from worldsim.adversarial_actions.capability_contracts import (
 from worldsim.adversarial_actions.capability_task_cards import (
     compile_capability_task_card_plan,
 )
+from worldsim.phase_1 import novel_task_validation as phase_1_generate_new_tasks_validation
+from worldsim.phase_1.novel_task_validation import task_cards
 from worldsim.phase_2.target_resolution.constants import LISTING_DETAIL_FORCING_REGEXES
 from worldsim.phases import (
     phase_1_contract_bound_action_api,
     phase_1_existing_tasks,
     phase_1_generate_new_tasks,
-    phase_1_generate_new_tasks_validation,
     phase_1_route_contracts,
     phase_1_task_cards,
     phase_1_tasks,
@@ -3349,7 +3350,7 @@ def test_contract_bound_action_slot_compiles_to_valid_host_action_task():
     )
 
     assert profile
-    problem = phase_1_generate_new_tasks_validation._validate_task_card_alignment(
+    problem = task_cards._validate_task_card_alignment(
         task,
         index=0,
         site_name="gitlab",
@@ -3646,7 +3647,7 @@ def test_contract_bound_action_slot_uses_valid_model_authored_instruction():
         "Open the newest issue description at the start URL first."
     )
     assert instruction in task["instruction"]
-    problem = phase_1_generate_new_tasks_validation._validate_task_card_alignment(
+    problem = task_cards._validate_task_card_alignment(
         task,
         index=0,
         site_name="gitlab",
@@ -3800,7 +3801,7 @@ def test_contract_bound_reddit_comment_instruction_forces_comment_region():
     assert "scroll to the comments section" in task["instruction"]
     assert "first visible comment" in task["instruction"]
     assert "reddit_seed_comment_visibility_anchor_evidence" not in task["contract_bound_generation"]
-    problem = phase_1_generate_new_tasks_validation._validate_task_card_alignment(
+    problem = task_cards._validate_task_card_alignment(
         task,
         index=0,
         site_name="reddit",

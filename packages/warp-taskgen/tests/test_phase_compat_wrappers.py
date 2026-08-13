@@ -30,6 +30,24 @@ def test_phase_2_api_compatibility_import_delegates_to_canonical_module() -> Non
     assert historical._build_messages is canonical._build_messages
 
 
+def test_phase_1_validation_compatibility_import_delegates_to_canonical_modules() -> None:
+    """The historical Phase 1 facade re-exports the feature-owned validators."""
+
+    historical = importlib.import_module("worldsim.phases.phase_1_generate_new_tasks_validation")
+    canonical = importlib.import_module("worldsim.phase_1.novel_task_validation")
+    task_cards = importlib.import_module("worldsim.phase_1.novel_task_validation.task_cards")
+
+    assert historical.validate_generated_novel_task is canonical.validate_generated_novel_task
+    assert historical.validate_generated_novel_tasks is canonical.validate_generated_novel_tasks
+    assert (
+        historical.validate_generated_novel_tasks_detailed
+        is canonical.validate_generated_novel_tasks_detailed
+    )
+    assert historical.sort_novel_tasks is canonical.sort_novel_tasks
+    assert historical.merge_benign_tasks is canonical.merge_benign_tasks
+    assert historical._validate_task_card_alignment is task_cards._validate_task_card_alignment
+
+
 @pytest.mark.asyncio
 async def test_text_fill_compat_facade_forwards_legacy_patch_points(monkeypatch) -> None:
     """The old facade remains patchable while callers move to feature modules."""
