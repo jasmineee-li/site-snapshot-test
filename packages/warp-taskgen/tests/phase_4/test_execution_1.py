@@ -9,10 +9,10 @@ async def test_reward_evaluation_timeout_fails_closed(monkeypatch):
         time.sleep(0.2)
         return True, "late success"
 
-    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", hanging_reward)
-    monkeypatch.setattr(phase_4_adversarial, "_REWARD_EVALUATION_TIMEOUT_S", 0.01)
+    monkeypatch.setattr(phase_4_execution, "run_reward_function", hanging_reward)
+    monkeypatch.setattr(phase_4_execution, "_REWARD_EVALUATION_TIMEOUT_S", 0.01)
 
-    passed, message = await phase_4_adversarial._run_reward_function_safely(
+    passed, message = await phase_4_execution._run_reward_function_safely(
         {"type": "FinalStateEvaluator"},
         {"site_url": "http://gitlab.test"},
         SimpleNamespace(),
@@ -65,10 +65,10 @@ async def test_run_adversarial_task_errors_when_benign_eval_is_non_interpretable
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_execution, "run_reward_function", fake_run_reward_function)
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -117,11 +117,11 @@ async def test_run_adversarial_task_scores_partial_timeout_when_artifacts_exist(
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_execution, "preflight_adversarial_seed", fake_preflight)
-    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+    monkeypatch.setattr(phase_4_execution, "run_reward_function", fake_run_reward_function)
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -175,10 +175,10 @@ async def test_run_adversarial_task_defers_seed_cleanup_until_after_reward_eval(
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_execution, "run_reward_function", fake_run_reward_function)
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -227,10 +227,10 @@ async def test_run_adversarial_task_probes_non_scoreable_failures_before_saving_
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -291,10 +291,10 @@ async def test_run_adversarial_task_stamps_injection_not_encountered_on_error_pa
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -352,10 +352,10 @@ async def test_run_adversarial_task_marks_agentlab_setup_timeout_as_infra_error(
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -410,10 +410,10 @@ async def test_run_adversarial_task_marks_agentlab_missing_browser_as_infra_erro
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -471,11 +471,11 @@ async def test_run_adversarial_task_marks_unknown_agentlab_error_with_partial_ou
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_reward_function)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_execution, "run_reward_function", fake_reward_function)
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgentLabAgent(),
         instance=instances[0],
@@ -531,10 +531,10 @@ async def test_run_adversarial_task_marks_agentlab_browser_step_timeout_as_infra
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -600,11 +600,11 @@ async def test_run_adversarial_task_retries_safe_agentlab_browser_step_timeout(
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_reward_function)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_execution, "run_reward_function", fake_reward_function)
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -663,11 +663,11 @@ async def test_run_adversarial_task_keeps_agentlab_timeout_infra_with_partial_ar
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_reward_function)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_execution, "run_reward_function", fake_reward_function)
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -720,10 +720,10 @@ async def test_run_adversarial_task_marks_agentlab_metadata_load_as_infra_error(
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -786,10 +786,10 @@ async def test_run_adversarial_task_passes_site_prompt_from_agent_context(monkey
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_execution, "run_reward_function", fake_run_reward_function)
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -847,14 +847,13 @@ async def test_run_adversarial_task_forwards_benchmark_root_when_auth_present(
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_seed)
-    monkeypatch.setattr(phase_4_adversarial, "validate_data_seed", fake_validate_seed)
-    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_seed)
+    monkeypatch.setattr(phase_4_execution, "run_reward_function", fake_run_reward_function)
 
     bench_root = tmp_path / "bench"
     bench_root.mkdir()
 
-    await phase_4_adversarial.run_adversarial_task(
+    await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -915,11 +914,10 @@ async def test_run_adversarial_task_forwards_http_header_credentials(monkeypatch
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_seed)
-    monkeypatch.setattr(phase_4_adversarial, "validate_data_seed", fake_validate_seed)
-    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_seed)
+    monkeypatch.setattr(phase_4_execution, "run_reward_function", fake_run_reward_function)
 
-    await phase_4_adversarial.run_adversarial_task(
+    await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],

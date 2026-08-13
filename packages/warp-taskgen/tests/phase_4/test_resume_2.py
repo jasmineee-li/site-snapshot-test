@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 @pytest.mark.asyncio
 async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
@@ -116,6 +117,7 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
     assert result["variant_results"][0]["trajectory_dir"] == str(variant_dir)
     assert result["variant_results"][0]["strategy"] == "specificity"
 
+
 @pytest.mark.asyncio
 async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_different_instance(
     monkeypatch, tmp_path
@@ -228,7 +230,7 @@ async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_d
 
     monkeypatch.setattr(phase_4_adversarial, "run_judge", fail_run_judge)
     monkeypatch.setattr(phase_4_adversarial, "generate_variant", fail_generate_variant)
-    monkeypatch.setattr(phase_4_adversarial, "run_adversarial_task", fake_run_adversarial_task)
+    monkeypatch.setattr(phase_4_execution, "run_adversarial_task", fake_run_adversarial_task)
 
     await phase_4_adversarial.run_strategy_variation(
         task=task,
@@ -242,6 +244,7 @@ async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_d
     )
 
     assert calls["evaluated"] == 1
+
 
 @pytest.mark.asyncio
 async def test_run_strategy_variation_resume_reuses_variant_result_fingerprint_without_sidecar(
@@ -350,6 +353,7 @@ async def test_run_strategy_variation_resume_reuses_variant_result_fingerprint_w
     assert result["variant_results"][0]["outcome"] == "complied"
     assert result["variant_results"][0]["strategy"] == "specificity"
 
+
 @pytest.mark.asyncio
 async def test_run_strategy_variation_resume_reruns_refusal_variant_without_history(
     monkeypatch, tmp_path
@@ -454,7 +458,7 @@ async def test_run_strategy_variation_resume_reruns_refusal_variant_without_hist
 
     monkeypatch.setattr(phase_4_adversarial, "run_judge", fail_run_judge)
     monkeypatch.setattr(phase_4_adversarial, "generate_variant", fail_generate_variant)
-    monkeypatch.setattr(phase_4_adversarial, "run_adversarial_task", fake_run_adversarial_task)
+    monkeypatch.setattr(phase_4_execution, "run_adversarial_task", fake_run_adversarial_task)
 
     result = await phase_4_adversarial.run_strategy_variation(
         task=task,

@@ -103,7 +103,7 @@ async def test_run_adversarial_task_returns_seed_preflight_mismatch(monkeypatch,
     agent = SimpleNamespace(run=should_not_run)
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", lambda task: asyncio.sleep(0))
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task,
         agent,
         instances[0],
@@ -182,7 +182,7 @@ async def test_run_adversarial_task_does_not_mark_reset_cache_clean_on_preflight
     agent = SimpleNamespace(run=should_not_run)
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", lambda task: asyncio.sleep(0))
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task,
         agent,
         instances[0],
@@ -246,7 +246,7 @@ async def test_run_adversarial_task_classifies_invalid_editor_shape_as_preflight
     agent = SimpleNamespace(run=should_not_run)
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", lambda task: asyncio.sleep(0))
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task,
         agent,
         instances[0],
@@ -297,7 +297,7 @@ async def test_run_adversarial_task_classifies_invalid_seed_shape_as_preflight_m
     agent = SimpleNamespace(run=should_not_run)
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", lambda task: asyncio.sleep(0))
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task,
         agent,
         instances[0],
@@ -382,7 +382,7 @@ async def test_run_adversarial_task_threads_seed_benchmark_into_preflight(monkey
     monkeypatch.setattr(phase_4_execution, "preflight_adversarial_seed", fake_preflight)
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task,
         SimpleNamespace(run=should_not_run),
         instances[0],

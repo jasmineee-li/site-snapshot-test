@@ -10,6 +10,7 @@ from pathlib import Path
 PACKAGE_ROOT = Path(__file__).parents[2]
 PHASE_4_ROOT = PACKAGE_ROOT / "worldsim" / "phase_4"
 LEAF_MODULES = ("payload_text", "metrics", "admission", "preflight", "execution_helpers")
+EXECUTION_MODULE = "execution"
 
 
 def _source(name: str) -> str:
@@ -62,6 +63,37 @@ def test_runner_calls_results_owner_directly() -> None:
     assert "        _results,\n" not in source
 
 
+def test_execution_owns_only_explicit_execution_dependencies() -> None:
+    source = _source(EXECUTION_MODULE)
+    assert "install_context" not in source
+    assert "ruff: noqa: F821" not in source
+    assert "from worldsim.phase_4._context" not in source
+    assert "from worldsim.phase_4.placement_loop import _run_pvpo_gate" in source
+    assert "from worldsim.phase_4.resume import (" in source
+    for helper in ("_seed_has_actions", "_seed_requires_reset", "_seed_target_benchmark"):
+        assert helper in source
+
+
+def test_runner_and_variant_evaluation_call_execution_owner_directly() -> None:
+    runner = _source("runner")
+    variant_eval = _source("variant_eval")
+    assert "from worldsim.phase_4 import execution as _execution" in runner
+    assert "_execution.run_adversarial_task(" in runner
+    assert "_execution.run_adversarial_task(" in variant_eval
+    assert "        _execution," not in runner
+    assert "from worldsim.phase_4.execution import run_adversarial_task" not in variant_eval
+
+
+def test_execution_tests_do_not_patch_runner_execution_exports() -> None:
+    test_root = PACKAGE_ROOT / "tests"
+    for path in (*test_root.glob("phase_4/test_*.py"), test_root / "crash_resume_scenarios.py"):
+        if path.name == "test_leaf_context_boundary.py":
+            continue
+        source = path.read_text()
+        assert "phase_4_adversarial.run_adversarial_task" not in source
+        assert 'setattr(phase_4_adversarial, "run_adversarial_task"' not in source
+
+
 def test_leaf_modules_import_in_either_order() -> None:
     package_root = str(PACKAGE_ROOT)
     for name in LEAF_MODULES:
@@ -86,6 +118,22 @@ def test_results_module_imports_in_either_order() -> None:
         "assert results._write_phase_4_results; assert runner.run",
         "from worldsim.phase_4 import runner, results; "
         "assert results._write_phase_4_results; assert runner.run",
+    ):
+        subprocess.run(
+            [sys.executable, "-c", statement],
+            check=True,
+            cwd=PACKAGE_ROOT,
+            env={"PYTHONPATH": package_root},
+        )
+
+
+def test_execution_imports_in_either_order() -> None:
+    package_root = str(PACKAGE_ROOT)
+    for statement in (
+        "from worldsim.phase_4 import execution, runner; "
+        "assert execution.run_adversarial_task; assert runner.run",
+        "from worldsim.phase_4 import runner, execution; "
+        "assert execution.run_adversarial_task; assert runner.run",
     ):
         subprocess.run(
             [sys.executable, "-c", statement],
