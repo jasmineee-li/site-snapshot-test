@@ -10,6 +10,12 @@ from typing import Any
 
 from worldsim.benchmark_capabilities import get_benchmark_capabilities, infer_benchmark_name
 from worldsim.cost_tracker import tracker as cost_tracker
+from worldsim.phase_1.novel_task_validation import (
+    merge_benign_tasks as _merge_benign_tasks,
+)
+from worldsim.phase_1.novel_task_validation import (
+    sort_novel_tasks as _sort_novel_tasks,
+)
 from worldsim.phases.phase_1_existing_tasks import build_existing_task_wraps
 from worldsim.phases.phase_1_generate_new_tasks import (
     DEFAULT_NOVEL_TASKS_PER_SITE,
@@ -29,12 +35,6 @@ from worldsim.phases.phase_1_generate_new_tasks import (
 )
 from worldsim.phases.phase_1_generate_new_tasks import (
     load_generate_new_tasks_eligible_sites as _load_generate_new_tasks_eligible_sites,
-)
-from worldsim.phases.phase_1_generate_new_tasks_validation import (
-    merge_benign_tasks as _merge_benign_tasks,
-)
-from worldsim.phases.phase_1_generate_new_tasks_validation import (
-    sort_novel_tasks as _sort_novel_tasks,
 )
 from worldsim.phases.phase_1_task_cards import (
     load_or_compile_task_card_plan,

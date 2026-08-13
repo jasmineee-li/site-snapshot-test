@@ -18,15 +18,15 @@ from worldsim.modal_sandbox import (
     run_claude_in_sandbox,
     upload_to_volume,
 )
-from worldsim.phases.phase_1_contract_bound_action_api import (
-    contract_bound_tool_schema_digest,
-    generate_contract_bound_action_tasks_api,
-)
-from worldsim.phases.phase_1_generate_new_tasks_validation import (
+from worldsim.phase_1.novel_task_validation import (
     GeneratedTaskValidationError,
     sort_novel_tasks,
     validate_generated_novel_tasks,
     validate_generated_novel_tasks_detailed,
+)
+from worldsim.phases.phase_1_contract_bound_action_api import (
+    contract_bound_tool_schema_digest,
+    generate_contract_bound_action_tasks_api,
 )
 from worldsim.phases.phase_1_route_contracts import (
     build_task_route_contracts,
