@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from worldsim.phase_2 import option_a as _option_a
 from worldsim.phase_2._context import install_context
+from worldsim.phase_2.eligibility import _CONCEALMENTS, _FRAMINGS
 from worldsim.rewards.evidence import parse_evidence_policy
 
 install_context(globals())

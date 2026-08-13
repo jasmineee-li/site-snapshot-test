@@ -1,6 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import eligibility
 from worldsim.phase_2 import target_stage
 
 
@@ -320,7 +321,7 @@ async def test_generate_injections_for_site_api_path_sanitizes_prompt_inputs(mon
         fake_generate_phase_2a_plans_api,
     )
     monkeypatch.setattr(
-        phase_2_injections,
+        eligibility,
         "_phase_2a_eligible_tasks",
         lambda site_tasks, benign_target_resources, site_name: (site_tasks, []),
     )
@@ -401,7 +402,7 @@ async def test_generate_injections_for_site_api_path_sanitizes_agent_context_coo
         fake_generate_phase_2a_plans_api,
     )
     monkeypatch.setattr(
-        phase_2_injections,
+        eligibility,
         "_phase_2a_eligible_tasks",
         lambda site_tasks, benign_target_resources, site_name: (site_tasks, []),
     )

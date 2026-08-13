@@ -649,7 +649,6 @@ async def run(args: argparse.Namespace) -> int:
 # mechanically split functions preserve the old single-module lookup semantics.
 import sys as _sys
 
-from worldsim.phase_2 import eligibility as _eligibility
 from worldsim.phase_2 import generation as _generation
 from worldsim.phase_2 import plan_validation as _plan_validation
 from worldsim.phase_2 import target_inputs as _target_inputs
@@ -659,7 +658,6 @@ from worldsim.phase_2.phase_2c import stage as _phase_2c_stage
 _link_modules(
     [
         _sys.modules[__name__],
-        _eligibility,
         _generation,
         _plan_validation,
         _phase_2c_stage,

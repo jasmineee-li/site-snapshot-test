@@ -1,6 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import eligibility
 from worldsim.phase_2 import target_stage
 
 
@@ -80,7 +81,7 @@ async def test_generate_injections_for_site_passes_explicit_planning_model(monke
         fake_generate_phase_2a_plans_api,
     )
     monkeypatch.setattr(
-        phase_2_injections,
+        eligibility,
         "_phase_2a_eligible_tasks",
         lambda site_tasks, benign_target_resources, site_name: (site_tasks, []),
     )
@@ -114,7 +115,7 @@ async def test_generate_injections_for_site_empty_after_eligibility_is_clean_noo
         fake_generate_phase_2a_plans_api,
     )
     monkeypatch.setattr(
-        phase_2_injections,
+        eligibility,
         "_phase_2a_eligible_tasks",
         lambda site_tasks, benign_target_resources, site_name: ([], [{"task_id": "benign-1"}]),
     )
@@ -157,7 +158,7 @@ async def test_checkpoint_write_failure_does_not_promote_unbound_plans(
         resolved,
     )
     monkeypatch.setattr(
-        phase_2_injections,
+        eligibility,
         "_build_exposure_contracts_for_shard",
         lambda **kwargs: {},
     )
@@ -166,13 +167,13 @@ async def test_checkpoint_write_failure_does_not_promote_unbound_plans(
         "annotate_exposure_contracts_with_action_policy",
         lambda contracts, tasks, policy: contracts,
     )
-    monkeypatch.setattr(phase_2_injections, "_persist_exposure_contracts", lambda **kwargs: None)
+    monkeypatch.setattr(eligibility, "_persist_exposure_contracts", lambda **kwargs: None)
     monkeypatch.setattr(
-        phase_2_injections,
+        eligibility,
         "_phase_2a_eligible_tasks_for_benchmark",
         lambda tasks, resources, site, **kwargs: (tasks, []),
     )
-    monkeypatch.setattr(phase_2_injections, "_build_cell_targets", lambda *args: {})
+    monkeypatch.setattr(eligibility, "_build_cell_targets", lambda *args: {})
     monkeypatch.setattr(phase_2_injections, "generate_phase_2a_plans_api", generated)
     monkeypatch.setattr(
         phase_2_injections,
@@ -195,7 +196,7 @@ async def test_checkpoint_write_failure_does_not_promote_unbound_plans(
         lambda *args: [plan],
     )
     monkeypatch.setattr(
-        phase_2_injections,
+        eligibility,
         "_select_balanced_subset",
         lambda tasks, targets: tasks,
     )

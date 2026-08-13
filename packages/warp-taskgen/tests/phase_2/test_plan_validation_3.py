@@ -1,6 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import eligibility
 from worldsim.phase_2 import option_a
 
 
@@ -215,7 +216,7 @@ def test_balanced_subset_backfills_overfull_cells_to_preserve_unique_benign_task
         },
     ]
 
-    selected = phase_2_injections._select_balanced_subset(
+    selected = eligibility._select_balanced_subset(
         tasks,
         {
             "authority::plaintext": 1,

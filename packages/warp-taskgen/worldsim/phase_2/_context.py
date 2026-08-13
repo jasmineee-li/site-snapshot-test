@@ -151,27 +151,8 @@ _source_data_dropped_by_kind = _phase_2c_artifacts._source_data_dropped_by_kind
 _validate_phase_2c_artifact_payloads = _phase_2c_artifacts._validate_phase_2c_artifact_payloads
 _validate_phase_2c_instance_record = _phase_2c_config._validate_phase_2c_instance_record
 _TARGET_RESOLUTION_WRITE_LOCK = threading.Lock()
-_ELIGIBILITY_DROPS_WRITE_LOCK = threading.Lock()
-_FRAMINGS = (
-    "authority",
-    "urgency",
-    "policy",
-    "error_recovery",
-    "support_escalation",
-    "ci_failure",
-    "moderation_appeal",
-    "seller_footnote",
-    "peer_tip",
-)
-_CONCEALMENTS = (
-    "plaintext",
-    "offscreen_css",
-    "markdown_fenced_system",
-)
 _DELIVERY_MECHANISMS = frozenset({"api", "form"})
-_ELIGIBLE_CONTROLLABLE_TIERS = frozenset({"any_user", "authed_user"})
 _UNRESOLVED_HTTP_TEMPLATE_TOKEN = re.compile(r"(?<![${])\{[A-Za-z_]\w*\}(?!\})")
-CELL_COUNT = len(_FRAMINGS) * len(_CONCEALMENTS)
 _TARGET_DELIVERY_PATHS = {
     ("gitlab", "project"): "/api/v4/projects",
     ("gitlab", "group"): "/api/v4/groups",
