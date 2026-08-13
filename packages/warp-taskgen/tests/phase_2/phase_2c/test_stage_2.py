@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from .._fixtures import *  # noqa: F403,F401
 from worldsim.phase_2 import plan_validation, reuse
+from worldsim.phase_2.phase_2c import stage as phase_2_stage
 
 
 @pytest.mark.asyncio
@@ -36,7 +37,7 @@ async def test_phase_2_feasibility_stage_verifies_only_filtered_sites(monkeypatc
         tasks = json.loads(Path(path).read_text())
         assert [task["id"] for task in tasks] == ["shopping-task"]
         assert [instance["site_name"] for instance in kwargs["instances"]] == ["shopping"]
-        return phase_2_injections.FeasibilityReport(
+        return phase_2_stage.FeasibilityReport(
             verified=[_with_feasibility_status(tasks[0], "verified")],
             infeasible=[],
             skipped_already_verified=[],
@@ -48,9 +49,9 @@ async def test_phase_2_feasibility_stage_verifies_only_filtered_sites(monkeypatc
             dropped_source_data=[],
         )
 
-    monkeypatch.setattr(phase_2_injections, "verify_feasibility", fake_verify_feasibility)
+    monkeypatch.setattr(phase_2_stage, "verify_feasibility", fake_verify_feasibility)
 
-    rc = await phase_2_injections._run_feasibility_stage(
+    rc = await phase_2_stage._run_feasibility_stage(
         args=Namespace(
             skip_feasibility=False,
             feasibility_only=True,
@@ -100,7 +101,7 @@ async def test_phase_2_feasibility_stage_preserves_partial_complete_terminal_sta
     )
 
     async def fake_verify_feasibility(*args, **kwargs):
-        return phase_2_injections.FeasibilityReport(
+        return phase_2_stage.FeasibilityReport(
             verified=[
                 _with_feasibility_status(task, "verified")
                 for task in json.loads(output_path.read_text())
@@ -114,9 +115,9 @@ async def test_phase_2_feasibility_stage_preserves_partial_complete_terminal_sta
             phase_2_status="partial_complete",
         )
 
-    monkeypatch.setattr(phase_2_injections, "verify_feasibility", fake_verify_feasibility)
+    monkeypatch.setattr(phase_2_stage, "verify_feasibility", fake_verify_feasibility)
 
-    rc = await phase_2_injections._run_feasibility_stage(
+    rc = await phase_2_stage._run_feasibility_stage(
         args=Namespace(
             skip_feasibility=False,
             feasibility_only=True,
@@ -147,7 +148,7 @@ async def test_phase_2_skip_feasibility_completes_after_resuming_running_checkpo
     output_path = output_dir / "adversarial_tasks.json"
     output_path.write_text(json.dumps([_finalized_plan_task()]))
 
-    rc = await phase_2_injections._run_feasibility_stage(
+    rc = await phase_2_stage._run_feasibility_stage(
         args=Namespace(
             skip_feasibility=True,
             feasibility_only=True,
@@ -186,7 +187,7 @@ async def test_phase_2_skip_feasibility_clears_stale_infeasible_sidecar(monkeypa
         json.dumps([{"id": "stale", "feasibility": {"status": "infeasible"}}])
     )
 
-    rc = await phase_2_injections._run_feasibility_stage(
+    rc = await phase_2_stage._run_feasibility_stage(
         args=Namespace(
             skip_feasibility=True,
             feasibility_only=True,
@@ -228,7 +229,7 @@ async def test_phase_2_skip_feasibility_preserves_unfiltered_sites(monkeypatch, 
     }
     output_path.write_text(json.dumps([reddit_verified, shopping_task]))
 
-    rc = await phase_2_injections._run_feasibility_stage(
+    rc = await phase_2_stage._run_feasibility_stage(
         args=Namespace(
             skip_feasibility=True,
             feasibility_only=True,
@@ -270,7 +271,7 @@ async def test_phase_2_skip_feasibility_preserves_partial_complete_terminal_stat
     output_path = output_dir / "adversarial_tasks.json"
     output_path.write_text(json.dumps([_finalized_plan_task()]))
 
-    rc = await phase_2_injections._run_feasibility_stage(
+    rc = await phase_2_stage._run_feasibility_stage(
         args=Namespace(
             skip_feasibility=True,
             feasibility_only=True,

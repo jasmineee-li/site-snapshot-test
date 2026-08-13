@@ -1,6 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2.phase_2c import stage as phase_2_stage
 from worldsim.phase_2 import eligibility
 from worldsim.phase_2 import target_stage
 
@@ -136,7 +137,7 @@ def test_write_dropped_source_data_sidecar_clears_full_run_stale_records(tmp_pat
         )
     )
 
-    phase_2_injections._write_dropped_source_data_sidecar(path, [], sites_filter=None)
+    phase_2_stage._write_dropped_source_data_sidecar(path, [], sites_filter=None)
 
     assert json.loads(path.read_text()) == []
 
@@ -167,7 +168,7 @@ def test_write_dropped_source_data_sidecar_preserves_unfiltered_sites(tmp_path):
         }
     ]
 
-    merged = phase_2_injections._write_dropped_source_data_sidecar(
+    merged = phase_2_stage._write_dropped_source_data_sidecar(
         path,
         replacement,
         sites_filter={"gitlab"},
@@ -186,7 +187,7 @@ def test_write_dropped_source_data_sidecar_dedupes_by_site_and_id(tmp_path):
         "source_data_issue": {"kind": "not_found"},
     }
 
-    merged = phase_2_injections._write_dropped_source_data_sidecar(
+    merged = phase_2_stage._write_dropped_source_data_sidecar(
         path,
         [duplicate, dict(duplicate)],
         sites_filter=None,
@@ -257,12 +258,12 @@ def test_dropped_source_sidecar_observes_facade_merge_monkeypatch(monkeypatch, t
         ]
 
     monkeypatch.setattr(
-        phase_2_injections,
+        phase_2_stage,
         "_merged_dropped_source_data",
         merged_sidecar,
     )
 
-    merged = phase_2_injections._write_dropped_source_data_sidecar(
+    merged = phase_2_stage._write_dropped_source_data_sidecar(
         path,
         [],
         sites_filter={"gitlab"},
