@@ -1,11 +1,23 @@
 """Phase 4 strategy variation behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_4._context import install_context
-from worldsim.phase_4.failure_context import build_variant_failure_context
+import asyncio
+import logging
+from collections.abc import Callable, Mapping
+from pathlib import Path
+from typing import Any
+
+from worldsim.agent_runtime import AgentRunner
+from worldsim.config import BenchmarkInstance
+from worldsim.failpoints import crash_if_enabled
 from worldsim.phase_4.metrics import _ecologically_valid
+from worldsim.phase_4.options import (
+    DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET as _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
+)
+from worldsim.phase_4.options import (
+    phase_4_variant_budget_shape as _phase_4_variant_budget_shape,
+)
 from worldsim.phase_4.postprocess_progress import Phase4ProgressCallback
 from worldsim.phase_4.resume import (
     _CHECKPOINT_FINGERPRINT_KEY,
@@ -23,9 +35,12 @@ from worldsim.phase_4.resume import (
     _variant_generation_record_for_result,
     _write_json_atomic,
 )
+from worldsim.phase_4.strategy_catalog import ALLOWED_STRATEGIES as _ALLOWED_STRATEGIES
 from worldsim.phase_4.variant_eval import _evaluate_variant
+from worldsim.resume_metadata import instances_identity
+from worldsim.task_reset_cache import callable_accepts_keyword
 
-install_context(globals())
+logger = logging.getLogger(__name__)
 
 
 def _normalize_recommended_strategies(
@@ -102,6 +117,33 @@ async def generate_variant(
     )
 
 
+async def run_judge(
+    task: dict[str, Any],
+    trajectory_dir: str | Path,
+    profile_path: Path,
+    *,
+    sandbox_model: str = "claude-sonnet-4-6",
+) -> dict[str, Any]:
+    """Judge classifies why an ecologically valid attack was refused.
+
+    Thin wrapper over `worldsim.phase_4.judge_api.run_judge_api`. The judge
+    is a single-turn Anthropic Messages API call with forced tool-use
+    structured output; it returns a `refusal_trigger` from a 7-value
+    taxonomy and the host-side `TRIGGER_TO_STRATEGIES` lookup in
+    `strategy_catalog.py` selects up to 3 strategies. `profile_path` is no
+    longer plumbed to the API call (host-side slicer + classification don't
+    need it) but accepted for signature compatibility.
+
+    The legacy `status` field now carries `judge_ok_actionable`,
+    `judge_ok_unactionable`, or `judge_failed`. Downstream
+    `run_strategy_variation` branches on these new values; any caller that
+    reads only `recommended_strategies` continues to work unchanged.
+    """
+    from worldsim.phase_4.judge_api import run_judge_api
+
+    return await run_judge_api(task, trajectory_dir, sandbox_model=sandbox_model)
+
+
 async def run_strategy_variation(
     task: dict[str, Any],
     initial_result: dict[str, Any],
@@ -125,6 +167,10 @@ async def run_strategy_variation(
     Legacy opt-in path. Bounded adaptive rounds use the configured budget
     shape, defaulting to 3+3+1 variants.
     """
+    # Import lazily because the payload-contract/adversarial-action package
+    # retains a legacy cycle when this strategy module is imported standalone.
+    from worldsim.phase_4.failure_context import build_variant_failure_context
+
     task_id = str(task.get("id", "unknown"))
     budget_preset = variant_budget_preset or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET
     budget_shape = _phase_4_variant_budget_shape(variant_budget_preset)
