@@ -17,7 +17,7 @@ from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.config import dump_verification_proxy_config
 from worldsim.editors.gitlab import GitlabEditor
 from worldsim.failpoints import FAILPOINT_EXIT_CODE
-from worldsim.phases import phase_2_feasibility as feas
+from worldsim.phase_2 import phase_2c as feas
 
 pytestmark = [pytest.mark.integration, pytest.mark.feasibility]
 

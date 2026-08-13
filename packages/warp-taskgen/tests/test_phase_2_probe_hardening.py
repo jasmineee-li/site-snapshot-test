@@ -15,7 +15,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from worldsim.phases import phase_2_feasibility as feas
+from worldsim.phase_2.phase_2c import probes
 from worldsim.phases import phase_2_reachability as reach
 from worldsim.phases import phase_2_render_check as render_check
 
@@ -373,9 +373,9 @@ def test_blocked_resource_types_match_plan() -> None:
 
 
 def test_probe_launch_args_include_disable_dev_shm_usage() -> None:
-    assert "--disable-dev-shm-usage" in feas._PROBE_LAUNCH_ARGS
-    assert "--disable-gpu" in feas._PROBE_LAUNCH_ARGS
-    assert "--no-sandbox" in feas._PROBE_LAUNCH_ARGS
+    assert "--disable-dev-shm-usage" in probes._PROBE_LAUNCH_ARGS
+    assert "--disable-gpu" in probes._PROBE_LAUNCH_ARGS
+    assert "--no-sandbox" in probes._PROBE_LAUNCH_ARGS
 
 
 # ---------------------------------------------------------------------------
@@ -386,7 +386,7 @@ def test_probe_launch_args_include_disable_dev_shm_usage() -> None:
 def test_browser_probe_cap_value() -> None:
     # Codified as 8 per the plan — 2 vCPU headroom per renderer on
     # r5.4xlarge (16 vCPU). Raise only after a clean nav_failed=0 run.
-    assert feas._BROWSER_PROBE_CAP == 8
+    assert probes._BROWSER_PROBE_CAP == 8
 
 
 def test_semaphore_acquire_order_outermost_is_probe_cap() -> None:
@@ -394,4 +394,4 @@ def test_semaphore_acquire_order_outermost_is_probe_cap() -> None:
     # cap under normal operator input. max(int(concurrency), 64) = 64 at
     # concurrency=24; _BROWSER_PROBE_CAP = 8 — so the outer cap binds.
     memory_cap = max(24, 64)
-    assert feas._BROWSER_PROBE_CAP <= memory_cap
+    assert probes._BROWSER_PROBE_CAP <= memory_cap

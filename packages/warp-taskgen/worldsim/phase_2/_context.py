@@ -54,11 +54,9 @@ from worldsim.phase_2.exposure_contract import (
 from worldsim.phase_2.exposure_contract import (
     signature_hash as exposure_contract_signature_hash,
 )
-from worldsim.phases.phase_2_feasibility import (
-    FeasibilityReport,
-    skipped_task_stanza,
-    verify_feasibility,
-)
+from worldsim.phase_2.phase_2c.outcomes import skipped_task_stanza
+from worldsim.phase_2.phase_2c.runner import verify_feasibility
+from worldsim.phase_2.phase_2c.types import FeasibilityReport
 from worldsim.phase_2.runner_api import generate_phase_2a_plans_api
 from worldsim.phase_2.output import (
     _effective_task_site,

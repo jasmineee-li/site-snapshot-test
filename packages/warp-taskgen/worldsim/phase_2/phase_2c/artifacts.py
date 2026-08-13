@@ -9,7 +9,7 @@ from typing import Any
 from worldsim.atomic_io import write_json_atomic
 from worldsim.phase_2.output import _merge_preserving_unfiltered_sites
 from worldsim.phase_2.phase_2c.config import _feasibility_status
-from worldsim.phases.phase_2_feasibility import (
+from worldsim.phase_2.phase_2c.constants import (
     FAILPOINT_DATASET,
     FAILPOINT_DROPPED_SOURCE_DATA,
     FAILPOINT_QUARANTINE,
@@ -23,6 +23,8 @@ class Phase2cArtifactWriteResult:
     infeasible: list[dict[str, Any]]
     dropped_source_data: list[dict[str, Any]]
     summary: dict[str, Any]
+
+
 def _write_dropped_source_data_sidecar(
     path: Path,
     dropped_source_data: list[dict[str, Any]],

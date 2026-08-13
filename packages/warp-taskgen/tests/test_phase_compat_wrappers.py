@@ -7,6 +7,7 @@ import sys
 import pytest
 
 from scripts import readiness_audit
+from worldsim.benchmark_capabilities import get_benchmark_capabilities
 
 
 def test_legacy_phase_compatibility_wrappers_are_removed() -> None:
@@ -115,6 +116,73 @@ async def test_text_fill_compat_facade_forwards_legacy_patch_points(monkeypatch)
         patch.setattr(service, "_fill_one_task", fake_fill)
         assert await legacy._fill_one_task("task") == (None, {"status": "compat"})
         assert fill_seen == {"_generate_single_payload": sentinel_generate}
+
+
+def test_phase_2c_compat_facade_forwards_canonical_public_surface() -> None:
+    """The historical Phase 2c module remains a forwarding facade only."""
+
+    historical = importlib.import_module("worldsim.phases.phase_2_feasibility")
+    canonical = importlib.import_module("worldsim.phase_2.phase_2c")
+    implementation = importlib.import_module("worldsim.phase_2.phase_2c._impl")
+    assert historical._legacy_impl is implementation
+    assert historical.FeasibilityReport is canonical.FeasibilityReport
+    assert historical.verify_feasibility is not implementation.verify_feasibility
+    assert historical._legacy_impl.verify_feasibility is canonical.verify_feasibility
+    assert historical.get_benchmark_capabilities is get_benchmark_capabilities
+
+
+@pytest.mark.asyncio
+async def test_phase_2c_compat_probe_patch_isolated_by_test_context(monkeypatch) -> None:
+    """Legacy probe patches forward while scoped canonical destinations are restored."""
+
+    historical = importlib.import_module("worldsim.phases.phase_2_feasibility")
+    probes = importlib.import_module("worldsim.phase_2.phase_2c.probes")
+    implementation = importlib.import_module("worldsim.phase_2.phase_2c._impl")
+    original_verify_seed_renders = probes.verify_seed_renders
+    original_impl_verify_seed_renders = implementation.verify_seed_renders
+    original_impl_logger = implementation.logger
+
+    async def failing_verify_seed_renders(**_kwargs):
+        raise RuntimeError("compatibility probe failure")
+
+    with monkeypatch.context() as patch:
+        # Register the canonical destination with the context so the test
+        # itself is exception-safe even while the facade synchronizes it.
+        patch.setattr(probes, "verify_seed_renders", original_verify_seed_renders)
+        patch.setattr(implementation, "verify_seed_renders", original_impl_verify_seed_renders)
+        patch.setattr(implementation, "logger", original_impl_logger)
+        patch.setattr(historical, "verify_seed_renders", failing_verify_seed_renders)
+
+        outcome = await historical._run_render_check(
+            browser=object(),
+            render_semaphore=None,
+            seed={
+                "editor_calls": [
+                    {
+                        "site": "gitlab",
+                        "method": "create_issue_note",
+                        "args": {"note_body": "compatibility probe body"},
+                    }
+                ]
+            },
+            metadata={
+                "read_surface_urls": [
+                    "https://gitlab.example/project/-/issues/1",
+                ]
+            },
+            instance={
+                "site_name": "gitlab",
+                "site_url": "https://gitlab.example",
+                "benchmark": "webarena_verified",
+            },
+        )
+
+        assert not outcome.ok
+        assert "compatibility probe failure" in outcome.detail
+
+    assert probes.verify_seed_renders is original_verify_seed_renders
+    assert implementation.verify_seed_renders is original_impl_verify_seed_renders
+    assert implementation.logger is original_impl_logger
 
 
 def test_exposure_contract_compat_facade_forwards_legacy_patch_points(monkeypatch) -> None:

@@ -9,7 +9,7 @@ Covers:
   ``benign_target_resource`` or with a null kind.
 * :func:`worldsim.seeding._collect_benign_tokens` walks nested values
   correctly.
-* :func:`worldsim.phases.phase_2_feasibility._verify_one` categorizes
+* :func:`worldsim.phase_2.phase_2c._impl._verify_one` categorizes
   ``UnboundTokenError`` as ``error.kind = "contract_violation"``,
   distinct from ``"schema_mismatch"``.
 """
@@ -190,11 +190,11 @@ class TestFeasibilityCategorization:
         assert issubclass(UnboundTokenError, ValueError)
 
     def test_contract_violation_kind_wired_in_feasibility(self) -> None:
-        # Verify the except branch exists in phase_2_feasibility by
+        # Verify the except branch exists in the canonical Phase 2c owner by
         # asserting the source contains the handler. This is a static
         # guard — a full integration test would require a live instance.
         from pathlib import Path
 
-        src = Path("worldsim/phases/phase_2_feasibility.py").read_text()
+        src = Path("worldsim/phase_2/phase_2c/_impl.py").read_text()
         assert "except UnboundTokenError" in src
         assert 'kind="contract_violation"' in src
