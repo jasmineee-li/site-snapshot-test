@@ -1,9 +1,15 @@
 """Phase 4 result writing and summary behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_4._context import install_context
+import logging
+from collections import Counter
+from pathlib import Path
+from typing import Any
+
+from worldsim.atomic_io import write_json_atomic
+from worldsim.cost_tracker import tracker as cost_tracker
+from worldsim.phase_4 import result_summary as phase4_result_summary
 from worldsim.phase_4.metrics import (
     _ecologically_valid,
     _log_stratified_summary,
@@ -15,8 +21,9 @@ from worldsim.phase_4.postprocess_progress import (
     write_phase_4_progress,
 )
 from worldsim.phase_4.variant_accounting import semantic_variant_accounting
+from worldsim.state import save_state
 
-install_context(globals())
+logger = logging.getLogger(__name__)
 
 
 def _write_phase_4_results(
