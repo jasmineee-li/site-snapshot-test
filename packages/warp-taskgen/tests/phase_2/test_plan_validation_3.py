@@ -1,6 +1,8 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import option_a
+
 
 def test_option_a_normalizes_gitlab_project_id_to_project_path_template():
     plan = {
@@ -29,7 +31,7 @@ def test_option_a_normalizes_gitlab_project_id_to_project_path_template():
         },
     }
 
-    assert phase_2_injections._validate_option_a_placement(plan, "adv-direct-note") is None
+    assert option_a._validate_option_a_placement(plan, "adv-direct-note") is None
     args = plan["seed_template"]["editor_calls"][0]["args"]
     assert "project_id" not in args
     assert args["project_path_template"] == "{benign_project_path}"

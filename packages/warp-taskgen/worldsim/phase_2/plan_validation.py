@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from worldsim.phase_2 import option_a as _option_a
 from worldsim.phase_2._context import install_context
 from worldsim.rewards.evidence import parse_evidence_policy
 
@@ -74,8 +75,8 @@ def _validate_generated_adversarial_task(
     if stale_contract_reason is not None:
         return f"{task_name} has stale exposure_contract: {stale_contract_reason}"
 
-    if is_plan and _is_option_a_site(task):
-        placement_error = _validate_option_a_placement(task, task_name)
+    if is_plan and _option_a._is_option_a_site(task):
+        placement_error = _option_a._validate_option_a_placement(task, task_name)
         if placement_error is not None:
             logger.warning(
                 "[phase_2] skip-on-reject: %s (Option A placement): %s",

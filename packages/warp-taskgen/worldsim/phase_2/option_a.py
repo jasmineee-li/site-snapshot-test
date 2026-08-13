@@ -1,11 +1,42 @@
 """Phase 2 option_a behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_2._context import install_context
+import json
+import logging
+import os
+import re
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
 
-install_context(globals())
+from worldsim.benchmark_capabilities import infer_benchmark_name
+from worldsim.editors._method_spec import BindingSpec
+from worldsim.editors._registry import available_tokens_for_kind, kind_contract, method_spec
+from worldsim.phase_2.phase_2c.config import _benchmark_values_from_record
+
+logger = logging.getLogger(__name__)
+
+_OPTION_A_SITES: frozenset[str] = frozenset({"gitlab", "reddit"})
+_OPTION_A_DANGLING_METHODS: frozenset[str] = frozenset(
+    {"create_project", "create_group", "create_forum"}
+)
+_OPTION_A_CHILD_CREATE_METHODS: dict[str, tuple[str, str]] = {
+    # method : (required_arg, required_token). Tokens carry a closing
+    # brace so :func:`_value_starts_with_token` can verify that the
+    # emitted value is a well-formed ``{benign_*}`` token that
+    # seeding.py's substitution regex (_FORMAT_TOKEN_PATTERN) will
+    # actually match. Before this change, prefix-only matching accepted
+    # malformed values like ``"{benign_submission_id"`` (missing close
+    # brace) which silently leaked into the rendered seed.
+    "create_issue": ("project_id", "{benign_project_id}"),
+    "create_issue_note": ("issue_iid", "{benign_issue_iid}"),
+    "create_mr_note": ("mr_iid", "{benign_mr_iid}"),
+    "create_submission": ("forum_name", "{benign_forum_name}"),
+    "create_comment": ("submission_id", "{benign_submission_id}"),
+}
+RIGOROUS_OPTION_A_DEFAULT = True
+_WELL_FORMED_BENIGN_TOKEN_RE = re.compile(r"^\{benign_[A-Za-z_][A-Za-z0-9_.]*\}")
 
 
 def _rigorous_option_a_enabled() -> bool:
