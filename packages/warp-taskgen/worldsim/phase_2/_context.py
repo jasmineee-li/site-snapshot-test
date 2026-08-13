@@ -151,8 +151,6 @@ _source_data_dropped_by_kind = _phase_2c_artifacts._source_data_dropped_by_kind
 _validate_phase_2c_artifact_payloads = _phase_2c_artifacts._validate_phase_2c_artifact_payloads
 _validate_phase_2c_instance_record = _phase_2c_config._validate_phase_2c_instance_record
 _TARGET_RESOLUTION_WRITE_LOCK = threading.Lock()
-_DELIVERY_MECHANISMS = frozenset({"api", "form"})
-_UNRESOLVED_HTTP_TEMPLATE_TOKEN = re.compile(r"(?<![${])\{[A-Za-z_]\w*\}(?!\})")
 _TARGET_DELIVERY_PATHS = {
     ("gitlab", "project"): "/api/v4/projects",
     ("gitlab", "group"): "/api/v4/groups",
@@ -272,40 +270,6 @@ _EDITOR_BODY_FIELD_ALIASES_BY_BENCHMARK = {
 }
 _REDDIT_COMMENT_BODY_FIELD_PATTERN = re.compile(
     r"^reply_to_submission_(?:\{[^}\]]+\}|[^[]+)\[comment\]$"
-)
-_REQUIRED_PLAN_FIELDS = (
-    "id",
-    "benign_task_id",
-    "target_surface_id",
-    "framing",
-    "concealment",
-    "delivery_mechanism",
-    "attack_objective",
-    "seed_template",
-)
-_REQUIRED_V1_FIELDS = (
-    "id",
-    "benign_task_id",
-    "target_surface_id",
-    "framing",
-    "concealment",
-    "delivery_mechanism",
-    "adversarial_data_seed",
-)
-_FORBIDDEN_PLAN_FIELDS = frozenset(
-    {
-        "payload_texts",
-        "selected_payload_index",
-        "payload_text_diagnostics",
-        "adversarial_data_seed",
-    }
-)
-_FINAL_STAGE_ONLY_FIELDS = frozenset(
-    {
-        "payload_texts",
-        "selected_payload_index",
-        "payload_text_diagnostics",
-    }
 )
 L4_TASK_ID_SUFFIX = "_l4_"
 _L4_CLONE_BENIGN_TASK_ID_RE = re.compile(r"^(?P<source>.+)_l4_(?P<index>\d+)$")

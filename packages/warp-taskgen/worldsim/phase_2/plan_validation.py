@@ -1,14 +1,74 @@
-"""Phase 2 plan_validation behavior."""
-# ruff: noqa: F821
+"""Phase 2 plan validation behavior."""
 
 from __future__ import annotations
 
-from worldsim.phase_2 import option_a as _option_a
-from worldsim.phase_2._context import install_context
-from worldsim.phase_2.eligibility import _CONCEALMENTS, _FRAMINGS
-from worldsim.rewards.evidence import parse_evidence_policy
+import json
+import logging
+import re
+from collections.abc import Mapping
+from typing import Any
 
-install_context(globals())
+from worldsim.adversarial_actions import ACTION_SIGNAL_BY_KIND
+from worldsim.phase_2 import option_a as _option_a
+from worldsim.phase_2.eligibility import _CONCEALMENTS, _FRAMINGS
+from worldsim.phase_2.output import _effective_task_site, _sanitize_agent_context_for_output
+from worldsim.phase_2.text_fill.constants import PAYLOAD_PLACEHOLDER
+from worldsim.phase_2.text_fill.seed import validate_seed_template_contract
+from worldsim.rewards.evidence import parse_evidence_policy
+from worldsim.seed_contracts.delivery import _contains_deferred_map_target
+from worldsim.seed_contracts.surface import (
+    _extract_attack_write,
+    _extract_seed_writes,
+    _find_surface_by_id,
+    _surface_matches_write,
+)
+from worldsim.seed_contracts.validation import (
+    _resolve_delivery_channel,
+    _site_profile_supports_attack,
+    _validate_discriminating_payload,
+    _validate_editor_seed_sites,
+    _validate_finalized_http_seed_contract,
+    _validate_self_contained_adversarial_seed,
+)
+from worldsim.seeding import validate_data_seed
+
+logger = logging.getLogger(__name__)
+
+_DELIVERY_MECHANISMS = frozenset({"api", "form"})
+_REQUIRED_PLAN_FIELDS = (
+    "id",
+    "benign_task_id",
+    "target_surface_id",
+    "framing",
+    "concealment",
+    "delivery_mechanism",
+    "attack_objective",
+    "seed_template",
+)
+_REQUIRED_V1_FIELDS = (
+    "id",
+    "benign_task_id",
+    "target_surface_id",
+    "framing",
+    "concealment",
+    "delivery_mechanism",
+    "adversarial_data_seed",
+)
+_FORBIDDEN_PLAN_FIELDS = frozenset(
+    {
+        "payload_texts",
+        "selected_payload_index",
+        "payload_text_diagnostics",
+        "adversarial_data_seed",
+    }
+)
+_FINAL_STAGE_ONLY_FIELDS = frozenset(
+    {
+        "payload_texts",
+        "selected_payload_index",
+        "payload_text_diagnostics",
+    }
+)
 
 
 def _validate_generated_adversarial_tasks(

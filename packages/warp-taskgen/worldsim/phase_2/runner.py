@@ -650,7 +650,6 @@ async def run(args: argparse.Namespace) -> int:
 import sys as _sys
 
 from worldsim.phase_2 import generation as _generation
-from worldsim.phase_2 import plan_validation as _plan_validation
 from worldsim.phase_2 import target_inputs as _target_inputs
 from worldsim.phase_2._context import link_modules as _link_modules
 from worldsim.phase_2.phase_2c import stage as _phase_2c_stage
@@ -659,7 +658,6 @@ _link_modules(
     [
         _sys.modules[__name__],
         _generation,
-        _plan_validation,
     ]
 )
 
