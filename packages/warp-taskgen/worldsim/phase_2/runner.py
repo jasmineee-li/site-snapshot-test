@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 from worldsim.phase_2 import reuse as _reuse
+from worldsim.phase_2 import shards as _shards
 from worldsim.phase_2._context import install_context
 from worldsim.phase_2.pause_control import run_planning_shards
+from worldsim.phase_2.planning_types import SiteInjectionResult
 from worldsim.phase_2.text_fill.checkpoint_runner import (
     fill_plans_with_checkpoints,
     validate_unique_text_fill_task_ids,
@@ -13,13 +15,6 @@ from worldsim.phase_2.text_fill.checkpoint_runner import (
 from worldsim.run_definition import define_run
 
 install_context(globals())
-
-
-@dataclass
-class SiteInjectionResult:
-    site_name: str
-    adversarial_tasks: list[dict]
-    errors: list[str]
 
 
 def _filter_tasks_by_origin(
@@ -340,12 +335,12 @@ async def run(args: argparse.Namespace) -> int:
         reusable_shard_results: list[SiteInjectionResult] = []
         shard_limiter = asyncio.Semaphore(DEFAULT_PHASE_2A_SHARD_CONCURRENCY)
         for site, tasks in tasks_by_site.items():
-            shards = _shard_tasks(tasks, TASKS_PER_SHARD)
+            shards = _shards._shard_tasks(tasks, TASKS_PER_SHARD)
             per_site_instance = instance_by_site.get(site) if instance_by_site is not None else None
             for shard_idx, shard in enumerate(shards):
                 label = f"{site}-shard-{shard_idx}" if len(shards) > 1 else site
                 if paused_definition is not None:
-                    reusable_shard = _load_reusable_planning_shard(
+                    reusable_shard = _shards._load_reusable_planning_shard(
                         output_dir / "shards" / f"{label}.json",
                         expected_site=site,
                         expected_input_task_ids=[str(task.get("id") or "") for task in shard],
@@ -372,7 +367,7 @@ async def run(args: argparse.Namespace) -> int:
                 )
 
         async def _run_planning_shard(spec: dict[str, Any]) -> SiteInjectionResult:
-            return await _run_shard_with_limit(shard_limiter, **spec)
+            return await _shards._run_shard_with_limit(shard_limiter, **spec)
 
         pending_shard_results = await run_planning_shards(
             shard_specs,
@@ -383,7 +378,7 @@ async def run(args: argparse.Namespace) -> int:
         shard_results = [*reusable_shard_results, *pending_shard_results]
 
         # Merge per-shard results back into per-site results.
-        results = _merge_shard_results(shard_results, tasks_by_site)
+        results = _shards._merge_shard_results(shard_results, tasks_by_site)
 
         all_plans: list[dict] = []
         for result in results:
@@ -439,7 +434,7 @@ async def run(args: argparse.Namespace) -> int:
         if sites_filter is not None:
             active_sites &= sites_filter
         if paused_definition is None:
-            all_plans, recovered_ids = _recover_orphaned_shards(
+            all_plans, recovered_ids = _shards._recover_orphaned_shards(
                 output_dir / "shards",
                 all_plans,
                 allowed_sites=active_sites,
@@ -658,7 +653,6 @@ from worldsim.phase_2 import eligibility as _eligibility
 from worldsim.phase_2 import generation as _generation
 from worldsim.phase_2 import option_a as _option_a
 from worldsim.phase_2 import plan_validation as _plan_validation
-from worldsim.phase_2 import shards as _shards
 from worldsim.phase_2 import target_inputs as _target_inputs
 from worldsim.phase_2._context import link_modules as _link_modules
 from worldsim.phase_2.phase_2c import stage as _phase_2c_stage
@@ -670,7 +664,6 @@ _link_modules(
         _generation,
         _option_a,
         _plan_validation,
-        _shards,
         _phase_2c_stage,
     ]
 )

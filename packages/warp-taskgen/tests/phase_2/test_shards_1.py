@@ -1,6 +1,8 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import generation, shards
+from worldsim.phase_2.planning_types import SiteInjectionResult
 
 
 def test_materialize_validated_shard_tasks_handles_mixed_legacy_and_v2_output(monkeypatch):
@@ -35,14 +37,14 @@ def test_materialize_validated_shard_tasks_handles_mixed_legacy_and_v2_output(mo
         },
     }
     plan_task = _plan_task()
-    monkeypatch.setattr(phase_2_injections, "_voice_registry", lambda: {"dummy": True})
+    monkeypatch.setattr(generation, "_voice_registry", lambda: {"dummy": True})
     monkeypatch.setattr(
-        phase_2_injections,
+        generation,
         "derive_length_budget",
         lambda task, site_profile, registry: {"min": 20, "max": 400, "source": "test"},
     )
 
-    materialized = phase_2_injections._materialize_validated_shard_tasks(
+    materialized = generation._materialize_validated_shard_tasks(
         [legacy_task, plan_task],
         _single_surface_profile(),
     )
@@ -56,14 +58,14 @@ def test_materialize_validated_shard_tasks_appends_delivery_site(monkeypatch):
     plan_task = _plan_task()
     profile = _single_surface_profile()
     profile["injection_surface"][0]["delivery_channels"][0]["delivery_site"] = "shopping_admin"
-    monkeypatch.setattr(phase_2_injections, "_voice_registry", lambda: {"dummy": True})
+    monkeypatch.setattr(generation, "_voice_registry", lambda: {"dummy": True})
     monkeypatch.setattr(
-        phase_2_injections,
+        generation,
         "derive_length_budget",
         lambda task, site_profile, registry: {"min": 20, "max": 400, "source": "test"},
     )
 
-    materialized = phase_2_injections._materialize_validated_shard_tasks([plan_task], profile)
+    materialized = generation._materialize_validated_shard_tasks([plan_task], profile)
 
     assert materialized[0]["delivery_channel"]["delivery_site"] == "shopping_admin"
     assert materialized[0]["sites"] == ["shopping", "shopping_admin"]
@@ -79,17 +81,17 @@ async def test_run_shard_with_limit_serializes_work(monkeypatch):
         state["max"] = max(state["max"], state["current"])
         await asyncio.sleep(0)
         state["current"] -= 1
-        return phase_2_injections.SiteInjectionResult(kwargs["site_name"], [], [])
+        return SiteInjectionResult(kwargs["site_name"], [], [])
 
-    monkeypatch.setattr(phase_2_injections, "_generate_injections_for_site", fake_generate)
+    monkeypatch.setattr(generation, "_generate_injections_for_site", fake_generate)
 
     await asyncio.gather(
-        phase_2_injections._run_shard_with_limit(
+        shards._run_shard_with_limit(
             limiter,
             launch_jitter_seconds=0.0,
             site_name="shopping",
         ),
-        phase_2_injections._run_shard_with_limit(
+        shards._run_shard_with_limit(
             limiter,
             launch_jitter_seconds=0.0,
             site_name="gitlab",

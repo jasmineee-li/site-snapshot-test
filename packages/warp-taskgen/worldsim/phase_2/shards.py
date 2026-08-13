@@ -1,12 +1,29 @@
 """Phase 2 shards behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_2 import target_stage as _target_stage
-from worldsim.phase_2._context import install_context
+import asyncio
+import json
+import logging
+from pathlib import Path
+from typing import Any
 
-install_context(globals())
+from worldsim.phase_2 import generation as _generation
+from worldsim.phase_2 import target_stage as _target_stage
+from worldsim.phase_2.option_a import (
+    _is_option_a_site,
+    _validate_option_a_placement,
+)
+from worldsim.phase_2.output import _effective_task_site
+from worldsim.phase_2.pause_control import planning_shard_checkpoint_matches
+from worldsim.phase_2.plan_validation import (
+    _stale_reusable_exposure_contract_reason,
+    _validate_adversarial_task_contract,
+)
+from worldsim.phase_2.planning_types import SiteInjectionResult
+from worldsim.run_definition_contracts import RunDefinition
+
+logger = logging.getLogger(__name__)
 
 
 def _shard_tasks(tasks: list[dict], shard_size: int) -> list[list[dict]]:
@@ -20,7 +37,7 @@ async def _run_shard_with_limit(
 ) -> SiteInjectionResult:
     """Apply bounded concurrency around one Phase 2a API shard."""
     async with limiter:
-        return await _generate_injections_for_site(**kwargs)
+        return await _generation._generate_injections_for_site(**kwargs)
 
 
 def _merge_shard_results(

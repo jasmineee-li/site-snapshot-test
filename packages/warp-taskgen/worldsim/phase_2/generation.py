@@ -6,6 +6,7 @@ from __future__ import annotations
 from worldsim.phase_2 import target_stage as _target_stage
 from worldsim.phase_2._context import install_context
 from worldsim.phase_2.pause_control import write_planning_shard_checkpoint
+from worldsim.phase_2.planning_types import SiteInjectionResult
 from worldsim.phase_2.target_resolution.constants import (
     PHASE_2A_SYNTHETIC_PLACEHOLDERS as _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
 )
