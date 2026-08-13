@@ -211,4 +211,4 @@ We thank Gray Swan AI for supporting this work.
 
 ---
 
-> This project was previously named **WorldSim**. Public documentation uses **WARP**. Some module names, result paths, and compatibility CLIs still say `worldsim` where renaming would break existing artifacts.
+> This project was previously named **WorldSim**. Public documentation uses **WARP**. Historical module names, result paths, environment variables, and the AgentLab sidecar's compatibility CLI still say `worldsim` where renaming would break existing artifacts.

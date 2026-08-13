@@ -164,13 +164,15 @@ model sweeps remain separate research operations rather than cutover gates.
 
 ## Namespace compatibility evidence (#136)
 
-The installed-wheel matrix and readback proof are tracked in
+The completed compatibility-cycle matrix and readback proof are tracked in
 `tests/test_namespace_compatibility_evidence.py` and
 `scripts/compatibility_wheel_matrix.py`. The wheel probe runs from a temporary
-working directory outside the checkout and covers canonical-first and
-legacy-first root/nested imports, canonical module metadata after reload,
-monkeypatch propagation, both module CLIs, both console scripts, and packaged
-prompt/voice/PVPO resources. The AgentLab sidecar keeps its historical
+working directory outside the checkout. The original #136 evidence covered
+canonical-first and legacy-first imports, shared module state, both core CLI
+names, and historical readback. After the downstream-consumer audit found no
+remaining core consumer, #138 converted the probe to assert the canonical
+module/CLI, packaged prompt/voice/PVPO resources, and fail-closed absence of the
+retired core namespace and CLI. The AgentLab sidecar keeps its historical
 distribution/package/console identifiers while its PVPO bridge resolves
 `warp_taskgen.phase_4`.
 
@@ -207,9 +209,9 @@ active. The new dedicated root did not reuse or mutate a shared Run root.
 | secret scan | `no values recorded; presence-only ANTHROPIC_AUTH_TOKEN and ANTHROPIC_BASE_URL checks` |
 
 Do not paste credentials, URLs containing tokens, cookies, raw prompts,
-screenshots, trajectories, or private host paths into this record. The current
-adapter decision is **retain**: do not remove the `worldsim` adapter or either
-console alias in this issue. A follow-up deletion issue may proceed only after
-this wheel/readback/sidecar matrix is green and an independent downstream
-consumer audit reports no remaining real legacy consumer; otherwise retain the
-adapter for another bounded cycle.
+screenshots, trajectories, or private host paths into this record. The #136
+decision was **retain pending audit**. The independent downstream-consumer
+audit for #138 found no remaining real core `worldsim` import, so the core
+adapter and CLI alias were removed. Historical schema/artifact identifiers,
+supported `WORLDSIM_*` environment fallbacks, persisted remote-job command
+parsing, and the separately named AgentLab sidecar remain compatible.

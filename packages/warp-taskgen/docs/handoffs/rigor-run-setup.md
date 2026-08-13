@@ -84,9 +84,10 @@ selected host values locally, and use that explicit path for real operations.
 
    For high-concurrency Browser Use evidence runs, top-level
    `warp-taskgen phase 4` commands use `--phase-4-max-workers`, not
-   `--workers`. The legacy `python -m worldsim.main phase 4` path is accepted
-   for compatibility, but runbooks should prefer `warp-taskgen`. Use the
-   process-pool runner only when a single Phase 4 process shows Browser Use
+   `--workers`. The core `python -m worldsim.main` alias was retired after the
+   namespace compatibility cycle; persisted remote-job metadata may still use
+   that historical command form for readback. Use the process-pool runner only
+   when a single Phase 4 process shows Browser Use
    event-bus/CDP contention. The process pool is orchestration-only: each
    subprocess invokes normal Phase 4 with one task, one instance, and
    `--phase-4-max-workers 1`, then the supervisor merges a canonical

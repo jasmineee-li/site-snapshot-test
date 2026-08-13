@@ -93,12 +93,12 @@ def _prepare_historical_fixture(tmp_path: Path) -> Path:
     return root
 
 
-def test_historical_worldsim_readback_is_identical_through_both_namespaces(tmp_path: Path) -> None:
+def test_canonical_reader_preserves_historical_worldsim_readback(tmp_path: Path) -> None:
     root = _prepare_historical_fixture(tmp_path)
     canonical = _historical_snapshot(root, "warp_taskgen", "WARP_TASKGEN_STATE_DIR")
-    legacy = _historical_snapshot(root, "worldsim", "WORLDSIM_STATE_DIR")
+    legacy_environment = _historical_snapshot(root, "warp_taskgen", "WORLDSIM_STATE_DIR")
 
-    assert canonical == legacy
+    assert canonical == legacy_environment
     assert canonical["run_id"] == RUN_ID
     assert canonical["definition_digest"] == DEFINITION_DIGEST
     assert canonical["lifecycle_state"] == "complete"

@@ -148,26 +148,16 @@ LEGACY_PHASE_IMPORT_ALLOWED_PREFIXES = (
     "tests/",
 )
 
-ACTIVE_COMPAT_FACADE_MODULES = frozenset(
-    {
-        "worldsim.main",
-    }
-)
+ACTIVE_COMPAT_FACADE_MODULES = frozenset()
 ACTIVE_COMPAT_FACADE_ALLOWED_PREFIXES = (
     "docs/",
     "tests/",
 )
 
-# The ``worldsim`` package name is a temporary compatibility surface.  Only
-# the adapter and explicit namespace/compatibility tests may import it; active
-# implementation/source callers must use ``warp_taskgen``. Historical docs are
-# not parsed as Python by this audit, so they need no broad test-path exemption.
-LEGACY_NAMESPACE_ALLOWED_PREFIXES = (
-    "packages/warp-taskgen/worldsim/",
-    "packages/warp-taskgen/tests/test_namespace_cutover.py",
-    "packages/warp-taskgen/tests/test_phase_compat_wrappers.py",
-    "packages/warp-taskgen/tests/test_readiness_audit.py",
-)
+# The retired ``worldsim`` core namespace has no import allowlist. Historical
+# strings and fixtures remain readable, but executable imports must use
+# ``warp_taskgen``.
+LEGACY_NAMESPACE_ALLOWED_PREFIXES: tuple[str, ...] = ()
 
 
 def _git_ls_files() -> list[str]:

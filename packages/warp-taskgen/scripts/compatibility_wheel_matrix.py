@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Run the installed-wheel compatibility matrix for the namespace cutover.
+"""Run the installed-wheel proof for the completed namespace cutover.
 
 This script deliberately runs import probes with a working directory outside
 the checkout.  It is called by the package-proof lane after installing the
 wheel into a fresh Python environment, so a passing result proves that the
-adapter and resources are present in the distribution rather than only in a
-source checkout.
+canonical package and resources are present and the retired core namespace is
+absent from the distribution.
 """
 
 from __future__ import annotations
@@ -55,35 +55,24 @@ def _run(python: Path, code: str, *, cwd: Path) -> None:
         raise RuntimeError(f"installed-wheel probe failed: {detail}")
 
 
-def _import_probe(first: str, second: str) -> str:
+def _canonical_import_probe() -> str:
     imports = "; ".join(
-        f"first=importlib.import_module('{first}.{suffix}'); "
-        f"second=importlib.import_module('{second}.{suffix}'); "
-        f"canonical=importlib.import_module('warp_taskgen.{suffix}'); "
-        "assert first is second is canonical; "
-        f"assert canonical.__name__ == 'warp_taskgen.{suffix}'; "
-        f"assert canonical.__spec__ is not None and canonical.__spec__.name == 'warp_taskgen.{suffix}'; "
-        "assert importlib.reload(first) is canonical"
+        f"module=importlib.import_module('warp_taskgen.{suffix}'); "
+        f"assert module.__name__ == 'warp_taskgen.{suffix}'; "
+        f"assert module.__spec__ is not None and module.__spec__.name == 'warp_taskgen.{suffix}'; "
+        "assert importlib.reload(module) is module"
         for suffix in _MODULES
     )
-    return (
-        "import importlib\n"
-        f"{imports}\n"
-        "sentinel = object(); first._compatibility_sentinel = sentinel; "
-        "assert second._compatibility_sentinel is sentinel; "
-        "assert canonical._compatibility_sentinel is sentinel\n"
-    )
+    return "import importlib\n" + imports + "\n"
 
 
-def _root_probe(first: str, second: str) -> str:
+def _root_probe() -> str:
     return (
-        "import importlib, sys\n"
-        f"first=importlib.import_module('{first}'); "
-        f"second=importlib.import_module('{second}'); "
+        "import importlib, importlib.util, sys\n"
         "canonical=importlib.import_module('warp_taskgen'); "
-        "assert first is second is canonical; "
         "assert canonical.__name__ == 'warp_taskgen'; "
         "assert canonical.__spec__ is not None and canonical.__spec__.name == 'warp_taskgen'; "
+        "assert importlib.util.find_spec('worldsim') is None; "
         "assert not any(name.startswith('warp_taskgen.') for name in sys.modules if name != 'warp_taskgen')\n"
     )
 
@@ -130,16 +119,12 @@ def _sidecar_probe(package_root: Path) -> None:
 def run(python: Path, *, package_root: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="warp-taskgen-wheel-probe-") as temporary:
         cwd = Path(temporary)
-        _run(python, _root_probe("warp_taskgen", "worldsim"), cwd=cwd)
-        _run(python, _root_probe("worldsim", "warp_taskgen"), cwd=cwd)
-        for first, second in (("warp_taskgen", "worldsim"), ("worldsim", "warp_taskgen")):
-            _run(python, _import_probe(first, second), cwd=cwd)
+        _run(python, _root_probe(), cwd=cwd)
+        _run(python, _canonical_import_probe(), cwd=cwd)
         _run(python, _resource_probe(), cwd=cwd)
         for command in (
             ("-m", "warp_taskgen.main", "--help"),
-            ("-m", "worldsim.main", "--help"),
             ("warp-taskgen", "--help"),
-            ("worldsim", "--help"),
         ):
             env = os.environ.copy()
             env.pop("PYTHONPATH", None)
@@ -162,6 +147,19 @@ def run(python: Path, *, package_root: Path) -> None:
             if completed.returncode or "WARP Taskgen" not in completed.stdout:
                 detail = completed.stderr.strip() or completed.stdout.strip()
                 raise RuntimeError(f"CLI probe failed for {' '.join(command)}: {detail}")
+
+        if (python.parent / "worldsim").exists():
+            raise RuntimeError("retired worldsim console script is installed")
+        retired_module = subprocess.run(
+            [str(python), "-m", "worldsim.main", "--help"],
+            cwd=cwd,
+            env={**os.environ, "PYTHONPATH": "", "PYTHON_DOTENV_DISABLED": "1"},
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if retired_module.returncode == 0:
+            raise RuntimeError("retired worldsim.main module remains executable")
     _sidecar_probe(package_root)
 
 
@@ -183,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
     # Preserve the venv executable path. Resolving its symlink would select the
     # base uv-managed interpreter and lose the wheel installed in this venv.
     run(args.python.absolute(), package_root=args.package_root.resolve())
-    print("installed-wheel compatibility matrix: passed")
+    print("installed-wheel namespace proof: passed")
     return 0
 
 

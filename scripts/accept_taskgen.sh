@@ -141,9 +141,7 @@ build_and_smoke_package() {
     uv venv --python "$python_version" "$isolated_env"
     uv pip install --python "$isolated_env/bin/python" "${wheels[0]}"
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/warp-taskgen" --help
-    PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/worldsim" --help
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" -m warp_taskgen.main --help
-    PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" -m worldsim.main --help
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" \
         "$PACKAGE_DIR/scripts/compatibility_wheel_matrix.py" \
         --python "$isolated_env/bin/python" --package-root "$PACKAGE_DIR"

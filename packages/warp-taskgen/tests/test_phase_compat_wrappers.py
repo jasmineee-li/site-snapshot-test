@@ -21,7 +21,11 @@ def test_retired_feature_facades_are_absent() -> None:
 
     for module_name in RETIRED_FEATURE_MODULES:
         assert module_name in readiness_audit.LEGACY_PHASE_IMPORT_MODULES
-        assert importlib.util.find_spec(module_name) is None
+        try:
+            spec = importlib.util.find_spec(module_name)
+        except ModuleNotFoundError:
+            spec = None
+        assert spec is None
 
 
 def test_canonical_feature_modules_own_the_retired_surfaces() -> None:
