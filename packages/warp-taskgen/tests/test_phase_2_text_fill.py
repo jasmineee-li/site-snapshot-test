@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 
 import pytest
 from tenacity import AsyncRetrying
 
 from worldsim.adversarial_actions.tier3 import tier3_payload_action_contract
+from worldsim.phase_2 import text_fill as phase_2_text_fill
 from worldsim.phase_2.text_fill import api as text_fill_api
-from worldsim.phases import phase_2_text_fill
+from worldsim.phase_2.text_fill import service as text_fill_service
 from worldsim.text_payload_contract import (
     TEXT_PAYLOAD_VALIDATOR_CONTEXT_KEY,
     TextPayloadResponse,
@@ -936,14 +938,14 @@ async def test_call_text_fill_api_uses_instructor_response_model(monkeypatch):
             parsed._raw_response = response
             return parsed, response
 
-    monkeypatch.setattr(phase_2_text_fill, "get_client", lambda: object())
+    monkeypatch.setattr(text_fill_api, "get_client", lambda: object())
     monkeypatch.setattr(
-        phase_2_text_fill.instructor,
+        text_fill_api.instructor,
         "from_anthropic",
         lambda _client, mode: SimpleNamespace(messages=FakeMessages()),
     )
 
-    parsed, auth_path, diagnostics = await phase_2_text_fill._call_text_fill_api(
+    parsed, auth_path, diagnostics = await text_fill_api._call_text_fill_api(
         "compose JSON",
         "anthropic/claude-sonnet-4-6",
         task=task,
@@ -995,14 +997,14 @@ async def test_structured_text_fill_omits_temperature_for_opus_47(monkeypatch):
             )
             return parsed, response
 
-    monkeypatch.setattr(phase_2_text_fill, "get_client", lambda: object())
+    monkeypatch.setattr(text_fill_api, "get_client", lambda: object())
     monkeypatch.setattr(
-        phase_2_text_fill.instructor,
+        text_fill_api.instructor,
         "from_anthropic",
         lambda _client, mode: SimpleNamespace(messages=FakeMessages()),
     )
 
-    parsed, auth_path, _diagnostics = await phase_2_text_fill._call_text_fill_api(
+    parsed, auth_path, _diagnostics = await text_fill_api._call_text_fill_api(
         "compose JSON",
         "claude-opus-4-7",
         task=task,
@@ -1033,12 +1035,12 @@ async def test_generate_single_payload_tries_all_variants_in_order(monkeypatch):
         calls.append(prompt)
         if prompt in {"variant=standard", "variant=creative_writing"}:
             return ("I'm not going to help with that request.", "shared_api")
-        return (phase_2_text_fill.json.dumps(payload), "shared_api")
+        return (json.dumps(payload), "shared_api")
 
-    monkeypatch.setattr(phase_2_text_fill, "render_fill_prompt", fake_render_fill_prompt)
-    monkeypatch.setattr(phase_2_text_fill, "_call_text_fill_api", fake_call_text_fill_api)
+    monkeypatch.setattr(text_fill_service, "render_fill_prompt", fake_render_fill_prompt)
+    monkeypatch.setattr(text_fill_service, "_call_text_fill_api", fake_call_text_fill_api)
 
-    parsed, diag = await phase_2_text_fill._generate_single_payload(
+    parsed, diag = await text_fill_service._generate_single_payload(
         task,
         registry=phase_2_text_fill.load_voice_registry(),
         model="anthropic/claude-sonnet-4-6",
@@ -1085,12 +1087,12 @@ async def test_generate_single_payload_testing_compliance_success(monkeypatch):
         calls.append(f"shared_api:{prompt}")
         if prompt in {"variant=standard", "variant=creative_writing"}:
             return ("I'm not going to help with that request.", "shared_api")
-        return (phase_2_text_fill.json.dumps(payload), "shared_api")
+        return (json.dumps(payload), "shared_api")
 
-    monkeypatch.setattr(phase_2_text_fill, "render_fill_prompt", fake_render_fill_prompt)
-    monkeypatch.setattr(phase_2_text_fill, "_call_text_fill_api", fake_call_text_fill_api)
+    monkeypatch.setattr(text_fill_service, "render_fill_prompt", fake_render_fill_prompt)
+    monkeypatch.setattr(text_fill_service, "_call_text_fill_api", fake_call_text_fill_api)
 
-    parsed, diag = await phase_2_text_fill._generate_single_payload(
+    parsed, diag = await text_fill_service._generate_single_payload(
         task,
         registry=phase_2_text_fill.load_voice_registry(),
         model="anthropic/claude-sonnet-4-6",
@@ -1543,9 +1545,9 @@ async def test_fill_one_task_regenerates_when_cached_payload_is_invalid(monkeypa
     async def fake_generate_single_payload(*args, **kwargs):
         return regenerated, {"status": "ok", "errors": []}
 
-    monkeypatch.setattr(phase_2_text_fill, "_generate_single_payload", fake_generate_single_payload)
+    monkeypatch.setattr(text_fill_service, "_generate_single_payload", fake_generate_single_payload)
 
-    finalized, diag = await phase_2_text_fill._fill_one_task(
+    finalized, diag = await text_fill_service._fill_one_task(
         task,
         registry=phase_2_text_fill.load_voice_registry(),
         texts_per_plan=1,

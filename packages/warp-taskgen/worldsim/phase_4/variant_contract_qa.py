@@ -17,8 +17,8 @@ from worldsim.adversarial_actions import (
     action_payload_preservation_report,
     build_action_payload_guidance,
 )
+from worldsim.phase_2.text_fill.validation import validate_text_post_hoc
 from worldsim.phase_4.payload_rendering import build_payload_renderer_contract
-from worldsim.phases.phase_2_text_fill import validate_text_post_hoc
 from worldsim.text_payload_contract import (
     earliest_attack_witness_offset,
     payload_encounter_window_contract,

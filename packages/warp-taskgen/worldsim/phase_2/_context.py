@@ -73,18 +73,22 @@ from worldsim.phase_2.target_resolution.runner import (
 from worldsim.phase_2.target_resolution.constants import (
     PHASE_2A_SYNTHETIC_PLACEHOLDERS as _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
 )
-from worldsim.phases.phase_2_text_fill import (
+from worldsim.phase_2.text_fill.constants import (
     DEFAULT_TEXT_FILL_CONCURRENCY,
     DEFAULT_TEXT_FILL_MODEL,
     DEFAULT_TEXTS_PER_PLAN,
     PAYLOAD_PLACEHOLDER,
-    derive_length_budget,
-    derive_required_tokens,
-    fill_texts_for_tasks,
-    load_voice_registry,
+)
+from worldsim.phase_2.text_fill.seed import (
     materialize_adversarial_seed,
     validate_seed_template_contract,
-    validate_text_post_hoc,
+)
+from worldsim.phase_2.text_fill.service import fill_texts_for_tasks
+from worldsim.phase_2.text_fill.tokens import derive_required_tokens
+from worldsim.phase_2.text_fill.validation import validate_text_post_hoc
+from worldsim.phase_2.text_fill.voice import (
+    derive_length_budget,
+    load_voice_registry,
 )
 from worldsim.phase_2.phase_2c.config import (
     _benchmark_values_from_record,

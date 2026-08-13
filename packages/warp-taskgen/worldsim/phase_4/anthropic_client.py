@@ -1,7 +1,7 @@
 """Shared `anthropic.AsyncAnthropic` client for Phase 4 host-side API calls.
 
 Auth precedence mirrors `worldsim.modal_sandbox._build_claude_secrets` and
-`worldsim.phases.phase_2_text_fill._call_anthropic_fallback`:
+`worldsim.phase_2.text_fill.api._call_anthropic_fallback`:
 
     1. OpenRouter  — `ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_BASE_URL`
     2. Anthropic direct + OAuth — `CLAUDE_CODE_OAUTH_TOKEN`
@@ -104,7 +104,7 @@ def normalize_model_for_auth(model: str) -> str:
     OpenRouter uses `anthropic/claude-sonnet-4-6` naming. Anthropic-direct
     (`api.anthropic.com`) rejects that with "unknown model" and expects
     the bare `claude-sonnet-4-6`. Mirrors
-    `worldsim.phases.phase_2_text_fill._direct_anthropic_model_name` so a
+    `worldsim.phase_2.text_fill.api._direct_anthropic_model_name` so a
     single `--sandbox-model` flag value works against either endpoint.
 
     When no credentials are configured (`_resolved_auth_path()` returns

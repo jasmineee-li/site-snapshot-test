@@ -82,9 +82,11 @@ from worldsim.phase_4.verbalized_eval_awareness_api import (
 from worldsim.phase_2.phase_2c.reddit_attribution import (
     _attach_gitlab_issue_note_state_probe_anchors,
 )
-from worldsim.phases.phase_2_text_fill import (
+from worldsim.phase_2.text_fill.seed import (
     materialize_adversarial_seed,
     validate_seed_template_contract,
+)
+from worldsim.phase_2.text_fill.validation import (
     validate_text_post_hoc,
 )
 from worldsim.placeholders import (

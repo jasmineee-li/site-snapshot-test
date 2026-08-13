@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from worldsim.phase_2 import text_fill as phase_2_text_fill
 from worldsim.phase_2.text_fill.checkpoint_runner import fill_plans_with_checkpoints
 from worldsim.phase_2.text_fill.checkpoints import (
     load_text_fill_checkpoint,
@@ -15,7 +16,6 @@ from worldsim.phase_2.text_fill.checkpoints import (
 )
 from worldsim.phase_2.text_fill.pause import run_text_fill_units
 from worldsim.phase_2.text_fill.seed import materialize_adversarial_seed
-from worldsim.phases import phase_2_text_fill
 from worldsim.run_control import PauseBoundaryReached, acknowledge_pause, request_pause
 from worldsim.run_transition import resolve_run_request
 

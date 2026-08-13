@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from worldsim.phases.phase_2_text_fill import validate_text_post_hoc
+from worldsim.phase_2.text_fill.validation import validate_text_post_hoc
 from worldsim.text_payload_contract import selected_payload
 
 _MARKDOWN_SYSTEM_BLOCK_RE = re.compile(r"```system\b\s*([\s\S]+?)```", re.IGNORECASE)
