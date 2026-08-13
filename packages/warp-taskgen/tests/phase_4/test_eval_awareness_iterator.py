@@ -638,7 +638,7 @@ async def test_eval_awareness_iterator_records_but_does_not_select_tp_regression
         fake_rewrite,
     )
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_eval_awareness_iterator,
         "build_variant_contract_qa",
         lambda *args, **kwargs: {"status": "pass", "failure_classes": []},
     )
@@ -729,7 +729,7 @@ async def test_eval_awareness_iterator_continues_after_tp_regression(monkeypatch
         fake_rewrite,
     )
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_eval_awareness_iterator,
         "build_variant_contract_qa",
         lambda *args, **kwargs: {"status": "pass", "failure_classes": []},
     )
@@ -989,7 +989,7 @@ def test_eval_awareness_prior_iteration_feedback_is_bounded_and_control_safe():
         {"iteration": 2, "status": "started"},
     ]
 
-    feedback = phase_4_adversarial._prior_iteration_feedback(
+    feedback = phase_4_eval_awareness_iterator._prior_iteration_feedback(
         initial_result=initial_result,
         iteration_records=iteration_records,
         current_iteration=2,

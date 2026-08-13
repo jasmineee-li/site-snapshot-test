@@ -1,10 +1,21 @@
 """Sequential eval-awareness iteration for Phase 4."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_4._context import install_context
+import asyncio
+import json
+import logging
+from collections.abc import Callable, Mapping
+from pathlib import Path
+from typing import Any
+
+from worldsim.agent_runtime import AgentRunner
+from worldsim.config import BenchmarkInstance
+from worldsim.phase_4 import result_summary as phase4_result_summary
 from worldsim.phase_4.eval_awareness_tp_transition import classify_tp_transition
+from worldsim.phase_4.options import (
+    normalize_eval_awareness_max_iterations as _normalize_eval_awareness_max_iterations,
+)
 from worldsim.phase_4.payload_rendering import build_payload_renderer_contract
 from worldsim.phase_4.postprocess_progress import Phase4ProgressCallback
 from worldsim.phase_4.resume import (
@@ -18,9 +29,10 @@ from worldsim.phase_4.resume import (
 from worldsim.phase_4.variant_accounting import semantic_variant_accounting
 from worldsim.phase_4.variant_contract_qa import build_variant_contract_qa
 from worldsim.phase_4.variant_eval import _evaluate_variant, _merge_variant_task
+from worldsim.task_paths import safe_task_path_component
 from worldsim.text_payload_contract import build_text_payload_contract
 
-install_context(globals())
+logger = logging.getLogger(__name__)
 
 
 _ITERATOR_CHECKPOINT = "eval_awareness_iterator_checkpoint.json"
