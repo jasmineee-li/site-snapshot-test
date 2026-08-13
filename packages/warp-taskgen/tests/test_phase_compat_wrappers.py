@@ -97,3 +97,83 @@ async def test_text_fill_compat_facade_forwards_legacy_patch_points(monkeypatch)
         patch.setattr(service, "_fill_one_task", fake_fill)
         assert await legacy._fill_one_task("task") == (None, {"status": "compat"})
         assert fill_seen == {"_generate_single_payload": sentinel_generate}
+
+
+def test_exposure_contract_compat_facade_forwards_legacy_patch_points(monkeypatch) -> None:
+    """The exposure facade keeps old monkeypatch seams during migration."""
+
+    legacy = importlib.import_module("worldsim.phases.phase_2_exposure_contract")
+    impl = importlib.import_module("worldsim.phase_2.exposure_contract._impl")
+    with monkeypatch.context() as patch:
+        # The facade synchronizes its legacy patch into the implementation;
+        # register that destination with the context so teardown restores it.
+        patch.setattr(impl, "iter_specs", impl.iter_specs)
+        patch.setattr(legacy, "iter_specs", lambda *, site, benchmark: [])
+
+        contract = legacy.build_exposure_contract(
+            benign_task_id="compat-exposure",
+            site="gitlab",
+            benchmark="webarena_verified",
+            benign_target_resource={
+                "kind": "gitlab_issue",
+                "anchors": {"project_id": "22", "issue_iid": "7"},
+                "start_url_resolved": "https://gitlab.local/acme/demo/-/issues/7",
+            },
+        )
+
+    assert contract["seed_capability"] == {
+        "status": "unsupported",
+        "reason": "no_viable_editor_method_under_anchors",
+    }
+    assert contract["eligibility"] == {
+        "status": "ineligible",
+        "reason": "no_viable_editor_method_under_anchors",
+    }
+
+
+def test_exposure_contract_compat_facade_forwards_owner_helpers(monkeypatch) -> None:
+    """Legacy builder and seed calls still honor patched owner helpers."""
+
+    legacy = importlib.import_module("worldsim.phases.phase_2_exposure_contract")
+    impl = importlib.import_module("worldsim.phase_2.exposure_contract._impl")
+    helper_names = (
+        "iter_specs",
+        "available_tokens_for_kind",
+        "canonical_core_surface",
+        "is_active_carrier_surface",
+        "is_core_surface",
+        "active_carrier_ineligible_reason",
+    )
+    calls = {name: 0 for name in helper_names}
+
+    with monkeypatch.context() as patch:
+        for name in helper_names:
+            patch.setattr(impl, name, getattr(impl, name))
+            original = getattr(legacy, name)
+
+            def spy(*args, _name=name, _original=original, **kwargs):
+                calls[_name] += 1
+                return _original(*args, **kwargs)
+
+            patch.setattr(legacy, name, spy)
+
+        contract = legacy.build_exposure_contract(
+            benign_task_id="compat-exposure-owner-helpers",
+            site="gitlab",
+            benchmark="webarena_verified",
+            benign_target_resource={
+                "kind": "gitlab_issue",
+                "anchors": {"project_id": "22", "issue_iid": "7"},
+                "start_url_resolved": "https://gitlab.local/acme/demo/-/issues/7",
+                "exact_comment_region_forced_by_task": True,
+            },
+        )
+        seed = legacy.materialize_seed_template_from_contract(contract)
+        assert (
+            legacy.active_carrier_ineligible_reason("gitlab", "issue.title")
+            == "retired_title_carrier_surface"
+        )
+
+    assert contract["eligibility"] == {"status": "eligible"}
+    assert seed["editor_calls"][0]["args"]["body"] == "{{PAYLOAD_TEXT}}"
+    assert all(calls.values())

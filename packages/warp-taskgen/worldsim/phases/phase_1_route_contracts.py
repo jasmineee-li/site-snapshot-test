@@ -14,6 +14,7 @@ from typing import Any
 
 import worldsim.editors  # noqa: F401 - populate editor method registry
 from worldsim.editors._registry import iter_specs
+from worldsim.phase_2.exposure_contract import build_exposure_contract
 from worldsim.phase_2.target_resolution.constants import (
     DEFAULT_REDDIT_MAX_EXISTING_COMMENTS,
     LISTING_DETAIL_FORCING_REGEXES,
@@ -28,7 +29,6 @@ from worldsim.phases.phase_2_core_surfaces import (
     is_active_carrier_surface,
     is_core_surface,
 )
-from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
 from worldsim.placeholders import placeholder_for_site
 from worldsim.sites import (
     SiteTargetingDefinitionError,
@@ -501,7 +501,7 @@ def _pattern_has_admissible_exposure(
         # Phase 1 asks whether a route is reachable in principle by some
         # admissible task; Phase 2c asks whether a specific generated task
         # forces the appended-comment region. The reddit comment-body capability
-        # gate at phase_2_exposure_contract::_appended_comment_exposure_capability
+        # gate at phase_2.exposure_contract.phase4_exposure::_appended_comment_exposure_capability
         # requires visual + seeded-comment forcing on the resource, which a
         # generic probe cannot supply. Simulate maximum task-side forcing here
         # so the structural admissibility check does not collapse on flags only

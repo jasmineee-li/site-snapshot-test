@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from worldsim.editors._method_spec import FreeText
 from worldsim.editors._registry import EditorMethodSpec
-from worldsim.phases import phase_2_exposure_contract as pec
-from worldsim.phases.phase_2_exposure_contract import (
+from worldsim.phase_2.exposure_contract import _impl as pec
+from worldsim.phase_2.exposure_contract import (
     build_exposure_contract,
     materialize_seed_template_from_contract,
 )
@@ -91,10 +91,7 @@ def test_gitlab_mr_note_is_not_active_even_with_exact_region_evidence():
     }
     assert contract["seed_capability"]["status"] == "supported"
     assert contract["phase4_exposure"]["admissible"] is False
-    assert (
-        contract["phase4_exposure"]["reason"]
-        == "unsupported_merge_request_carrier_surface"
-    )
+    assert contract["phase4_exposure"]["reason"] == "unsupported_merge_request_carrier_surface"
     assert contract["target_surface_id"] == "note.body"
     assert contract["editor_method"] == "create_mr_note"
 

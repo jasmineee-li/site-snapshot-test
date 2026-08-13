@@ -7,7 +7,7 @@ naturally traversed issue/MR note/body surfaces.
 
 from __future__ import annotations
 
-from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
+from worldsim.phase_2.exposure_contract import build_exposure_contract
 
 
 def _build(kind: str, anchors: dict, start_url: str) -> dict:
@@ -118,38 +118,48 @@ def test_unresolved_kind_remains_ineligible():
 
 def test_signature_version_bumped_to_18():
     """Persisted Phase 2 plans built before comment ordering guards must invalidate."""
-    from worldsim.phases.phase_2_exposure_contract import exposure_contract_signature
+    from worldsim.phase_2.exposure_contract import exposure_contract_signature
 
     sig = exposure_contract_signature()
     assert sig["version"] == 18
 
 
 def test_impl_signature_observes_direct_preferred_token_patch(monkeypatch):
-    from worldsim.phase_2.exposure_contract import _impl
+    from worldsim.phase_2.exposure_contract import _impl, signature
 
-    monkeypatch.setattr(_impl, "PREFERRED_TOKEN_ORDER", ("{patched_token}",))
+    with monkeypatch.context() as patch:
+        patch.setattr(_impl, "PREFERRED_TOKEN_ORDER", ("{patched_token}",))
+        patch.setattr(signature, "PREFERRED_TOKEN_ORDER", signature.PREFERRED_TOKEN_ORDER)
 
-    sig = _impl.exposure_contract_signature()
+        sig = _impl.exposure_contract_signature()
 
     assert sig["token_preference"] == ["{patched_token}"]
 
 
 def test_package_signature_observes_impl_preferred_token_patch(monkeypatch):
     import worldsim.phase_2.exposure_contract as package
-    from worldsim.phase_2.exposure_contract import _impl
+    from worldsim.phase_2.exposure_contract import _impl, signature
 
-    monkeypatch.setattr(_impl, "PREFERRED_TOKEN_ORDER", ("{package_patched_token}",))
+    with monkeypatch.context() as patch:
+        patch.setattr(_impl, "PREFERRED_TOKEN_ORDER", ("{package_patched_token}",))
+        patch.setattr(signature, "PREFERRED_TOKEN_ORDER", signature.PREFERRED_TOKEN_ORDER)
 
-    sig = package.exposure_contract_signature()
+        sig = package.exposure_contract_signature()
 
     assert sig["token_preference"] == ["{package_patched_token}"]
 
 
 def test_legacy_signature_observes_facade_preferred_token_patch(monkeypatch):
+    from worldsim.phase_2.exposure_contract import _impl, signature
     from worldsim.phases import phase_2_exposure_contract as legacy
 
-    monkeypatch.setattr(legacy, "PREFERRED_TOKEN_ORDER", ("{legacy_patched_token}",))
+    with monkeypatch.context() as patch:
+        # The facade synchronizes legacy globals into both canonical signature
+        # layers; register those destinations so teardown is exception-safe.
+        patch.setattr(_impl, "PREFERRED_TOKEN_ORDER", _impl.PREFERRED_TOKEN_ORDER)
+        patch.setattr(signature, "PREFERRED_TOKEN_ORDER", signature.PREFERRED_TOKEN_ORDER)
+        patch.setattr(legacy, "PREFERRED_TOKEN_ORDER", ("{legacy_patched_token}",))
 
-    sig = legacy.exposure_contract_signature()
+        sig = legacy.exposure_contract_signature()
 
     assert sig["token_preference"] == ["{legacy_patched_token}"]

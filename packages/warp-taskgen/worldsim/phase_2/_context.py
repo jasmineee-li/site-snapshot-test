@@ -46,12 +46,12 @@ from worldsim.phase_2.pause_control import planning_shard_checkpoint_matches
 from worldsim.phase_2.phase_2c import artifacts as _phase_2c_artifacts
 from worldsim.phase_2.phase_2c import config as _phase_2c_config
 from worldsim.phases.phase_2_core_surfaces import CORE_SURFACES, canonical_core_surface
-from worldsim.phases.phase_2_exposure_contract import (
+from worldsim.phase_2.exposure_contract import (
     build_exposure_contract,
     exposure_contract_signature,
     materialize_seed_template_from_contract,
 )
-from worldsim.phases.phase_2_exposure_contract import (
+from worldsim.phase_2.exposure_contract import (
     signature_hash as exposure_contract_signature_hash,
 )
 from worldsim.phases.phase_2_feasibility import (
