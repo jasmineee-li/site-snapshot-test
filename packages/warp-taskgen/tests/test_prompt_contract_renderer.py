@@ -14,7 +14,7 @@ Covers:
   no-op when the file lacks the sentinel.
 * Byte-identical prompt rendering between the sandbox path
   (``_render_generation_prompt`` in ``phase_2_injections``) and the API
-  path (``_build_messages`` in ``phase_2_injections_api``) when given
+  path (``_build_messages`` in ``worldsim.phase_2.runner_api``) when given
   the same shard input.
 """
 
@@ -282,7 +282,7 @@ class TestSandboxApiPathParity:
 
     def test_byte_identical_prompts(self) -> None:
         from worldsim.phase_2 import runner as phase_2_injections
-        from worldsim.phases import phase_2_injections_api
+        from worldsim.phase_2 import runner_api
 
         benign_target_resources = {
             "t1": {
@@ -309,7 +309,7 @@ class TestSandboxApiPathParity:
             contract_context=ctx,
         )
 
-        api_system, _ = phase_2_injections_api._build_messages(
+        api_system, _ = runner_api._build_messages(
             benign_tasks=[],
             benign_target_resources=benign_target_resources,
             cell_targets={"framing::concealment": 1},
@@ -334,10 +334,10 @@ class TestSandboxApiPathParity:
     def test_api_path_without_site_does_not_render(self) -> None:
         """Backward compat: if site is not passed, the prompt still loads
         (no contract_context → sentinel raises)."""
-        from worldsim.phases import phase_2_injections_api
+        from worldsim.phase_2 import runner_api
 
         with pytest.raises(PromptRenderError):
-            phase_2_injections_api._build_messages(
+            runner_api._build_messages(
                 benign_tasks=[],
                 benign_target_resources={},
                 cell_targets={},

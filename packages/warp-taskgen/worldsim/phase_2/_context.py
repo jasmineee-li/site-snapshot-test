@@ -59,7 +59,7 @@ from worldsim.phases.phase_2_feasibility import (
     skipped_task_stanza,
     verify_feasibility,
 )
-from worldsim.phases.phase_2_injections_api import generate_phase_2a_plans_api
+from worldsim.phase_2.runner_api import generate_phase_2a_plans_api
 from worldsim.phase_2.output import (
     _effective_task_site,
     _merge_preserving_unfiltered_sites,

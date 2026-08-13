@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from worldsim.main import build_parser
+from worldsim.phase_4 import phase_4_variant_budget_choices as public_phase_4_variant_budget_choices
 from worldsim.phase_4.options import (
     PHASE_4_VARIANT_BUDGET_PRESETS,
     PHASE_4_VARIANT_SYSTEMS,
@@ -16,6 +17,10 @@ from worldsim.phase_4.options import (
 def test_variant_choice_helpers_expose_configured_values() -> None:
     assert phase_4_variant_system_choices() == PHASE_4_VARIANT_SYSTEMS
     assert phase_4_variant_budget_choices() == tuple(PHASE_4_VARIANT_BUDGET_PRESETS)
+
+
+def test_variant_budget_choices_are_available_from_public_phase_package() -> None:
+    assert public_phase_4_variant_budget_choices is phase_4_variant_budget_choices
 
 
 @pytest.mark.parametrize("value", PHASE_4_VARIANT_SYSTEMS)

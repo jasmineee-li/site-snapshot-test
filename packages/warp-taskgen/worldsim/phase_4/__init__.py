@@ -25,6 +25,10 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "TRIGGER_TO_STRATEGIES": ("worldsim.phase_4.strategy_catalog", "TRIGGER_TO_STRATEGIES"),
     "strategies_for_trigger": ("worldsim.phase_4.strategy_catalog", "strategies_for_trigger"),
     "generate_variant_api": ("worldsim.phase_4.variant_api", "generate_variant_api"),
+    "phase_4_variant_budget_choices": (
+        "worldsim.phase_4.options",
+        "phase_4_variant_budget_choices",
+    ),
 }
 
 

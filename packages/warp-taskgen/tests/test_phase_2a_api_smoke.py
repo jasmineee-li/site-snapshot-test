@@ -18,8 +18,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from worldsim.adversarial_actions import ACTION_KINDS
-from worldsim.phases import phase_2_injections_api
-from worldsim.phases.phase_2_injections_api import (
+from worldsim.phase_2 import runner_api
+from worldsim.phase_2.runner_api import (
     _EMIT_PLANS_TOOL,
     _MAX_OUTPUT_TOKENS,
     _OVERGENERATION_MULTIPLIER,
@@ -405,7 +405,7 @@ async def test_happy_path_returns_plans(monkeypatch: pytest.MonkeyPatch):
     plan = _sample_plan()
     client = _mock_client_returning([plan])
 
-    monkeypatch.setattr(phase_2_injections_api, "get_client", lambda: client)
+    monkeypatch.setattr(runner_api, "get_client", lambda: client)
 
     result = await generate_phase_2a_plans_api(
         benign_tasks=[{"id": "benign_1", "site": "gitlab", "benchmark": "webarena_verified"}],
@@ -440,7 +440,7 @@ async def test_api_call_schema_includes_host_ready_tier3_contract(
         "description": "Modify repository content.",
     }
     client = _mock_client_returning([plan])
-    monkeypatch.setattr(phase_2_injections_api, "get_client", lambda: client)
+    monkeypatch.setattr(runner_api, "get_client", lambda: client)
 
     await generate_phase_2a_plans_api(
         benign_tasks=[{"id": "benign_1", "site": "gitlab", "benchmark": "webarena_verified"}],
@@ -498,7 +498,7 @@ async def test_api_call_schema_includes_host_ready_tier3_contract(
 @pytest.mark.asyncio
 async def test_rejects_unsupported_benchmark_before_api_call(monkeypatch: pytest.MonkeyPatch):
     client = _mock_client_returning([_sample_plan()])
-    monkeypatch.setattr(phase_2_injections_api, "get_client", lambda: client)
+    monkeypatch.setattr(runner_api, "get_client", lambda: client)
 
     with pytest.raises(ValueError, match="does not support WARP Taskgen Phase 2"):
         await generate_phase_2a_plans_api(
@@ -518,7 +518,7 @@ async def test_rejects_unsupported_benchmark_before_api_call(monkeypatch: pytest
 @pytest.mark.asyncio
 async def test_rejects_missing_benchmark_before_api_call(monkeypatch: pytest.MonkeyPatch):
     client = _mock_client_returning([_sample_plan()])
-    monkeypatch.setattr(phase_2_injections_api, "get_client", lambda: client)
+    monkeypatch.setattr(runner_api, "get_client", lambda: client)
 
     with pytest.raises(ValueError, match="missing benchmark metadata"):
         await generate_phase_2a_plans_api(
@@ -558,7 +558,7 @@ async def test_no_tool_use_returns_empty(monkeypatch: pytest.MonkeyPatch):
     )
     client.messages.create = AsyncMock(return_value=response)
     _install_stream_mock(client)
-    monkeypatch.setattr(phase_2_injections_api, "get_client", lambda: client)
+    monkeypatch.setattr(runner_api, "get_client", lambda: client)
 
     result = await generate_phase_2a_plans_api(
         benign_tasks=[{"id": "benign_1", "site": "gitlab", "benchmark": "webarena_verified"}],
@@ -578,7 +578,7 @@ async def test_overgeneration_request_in_prompt(monkeypatch: pytest.MonkeyPatch)
     """Verify the requested-count math: max(target, target*MULTIPLIER) appears
     in the prompt body the API receives."""
     client = _mock_client_returning([_sample_plan()])
-    monkeypatch.setattr(phase_2_injections_api, "get_client", lambda: client)
+    monkeypatch.setattr(runner_api, "get_client", lambda: client)
 
     cell_targets = {"authority::plaintext": 8, "policy::plaintext": 4}  # total = 12
     expected_request = max(12, int(12 * _OVERGENERATION_MULTIPLIER))  # 30 at 2.5x
