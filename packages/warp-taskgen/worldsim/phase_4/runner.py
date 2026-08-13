@@ -1,15 +1,33 @@
 """Phase 4 runner behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
+import argparse
+import asyncio
+import logging
+from collections.abc import Mapping
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from worldsim.agent_config import DEFAULT_MODEL, make_agent_factory, run_tasks_by_site
+from worldsim.agent_runtime import RUNNER_AGENTLAB, RUNNER_BROWSER_USE
+from worldsim.auth_tokens import acquire_tokens_for_instances
+from worldsim.benchmark_capabilities import get_benchmark_capabilities, infer_benchmark_name
+from worldsim.config import load_benchmark_config
+from worldsim.modal_sandbox import preflight_auth_check
 from worldsim.phase_4 import execution as _execution
 from worldsim.phase_4 import postprocess as _postprocess
-from worldsim.phase_4._context import install_context
 from worldsim.phase_4.admission import (
     _collect_agent_auth_runtime_errors,
     _load_admitted_phase_4_tasks,
     _load_site_profiles,
+)
+from worldsim.phase_4.options import (
+    normalize_eval_awareness_max_iterations as _normalize_eval_awareness_max_iterations,
+)
+from worldsim.phase_4.options import (
+    normalize_phase_4_variant_system as _normalize_phase_4_variant_system,
 )
 from worldsim.phase_4.postprocess_progress import (
     Phase4ProgressState,
@@ -31,9 +49,18 @@ from worldsim.phase_4.resume import (
     _phase_4_state_metadata,
     _sweep_orphan_inflight_sentinels,
 )
+from worldsim.placeholders import normalize_site_name
 from worldsim.run_control import pause_aware_map, pause_requested
+from worldsim.seeding import collect_seed_runtime_errors
+from worldsim.state import get_state_dir, save_state
+from worldsim.storage_state_preflight import (
+    StorageStatePreflightError,
+    apply_skip_auth_for_host_bound_storage_states,
+    inspect_storage_state_preflight,
+)
+from worldsim.task_reset_cache import TaskResetCache, callable_accepts_keyword
 
-install_context(globals())
+logger = logging.getLogger(__name__)
 
 
 async def run(args: argparse.Namespace) -> int:
