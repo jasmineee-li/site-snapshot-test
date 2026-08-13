@@ -8,6 +8,7 @@ from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
 
 install_context(globals())
 
+
 async def _preflight_host_messages_api(*, sandbox_model: str) -> tuple[bool, str | None]:
     """Probe the host-side Anthropic Messages API after local validation passes.
 
@@ -27,6 +28,7 @@ async def _preflight_host_messages_api(*, sandbox_model: str) -> tuple[bool, str
         logger.info("Phase 4 preflight OK (model=%s)", sandbox_model)
     return (ok, err)
 
+
 @dataclass(frozen=True)
 class SeedPreflightMismatch:
     call_index: int
@@ -39,15 +41,18 @@ class SeedPreflightMismatch:
     def message(self) -> str:
         return self.detail
 
+
 @dataclass(frozen=True)
 class PreflightReport:
     ok: bool
     mismatches: tuple[SeedPreflightMismatch, ...]
 
+
 @dataclass(frozen=True)
 class BaseStateProbeResult:
     ok: bool
     mismatch: SeedPreflightMismatch | None = None
+
 
 def _serialize_preflight_mismatch_records(
     mismatches: tuple[SeedPreflightMismatch, ...],
@@ -62,6 +67,7 @@ def _serialize_preflight_mismatch_records(
         }
         for mismatch in mismatches
     ]
+
 
 def _pvpo_endpoint_preflight_errors(
     instances: list[BenchmarkInstance],
@@ -98,6 +104,7 @@ def _pvpo_endpoint_preflight_errors(
             continue
     return errors
 
+
 def _save_seed_preflight_result(
     *,
     task_dir: Path,
@@ -132,6 +139,7 @@ def _save_seed_preflight_result(
         **extra,
     )
 
+
 async def preflight_adversarial_seed(
     adv_seed: dict[str, Any],
     instance: dict[str, Any],
@@ -159,10 +167,10 @@ async def preflight_adversarial_seed(
         if isinstance(delivery_channel, dict) and isinstance(
             delivery_channel.get("path_template"), str
         ):
-            from worldsim.phase_2 import runner as phase_2_contracts
+            from worldsim.seed_contracts.validation import _validate_finalized_http_seed_contract
 
             try:
-                contract_error = phase_2_contracts._validate_finalized_http_seed_contract(
+                contract_error = _validate_finalized_http_seed_contract(
                     adv_seed,
                     delivery_channel,
                     sites=task.get("sites"),
@@ -196,6 +204,7 @@ async def preflight_adversarial_seed(
             return PreflightReport(ok=False, mismatches=(base_state.mismatch,))
     return PreflightReport(ok=True, mismatches=())
 
+
 def _preflight_mismatch_from_editor_error(error: dict[str, Any]) -> SeedPreflightMismatch:
     return SeedPreflightMismatch(
         call_index=int(error.get("call_index", -1)),
@@ -204,6 +213,7 @@ def _preflight_mismatch_from_editor_error(error: dict[str, Any]) -> SeedPrefligh
         kind=str(error.get("kind", "editor_error")).strip() or "editor_error",
         detail=str(error.get("detail", "editor preflight failed")),
     )
+
 
 def _probe_seed_base_state_for_task_targets(
     tasks: list[dict[str, Any]],
@@ -243,6 +253,7 @@ def _probe_seed_base_state_for_task_targets(
         if not result.ok and result.mismatch is not None:
             errors.append(result.mismatch.message)
     return errors
+
 
 def _probe_seed_base_state(
     instance: dict[str, Any],
@@ -303,6 +314,7 @@ def _probe_seed_base_state(
         cache[cache_key] = result
     return result
 
+
 def _probe_seed_cache_parts(
     instance: dict[str, Any],
     *,
@@ -311,6 +323,7 @@ def _probe_seed_cache_parts(
     site_name = str(instance.get("site_name", "")).strip().lower()
     site_url = str(instance.get("site_url", "")).rstrip("/")
     return site_name, site_url, _probe_seed_cache_key(instance, benchmark=benchmark)
+
 
 def _probe_seed_cache_key(
     instance: dict[str, Any],

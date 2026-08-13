@@ -269,11 +269,6 @@ async def _run_phase_2(mode: str, state_dir: Path) -> int:
 
     _configure_phase_2(state_dir)
 
-    async def fake_preflight():
-        return None
-
-    phase_2_injections.preflight_sandbox_environment = fake_preflight
-
     async def fake_generate(
         site_name, site_tasks, all_site_tasks=None, profile_path=None, label=None, **kwargs
     ):

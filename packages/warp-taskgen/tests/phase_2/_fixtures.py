@@ -10,7 +10,6 @@ from typing import Any
 import pytest
 
 from worldsim.phase_2 import generation
-from worldsim.phase_2 import runner as phase_2_injections
 from worldsim.phase_2 import runner_api
 from worldsim.phase_2 import plan_validation
 from worldsim.phase_2.exposure_contract import build_exposure_contract

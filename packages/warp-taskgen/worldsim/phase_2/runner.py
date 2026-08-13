@@ -1,20 +1,48 @@
 """Phase 2 runner behavior."""
-# ruff: noqa: F821,E402
 
 from __future__ import annotations
 
+import argparse
+import asyncio
+import json
+import logging
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
+
+from worldsim.atomic_io import write_json_atomic
+from worldsim.benchmark_capabilities import get_benchmark_capabilities
+from worldsim.cost_tracker import tracker as cost_tracker
+from worldsim.phase_2 import generation as _generation
 from worldsim.phase_2 import reuse as _reuse
 from worldsim.phase_2 import shards as _shards
-from worldsim.phase_2._context import install_context
+from worldsim.phase_2 import target_inputs as _target_inputs
+from worldsim.phase_2.exposure_contract import exposure_contract_signature
+from worldsim.phase_2.output import _merge_preserving_unfiltered_sites
 from worldsim.phase_2.pause_control import run_planning_shards
+from worldsim.phase_2.phase_2c import stage as _phase_2c_stage
+from worldsim.phase_2.phase_2c.config import _infer_task_records_benchmark
 from worldsim.phase_2.planning_types import SiteInjectionResult
 from worldsim.phase_2.text_fill.checkpoint_runner import (
     fill_plans_with_checkpoints,
     validate_unique_text_fill_task_ids,
 )
+from worldsim.phase_2.text_fill.constants import (
+    DEFAULT_TEXT_FILL_CONCURRENCY as _DEFAULT_TEXT_FILL_CONCURRENCY,
+)
+from worldsim.phase_2.text_fill.constants import (
+    DEFAULT_TEXT_FILL_MODEL as _DEFAULT_TEXT_FILL_MODEL,
+)
+from worldsim.phase_2.text_fill.constants import (
+    DEFAULT_TEXTS_PER_PLAN as _DEFAULT_TEXTS_PER_PLAN,
+)
+from worldsim.phase_2.text_fill.service import fill_texts_for_tasks
 from worldsim.run_definition import define_run
+from worldsim.state import get_state_dir, load_state, save_state
 
-install_context(globals())
+logger = logging.getLogger(__name__)
+TASKS_PER_SHARD = 20
+DEFAULT_PHASE_2A_SHARD_CONCURRENCY = 250
 
 
 def _filter_tasks_by_origin(
@@ -105,10 +133,10 @@ async def run(args: argparse.Namespace) -> int:
     state_dir = get_state_dir()
     output_dir = state_dir / "phase_2"
     sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
-    text_fill_model = getattr(args, "phase_2_text_model", None) or DEFAULT_TEXT_FILL_MODEL
-    texts_per_plan = getattr(args, "phase_2b_texts_per_plan", None) or DEFAULT_TEXTS_PER_PLAN
+    text_fill_model = getattr(args, "phase_2_text_model", None) or _DEFAULT_TEXT_FILL_MODEL
+    texts_per_plan = getattr(args, "phase_2b_texts_per_plan", None) or _DEFAULT_TEXTS_PER_PLAN
     text_fill_concurrency = (
-        getattr(args, "phase_2_text_fill_concurrency", None) or DEFAULT_TEXT_FILL_CONCURRENCY
+        getattr(args, "phase_2_text_fill_concurrency", None) or _DEFAULT_TEXT_FILL_CONCURRENCY
     )
     phase_2a_action_policy = getattr(args, "phase_2a_action_policy", None)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
@@ -643,22 +671,3 @@ async def run(args: argparse.Namespace) -> int:
         output_path,
     )
     return 0
-
-
-# Import sibling domains after defining run(), then link the remaining
-# compatibility surfaces so the runner retains its historical imports while
-# generation owns its helpers explicitly.
-import sys as _sys
-
-from worldsim.phase_2 import generation as _generation
-from worldsim.phase_2 import target_inputs as _target_inputs
-from worldsim.phase_2._context import link_modules as _link_modules
-from worldsim.phase_2.phase_2c import stage as _phase_2c_stage
-
-_link_modules(
-    [
-        _sys.modules[__name__],
-    ]
-)
-
-__all__ = [name for name in globals() if not name.startswith("__")]
