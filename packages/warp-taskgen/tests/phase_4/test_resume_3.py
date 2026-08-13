@@ -499,14 +499,14 @@ async def test_placement_fix_resume_reuses_pending_iteration_result(monkeypatch,
             return None
 
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_placement_loop,
         "run_placement_api",
         lambda *args, **kwargs: (_ for _ in ()).throw(
             AssertionError("placement API should not rerun for pending checkpoint")
         ),
     )
-    monkeypatch.setattr(phase_4_adversarial, "task_lock", lambda _task: _FakeLock())
-    monkeypatch.setattr(phase_4_adversarial, "bind_task_to_instance", lambda task, *_: task)
+    monkeypatch.setattr(phase_4_placement_loop, "task_lock", lambda _task: _FakeLock())
+    monkeypatch.setattr(phase_4_placement_loop, "bind_task_to_instance", lambda task, *_: task)
 
     result = await phase_4_placement_loop._run_placement_fix_loop(
         task=task,
@@ -566,7 +566,7 @@ async def test_placement_fix_resume_reuses_completed_checkpoint(monkeypatch, tmp
         reset_endpoint = None
 
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_placement_loop,
         "run_placement_api",
         lambda *args, **kwargs: (_ for _ in ()).throw(
             AssertionError("completed checkpoint should short-circuit placement loop")

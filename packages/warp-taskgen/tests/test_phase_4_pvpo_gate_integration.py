@@ -18,7 +18,7 @@ from typing import Any
 
 import pytest
 
-from worldsim.phase_4 import runner as phase_4_adversarial
+from worldsim.phase_4 import placement_loop as phase_4_placement_loop
 from worldsim.phase_4.encounter_detection import EncounterResult
 
 
@@ -136,13 +136,13 @@ async def test_gate_miss_nulls_all_metrics_skips_judges(monkeypatch, tmp_path):
     async def assert_vea_not_called(*args, **kwargs):
         raise AssertionError("VEA must not run on gate miss")
 
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", assert_tp_not_called)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_placement_loop, "run_transcript_purpose_api", assert_tp_not_called)
     monkeypatch.setattr(
-        phase_4_adversarial, "run_verbalized_eval_awareness_api", assert_vea_not_called
+        phase_4_placement_loop, "run_verbalized_eval_awareness_api", assert_vea_not_called
     )
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
     )
 
@@ -232,11 +232,11 @@ async def test_gate_encountered_fans_out_both_metrics(monkeypatch, tmp_path):
             ),
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", fake_tp)
-    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", fake_vea)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_placement_loop, "run_transcript_purpose_api", fake_tp)
+    monkeypatch.setattr(phase_4_placement_loop, "run_verbalized_eval_awareness_api", fake_vea)
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
     )
 
@@ -275,11 +275,11 @@ async def test_transcript_purpose_failure_does_not_block_vea(monkeypatch, tmp_pa
     async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
         return _vea_real_payload(tmp_path)
 
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", failing_tp)
-    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", fake_vea)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_placement_loop, "run_transcript_purpose_api", failing_tp)
+    monkeypatch.setattr(phase_4_placement_loop, "run_verbalized_eval_awareness_api", fake_vea)
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
     )
 
@@ -312,11 +312,11 @@ async def test_vea_failure_does_not_block_transcript_purpose(monkeypatch, tmp_pa
     async def failing_vea(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
         raise RuntimeError("VEA crashed")
 
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", fake_tp)
-    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", failing_vea)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_placement_loop, "run_transcript_purpose_api", fake_tp)
+    monkeypatch.setattr(phase_4_placement_loop, "run_verbalized_eval_awareness_api", failing_vea)
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
     )
 
@@ -340,11 +340,11 @@ async def test_raised_transcript_purpose_still_yields_full_null_schema(monkeypat
     async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
         return _vea_real_payload(tmp_path)
 
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", failing_tp)
-    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", fake_vea)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_placement_loop, "run_transcript_purpose_api", failing_tp)
+    monkeypatch.setattr(phase_4_placement_loop, "run_verbalized_eval_awareness_api", fake_vea)
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
     )
 
@@ -387,13 +387,13 @@ async def test_partial_trajectory_skips_both_stage_2_judges(monkeypatch, tmp_pat
     async def assert_vea_not_called(*args, **kwargs):
         raise AssertionError("VEA must not run on partial trajectory")
 
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", assert_tp_not_called)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_placement_loop, "run_transcript_purpose_api", assert_tp_not_called)
     monkeypatch.setattr(
-        phase_4_adversarial, "run_verbalized_eval_awareness_api", assert_vea_not_called
+        phase_4_placement_loop, "run_verbalized_eval_awareness_api", assert_vea_not_called
     )
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
     )
 
@@ -415,13 +415,13 @@ async def test_missing_history_skips_both_stage_2_judges(monkeypatch, tmp_path):
     async def assert_vea_not_called(*args, **kwargs):
         raise AssertionError("VEA must not run without history.json")
 
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", assert_tp_not_called)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_placement_loop, "run_transcript_purpose_api", assert_tp_not_called)
     monkeypatch.setattr(
-        phase_4_adversarial, "run_verbalized_eval_awareness_api", assert_vea_not_called
+        phase_4_placement_loop, "run_verbalized_eval_awareness_api", assert_vea_not_called
     )
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
     )
 
@@ -445,13 +445,13 @@ async def test_reference_screenshot_rechecked_before_stage_2(monkeypatch, tmp_pa
         raise AssertionError("VEA must not run after screenshot loss")
 
     screenshot.unlink()
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", assert_tp_not_called)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_placement_loop, "run_transcript_purpose_api", assert_tp_not_called)
     monkeypatch.setattr(
-        phase_4_adversarial, "run_verbalized_eval_awareness_api", assert_vea_not_called
+        phase_4_placement_loop, "run_verbalized_eval_awareness_api", assert_vea_not_called
     )
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
     )
 

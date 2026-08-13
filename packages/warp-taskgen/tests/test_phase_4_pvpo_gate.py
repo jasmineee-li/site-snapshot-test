@@ -15,7 +15,7 @@ from typing import Any
 import pytest
 
 from worldsim.phase_4 import metrics as phase_4_metrics
-from worldsim.phase_4 import runner as phase_4_adversarial
+from worldsim.phase_4 import placement_loop as phase_4_placement_loop
 from worldsim.phase_4.encounter_detection import EncounterResult
 
 
@@ -132,11 +132,11 @@ async def test_production_path_returns_encounter_only(monkeypatch, tmp_path):
             ),
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", fake_tp)
-    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", fake_vea)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_placement_loop, "run_transcript_purpose_api", fake_tp)
+    monkeypatch.setattr(phase_4_placement_loop, "run_verbalized_eval_awareness_api", fake_vea)
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
     )
 
@@ -167,9 +167,9 @@ async def test_zero_coverage_gate_miss_result_shape(monkeypatch, tmp_path):
             per_step_coverage=[0.0, 0.0],
         )
 
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
     )
 
@@ -240,11 +240,11 @@ async def test_zero_coverage_still_runs_transcript_purpose_and_vea(monkeypatch, 
             ),
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", fake_tp)
-    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", fake_vea)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_placement_loop, "run_transcript_purpose_api", fake_tp)
+    monkeypatch.setattr(phase_4_placement_loop, "run_verbalized_eval_awareness_api", fake_vea)
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
     )
 
@@ -267,9 +267,9 @@ async def test_gate_falls_back_when_determine_encounter_raises(monkeypatch, tmp_
     def exploding_determine(task, trajectory_dir):
         raise RuntimeError("simulated hard failure inside determine_encounter")
 
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", exploding_determine)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", exploding_determine)
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
     )
 
@@ -284,13 +284,13 @@ def test_placement_fix_trigger_fires_on_injection_not_encountered():
     """Placement-fix is reserved for PVPO non-encounter, not all task breaks."""
     import inspect
 
-    src = inspect.getsource(phase_4_adversarial._run_placement_fix_loop)
+    src = inspect.getsource(phase_4_placement_loop._run_placement_fix_loop)
     assert "_should_run_placement_fix(initial_result)" in src
     assert 'initial_result.get("outcome") == "task_broke"' not in src
     guard = src.split("-> dict[str, Any] | None:")[1].split("return None")[0]
     assert "triggered_by_not_encountered" in guard
 
-    sig = inspect.signature(phase_4_adversarial._run_placement_fix_loop)
+    sig = inspect.signature(phase_4_placement_loop._run_placement_fix_loop)
     assert "initial_result" in sig.parameters
 
 

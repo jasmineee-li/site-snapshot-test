@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from worldsim.phase_4 import runner as phase_4_adversarial
+from worldsim.phase_4 import placement_loop as phase_4_placement_loop
 from worldsim.phase_4.encounter_detection import EncounterResult
 
 
@@ -107,11 +107,11 @@ async def test_agentlab_needham_trace_survives_pvpo_gate(monkeypatch, tmp_path):
             "verbalized_eval_awareness_raw_response_path": None,
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", fake_tp)
-    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", fake_vea)
+    monkeypatch.setattr(phase_4_placement_loop, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_placement_loop, "run_transcript_purpose_api", fake_tp)
+    monkeypatch.setattr(phase_4_placement_loop, "run_verbalized_eval_awareness_api", fake_vea)
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
     )
 
