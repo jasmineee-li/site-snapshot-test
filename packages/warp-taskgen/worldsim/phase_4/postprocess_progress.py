@@ -31,11 +31,17 @@ from pathlib import Path
 from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
-from worldsim.phase_4._context import (
-    _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
-    _normalize_eval_awareness_max_iterations,
-    _normalize_phase_4_variant_system,
-    _phase_4_variant_budget_shape,
+from worldsim.phase_4.options import (
+    DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET as _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
+)
+from worldsim.phase_4.options import (
+    normalize_eval_awareness_max_iterations as _normalize_eval_awareness_max_iterations,
+)
+from worldsim.phase_4.options import (
+    normalize_phase_4_variant_system as _normalize_phase_4_variant_system,
+)
+from worldsim.phase_4.options import (
+    phase_4_variant_budget_shape as _phase_4_variant_budget_shape,
 )
 from worldsim.phase_4.variant_accounting import semantic_variant_accounting
 

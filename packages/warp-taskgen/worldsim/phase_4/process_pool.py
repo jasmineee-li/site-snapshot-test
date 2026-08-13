@@ -23,7 +23,9 @@ from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
 from worldsim.config import BenchmarkConfig, BenchmarkInstance, load_benchmark_config
-from worldsim.phase_4._context import _normalize_phase_4_variant_system
+from worldsim.phase_4.options import (
+    normalize_phase_4_variant_system as _normalize_phase_4_variant_system,
+)
 from worldsim.phase_4.postprocess_progress import write_phase_4_progress
 from worldsim.phase_4.process_pool_control import (
     ProcessPoolArgs,

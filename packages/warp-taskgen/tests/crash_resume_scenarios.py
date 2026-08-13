@@ -649,7 +649,6 @@ async def _run_phase_4(
 
     phase_4_strategy_variation.run_judge = fake_run_judge
     phase_4_strategy_variation.generate_variant = fake_generate_variant
-    phase_4_adversarial._probe_magento_base_urls = lambda config: []
     if not real_variant_eval:
         phase_4_strategy_variation._evaluate_variant = fake_evaluate_variant
         phase_4_variant_eval._evaluate_variant = fake_evaluate_variant

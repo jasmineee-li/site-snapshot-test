@@ -55,6 +55,71 @@ def test_runner_does_not_link_explicit_leaf_modules() -> None:
         assert f"phase_4 import {name} as _{name}" not in source
 
 
+def test_phase_4_linked_context_is_deleted() -> None:
+    """Phase 4 modules must not inherit globals from a linked context."""
+    assert not (PHASE_4_ROOT / "_context.py").exists()
+    for path in PHASE_4_ROOT.glob("*.py"):
+        source = path.read_text()
+        assert "worldsim.phase_4._context" not in source
+        assert "install_context" not in source
+        assert "link_modules" not in source
+    runner = _source("runner")
+    assert "ruff: noqa: F821" not in runner
+    assert "ruff: noqa: E402" not in runner
+
+
+def test_runner_has_explicit_orchestration_dependencies() -> None:
+    """Runner seams remain direct imports owned by their canonical modules."""
+    source = _source("runner")
+    for dependency in (
+        "from worldsim.agent_config import DEFAULT_MODEL, make_agent_factory, run_tasks_by_site",
+        "from worldsim.agent_runtime import RUNNER_AGENTLAB, RUNNER_BROWSER_USE",
+        "from worldsim.auth_tokens import acquire_tokens_for_instances",
+        "from worldsim.benchmark_capabilities import get_benchmark_capabilities, infer_benchmark_name",
+        "from worldsim.config import load_benchmark_config",
+        "from worldsim.modal_sandbox import preflight_auth_check",
+        "from worldsim.seeding import collect_seed_runtime_errors",
+        "from worldsim.state import get_state_dir, save_state",
+        "from worldsim.storage_state_preflight import (",
+        "from worldsim.task_reset_cache import TaskResetCache, callable_accepts_keyword",
+    ):
+        assert dependency in source
+    assert "logger = logging.getLogger(__name__)" in source
+    assert "install_context" not in source
+    assert "link_modules" not in source
+
+
+def test_progress_and_process_pool_import_options_directly() -> None:
+    for name in ("postprocess_progress", "process_pool"):
+        source = _source(name)
+        assert "from worldsim.phase_4.options import" in source
+        assert "worldsim.phase_4._context" not in source
+
+
+def test_phase_4_context_consumers_import_in_either_order() -> None:
+    """Deleting the context must not make imports order-dependent."""
+    package_root = str(PACKAGE_ROOT)
+    for name, attribute in (
+        ("postprocess_progress", "Phase4ProgressState"),
+        ("process_pool", "run_process_pool"),
+    ):
+        for statement in (
+            f"from worldsim.phase_4 import {name}, runner; assert {name}.{attribute}; assert runner.run",
+            f"from worldsim.phase_4 import runner, {name}; assert {name}.{attribute}; assert runner.run",
+        ):
+            subprocess.run(
+                [sys.executable, "-c", statement],
+                check=True,
+                cwd=PACKAGE_ROOT,
+                env={"PYTHONPATH": package_root},
+            )
+
+
+def test_stale_magento_runner_assignment_is_deleted() -> None:
+    source = (PACKAGE_ROOT / "tests" / "crash_resume_scenarios.py").read_text()
+    assert "phase_4_adversarial._probe_magento_base_urls" not in source
+
+
 def test_results_module_has_explicit_dependencies() -> None:
     source = _source("results")
     assert "install_context" not in source
