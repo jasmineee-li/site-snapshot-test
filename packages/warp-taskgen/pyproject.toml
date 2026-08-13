@@ -1,6 +1,6 @@
 [project]
 name = "warp-taskgen"
-version = "0.1.0"
+version = "0.1.1"
 description = "WARP task generation pipeline for browser-agent IPI benchmark construction"
 requires-python = ">=3.12"
 readme = "README.md"

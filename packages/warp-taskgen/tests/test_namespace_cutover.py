@@ -32,6 +32,15 @@ def test_build_metadata_packages_only_the_canonical_namespace() -> None:
     assert "/worldsim" not in metadata["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
 
 
+def test_distribution_and_package_versions_match_upgrade_release() -> None:
+    from warp_taskgen import __version__
+
+    metadata = tomllib.loads((PACKAGE_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+
+    assert metadata["project"]["version"] == "0.1.1"
+    assert __version__ == "0.1.1"
+
+
 def test_retired_core_namespace_fails_closed() -> None:
     importlib.invalidate_caches()
 
