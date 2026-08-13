@@ -13,6 +13,7 @@ LEAF_MODULES = ("payload_text", "metrics", "admission", "preflight", "execution_
 EXECUTION_MODULE = "execution"
 RESUME_MODULE = "resume"
 VARIANT_EVAL_MODULE = "variant_eval"
+PLACEMENT_LOOP_MODULE = "placement_loop"
 
 
 def _source(name: str) -> str:
@@ -265,6 +266,84 @@ def test_variant_eval_imports_in_either_order() -> None:
             cwd=PACKAGE_ROOT,
             env={"PYTHONPATH": package_root},
         )
+
+
+def test_placement_loop_owns_explicit_dependencies_and_runner_does_not_link_it() -> None:
+    source = _source(PLACEMENT_LOOP_MODULE)
+    runner = _source("runner")
+    assert "install_context" not in source
+    assert "ruff: noqa: F821" not in source
+    assert "from worldsim.phase_4._context" not in source
+    assert "from worldsim.phase_4 import placement_loop as _placement_loop" not in runner
+    assert "        _placement_loop,\n" not in runner
+    for module in (
+        "aer_trajectory_extract",
+        "encounter_detection",
+        "needham_trace",
+        "placement_api",
+        "transcript_purpose_api",
+        "verbalized_eval_awareness_api",
+        "agent_runtime",
+        "config",
+        "site_lock",
+        "task_paths",
+    ):
+        assert f"worldsim.{module}" in source or f"worldsim.phase_4.{module}" in source
+    assert "from worldsim.phase_4.resume import (" in source
+    assert "from worldsim.phase_4.variant_eval import" in source
+
+
+def test_placement_consumers_import_placement_owner_directly() -> None:
+    execution = _source("execution")
+    postprocess = _source("postprocess")
+    assert "from worldsim.phase_4.placement_loop import _run_pvpo_gate" in execution
+    assert "from worldsim.phase_4.placement_loop import _run_placement_fix_loop" in postprocess
+    for source in (execution, postprocess):
+        assert "phase_4_adversarial._run_pvpo_gate" not in source
+        assert "phase_4_adversarial._run_placement_fix_loop" not in source
+
+
+def test_placement_loop_imports_in_either_order() -> None:
+    package_root = str(PACKAGE_ROOT)
+    for statement in (
+        "from worldsim.phase_4 import placement_loop, runner; "
+        "assert placement_loop._run_pvpo_gate; assert runner.run",
+        "from worldsim.phase_4 import runner, placement_loop; "
+        "assert placement_loop._run_pvpo_gate; assert runner.run",
+        "from worldsim.phase_4 import placement_loop, execution; "
+        "assert placement_loop._run_pvpo_gate; assert execution.run_adversarial_task",
+        "from worldsim.phase_4 import execution, placement_loop; "
+        "assert placement_loop._run_pvpo_gate; assert execution.run_adversarial_task",
+    ):
+        subprocess.run(
+            [sys.executable, "-c", statement],
+            check=True,
+            cwd=PACKAGE_ROOT,
+            env={"PYTHONPATH": package_root},
+        )
+
+
+def test_placement_tests_do_not_patch_runner_exports() -> None:
+    test_root = PACKAGE_ROOT / "tests"
+    placement_names = (
+        "_run_pvpo_gate",
+        "_run_placement_fix_loop",
+        "determine_encounter",
+        "run_transcript_purpose_api",
+        "run_verbalized_eval_awareness_api",
+        "run_placement_api",
+    )
+    for path in (
+        *test_root.glob("test_*.py"),
+        *test_root.glob("phase_4/test_*.py"),
+        test_root / "crash_resume_scenarios.py",
+    ):
+        if path.name == "test_leaf_context_boundary.py":
+            continue
+        source = path.read_text()
+        for name in placement_names:
+            assert f"phase_4_adversarial.{name}" not in source
+            assert f'setattr(phase_4_adversarial, "{name}"' not in source
 
 
 def test_resume_imports_in_either_order() -> None:

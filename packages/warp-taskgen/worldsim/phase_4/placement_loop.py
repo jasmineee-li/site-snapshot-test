@@ -1,16 +1,35 @@
 """Phase 4 placement loop behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_4._context import install_context
+import asyncio
+import logging
+import shutil
+from collections.abc import Callable, Mapping
+from pathlib import Path
+from typing import Any
+
+from worldsim.agent_config import bind_task_to_instance
+from worldsim.agent_runtime import AgentRunner
+from worldsim.config import BenchmarkInstance
+from worldsim.phase_4.aer_trajectory_extract import (
+    extract_task_intent,
+    extract_trajectory,
+)
+from worldsim.phase_4.encounter_detection import EncounterResult, determine_encounter
 from worldsim.phase_4.metrics import (
     _gate_miss_payload,
     _null_metric_keys,
     _observational_metrics_unavailable,
     _trajectory_available_for_observational_metrics,
 )
+from worldsim.phase_4.needham_trace import (
+    format_trace_xml,
+    load_trace_xml,
+    write_trace_artifacts,
+)
 from worldsim.phase_4.payload_text import _adversarial_seed_equivalent
+from worldsim.phase_4.placement_api import run_placement_api
 from worldsim.phase_4.resume import (
     _CHECKPOINT_FINGERPRINT_KEY,
     PLACEMENT_FIX_MAX_ITERATIONS,
@@ -20,9 +39,23 @@ from worldsim.phase_4.resume import (
     _placement_iteration_result_fingerprint,
     _write_placement_fix_checkpoint,
 )
+from worldsim.phase_4.transcript_purpose_api import (
+    _failure_result as _transcript_purpose_failure_result,
+)
+from worldsim.phase_4.transcript_purpose_api import (
+    run_transcript_purpose_api,
+)
 from worldsim.phase_4.variant_eval import _merge_variant_task, _rerun_adversarial_task
+from worldsim.phase_4.verbalized_eval_awareness_api import (
+    _failure_result as _vea_failure_result,
+)
+from worldsim.phase_4.verbalized_eval_awareness_api import (
+    run_verbalized_eval_awareness_api,
+)
+from worldsim.site_lock import task_lock
+from worldsim.task_paths import safe_task_path_component
 
-install_context(globals())
+logger = logging.getLogger(__name__)
 
 
 async def _run_pvpo_gate(
