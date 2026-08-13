@@ -1,7 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
-from worldsim.resume_metadata import instances_identity
+from warp_taskgen.resume_metadata import instances_identity
 
 
 @pytest.mark.asyncio

@@ -101,9 +101,7 @@ def _selected_tier3_task() -> dict:
         "origin": "new_task",
         "target_surface_id": "issue.description",
         "editor_method": "create_issue_description",
-        "required_tokens": [
-            {"kind": "url", "value": "https://attacker.invalid/tier3"}
-        ],
+        "required_tokens": [{"kind": "url", "value": "https://attacker.invalid/tier3"}],
         "exposure_contract": {
             "site": "gitlab",
             "target_surface_id": "issue.description",

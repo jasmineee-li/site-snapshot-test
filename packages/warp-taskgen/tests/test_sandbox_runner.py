@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from worldsim import _sandbox_runner
+from warp_taskgen import _sandbox_runner
 
 
 def test_rate_limit_event_payload_includes_structured_fields():

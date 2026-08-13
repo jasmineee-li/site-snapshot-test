@@ -1,13 +1,13 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
-from worldsim.phase_2 import output as phase_2_output
-from worldsim.phase_2.phase_2c import stage as phase_2_stage
-from worldsim.phase_2.phase_2c import artifacts as phase_2c_artifacts
-from worldsim.phase_2.phase_2c import config as phase_2c_config
-from worldsim.phase_2.phase_2c.types import FeasibilityReport
-from worldsim.phase_2 import eligibility
-from worldsim.phase_2 import target_stage
+from warp_taskgen.phase_2 import output as phase_2_output
+from warp_taskgen.phase_2.phase_2c import stage as phase_2_stage
+from warp_taskgen.phase_2.phase_2c import artifacts as phase_2c_artifacts
+from warp_taskgen.phase_2.phase_2c import config as phase_2c_config
+from warp_taskgen.phase_2.phase_2c.types import FeasibilityReport
+from warp_taskgen.phase_2 import eligibility
+from warp_taskgen.phase_2 import target_stage
 
 
 def test_merge_immutable_fields_redacts_agent_context_secrets():

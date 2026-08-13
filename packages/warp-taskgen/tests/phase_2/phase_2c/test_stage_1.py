@@ -1,11 +1,11 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from .._fixtures import *  # noqa: F403,F401
-from worldsim.phase_2.phase_2c import artifacts as phase_2c_artifacts
-from worldsim.phase_2.phase_2c import stage as phase_2_stage
-from worldsim.phase_2 import generation
-from worldsim.phase_2 import runner as phase_2_injections
-from worldsim.phase_2.planning_types import SiteInjectionResult
+from warp_taskgen.phase_2.phase_2c import artifacts as phase_2c_artifacts
+from warp_taskgen.phase_2.phase_2c import stage as phase_2_stage
+from warp_taskgen.phase_2 import generation
+from warp_taskgen.phase_2 import runner as phase_2_injections
+from warp_taskgen.phase_2.planning_types import SiteInjectionResult
 
 
 def test_phase_2c_artifact_writer_recomputes_per_site_after_partial_merge(tmp_path):

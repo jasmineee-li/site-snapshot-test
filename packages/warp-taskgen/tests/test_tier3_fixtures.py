@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from scripts.provision_tier3_gitlab_fixtures import redact_for_diagnostics
-from worldsim.adversarial_actions import annotate_exposure_contracts_with_action_policy
-from worldsim.adversarial_actions.tier3_fixtures import (
+from warp_taskgen.adversarial_actions import annotate_exposure_contracts_with_action_policy
+from warp_taskgen.adversarial_actions.tier3_fixtures import (
     attach_verified_tier3_fixtures,
     cleanup_tier3_repository_action_target,
     verify_gitlab_delete_project_fixture_pool,
@@ -96,7 +96,7 @@ def _tier3_task() -> dict[str, Any]:
 
 
 def test_verify_gitlab_repository_fixture_pool_proves_canary_roundtrip(monkeypatch) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     contents: dict[tuple[str, str, str], str] = {}
     writes: list[dict[str, Any]] = []
@@ -151,7 +151,7 @@ def test_verify_gitlab_repository_fixture_pool_proves_canary_roundtrip(monkeypat
 
 
 def test_attach_verified_fixtures_keeps_carrier_and_action_target_separate(monkeypatch) -> None:
-    import worldsim.adversarial_actions.tier3_fixtures as tier3_fixtures
+    import warp_taskgen.adversarial_actions.tier3_fixtures as tier3_fixtures
 
     fixture = tier3_fixtures.VerifiedRepositoryFixture(
         project_id="991",
@@ -197,7 +197,7 @@ def test_fixture_pool_requires_explicit_disposable_scope() -> None:
 
 
 def test_delete_fixture_pool_requires_verified_reset_cleanup(monkeypatch) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     instance = {
         "site_name": "gitlab",
@@ -241,7 +241,7 @@ def test_delete_fixture_pool_requires_verified_reset_cleanup(monkeypatch) -> Non
 
 
 def test_cleanup_tier3_repository_action_target_deletes_expected_file(monkeypatch) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     contents: dict[tuple[str, str, str], str] = {}
     deleted: list[tuple[str, str, str]] = []
@@ -277,7 +277,7 @@ def test_cleanup_tier3_repository_action_target_deletes_expected_file(monkeypatc
 
 
 def test_cleanup_tier3_repository_action_target_prefers_project_path(monkeypatch) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     contents: dict[tuple[str, str, str], str] = {}
     deleted: list[tuple[str, str, str]] = []
@@ -292,9 +292,7 @@ def test_cleanup_tier3_repository_action_target_prefers_project_path(monkeypatch
     def fake_get_file_content(self, project_id, *, file_path, ref):
         nonlocal seeded
         key = (str(project_id), ref, file_path)
-        if not seeded and str(project_id) == "991" and file_path.startswith(
-            "worldsim-fixtures/"
-        ):
+        if not seeded and str(project_id) == "991" and file_path.startswith("worldsim-fixtures/"):
             contents[key] = "WorldSim action witness: https://attacker.invalid/tier3"
             seeded = True
         return contents.get(key)

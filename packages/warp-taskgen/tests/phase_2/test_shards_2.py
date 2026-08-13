@@ -1,7 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
-from worldsim.phase_2 import shards
+from warp_taskgen.phase_2 import shards
 
 
 class TestRecoverOrphanedShards:
@@ -99,8 +99,8 @@ class TestRecoverOrphanedShards:
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
     ) -> None:
-        from worldsim.phase_2.pause_control import write_planning_shard_checkpoint
-        from worldsim.run_transition import resolve_run_request
+        from warp_taskgen.phase_2.pause_control import write_planning_shard_checkpoint
+        from warp_taskgen.run_transition import resolve_run_request
 
         monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
         definition = resolve_run_request(
@@ -154,9 +154,9 @@ class TestRecoverOrphanedShards:
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
     ) -> None:
-        from worldsim.phase_2.pause_control import write_planning_shard_checkpoint
-        from worldsim.phase_2.shards import _load_reusable_planning_shard
-        from worldsim.run_transition import resolve_run_request
+        from warp_taskgen.phase_2.pause_control import write_planning_shard_checkpoint
+        from warp_taskgen.phase_2.shards import _load_reusable_planning_shard
+        from warp_taskgen.run_transition import resolve_run_request
 
         monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
         definition = resolve_run_request(
@@ -484,7 +484,7 @@ class TestRecoverOrphanedShards:
         (shards_dir / "gitlab-shard-0.json").write_text(json.dumps([valid]))
         (shards_dir / "gitlab-shard-1.json").write_text(json.dumps([invalid]))
 
-        with caplog.at_level("WARNING", logger="worldsim.phase_2.shards"):
+        with caplog.at_level("WARNING", logger="warp_taskgen.phase_2.shards"):
             merged, recovered = shards._recover_orphaned_shards(
                 shards_dir, [], allowed_sites={"gitlab"}
             )
@@ -513,7 +513,7 @@ class TestRecoverOrphanedShards:
         (shards_dir / "gitlab-shard-0.json").write_text(json.dumps([bad]))
         benign_by_id = {"benign-bad": {"id": "benign-bad", "site": "gitlab", "sites": ["gitlab"]}}
 
-        with caplog.at_level("WARNING", logger="worldsim.phase_2.shards"):
+        with caplog.at_level("WARNING", logger="warp_taskgen.phase_2.shards"):
             merged, recovered = shards._recover_orphaned_shards(
                 shards_dir,
                 [],

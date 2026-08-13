@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import shlex
 
-from worldsim.host_config import load_host_config
+from warp_taskgen.host_config import load_host_config
 
 
 def main() -> int:

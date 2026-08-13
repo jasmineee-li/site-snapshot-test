@@ -1,4 +1,4 @@
-"""Coverage for `worldsim.phase_4.anthropic_client`.
+"""Coverage for `warp_taskgen.phase_4.anthropic_client`.
 
 The three auth paths (OpenRouter / OAuth / API key) each construct
 `AsyncAnthropic` with a different kwarg shape. These tests verify the
@@ -16,7 +16,7 @@ from unittest.mock import MagicMock
 import pytest
 from anthropic import APIStatusError
 
-from worldsim.phase_4 import anthropic_client
+from warp_taskgen.phase_4 import anthropic_client
 
 
 @pytest.fixture(autouse=True)
@@ -380,18 +380,9 @@ def test_temperature_kwargs_preserve_determinism_for_supported_models():
 
 def test_temperature_kwargs_omit_deprecated_opus_47_temperature():
     assert anthropic_client.supports_temperature_parameter("claude-opus-4-7") is False
-    assert (
-        anthropic_client.supports_temperature_parameter("anthropic/claude-opus-4-7")
-        is False
-    )
-    assert (
-        anthropic_client.supports_temperature_parameter("anthropic/claude-opus-4.7")
-        is False
-    )
-    assert (
-        anthropic_client.supports_temperature_parameter("claude-opus-4-7-20260429")
-        is False
-    )
+    assert anthropic_client.supports_temperature_parameter("anthropic/claude-opus-4-7") is False
+    assert anthropic_client.supports_temperature_parameter("anthropic/claude-opus-4.7") is False
+    assert anthropic_client.supports_temperature_parameter("claude-opus-4-7-20260429") is False
     assert anthropic_client.temperature_kwargs_for_model("claude-opus-4-7", 0.0) == {}
 
 
@@ -407,7 +398,7 @@ def test_no_direct_async_anthropic_instantiation_outside_client_module():
     import ast
     import pathlib
 
-    from worldsim import phase_4 as phase_4_pkg
+    from warp_taskgen import phase_4 as phase_4_pkg
 
     phase_4_dir = pathlib.Path(phase_4_pkg.__file__).parent
     violations: list[str] = []

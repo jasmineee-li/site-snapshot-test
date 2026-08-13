@@ -5,9 +5,9 @@ from typing import Any, ClassVar
 
 import pytest
 
-from worldsim import seeding
-from worldsim.editors import EDITOR_REGISTRY, GitlabEditor, RedditEditor
-from worldsim.seeding.site_contracts import (
+from warp_taskgen import seeding
+from warp_taskgen.editors import EDITOR_REGISTRY, GitlabEditor, RedditEditor
+from warp_taskgen.seeding.site_contracts import (
     CreatedResourceFact,
     EditorSeedResult,
     ReadSurfaceFact,

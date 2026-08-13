@@ -4,7 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from worldsim import main as worldsim_main
+from warp_taskgen import main as worldsim_main
 
 
 def test_standalone_preflight_runs_from_package_root(monkeypatch, tmp_path: Path) -> None:

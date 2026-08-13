@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.config import BenchmarkConfig, BenchmarkInstance
-from worldsim.storage_state_preflight import (
+from warp_taskgen.config import BenchmarkConfig, BenchmarkInstance
+from warp_taskgen.storage_state_preflight import (
     _auto_mint_allowed,
     apply_skip_auth_for_host_bound_storage_states,
     ensure_storage_state,
@@ -427,7 +427,7 @@ def test_ensure_storage_state_raises_when_artifact_is_stale_and_auto_mint_disabl
 
 
 def test_storage_state_is_fresh_rejects_old_validator_version(tmp_path: Path) -> None:
-    from worldsim.phases import phase_0d_auth_bootstrap as bootstrap
+    from warp_taskgen.phases import phase_0d_auth_bootstrap as bootstrap
 
     state_path = tmp_path / "gitlab-state.json"
     _write_storage_state(state_path, domain="3.12.221.9")
@@ -445,7 +445,7 @@ def test_ensure_storage_state_auto_mint_reacquires_per_instance_artifact(
 ) -> None:
     import asyncio
 
-    from worldsim.phases import phase_0d_auth_bootstrap as bootstrap
+    from warp_taskgen.phases import phase_0d_auth_bootstrap as bootstrap
 
     state_dir = tmp_path / "logs"
     state_dir.mkdir()
@@ -524,7 +524,7 @@ def test_ensure_storage_state_auto_mints_missing_webarena_artifact(
 ) -> None:
     import asyncio
 
-    from worldsim.phases import phase_0d_auth_bootstrap as bootstrap
+    from warp_taskgen.phases import phase_0d_auth_bootstrap as bootstrap
 
     state_dir = tmp_path / "logs"
     state_dir.mkdir()

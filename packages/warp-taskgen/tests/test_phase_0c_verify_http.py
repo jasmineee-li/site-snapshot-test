@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from worldsim.phase_0c_verify_http import verify_http
+from warp_taskgen.phase_0c_verify_http import verify_http
 
 
 class _Handler(BaseHTTPRequestHandler):

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from worldsim.phase_4.payload_witnesses import (
+from warp_taskgen.phase_4.payload_witnesses import (
     normalize_witness_text,
     payload_witnesses_for_task,
     witness_texts_for_task,

@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.phase_4 import run_judge_api
-from worldsim.phase_4.strategy_catalog import REFUSAL_TRIGGERS
+from warp_taskgen.phase_4 import run_judge_api
+from warp_taskgen.phase_4.strategy_catalog import REFUSAL_TRIGGERS
 
 REPO = Path(__file__).resolve().parents[2]
 TRAJ_DIR = REPO / "logs/phase_4/20260417_190423/adv_shopping_admin_002__placement_2"

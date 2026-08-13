@@ -1,6 +1,6 @@
 import pytest
 
-from worldsim.benchmark_capabilities import (
+from warp_taskgen.benchmark_capabilities import (
     DEFAULT_BENCHMARK_CATALOG,
     BenchmarkCapabilities,
     BenchmarkCatalog,
@@ -9,13 +9,13 @@ from worldsim.benchmark_capabilities import (
     normalize_benchmark_name,
     resolve_evaluator_authority,
 )
-from worldsim.benchmark_contracts import (
+from warp_taskgen.benchmark_contracts import (
     BenchmarkCapabilities as ContractBenchmarkCapabilities,
 )
-from worldsim.benchmark_contracts import (
+from warp_taskgen.benchmark_contracts import (
     BenchmarkCatalog as ContractBenchmarkCatalog,
 )
-from worldsim.phase_2.phase_2c.config import _gate_phase_2c_benchmark
+from warp_taskgen.phase_2.phase_2c.config import _gate_phase_2c_benchmark
 
 
 def test_normalize_benchmark_aliases():

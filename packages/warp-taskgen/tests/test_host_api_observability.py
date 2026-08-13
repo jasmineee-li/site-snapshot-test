@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 from tenacity import RetryError
 
-from worldsim.host_api_observability import (
+from warp_taskgen.host_api_observability import (
     InstructorCallTrace,
     build_instructor_hooks,
     claude_token_pricing,

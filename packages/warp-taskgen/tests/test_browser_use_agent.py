@@ -10,8 +10,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from worldsim import browser_use_agent
-from worldsim.phase_4.pvpo_capture import Rect, StepCapture
+from warp_taskgen import browser_use_agent
+from warp_taskgen.phase_4.pvpo_capture import Rect, StepCapture
 
 
 def test_browser_use_runtime_env_sets_high_concurrency_timeouts(monkeypatch):
@@ -333,7 +333,7 @@ def test_resolve_auth_falls_back_to_shared_when_per_instance_missing(
     _write_storage_state(shared, domain="172.17.0.1")
     (site_root / "completion.json").write_text(json.dumps({"site": "gitlab"}))
 
-    with caplog.at_level(logging.WARNING, logger="worldsim.agent_auth"):
+    with caplog.at_level(logging.WARNING, logger="warp_taskgen.agent_auth"):
         session_kwargs, _deferred = browser_use_agent._resolve_auth(
             {"type": "storage_state", "storage_state": {"path": str(shared)}},
             {"site": "gitlab"},
@@ -395,10 +395,7 @@ def test_rewrite_url_origin_preserves_path_query_and_fragment():
         {"http://localhost:8023": "http://172.17.0.1:8073"},
     )
 
-    assert (
-        rewritten
-        == "http://172.17.0.1:8073/group/project/-/issues/5?sort=created_date#note_1"
-    )
+    assert rewritten == "http://172.17.0.1:8073/group/project/-/issues/5?sort=created_date#note_1"
 
 
 def test_storage_state_origin_aliases_clone_target_auth_state(tmp_path):
@@ -478,9 +475,7 @@ async def test_request_mutator_rewrites_alias_before_applying_bound_origin_heade
 
     continue_request.assert_awaited_once()
     params = continue_request.await_args.args[0]
-    assert params["url"] == (
-        "http://172.17.0.1:8073/byteblaze/dotfiles/-/issues/5?state=opened"
-    )
+    assert params["url"] == ("http://172.17.0.1:8073/byteblaze/dotfiles/-/issues/5?state=opened")
     assert params["headers"] == [
         {"name": "Accept", "value": "text/html"},
         {"name": "X-GitLab-Auto-Login", "value": "alice:pw"},
@@ -539,7 +534,7 @@ async def test_pvpo_callback_warns_once_and_persists_capture_summary(tmp_path, c
         "payload text",
     )
 
-    with caplog.at_level("WARNING", logger="worldsim.browser_use_agent"):
+    with caplog.at_level("WARNING", logger="warp_taskgen.browser_use_agent"):
         await callback(SimpleNamespace(), SimpleNamespace(), 1)
         await callback(SimpleNamespace(), SimpleNamespace(), 2)
 
@@ -593,10 +588,10 @@ async def test_pvpo_callback_writes_artifacts_on_browser_use_success_path(
     inject = AsyncMock()
     viewport = AsyncMock(return_value={"w": 640, "h": 480})
     surface_capture = AsyncMock(return_value=capture)
-    monkeypatch.setattr("worldsim.phase_4.pvpo_browser_config.inject_animation_killer", inject)
-    monkeypatch.setattr("worldsim.phase_4.pvpo_cdp.runtime_evaluate_value", viewport)
+    monkeypatch.setattr("warp_taskgen.phase_4.pvpo_browser_config.inject_animation_killer", inject)
+    monkeypatch.setattr("warp_taskgen.phase_4.pvpo_cdp.runtime_evaluate_value", viewport)
     monkeypatch.setattr(
-        "worldsim.phase_4.pvpo_capture.surface_capture_with_stability", surface_capture
+        "warp_taskgen.phase_4.pvpo_capture.surface_capture_with_stability", surface_capture
     )
 
     callback = browser_use_agent._make_pvpo_step_callback(
@@ -656,10 +651,10 @@ async def test_pvpo_callback_selects_surface_capture_backend(
     inject = AsyncMock()
     viewport = AsyncMock(return_value={"w": 640, "h": 480})
     surface_capture = AsyncMock(return_value=capture)
-    monkeypatch.setattr("worldsim.phase_4.pvpo_browser_config.inject_animation_killer", inject)
-    monkeypatch.setattr("worldsim.phase_4.pvpo_cdp.runtime_evaluate_value", viewport)
+    monkeypatch.setattr("warp_taskgen.phase_4.pvpo_browser_config.inject_animation_killer", inject)
+    monkeypatch.setattr("warp_taskgen.phase_4.pvpo_cdp.runtime_evaluate_value", viewport)
     monkeypatch.setattr(
-        "worldsim.phase_4.pvpo_capture.surface_capture_with_stability", surface_capture
+        "warp_taskgen.phase_4.pvpo_capture.surface_capture_with_stability", surface_capture
     )
 
     callback = browser_use_agent._make_pvpo_step_callback(
@@ -746,9 +741,7 @@ async def test_pvpo_callback_records_curated_witness_metadata(tmp_path):
         "attack_action:1:payload_0",
     ]
     assert summary["payload_witness_kinds"] == ["required_url", "attack_action"]
-    assert summary["payload_witness_lengths"] == [
-        len(witness["text"]) for witness in witnesses
-    ]
+    assert summary["payload_witness_lengths"] == [len(witness["text"]) for witness in witnesses]
 
 
 @pytest.mark.asyncio
@@ -1235,7 +1228,7 @@ def test_record_browser_use_patch_runtime_persists_scroll_counters():
         "pvpo_scroll_js_noops": 1,
         "pvpo_cdp_timeouts": 2,
         "pvpo_cdp_late_completions": 1,
-        }
+    }
 
 
 def test_record_browser_use_patch_runtime_preserves_explicit_timeout_metadata():
@@ -1304,10 +1297,10 @@ async def test_pvpo_callback_adopts_new_task_target(tmp_path, monkeypatch: pytes
     inject = AsyncMock()
     viewport = AsyncMock(return_value={"w": 640, "h": 480})
     surface_capture = AsyncMock(return_value=capture)
-    monkeypatch.setattr("worldsim.phase_4.pvpo_browser_config.inject_animation_killer", inject)
-    monkeypatch.setattr("worldsim.phase_4.pvpo_cdp.runtime_evaluate_value", viewport)
+    monkeypatch.setattr("warp_taskgen.phase_4.pvpo_browser_config.inject_animation_killer", inject)
+    monkeypatch.setattr("warp_taskgen.phase_4.pvpo_cdp.runtime_evaluate_value", viewport)
     monkeypatch.setattr(
-        "worldsim.phase_4.pvpo_capture.surface_capture_with_stability", surface_capture
+        "warp_taskgen.phase_4.pvpo_capture.surface_capture_with_stability", surface_capture
     )
 
     owned_target_ids = {"target-1"}

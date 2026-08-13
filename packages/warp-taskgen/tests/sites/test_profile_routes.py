@@ -4,8 +4,8 @@ from collections.abc import Mapping
 
 import pytest
 
-from worldsim.phases.phase_1_route_contracts import build_task_route_contracts
-from worldsim.sites import (
+from warp_taskgen.phases.phase_1_route_contracts import build_task_route_contracts
+from warp_taskgen.sites import (
     CanonicalRoute,
     GitLabSite,
     RedditSite,
@@ -16,7 +16,7 @@ from worldsim.sites import (
     SurfaceResolution,
     TargetingContext,
 )
-from worldsim.surface_identity import has_surface_mapping
+from warp_taskgen.surface_identity import has_surface_mapping
 
 
 def _profile(site: str, surface_id: str) -> dict[str, object]:

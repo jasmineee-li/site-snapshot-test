@@ -20,9 +20,9 @@ def _task(action_kind: str, *, evidence: dict | None = None) -> dict:
         "contract_bound_generation": {"backend": "contract_bound_api"},
     }
     if evidence is not None:
-        task["contract_bound_generation"][
-            "reddit_seed_comment_visibility_anchor_evidence"
-        ] = evidence
+        task["contract_bound_generation"]["reddit_seed_comment_visibility_anchor_evidence"] = (
+            evidence
+        )
     return task
 
 
@@ -30,9 +30,7 @@ def test_submit_comment_requires_explicit_visibility_gate() -> None:
     report = analyze_phase1_contract_bound_tasks([_task("submit_comment")])
 
     assert report["failed_tasks"] == 1
-    assert report["failures"][0]["failures"] == [
-        "submit_comment_requires_explicit_visibility_gate"
-    ]
+    assert report["failures"][0]["failures"] == ["submit_comment_requires_explicit_visibility_gate"]
 
 
 def test_submit_comment_accepts_empty_carrier_visibility_gate() -> None:

@@ -203,7 +203,7 @@ def test_legacy_import_audit_allows_cutover_tests(tmp_path, monkeypatch) -> None
     monkeypatch.chdir(tmp_path)
     path = tmp_path / "tests" / "consumer.py"
     path.parent.mkdir(parents=True)
-    path.write_text("import worldsim.phases.phase_2_injections\n")
+    path.write_text("import warp_taskgen.phases.phase_2_injections\n")
 
     assert readiness_audit._legacy_phase_import_findings(["tests/consumer.py"]) == []
 
@@ -270,16 +270,66 @@ def test_active_facade_import_audit_is_advisory_for_tests(tmp_path, monkeypatch)
     monkeypatch.chdir(tmp_path)
     test_path = tmp_path / "tests" / "consumer.py"
     test_path.parent.mkdir(parents=True)
-    test_path.write_text("from worldsim.phases import phase_2_text_fill\n")
+    test_path.write_text("from warp_taskgen.phases import phase_2_text_fill\n")
 
     docs_path = tmp_path / "docs" / "consumer.py"
     docs_path.parent.mkdir(parents=True)
-    docs_path.write_text("from worldsim.phases import phase_2_text_fill\n")
+    docs_path.write_text("from warp_taskgen.phases import phase_2_text_fill\n")
 
     assert (
         readiness_audit._active_facade_import_findings(["tests/consumer.py", "docs/consumer.py"])
         == []
     )
+
+
+def test_legacy_namespace_audit_flags_active_production_imports(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "packages" / "warp-taskgen" / "warp_taskgen" / "consumer.py"
+    path.parent.mkdir(parents=True)
+    path.write_text("from worldsim.phase_4 import pvpo_capture\n")
+
+    findings = readiness_audit._legacy_namespace_import_findings(
+        ["packages/warp-taskgen/warp_taskgen/consumer.py"]
+    )
+
+    assert [finding.module for finding in findings] == ["worldsim.phase_4"]
+
+
+def test_legacy_namespace_audit_allows_adapter_and_compatibility_tests(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    adapter = tmp_path / "packages" / "warp-taskgen" / "worldsim" / "__init__.py"
+    adapter.parent.mkdir(parents=True)
+    adapter.write_text("import worldsim.phase_4\n")
+    test_path = (
+        tmp_path / "packages" / "warp-taskgen" / "tests" / "test_namespace_cutover.py"
+    )
+    test_path.parent.mkdir(parents=True)
+    test_path.write_text("import worldsim.phase_4\n")
+
+    assert (
+        readiness_audit._legacy_namespace_import_findings(
+            [
+                "packages/warp-taskgen/worldsim/__init__.py",
+                "packages/warp-taskgen/tests/test_namespace_cutover.py",
+            ]
+        )
+        == []
+    )
+
+
+def test_legacy_namespace_audit_does_not_allowlist_active_tests(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    test_path = tmp_path / "packages" / "warp-taskgen" / "tests" / "test_active.py"
+    test_path.parent.mkdir(parents=True)
+    test_path.write_text("import worldsim.phase_4\n")
+
+    findings = readiness_audit._legacy_namespace_import_findings(
+        ["packages/warp-taskgen/tests/test_active.py"]
+    )
+
+    assert [finding.module for finding in findings] == ["worldsim.phase_4"]
 
 
 def test_generated_artifact_detection_covers_r5_copy_outputs(monkeypatch) -> None:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from worldsim.browser_use_agent import _build_initial_actions, _NetworkTraceRecorder
+from warp_taskgen.browser_use_agent import _build_initial_actions, _NetworkTraceRecorder
 
 
 def test_trace_redaction_removes_sensitive_wire_data():

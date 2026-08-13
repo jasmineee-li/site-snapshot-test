@@ -1,8 +1,8 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
-from worldsim.phase_2 import generation, shards
-from worldsim.phase_2.planning_types import SiteInjectionResult
+from warp_taskgen.phase_2 import generation, shards
+from warp_taskgen.phase_2.planning_types import SiteInjectionResult
 
 
 def test_materialize_validated_shard_tasks_handles_mixed_legacy_and_v2_output(monkeypatch):

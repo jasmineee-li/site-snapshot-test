@@ -1,11 +1,11 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
-from worldsim.phase_2 import reuse
-from worldsim.phase_2 import runner as phase_2_injections
-from worldsim.phase_2 import target_inputs, target_stage
-from worldsim.phase_2.text_fill.constants import DEFAULT_TEXT_FILL_MODEL
-from worldsim.phase_2.text_fill.seed import materialize_adversarial_seed
+from warp_taskgen.phase_2 import reuse
+from warp_taskgen.phase_2 import runner as phase_2_injections
+from warp_taskgen.phase_2 import target_inputs, target_stage
+from warp_taskgen.phase_2.text_fill.constants import DEFAULT_TEXT_FILL_MODEL
+from warp_taskgen.phase_2.text_fill.seed import materialize_adversarial_seed
 
 
 def test_validate_reusable_phase_2_task_rejects_legacy_reddit_comment_contract():

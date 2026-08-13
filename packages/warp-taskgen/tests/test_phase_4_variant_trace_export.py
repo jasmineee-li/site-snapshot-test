@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from worldsim.phase_4 import result_summary
-from worldsim.phase_4.variant_trace_export import build_variant_trace_export
-from worldsim.phase_4.variant_trace_outputs import (
+from warp_taskgen.phase_4 import result_summary
+from warp_taskgen.phase_4.variant_trace_export import build_variant_trace_export
+from warp_taskgen.phase_4.variant_trace_outputs import (
     write_variant_trace_csv,
     write_variant_trace_html,
 )
@@ -711,7 +711,10 @@ def test_export_reads_embedded_eval_awareness_iterator_when_checkpoint_missing(
     tmp_path: Path,
 ) -> None:
     run, trace = _base_run(tmp_path)
-    _write_json(trace / "result.json", _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"))
+    _write_json(
+        trace / "result.json",
+        _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"),
+    )
     _attempt(trace, index=1, strategy="eval_awareness_iterator", original="o1", revised="r1")
     variant1 = trace.parent / "task-1_variant_1"
     _write_json(variant1 / "result.json", _result('{"retrieved_data":["blank"]}'))

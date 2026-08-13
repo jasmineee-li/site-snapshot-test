@@ -238,8 +238,8 @@ def patched_anthropic_client(monkeypatch):
     against the older `create()` call shape continue to work after the
     variant_api streaming refactor.
 
-    Enumerates `worldsim/phase_4/*.py` dynamically: any module that binds
-    `get_client` (typically via `from worldsim.phase_4.anthropic_client
+    Enumerates `warp_taskgen/phase_4/*.py` dynamically: any module that binds
+    `get_client` (typically via `from warp_taskgen.phase_4.anthropic_client
     import get_client`) gets patched. A new module that adds the import
     without being listed here will still be caught automatically — no
     silent live-API calls in tests.
@@ -247,8 +247,8 @@ def patched_anthropic_client(monkeypatch):
     import importlib
     import pkgutil
 
-    from worldsim import phase_4 as phase_4_pkg
-    from worldsim.phase_4 import anthropic_client as ac_module
+    from warp_taskgen import phase_4 as phase_4_pkg
+    from warp_taskgen.phase_4 import anthropic_client as ac_module
 
     mock_client = MagicMock()
     mock_client.messages = MagicMock()
@@ -263,7 +263,7 @@ def patched_anthropic_client(monkeypatch):
     if _PHASE_4_MODULES_WITH_GET_CLIENT is None:
         modules = []
         for mod_info in pkgutil.iter_modules(phase_4_pkg.__path__):
-            mod = importlib.import_module(f"worldsim.phase_4.{mod_info.name}")
+            mod = importlib.import_module(f"warp_taskgen.phase_4.{mod_info.name}")
             if hasattr(mod, "get_client"):
                 modules.append(mod)
         _PHASE_4_MODULES_WITH_GET_CLIENT = modules
@@ -276,11 +276,11 @@ def patched_anthropic_client(monkeypatch):
         "get_client; the fixture is stale — did the module layout change?"
     )
     ac_module.reset_client_for_tests()
-    # The module-level `_semaphore` in worldsim.phase_4.concurrency binds to
+    # The module-level `_semaphore` in warp_taskgen.phase_4.concurrency binds to
     # whichever event loop first calls `get_api_semaphore()`. Reset it between
     # tests so a semaphore bound to a prior loop can't leak into a new
     # `asyncio.run()` and raise `RuntimeError: ... bound to a different loop`.
-    from worldsim.phase_4.concurrency import reset_api_semaphore_for_tests
+    from warp_taskgen.phase_4.concurrency import reset_api_semaphore_for_tests
 
     reset_api_semaphore_for_tests()
     return mock_client

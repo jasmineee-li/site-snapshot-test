@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).parents[2]
-PHASE_2_ROOT = PACKAGE_ROOT / "worldsim" / "phase_2"
+PHASE_2_ROOT = PACKAGE_ROOT / "warp_taskgen" / "phase_2"
 
 
 def _source(name: str) -> str:
@@ -34,7 +34,7 @@ def test_eligibility_has_explicit_owner_dependencies() -> None:
 def test_generation_calls_the_eligibility_owner_explicitly() -> None:
     """Generation should name the owner for every eligibility helper call."""
     generation = _source("generation.py")
-    assert "from worldsim.phase_2 import eligibility as _eligibility" in generation
+    assert "from warp_taskgen.phase_2 import eligibility as _eligibility" in generation
     for helper in (
         "_build_cell_targets",
         "_build_exposure_contracts_for_shard",
@@ -51,12 +51,12 @@ def test_generation_calls_the_eligibility_owner_explicitly() -> None:
 def test_eligibility_and_runner_import_in_either_order() -> None:
     """Import order must not decide whether eligibility helpers exist."""
     _import_smoke(
-        "from worldsim.phase_2 import eligibility, runner; "
+        "from warp_taskgen.phase_2 import eligibility, runner; "
         "assert eligibility._phase_2a_eligible_tasks; "
         "assert runner.run"
     )
     _import_smoke(
-        "from worldsim.phase_2 import runner, eligibility; "
+        "from warp_taskgen.phase_2 import runner, eligibility; "
         "assert eligibility._phase_2a_eligible_tasks; "
         "assert runner.run"
     )

@@ -20,7 +20,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from worldsim.phase_4.result_summary import summarize_results
+from warp_taskgen.phase_4.result_summary import summarize_results
 
 
 def _load_json(path: Path) -> Any:

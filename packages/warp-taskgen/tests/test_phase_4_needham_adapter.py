@@ -1,4 +1,4 @@
-"""Tests for :mod:`worldsim.phase_4.needham_adapter`.
+"""Tests for :mod:`warp_taskgen.phase_4.needham_adapter`.
 
 Fixtures are deliberately reused from ``tests/fixtures/phase_4_aer/``
 rather than duplicated under a ``phase_4_verbalized_eval_awareness/``
@@ -14,13 +14,13 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.phase_4.aer_trajectory_extract import (
+from warp_taskgen.phase_4.aer_trajectory_extract import (
     ExtractedStep,
     ExtractedTrajectory,
     extract_trajectory,
 )
-from worldsim.phase_4.needham_adapter import build_messages
-from worldsim.phase_4.needham_xml import format_xml
+from warp_taskgen.phase_4.needham_adapter import build_messages
+from warp_taskgen.phase_4.needham_xml import format_xml
 
 _FIXTURE_DIR = Path(__file__).parent / "fixtures" / "phase_4_aer"
 

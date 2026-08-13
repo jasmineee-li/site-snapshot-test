@@ -26,12 +26,12 @@ class FatalPvpoCaptureError(RuntimeError):
 
 
 class SyncPvpoRecorder:
-    """Synchronous AgentLab bridge to WorldSim's canonical PVPO capture path.
+    """Synchronous AgentLab bridge to WARP Taskgen canonical PVPO capture path.
 
     AgentLab/BrowserGym exposes Playwright's sync API, while Browser Use uses an
     async CDP surface. This bridge owns only the sync-to-async boundary; the
     capture algorithm, query JS, metadata shape, and artifact writer all come
-    from ``worldsim.phase_4.pvpo_capture``.
+    from ``warp_taskgen.phase_4.pvpo_capture``.
     """
 
     def __init__(
@@ -57,7 +57,7 @@ class SyncPvpoRecorder:
             name="worldsim-agentlab-pvpo",
         )
 
-        from worldsim.phase_4.pvpo_capture import initial_capture_summary, save_capture_summary
+        from warp_taskgen.phase_4.pvpo_capture import initial_capture_summary, save_capture_summary
 
         self.summary = initial_capture_summary(payload_present=self.payload_present)
         if self.payload_present:
@@ -130,13 +130,13 @@ class SyncPvpoRecorder:
         cdp_session: Any,
         pump: Any,
     ) -> None:
-        from worldsim.phase_4.pvpo_browser_config import inject_animation_killer
-        from worldsim.phase_4.pvpo_capture import (
+        from warp_taskgen.phase_4.pvpo_browser_config import inject_animation_killer
+        from warp_taskgen.phase_4.pvpo_capture import (
             Rect,
             save_step_artifacts,
             surface_capture_with_stability,
         )
-        from worldsim.phase_4.pvpo_cdp import runtime_evaluate_value
+        from warp_taskgen.phase_4.pvpo_cdp import runtime_evaluate_value
 
         timeout_s = _pvpo_cdp_timeout_s()
         cdp_session = _timeout_safe_cdp_session(cdp_session, pump=pump)
@@ -223,7 +223,7 @@ class SyncPvpoRecorder:
         self._save_summary()
 
     def _save_summary(self) -> None:
-        from worldsim.phase_4.pvpo_capture import save_capture_summary
+        from warp_taskgen.phase_4.pvpo_capture import save_capture_summary
 
         save_capture_summary(self.output_dir, self.summary)
 
@@ -302,7 +302,7 @@ def _pvpo_cdp_timeout_s() -> float:
 
 
 def _timeout_safe_cdp_session(cdp_session: Any, *, pump: Any | None = None) -> Any:
-    from worldsim.phase_4.pvpo_cdp import normalize_cdp_session
+    from warp_taskgen.phase_4.pvpo_cdp import normalize_cdp_session
 
     if pump is not None:
         return PumpedSyncCdpSession(cdp_session, pump)

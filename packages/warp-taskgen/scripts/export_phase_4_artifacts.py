@@ -234,7 +234,9 @@ def build_manifest(
                     ):
                         continue
                     network_trace_summaries.append(
-                        summarize_network_trace(candidate, archive_path=candidate.relative_to(root).as_posix())
+                        summarize_network_trace(
+                            candidate, archive_path=candidate.relative_to(root).as_posix()
+                        )
                     )
 
     ordered_files = [files[key] for key in sorted(files)]
@@ -371,7 +373,9 @@ def extract_tar_bytes(payload: bytes, output_dir: Path, *, overwrite: bool = Fal
     with tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz") as archive:
         for member in archive.getmembers():
             member_path = Path(member.name)
-            if member_path.is_absolute() or any(part in {"", ".", ".."} for part in member_path.parts):
+            if member_path.is_absolute() or any(
+                part in {"", ".", ".."} for part in member_path.parts
+            ):
                 raise ValueError(f"unsafe tar member path: {member.name}")
             target = (root / member_path).resolve(strict=False)
             if not str(target).startswith(str(root)):
@@ -649,7 +653,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_local_export(
             root=args.root or Path.cwd(),
             run_dirs=run_dirs,
-            output_dir=args.output_dir or (None if args.dry_run or args.emit_tar else default_output_dir()),
+            output_dir=args.output_dir
+            or (None if args.dry_run or args.emit_tar else default_output_dir()),
             max_file_bytes=args.max_file_bytes,
             dry_run=args.dry_run,
             emit_tar=args.emit_tar,

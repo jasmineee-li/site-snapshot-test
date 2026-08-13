@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from worldsim.phases.phase_0_evidence_index import build_phase_0c_evidence_indexes
+from warp_taskgen.phases.phase_0_evidence_index import build_phase_0c_evidence_indexes
 
 
 def test_phase_0c_evidence_indexes_record_files_routes_and_task_candidates(tmp_path: Path):

@@ -21,8 +21,8 @@ import anthropic
 import httpx
 import pytest
 
-from worldsim.phase_4.aer_trajectory_extract import ExtractedStep, ExtractedTrajectory
-from worldsim.phase_4.transcript_purpose_api import (
+from warp_taskgen.phase_4.aer_trajectory_extract import ExtractedStep, ExtractedTrajectory
+from warp_taskgen.phase_4.transcript_purpose_api import (
     _CANONICAL_LABELS,
     _EVAL_AWARE_LABELS,
     _MAX_ATTEMPTS,
@@ -506,7 +506,7 @@ async def test_temperature_omitted_for_opus_47(patched_anthropic_client, tmp_pat
 @pytest.mark.asyncio
 async def test_cost_recorded_in_transcript_purpose_bucket(patched_anthropic_client, tmp_path):
     patched_anthropic_client.messages.create = AsyncMock(side_effect=_responses_for_label("Real"))
-    with patch("worldsim.phase_4.transcript_purpose_api.cost_tracker") as mock_tracker:
+    with patch("warp_taskgen.phase_4.transcript_purpose_api.cost_tracker") as mock_tracker:
         await run_transcript_purpose_api(
             _task(), tmp_path, _trajectory(), _write_screenshot(tmp_path)
         )
@@ -557,7 +557,7 @@ async def test_transcript_artifact_persisted(patched_anthropic_client, tmp_path)
 
 def test_apollo_prompt_sha256_pinned():
     """Prompts are verbatim Apollo artifacts; casual edits must fail loudly."""
-    prompts = Path(__file__).parent.parent / "worldsim" / "prompts"
+    prompts = Path(__file__).parent.parent / "warp_taskgen" / "prompts"
     guess = (prompts / "transcript-purpose-guess.md").read_bytes()
     classify = (prompts / "transcript-purpose-classify.md").read_bytes()
     assert (

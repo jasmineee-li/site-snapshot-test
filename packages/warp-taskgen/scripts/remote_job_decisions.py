@@ -33,7 +33,7 @@ ENV_MANAGED_COMMANDS = {
     "uv",
     "uvx",
 }
-ENTRYPOINTS = {"warp-taskgen", "worldsim", "worldsim.main"}
+ENTRYPOINTS = {"warp-taskgen", "worldsim", "worldsim.main", "warp_taskgen.main"}
 KNOWN_PHASES = {"0", "0c", "1", "2", "2c", "3", "4"}
 PHASE_BOOLEAN_OPTIONS = {
     "--skip-feasibility",
@@ -157,7 +157,7 @@ def is_python_module_entrypoint(tokens: Sequence[str], index: int) -> bool:
         tokens[index] == "python"
         and index + 2 < len(tokens)
         and tokens[index + 1] == "-m"
-        and tokens[index + 2] == "worldsim.main"
+        and tokens[index + 2] in {"worldsim.main", "warp_taskgen.main"}
     )
 
 
@@ -166,7 +166,7 @@ def entrypoint_at(tokens: Sequence[str], index: int) -> tuple[str, int] | None:
     if token in ENTRYPOINTS:
         return token, index + 1
     if is_python_module_entrypoint(tokens, index):
-        return "worldsim.main", index + 3
+        return tokens[index + 2], index + 3
     return None
 
 
@@ -226,8 +226,11 @@ def command_runs_resume(argv: Sequence[str]) -> bool:
     joined = " ".join(argv)
     return bool(
         re.search(r"(^|\s)(?:warp-taskgen|worldsim)\s+resume(?:\s|$)", joined)
-        or re.search(r"(^|\s)python\s+-m\s+worldsim\.main\s+resume(?:\s|$)", joined)
-        or re.search(r"(^|\s)worldsim\.main\s+resume(?:\s|$)", joined)
+        or re.search(
+            r"(^|\s)python\s+-m\s+(?:worldsim|warp_taskgen)\.main\s+resume(?:\s|$)",
+            joined,
+        )
+        or re.search(r"(^|\s)(?:worldsim|warp_taskgen)\.main\s+resume(?:\s|$)", joined)
     )
 
 

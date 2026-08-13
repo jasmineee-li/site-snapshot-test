@@ -1,8 +1,8 @@
 """Coverage for Phase 4 postprocess heartbeat infrastructure.
 
-Locks in the schema_version=1 progress.json shape that worldsim/cli_status.py
+Locks in the schema_version=1 progress.json shape that warp_taskgen/cli_status.py
 and scripts/remote_job_status.sh consume, and the callback chain wiring used
-by worldsim/phase_4/runner.run().
+by warp_taskgen/phase_4/runner.run().
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.phase_4.postprocess_progress import (
+from warp_taskgen.phase_4.postprocess_progress import (
     Phase4ProgressState,
     _phase_4_progress_path,
     compute_progress_extra,

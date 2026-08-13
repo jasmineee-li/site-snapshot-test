@@ -14,17 +14,17 @@ from unittest.mock import Mock
 
 import pytest
 
-from worldsim import main as worldsim_main
-from worldsim.agent_models import resolve_agent_model_profile, supported_agentlab_model_profiles
-from worldsim.agentlab_cli import _prepare_single_task, _select_instance, _task_from_args
-from worldsim.browser_use_agent import AuthArtifactMissingError
-from worldsim.config import BenchmarkConfig
-from worldsim.har_converter import minimal_har_placeholder_entry, strict_runtime_har_trace
-from worldsim.phase_4 import runner as phase4_runner
-from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
-from worldsim.runners import agentlab as agentlab_runner
-from worldsim.runners import available_runners, get_runner_module
-from worldsim.runners.agentlab import (
+from warp_taskgen import main as worldsim_main
+from warp_taskgen.agent_models import resolve_agent_model_profile, supported_agentlab_model_profiles
+from warp_taskgen.agentlab_cli import _prepare_single_task, _select_instance, _task_from_args
+from warp_taskgen.browser_use_agent import AuthArtifactMissingError
+from warp_taskgen.config import BenchmarkConfig
+from warp_taskgen.har_converter import minimal_har_placeholder_entry, strict_runtime_har_trace
+from warp_taskgen.phase_4 import runner as phase4_runner
+from warp_taskgen.resume_metadata import RESULT_FINGERPRINT_KEY
+from warp_taskgen.runners import agentlab as agentlab_runner
+from warp_taskgen.runners import available_runners, get_runner_module
+from warp_taskgen.runners.agentlab import (
     AgentLabAgentWrapper,
     _browsergym_env_overrides,
     _build_phase4_sidecar_request,
@@ -34,7 +34,7 @@ from worldsim.runners.agentlab import (
     _sidecar_command,
     _sidecar_json_payload,
 )
-from worldsim.trajectory import load_trajectory_into_sandbox
+from warp_taskgen.trajectory import load_trajectory_into_sandbox
 
 
 class _FakeInstance(SimpleNamespace):
@@ -908,9 +908,7 @@ def test_agentlab_needham_reads_object_agent_info_like_data_import(tmp_path):
     assert payload["messages"][2]["text"] == (
         "hidden object rationale\n\n<action>\nclick('152')\n</action>\n\nclick('152')"
     )
-    assert payload["messages"][2]["tool_calls"][0]["arguments"] == {
-        "action": "click('152')"
-    }
+    assert payload["messages"][2]["tool_calls"][0]["arguments"] == {"action": "click('152')"}
 
 
 def test_agentlab_needham_observation_matches_data_import_caps(tmp_path):
@@ -1399,7 +1397,7 @@ def test_agentlab_live_status_reads_runtime_and_timeline(tmp_path):
 
 def test_agentlab_pvpo_uses_canonical_capture_and_artifact_writer(monkeypatch, tmp_path):
     sync_pvpo = _load_sidecar_module("sync_pvpo")
-    from worldsim.phase_4 import pvpo_capture
+    from warp_taskgen.phase_4 import pvpo_capture
 
     captured: dict[str, object] = {}
 
@@ -1565,7 +1563,7 @@ def _assert_agentlab_phase4_resume_sidecars(task_dir: Path) -> None:
     missing = [name for name in required if not (task_dir / name).exists()]
     assert missing == []
 
-    from worldsim.phase_4.resume import _has_phase_4_resume_artifacts
+    from warp_taskgen.phase_4.resume import _has_phase_4_resume_artifacts
 
     assert _has_phase_4_resume_artifacts({"outcome": "error"}, trajectory_dir=task_dir)
 
@@ -1972,7 +1970,7 @@ def test_phase4_invalid_json_sidecar_result_writes_audit_artifacts(monkeypatch, 
 
 
 def test_agentlab_phase4_resume_requires_audit_artifacts(tmp_path):
-    from worldsim.phase_4.resume import _has_phase_4_resume_artifacts
+    from warp_taskgen.phase_4.resume import _has_phase_4_resume_artifacts
 
     (tmp_path / "agentlab_phase4_request.json").write_text("{}", encoding="utf-8")
     (tmp_path / "history.json").write_text('{"history":[]}', encoding="utf-8")
@@ -2249,9 +2247,9 @@ def test_agentlab_action_projection_preserves_raw_fallback_without_calls():
 
 def test_agentlab_needham_xml_matches_canonical_serializer(tmp_path):
     projection = _load_sidecar_module("trajectory_projection")
-    from worldsim.phase_4.needham_chat_types import ChatMessage, ToolCall
-    from worldsim.phase_4.needham_trace import dicts_to_messages
-    from worldsim.phase_4.needham_xml import format_xml
+    from warp_taskgen.phase_4.needham_chat_types import ChatMessage, ToolCall
+    from warp_taskgen.phase_4.needham_trace import dicts_to_messages
+    from warp_taskgen.phase_4.needham_xml import format_xml
 
     step = SimpleNamespace(
         step=0,

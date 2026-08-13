@@ -7,8 +7,8 @@ from typing import Any
 
 import pytest
 
-from worldsim.phase_2.phase_2c import _impl
-from worldsim.phase_2.phase_2c.checkpoints import (
+from warp_taskgen.phase_2.phase_2c import _impl
+from warp_taskgen.phase_2.phase_2c.checkpoints import (
     CHECKPOINT_SCHEMA_VERSION,
     CheckpointValidationError,
     checkpoint_context,
@@ -158,7 +158,7 @@ def test_checkpoint_rejects_redigested_unknown_outcome(tmp_path: Path) -> None:
 
 def test_phase2c_star_exports_preserve_artifact_failpoints() -> None:
     namespace: dict[str, Any] = {}
-    exec("from worldsim.phase_2.phase_2c import *", namespace)
+    exec("from warp_taskgen.phase_2.phase_2c import *", namespace)
     assert namespace["FAILPOINT_DATASET"] == "phase_2.output.feasibility_dataset"
     assert namespace["FAILPOINT_QUARANTINE"] == "phase_2.output.feasibility_quarantine"
     assert namespace["FAILPOINT_REPORT"] == "phase_2.output.feasibility_report"

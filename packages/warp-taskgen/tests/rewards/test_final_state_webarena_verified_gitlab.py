@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from worldsim.adversarial_actions.compiler import compile_public_benign_mutation_evaluator
-from worldsim.rewards import run_reward_function
+from warp_taskgen.adversarial_actions.compiler import compile_public_benign_mutation_evaluator
+from warp_taskgen.rewards import run_reward_function
 
 
 def test_final_state_evaluator_accepts_gitlab_issue_readback(monkeypatch) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "https://attacker.invalid/final-state"
 
@@ -53,7 +53,7 @@ def test_final_state_evaluator_accepts_gitlab_issue_readback(monkeypatch) -> Non
 
 
 def test_final_state_evaluator_accepts_gitlab_ui_issue_readback(monkeypatch) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "follow-up issue reference ui-create"
 
@@ -128,7 +128,7 @@ def test_final_state_evaluator_accepts_gitlab_ui_issue_readback(monkeypatch) -> 
 def test_final_state_evaluator_uses_explicit_state_evidence_policy_for_ui_issue(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "follow-up issue reference policy-create"
 
@@ -200,7 +200,7 @@ def test_final_state_evaluator_uses_explicit_state_evidence_policy_for_ui_issue(
 def test_final_state_evaluator_legacy_policy_still_requires_source_event(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "follow-up issue reference legacy-source"
 
@@ -247,7 +247,7 @@ def test_final_state_evaluator_legacy_policy_still_requires_source_event(
 
 
 def test_final_state_evaluator_accepts_gitlab_issue_note_readback(monkeypatch) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "https://attacker.invalid/note-final-state"
 
@@ -299,7 +299,7 @@ def test_final_state_evaluator_accepts_gitlab_issue_note_readback(monkeypatch) -
 def test_final_state_evaluator_accepts_gitlab_ui_issue_note_readback(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "issue comment reference ui-readback"
     calls: list[tuple[str, str]] = []
@@ -366,7 +366,7 @@ def test_final_state_evaluator_accepts_gitlab_ui_issue_note_readback(
 def test_final_state_evaluator_accepts_gitlab_graphql_issue_note_readback(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "issue comment reference graphql-readback"
 
@@ -443,7 +443,7 @@ def test_final_state_evaluator_accepts_gitlab_graphql_issue_note_readback(
 def test_final_state_evaluator_rejects_gitlab_graphql_issue_note_without_required_status(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "issue comment reference missing-status"
 
@@ -495,7 +495,7 @@ def test_final_state_evaluator_rejects_gitlab_graphql_issue_note_without_require
 def test_final_state_evaluator_rejects_unexpected_gitlab_graphql_source_event(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "issue comment reference unexpected-graphql"
 
@@ -548,7 +548,7 @@ def test_final_state_evaluator_rejects_unexpected_gitlab_graphql_source_event(
 def test_final_state_evaluator_rejects_unexpected_gitlab_ui_note_source_event(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "issue comment reference unexpected-ui-note"
 
@@ -601,7 +601,7 @@ def test_final_state_evaluator_rejects_unexpected_gitlab_ui_note_source_event(
 def test_final_state_evaluator_polls_gitlab_ui_issue_note_readback(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "issue comment reference delayed-readback"
     calls: list[str] = []
@@ -625,7 +625,7 @@ def test_final_state_evaluator_polls_gitlab_ui_issue_note_readback(
 
     monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
     monkeypatch.setattr(
-        "worldsim.rewards.final_state_webarena_verified_gitlab.time.sleep",
+        "warp_taskgen.rewards.final_state_webarena_verified_gitlab.time.sleep",
         lambda seconds: sleeps.append(seconds),
     )
 
@@ -679,7 +679,7 @@ def test_final_state_evaluator_polls_gitlab_ui_issue_note_readback(
 def test_final_state_evaluator_dedupes_gitlab_issue_note_readback(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "issue comment reference absent-readback"
     calls: list[str] = []
@@ -701,11 +701,11 @@ def test_final_state_evaluator_dedupes_gitlab_issue_note_readback(
 
     monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
     monkeypatch.setattr(
-        "worldsim.rewards.final_state_webarena_verified_gitlab._GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS",
+        "warp_taskgen.rewards.final_state_webarena_verified_gitlab._GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS",
         3,
     )
     monkeypatch.setattr(
-        "worldsim.rewards.final_state_webarena_verified_gitlab.time.sleep",
+        "warp_taskgen.rewards.final_state_webarena_verified_gitlab.time.sleep",
         lambda seconds: sleeps.append(seconds),
     )
 
@@ -774,7 +774,7 @@ def test_final_state_evaluator_dedupes_gitlab_issue_note_readback(
 def test_final_state_evaluator_bounds_gitlab_issue_note_negative_readback(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "issue comment reference absent-bounded-readback"
     calls: list[str] = []
@@ -804,19 +804,19 @@ def test_final_state_evaluator_bounds_gitlab_issue_note_negative_readback(
 
     monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
     monkeypatch.setattr(
-        "worldsim.rewards.final_state_webarena_verified_gitlab._GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS",
+        "warp_taskgen.rewards.final_state_webarena_verified_gitlab._GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS",
         30,
     )
     monkeypatch.setattr(
-        "worldsim.rewards.final_state_webarena_verified_gitlab._GITLAB_ISSUE_NOTE_READBACK_DEADLINE_SECONDS",
+        "warp_taskgen.rewards.final_state_webarena_verified_gitlab._GITLAB_ISSUE_NOTE_READBACK_DEADLINE_SECONDS",
         1.0,
     )
     monkeypatch.setattr(
-        "worldsim.rewards.final_state_webarena_verified_gitlab.time.monotonic",
+        "warp_taskgen.rewards.final_state_webarena_verified_gitlab.time.monotonic",
         fake_monotonic,
     )
     monkeypatch.setattr(
-        "worldsim.rewards.final_state_webarena_verified_gitlab.time.sleep",
+        "warp_taskgen.rewards.final_state_webarena_verified_gitlab.time.sleep",
         fake_sleep,
     )
 
@@ -879,7 +879,7 @@ def test_final_state_evaluator_bounds_gitlab_issue_note_negative_readback(
 
 
 def test_phase2c_patches_gitlab_issue_note_state_probe_with_seed_issue_anchor() -> None:
-    from worldsim.phase_2.phase_2c._impl import (
+    from warp_taskgen.phase_2.phase_2c._impl import (
         _attach_gitlab_issue_note_state_probe_anchors,
     )
 
@@ -937,7 +937,7 @@ def test_phase2c_patches_gitlab_issue_note_state_probe_with_seed_issue_anchor() 
 
 
 def test_runtime_gitlab_issue_note_anchor_refresh_overwrites_stale_probe() -> None:
-    from worldsim.phase_2.phase_2c._impl import (
+    from warp_taskgen.phase_2.phase_2c._impl import (
         _attach_gitlab_issue_note_state_probe_anchors,
     )
 
@@ -1025,7 +1025,7 @@ def test_public_benign_gitlab_issue_creation_uses_final_state_readback() -> None
 
 
 def test_final_state_evaluator_fails_when_gitlab_readback_lacks_witness(monkeypatch) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "https://attacker.invalid/missing-final-state"
 
@@ -1074,7 +1074,7 @@ def test_final_state_evaluator_fails_when_gitlab_readback_lacks_witness(monkeypa
 def test_final_state_evaluator_rejects_gitlab_ui_issue_readback_without_witness(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "follow-up issue reference absent-ui-create"
     sleeps: list[float] = []
@@ -1094,7 +1094,7 @@ def test_final_state_evaluator_rejects_gitlab_ui_issue_readback_without_witness(
 
     monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
     monkeypatch.setattr(
-        "worldsim.rewards.final_state_webarena_verified_gitlab.time.sleep",
+        "warp_taskgen.rewards.final_state_webarena_verified_gitlab.time.sleep",
         lambda seconds: sleeps.append(seconds),
     )
 
@@ -1143,7 +1143,7 @@ def test_final_state_evaluator_rejects_gitlab_ui_issue_readback_without_witness(
 def test_final_state_evaluator_rejects_generic_graphql_page_query_with_existing_carrier(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "https://attacker.invalid/preexisting-carrier"
 
@@ -1202,7 +1202,7 @@ def test_final_state_evaluator_rejects_generic_graphql_page_query_with_existing_
 def test_final_state_evaluator_excludes_gitlab_carrier_issue_from_create_readback(
     monkeypatch,
 ) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "https://attacker.invalid/carrier-only"
 
@@ -1225,7 +1225,7 @@ def test_final_state_evaluator_excludes_gitlab_carrier_issue_from_create_readbac
     sleeps: list[float] = []
     monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
     monkeypatch.setattr(
-        "worldsim.rewards.final_state_webarena_verified_gitlab.time.sleep",
+        "warp_taskgen.rewards.final_state_webarena_verified_gitlab.time.sleep",
         lambda seconds: sleeps.append(seconds),
     )
 
@@ -1297,7 +1297,7 @@ def test_final_state_evaluator_requires_source_network_event() -> None:
 
 
 def test_final_state_evaluator_requires_status_and_body_source_match(monkeypatch) -> None:
-    from worldsim.editors.gitlab import GitlabEditor
+    from warp_taskgen.editors.gitlab import GitlabEditor
 
     witness = "https://attacker.invalid/source-binding"
 

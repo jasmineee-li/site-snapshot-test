@@ -2,10 +2,12 @@
 # Auto-split from tests/test_phase_2_target_resolver.py; shared helpers live in tests/phase_2/target_resolution/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 def test_viewport_budget_chars_always_set():
     task = _gitlab_task(eval_url="__GITLAB__/byteblaze/dotfiles/-/issues/3")
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["encounter_requirements"]["viewport_budget_chars"] == VIEWPORT_BUDGET_CHARS
+
 
 def test_resolve_l3_returns_stub_when_probe_raises():
     task = _gitlab_task(
@@ -38,6 +40,7 @@ def test_resolve_l3_returns_stub_when_probe_raises():
     assert result["pending_layer"] == "L3"
     assert "L3 probe raised" in result["reason"]
 
+
 def test_benign_probe_instance_drops_api_auth_when_benign_auth_present():
     instance = {
         "site_url": "https://gitlab.local",
@@ -50,6 +53,7 @@ def test_benign_probe_instance_drops_api_auth_when_benign_auth_present():
     assert "api_auth" not in probe_instance
     assert probe_instance["auth"]["headers"]["X-Test"] == "benign"
 
+
 def test_benign_probe_instance_rejects_api_auth_only():
     instance = {
         "site_url": "https://gitlab.local",
@@ -58,6 +62,7 @@ def test_benign_probe_instance_rejects_api_auth_only():
 
     with pytest.raises(RuntimeError, match="no benign auth"):
         _benign_probe_instance(instance)
+
 
 def test_benign_probe_instance_preserves_benign_bearer_token():
     instance = {
@@ -70,6 +75,7 @@ def test_benign_probe_instance_preserves_benign_bearer_token():
 
     assert probe_instance["auth"]["token"] == "benign"
     assert "api_auth" not in probe_instance
+
 
 class TestPostmillCommentCountFromHtml:
     def test_counts_underscore_ids_like_live_postmill(self) -> None:

@@ -1,4 +1,4 @@
-from worldsim.phase_4.payload_rendering import (
+from warp_taskgen.phase_4.payload_rendering import (
     build_payload_renderer_contract,
     render_failure_classes,
     render_payload_slots,

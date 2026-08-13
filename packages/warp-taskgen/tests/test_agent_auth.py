@@ -1,6 +1,6 @@
 import json
 
-from worldsim.agent_auth import resolve_agent_auth, resolve_storage_state_path
+from warp_taskgen.agent_auth import resolve_agent_auth, resolve_storage_state_path
 
 
 def _write_storage_state(path, *, domain="gitlab.test", same_site="no_restriction"):
@@ -422,7 +422,7 @@ def test_resolve_storage_state_falls_back_to_shared_when_per_instance_missing(
     shared.parent.mkdir(parents=True)
     _write_storage_state(shared, domain="172.17.0.1")
 
-    with caplog.at_level(logging.WARNING, logger="worldsim.agent_auth"):
+    with caplog.at_level(logging.WARNING, logger="warp_taskgen.agent_auth"):
         resolved = resolve_storage_state_path(
             {"type": "storage_state", "storage_state": {"path": str(shared)}},
             site_name="gitlab",

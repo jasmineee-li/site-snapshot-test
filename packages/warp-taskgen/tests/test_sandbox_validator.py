@@ -1,4 +1,4 @@
-"""Tests for the in-sandbox output validator (worldsim/_sandbox_validator.py).
+"""Tests for the in-sandbox output validator (warp_taskgen/_sandbox_validator.py).
 
 Imports the validator functions directly for unit testing.
 """
@@ -13,18 +13,18 @@ from unittest import mock
 
 import pytest
 
-# The validator module lives in worldsim/ but is designed to be standalone.
-# Load it by file location so this test does not leave ``worldsim/`` at the
+# The validator module lives in warp_taskgen/ but is designed to be standalone.
+# Load it by file location so this test does not leave ``warp_taskgen/`` at the
 # front of ``sys.path``.  A persistent top-level path entry can shadow the
 # third-party ``browser_use`` package for unrelated tests in the same worker.
-_VALIDATOR_PATH = Path(__file__).resolve().parent.parent / "worldsim" / "_sandbox_validator.py"
+_VALIDATOR_PATH = Path(__file__).resolve().parent.parent / "warp_taskgen" / "_sandbox_validator.py"
 _VALIDATOR_SPEC = importlib.util.spec_from_file_location("_sandbox_validator", _VALIDATOR_PATH)
 assert _VALIDATOR_SPEC is not None and _VALIDATOR_SPEC.loader is not None
 validator = importlib.util.module_from_spec(_VALIDATOR_SPEC)
 sys.modules["_sandbox_validator"] = validator
 _VALIDATOR_SPEC.loader.exec_module(validator)
 
-from worldsim.phase_2.target_resolution.constants import (  # noqa: E402
+from warp_taskgen.phase_2.target_resolution.constants import (  # noqa: E402
     LISTING_DETAIL_FORCING_REGEXES,
 )
 
@@ -1880,7 +1880,10 @@ class TestValidateBenignTasks:
 
         errors = validator.validate_benign_tasks([task], site_name="reddit")
 
-        assert any("HostActionOnlyPlaceholder requires expected.host_compiled=true" in error for error in errors)
+        assert any(
+            "HostActionOnlyPlaceholder requires expected.host_compiled=true" in error
+            for error in errors
+        )
 
     def test_route_contracts_accept_valid_gitlab_listing_detail_task(self):
         errors = validator.validate_benign_tasks(
@@ -2984,7 +2987,7 @@ class TestProfileValidationParity:
         assert any("mismatch" in e for e in sandbox_errors)
 
         # Orchestrator
-        from worldsim.profile_validation import validate_profile as orch_validate
+        from warp_taskgen.profile_validation import validate_profile as orch_validate
 
         with pytest.raises(ValueError, match="mismatch"):
             orch_validate("gitlab", profile)
@@ -3002,7 +3005,7 @@ class TestProfileValidationParity:
         sandbox_errors = validator.validate_profile(profile, site_name="shopping")
         assert any("unknown entity" in e for e in sandbox_errors)
 
-        from worldsim.profile_validation import validate_profile as orch_validate
+        from warp_taskgen.profile_validation import validate_profile as orch_validate
 
         with pytest.raises(ValueError, match="unknown entity"):
             orch_validate("shopping", profile)
@@ -3020,7 +3023,7 @@ class TestProfileValidationParity:
         sandbox_errors = validator.validate_profile(profile, site_name="shopping")
         assert any("unknown field" in e for e in sandbox_errors)
 
-        from worldsim.profile_validation import validate_profile as orch_validate
+        from warp_taskgen.profile_validation import validate_profile as orch_validate
 
         with pytest.raises(ValueError, match="unknown field"):
             orch_validate("shopping", profile)
@@ -3045,7 +3048,7 @@ class TestProfileValidationParity:
         assert sandbox_errors == []
 
         # Orchestrator: error when manifest doesn't have that eval type
-        from worldsim.profile_validation import validate_profile as orch_validate
+        from warp_taskgen.profile_validation import validate_profile as orch_validate
 
         with pytest.raises(ValueError, match="eval types absent"):
             orch_validate(
@@ -3069,7 +3072,7 @@ class TestDataSeedValidationParity:
         assert any("object" in e for e in sandbox_errors)
 
         # Orchestrator raises ValueError
-        from worldsim.seeding import validate_data_seed as orch_validate
+        from warp_taskgen.seeding import validate_data_seed as orch_validate
 
         with pytest.raises(ValueError, match="object"):
             orch_validate("not a dict")
@@ -3079,7 +3082,7 @@ class TestDataSeedValidationParity:
         sandbox_errors = validator.validate_data_seed(seed)
         assert any("mechanism" in e for e in sandbox_errors)
 
-        from worldsim.seeding import validate_data_seed as orch_validate
+        from warp_taskgen.seeding import validate_data_seed as orch_validate
 
         with pytest.raises(ValueError, match="mechanism"):
             orch_validate(seed)
@@ -3089,7 +3092,7 @@ class TestDataSeedValidationParity:
         sandbox_errors = validator.validate_data_seed(seed)
         assert any("unknown" in e for e in sandbox_errors)
 
-        from worldsim.seeding import validate_data_seed as orch_validate
+        from warp_taskgen.seeding import validate_data_seed as orch_validate
 
         with pytest.raises(ValueError, match="unknown"):
             orch_validate(seed)
@@ -3099,7 +3102,7 @@ class TestDataSeedValidationParity:
         sandbox_errors = validator.validate_data_seed(seed)
         assert any("unknown" in e for e in sandbox_errors)
 
-        from worldsim.seeding import validate_data_seed as orch_validate
+        from warp_taskgen.seeding import validate_data_seed as orch_validate
 
         with pytest.raises(ValueError, match="unknown"):
             orch_validate(seed)
@@ -3119,7 +3122,7 @@ class TestDataSeedValidationParity:
         sandbox_errors = validator.validate_data_seed(seed, allow_none=True)
         assert any("must not include editor_calls" in e for e in sandbox_errors)
 
-        from worldsim.seeding import validate_data_seed as orch_validate
+        from warp_taskgen.seeding import validate_data_seed as orch_validate
 
         with pytest.raises(ValueError, match="must not include editor_calls"):
             orch_validate(seed, allow_none=True)
@@ -3139,7 +3142,7 @@ class TestDataSeedValidationParity:
         sandbox_errors = validator.validate_data_seed(seed)
         assert any("not supported" in e for e in sandbox_errors)
 
-        from worldsim.seeding import validate_data_seed as orch_validate
+        from warp_taskgen.seeding import validate_data_seed as orch_validate
 
         with pytest.raises(ValueError, match="not supported"):
             orch_validate(seed)

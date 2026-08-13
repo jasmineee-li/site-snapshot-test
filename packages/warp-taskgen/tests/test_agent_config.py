@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from worldsim.agent_config import (
+from warp_taskgen.agent_config import (
     bind_task_to_instance,
     execution_instance_dict,
     instances_for_site,
     prepare_task_for_execution,
     resolve_task_inputs,
 )
-from worldsim.config import BenchmarkInstance
+from warp_taskgen.config import BenchmarkInstance
 
 
 def test_same_site_replicas_route_and_resolve_placeholders() -> None:
@@ -355,8 +355,8 @@ def _install_fake_llm_modules(monkeypatch):
     monkeypatch.setitem(sys.modules, "browser_use.llm.google.chat", google_mod)
 
     # Patch the Responses-API wrapper at its import site so make_llm's lazy
-    # ``from worldsim.llm_wrapper import ChatOpenAIResponses`` picks up the fake.
-    import worldsim.llm_wrapper as llm_wrapper
+    # ``from warp_taskgen.llm_wrapper import ChatOpenAIResponses`` picks up the fake.
+    import warp_taskgen.llm_wrapper as llm_wrapper
 
     def fake_create(**kwargs):
         recorded["openai_responses"] = dict(kwargs)
@@ -370,7 +370,7 @@ def _install_fake_llm_modules(monkeypatch):
 def test_service_tier_threads_to_openai_responses_arm(monkeypatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     recorded = _install_fake_llm_modules(monkeypatch)
-    from worldsim.agent_config import make_llm
+    from warp_taskgen.agent_config import make_llm
 
     make_llm("gpt-5.4-mini", provider="openai", service_tier="priority")
     assert recorded["openai_responses"]["service_tier"] == "priority"
@@ -380,7 +380,7 @@ def test_service_tier_threads_to_openai_responses_arm(monkeypatch) -> None:
 def test_service_tier_threads_to_openai_chat_arm_via_extra_body(monkeypatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     recorded = _install_fake_llm_modules(monkeypatch)
-    from worldsim.agent_config import make_llm
+    from warp_taskgen.agent_config import make_llm
 
     make_llm("gpt-4o", provider="openai", service_tier="flex")
     assert recorded["openai"]["extra_body"] == {"service_tier": "flex"}
@@ -389,7 +389,7 @@ def test_service_tier_threads_to_openai_chat_arm_via_extra_body(monkeypatch) -> 
 def test_service_tier_threads_to_openrouter_arm_nested(monkeypatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-test")
     recorded = _install_fake_llm_modules(monkeypatch)
-    from worldsim.agent_config import make_llm
+    from warp_taskgen.agent_config import make_llm
 
     make_llm("gpt-5.4-mini", provider="openrouter", service_tier="priority")
     inner = recorded["openrouter"]["extra_body"]["extra_body"]
@@ -404,9 +404,9 @@ def test_service_tier_ignored_and_warned_for_anthropic(monkeypatch, caplog) -> N
     recorded = _install_fake_llm_modules(monkeypatch)
     import logging
 
-    from worldsim.agent_config import make_llm
+    from warp_taskgen.agent_config import make_llm
 
-    with caplog.at_level(logging.WARNING, logger="worldsim.agent_config"):
+    with caplog.at_level(logging.WARNING, logger="warp_taskgen.agent_config"):
         make_llm("claude-sonnet-4-6", provider="anthropic", service_tier="priority")
 
     # ChatAnthropic must not have received a service_tier kwarg.
@@ -421,7 +421,7 @@ def test_service_tier_ignored_and_warned_for_anthropic(monkeypatch, caplog) -> N
 def test_anthropic_opus_47_omits_temperature(monkeypatch) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
     recorded = _install_fake_llm_modules(monkeypatch)
-    from worldsim.agent_config import make_llm
+    from warp_taskgen.agent_config import make_llm
 
     make_llm("claude-opus-4-7", provider="anthropic")
 
@@ -432,7 +432,7 @@ def test_anthropic_opus_47_omits_temperature(monkeypatch) -> None:
 def test_anthropic_sonnet_preserves_temperature(monkeypatch) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
     recorded = _install_fake_llm_modules(monkeypatch)
-    from worldsim.agent_config import make_llm
+    from warp_taskgen.agent_config import make_llm
 
     make_llm("claude-sonnet-4-6", provider="anthropic", temperature=0)
 
@@ -447,7 +447,7 @@ def test_anthropic_provider_uses_openrouter_messages_proxy_when_only_openrouter_
     monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-test")
     recorded = _install_fake_llm_modules(monkeypatch)
-    from worldsim.agent_config import OPENROUTER_ANTHROPIC_BASE_URL, make_llm
+    from warp_taskgen.agent_config import OPENROUTER_ANTHROPIC_BASE_URL, make_llm
 
     make_llm("anthropic/claude-sonnet-4.6", provider="anthropic", temperature=0)
 
@@ -461,7 +461,7 @@ def test_anthropic_provider_uses_openrouter_messages_proxy_when_only_openrouter_
 def test_openrouter_anthropic_model_uses_messages_adapter(monkeypatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-test")
     recorded = _install_fake_llm_modules(monkeypatch)
-    from worldsim.agent_config import OPENROUTER_ANTHROPIC_BASE_URL, make_llm
+    from warp_taskgen.agent_config import OPENROUTER_ANTHROPIC_BASE_URL, make_llm
 
     make_llm("anthropic/claude-opus-4.7", provider="openrouter")
 
@@ -476,7 +476,7 @@ def test_service_tier_omitted_leaves_baseline_unchanged(monkeypatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-test")
     recorded = _install_fake_llm_modules(monkeypatch)
-    from worldsim.agent_config import make_llm
+    from warp_taskgen.agent_config import make_llm
 
     make_llm("gpt-5.4-mini", provider="openai")
     # ChatOpenAIResponses.create always receives the kwarg; the wrapper's
@@ -492,7 +492,7 @@ def test_make_agent_factory_threads_browser_use_timeouts(monkeypatch) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
     recorded = _install_fake_llm_modules(monkeypatch)
     captured: dict[str, object] = {}
-    from worldsim import agent_config
+    from warp_taskgen import agent_config
 
     class FakeBrowserUseAgent:
         def __init__(self, **kwargs):

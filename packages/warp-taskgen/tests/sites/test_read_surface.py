@@ -5,15 +5,15 @@ from typing import Any
 
 import pytest
 
-from worldsim.seeding.site_contracts import EditorSeedResult
-from worldsim.sites import (
+from warp_taskgen.seeding.site_contracts import EditorSeedResult
+from warp_taskgen.sites import (
     CanonicalRoute,
     ReadSurfacePlanFailure,
     ReadSurfaceVerificationPlan,
     SiteCatalog,
     TargetingContext,
 )
-from worldsim.sites.read_surface import build_read_surface_plan
+from warp_taskgen.sites.read_surface import build_read_surface_plan
 
 
 def _seed_result(

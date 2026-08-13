@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-from worldsim.config import BenchmarkInstance
-from worldsim.editors.base import EditorError
-from worldsim.instance_selection import select_task_site_instance
-from worldsim.phase_4 import preflight as phase_4_preflight
+from warp_taskgen.config import BenchmarkInstance
+from warp_taskgen.editors.base import EditorError
+from warp_taskgen.instance_selection import select_task_site_instance
+from warp_taskgen.phase_4 import preflight as phase_4_preflight
 
 
 class _ProbeEditor:

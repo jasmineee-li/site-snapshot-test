@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from tests.crash_resume_harness import assert_ok, load_json, normalize, run_scenario
-from worldsim.failpoints import FAILPOINT_EXIT_CODE
+from warp_taskgen.failpoints import FAILPOINT_EXIT_CODE
 
 
 @pytest.mark.crash_resume

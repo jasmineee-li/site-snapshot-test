@@ -1,4 +1,4 @@
-"""Tests for ``worldsim.outcome_taxonomy``.
+"""Tests for ``warp_taskgen.outcome_taxonomy``.
 
 Covers:
 
@@ -26,7 +26,7 @@ from typing import Any
 
 import pytest
 
-from worldsim.outcome_taxonomy import (
+from warp_taskgen.outcome_taxonomy import (
     CLASSIFIER_VERSION,
     TrajectorySignals,
     classify,
@@ -500,7 +500,7 @@ class TestReadSurfaceRegistry:
         # registry tests exercise the tier-2 legacy-path-template fallback,
         # not the new canary/URL/payload triangulation, so ``history=[]``
         # and we ignore the signal_id here.
-        from worldsim.outcome_taxonomy import _check_injection_surface_visited
+        from warp_taskgen.outcome_taxonomy import _check_injection_surface_visited
 
         fired, _ = _check_injection_surface_visited([_net(url)], history or [], task)
         return fired
@@ -1255,7 +1255,7 @@ def test_unknown_a1_routes_to_other_tripwire(caplog):
         D1=True,
         E1=True,
     )
-    with caplog.at_level(logging.ERROR, logger="worldsim.outcome_taxonomy"):
+    with caplog.at_level(logging.ERROR, logger="warp_taskgen.outcome_taxonomy"):
         out = classify(sig, _base_task())
     assert out.outcome_fine == "task_broke_other"
     assert out.diagnosable_confidence == "low"

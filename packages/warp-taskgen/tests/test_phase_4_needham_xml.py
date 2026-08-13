@@ -1,4 +1,4 @@
-"""Byte-equivalence tests for :mod:`worldsim.phase_4.needham_xml`.
+"""Byte-equivalence tests for :mod:`warp_taskgen.phase_4.needham_xml`.
 
 The serializer is a verbatim port of Needham et al. 2025's
 ``pipeline/apply_pq.py::_format_xml`` (commit
@@ -25,8 +25,8 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.phase_4.needham_chat_types import ChatMessage, ToolCall
-from worldsim.phase_4.needham_xml import _format_xml, format_xml
+from warp_taskgen.phase_4.needham_chat_types import ChatMessage, ToolCall
+from warp_taskgen.phase_4.needham_xml import _format_xml, format_xml
 
 
 def test_system_message_uses_role_attribute_no_separate_tag() -> None:
@@ -173,7 +173,7 @@ def test_xml_special_chars_in_tool_calls_are_escaped() -> None:
     out = _format_xml(msg)
     assert "&lt;/message&gt;" in out
     assert 'function="fill&quot;value"' in out
-    assert '&lt;/tool_call&gt;' in out
+    assert "&lt;/tool_call&gt;" in out
     assert "&lt;unsafe&gt;&amp;" in out
 
 

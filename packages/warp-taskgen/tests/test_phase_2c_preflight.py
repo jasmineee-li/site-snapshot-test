@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`worldsim.phases.phase_2c_preflight`.
+"""Unit tests for :mod:`warp_taskgen.phases.phase_2c_preflight`.
 
 Bug I (2026-04-23): pre-seed HTTP probe + source-data quarantine.
 These tests exercise the classifier rules + the whole-run bailout.
@@ -9,8 +9,8 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from worldsim.phase_2c.policy import get_feasibility_policy
-from worldsim.phases.phase_2c_preflight import (
+from warp_taskgen.phase_2c.policy import get_feasibility_policy
+from warp_taskgen.phases.phase_2c_preflight import (
     _classify_probe,
     _location_is_login,
     _looks_like_login_stub,

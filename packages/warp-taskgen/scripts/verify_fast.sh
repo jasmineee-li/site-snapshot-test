@@ -25,4 +25,4 @@ done
 if [[ "$SKIP_COLLECT" -eq 0 ]]; then
     "$RUN_SILENT" "pytest collection" "uv run pytest --collect-only -q"
 fi
-"$RUN_SILENT" "readiness audit" "uv run python scripts/readiness_audit.py --fail-on tracked-generated --fail-on tokens --fail-on legacy-imports"
+"$RUN_SILENT" "readiness audit" "uv run python scripts/readiness_audit.py --fail-on tracked-generated --fail-on tokens --fail-on legacy-imports --fail-on legacy-namespace-imports"

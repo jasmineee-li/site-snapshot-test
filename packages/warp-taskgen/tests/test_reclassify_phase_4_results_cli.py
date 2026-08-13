@@ -8,16 +8,26 @@ idempotency guard too.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-from worldsim import outcome_taxonomy
+from warp_taskgen import outcome_taxonomy
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = REPO_ROOT / "scripts" / "reclassify_phase_4_results.py"
 
 ATTACKER = "https://attacker.invalid/smoketest"
+
+
+def _subprocess_env() -> dict[str, str]:
+    """Keep the canonical package importable when tests change subprocess cwd."""
+
+    env = os.environ.copy()
+    existing = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = str(REPO_ROOT) + (os.pathsep + existing if existing else "")
+    return env
 
 
 def _write_history(path: Path, *, is_done: bool, success: bool) -> None:
@@ -103,6 +113,7 @@ def test_reclassify_cli_enriches_and_is_idempotent(tmp_path):
         [sys.executable, str(SCRIPT), str(run_dir)],
         capture_output=True,
         text=True,
+        env=_subprocess_env(),
     )
     assert result.returncode == 0, result.stderr
 
@@ -119,6 +130,7 @@ def test_reclassify_cli_enriches_and_is_idempotent(tmp_path):
         [sys.executable, str(SCRIPT), str(run_dir)],
         capture_output=True,
         text=True,
+        env=_subprocess_env(),
     )
     assert result2.returncode == 0
     assert "skipped_up_to_date" in result2.stderr or "skipped_up_to_date" in result2.stdout
@@ -128,6 +140,7 @@ def test_reclassify_cli_enriches_and_is_idempotent(tmp_path):
         [sys.executable, str(SCRIPT), str(run_dir), "--force"],
         capture_output=True,
         text=True,
+        env=_subprocess_env(),
     )
     assert result3.returncode == 0
     processed2 = json.loads((run_dir / "smoketask" / "processed_result.json").read_text())
@@ -153,6 +166,7 @@ def test_reclassify_cli_skips_non_trajectory_outcomes(tmp_path):
         [sys.executable, str(SCRIPT), str(run_dir)],
         capture_output=True,
         text=True,
+        env=_subprocess_env(),
     )
     assert result.returncode == 0
     processed = json.loads((d / "processed_result.json").read_text())
@@ -166,6 +180,7 @@ def test_reclassify_cli_errors_on_missing_run_dir(tmp_path):
         [sys.executable, str(SCRIPT), str(tmp_path / "nope")],
         capture_output=True,
         text=True,
+        env=_subprocess_env(),
     )
     assert result.returncode == 2
 
@@ -238,6 +253,7 @@ def test_reclassify_cli_resolves_relative_trajectory_dir(tmp_path):
         [sys.executable, str(SCRIPT), str(run_dir)],
         capture_output=True,
         text=True,
+        env=_subprocess_env(),
     )
     assert result.returncode == 0, result.stderr
     enriched = json.loads((task_dir / "processed_result.json").read_text())
@@ -268,6 +284,7 @@ def test_reclassify_cli_warns_on_absolute_missing(tmp_path):
         [sys.executable, str(SCRIPT), str(run_dir)],
         capture_output=True,
         text=True,
+        env=_subprocess_env(),
     )
     assert result.returncode == 0
     # Warning is logged at WARNING level, which goes to stderr via basicConfig.
@@ -349,6 +366,7 @@ def test_reclassify_cli_resolves_trajectory_dir_via_cwd(tmp_path):
         [sys.executable, str(SCRIPT), str(run_dir)],
         capture_output=True,
         text=True,
+        env=_subprocess_env(),
         cwd=str(tmp_path),
     )
     assert result.returncode == 0, result.stderr
@@ -431,6 +449,7 @@ def test_reclassify_cli_resolves_sibling_via_run_dir(tmp_path):
         [sys.executable, str(SCRIPT), str(run_dir)],
         capture_output=True,
         text=True,
+        env=_subprocess_env(),
         cwd=str(elsewhere),
     )
     assert result.returncode == 0, result.stderr

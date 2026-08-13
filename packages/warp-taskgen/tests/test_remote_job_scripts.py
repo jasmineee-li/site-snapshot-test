@@ -611,7 +611,7 @@ def test_start_rejects_phase2c_smoke_instances_on_remote_orchestrator_host(
             "bash",
             "-lc",
             (
-                "uv run python -m worldsim.main phase 2c "
+                "uv run python -m warp_taskgen.main phase 2c "
                 "--feasibility-instances instances.smoke.json"
             ),
         ],
@@ -670,7 +670,7 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
             "--",
             "bash",
             "-lc",
-            "uv run python -m worldsim.main resume --agent-task-timeout 900",
+            "uv run python -m warp_taskgen.main resume --agent-task-timeout 900",
         ],
         cwd=repo_root,
         env=env,
@@ -724,7 +724,7 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
             "-lc",
             (
                 "export WORLDSIM_STATE_DIR=logs/custom_run; "
-                "uv run python -m worldsim.main phase 4 --instances instances.scale.json"
+                "uv run python -m warp_taskgen.main phase 4 --instances instances.scale.json"
             ),
         ],
         cwd=repo_root,
@@ -777,8 +777,8 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
             "bash",
             "-lc",
             (
-                ": worldsim.main phase 0 --instances instances.smoke.json && "
-                ": worldsim.main phase 2 --feasibility-instances instances.scale.json"
+                ": warp_taskgen.main phase 0 --instances instances.smoke.json && "
+                ": warp_taskgen.main phase 2 --feasibility-instances instances.scale.json"
             ),
         ],
         cwd=repo_root,
@@ -887,12 +887,12 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
             "bash",
             "-lc",
             (
-                ": worldsim.main phase 0 --benchmark /home/ubuntu/vendors/webarena-verified "
+                ": warp_taskgen.main phase 0 --benchmark /home/ubuntu/vendors/webarena-verified "
                 "--instances instances.smoke.json "
                 "--host-inventory-instances instances.scale.json && "
-                ": worldsim.main phase 1 --benchmark /home/ubuntu/vendors/webarena-verified "
+                ": warp_taskgen.main phase 1 --benchmark /home/ubuntu/vendors/webarena-verified "
                 "--generate-novel --sites gitlab,reddit && "
-                ": worldsim.main phase 2 --feasibility-instances instances.scale.json"
+                ": warp_taskgen.main phase 2 --feasibility-instances instances.scale.json"
             ),
         ],
         cwd=repo_root,
@@ -944,9 +944,9 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
             "bash",
             "-lc",
             (
-                ": worldsim.main phase 2 --task-origin new_task "
+                ": warp_taskgen.main phase 2 --task-origin new_task "
                 "--feasibility-instances instances.scale.json && "
-                ": worldsim.main phase 3 --task-origin new_task --sites gitlab,reddit"
+                ": warp_taskgen.main phase 3 --task-origin new_task --sites gitlab,reddit"
             ),
         ],
         cwd=repo_root,
@@ -1000,7 +1000,7 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
             "bash",
             "-lc",
             (
-                ": worldsim.main phase 4 --instances instances.scale.json "
+                ": warp_taskgen.main phase 4 --instances instances.scale.json "
                 "--agent-llm-timeout 240 --agent-step-timeout 300 "
                 "--agent-task-timeout 900"
             ),
@@ -1052,7 +1052,7 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
             "bash",
             "-lc",
             (
-                ": worldsim.main phase 2 --sites gitlab,reddit "
+                ": warp_taskgen.main phase 2 --sites gitlab,reddit "
                 "--feasibility-instances instances.scale.json"
             ),
         ],
@@ -1488,7 +1488,7 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
                 "pid": 999999,
                 "pgid": 999999,
                 "remote_dir": str(remote_dir),
-                "command": ["bash", "-lc", "uv run python -m worldsim.main phase 0"],
+                "command": ["bash", "-lc", "uv run python -m warp_taskgen.main phase 0"],
                 "expected_outputs": [],
             }
         )
@@ -1554,7 +1554,7 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
                 "pid": 999999,
                 "pgid": 999999,
                 "remote_dir": str(remote_dir),
-                "command": ["bash", "-lc", "uv run python -m worldsim.main phase 4"],
+                "command": ["bash", "-lc", "uv run python -m warp_taskgen.main phase 4"],
                 "expected_outputs": [],
             }
         )
@@ -1622,7 +1622,7 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
                 "pid": 999999,
                 "pgid": 999999,
                 "remote_dir": str(remote_dir),
-                "command": ["uv", "run", "python", "-m", "worldsim.main", "phase", "4"],
+                "command": ["uv", "run", "python", "-m", "warp_taskgen.main", "phase", "4"],
                 "expected_outputs": ["logs/phase_4/results.json"],
             }
         )
@@ -1732,7 +1732,7 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
                 "pid": 999999,
                 "pgid": 999999,
                 "remote_dir": str(remote_dir),
-                "command": ["uv", "run", "python", "-m", "worldsim.main", "phase", "4"],
+                "command": ["uv", "run", "python", "-m", "warp_taskgen.main", "phase", "4"],
                 "expected_outputs": ["logs/phase_4/results.json"],
             }
         )
@@ -1798,7 +1798,7 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
                 "pid": 999999,
                 "pgid": 999999,
                 "remote_dir": str(remote_dir),
-                "command": ["uv", "run", "python", "-m", "worldsim.main", "phase", "4"],
+                "command": ["uv", "run", "python", "-m", "warp_taskgen.main", "phase", "4"],
                 "expected_outputs": ["logs/custom_run/phase_4/results.json"],
             }
         )
@@ -1914,7 +1914,7 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
                 "pid": 999999,
                 "pgid": 999999,
                 "remote_dir": str(remote_dir),
-                "command": ["uv", "run", "python", "-m", "worldsim.main", "phase", "4"],
+                "command": ["uv", "run", "python", "-m", "warp_taskgen.main", "phase", "4"],
                 "expected_outputs": ["logs/custom_run/phase_4/results.json"],
             }
         )

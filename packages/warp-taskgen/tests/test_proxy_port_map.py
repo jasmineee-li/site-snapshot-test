@@ -35,9 +35,7 @@ def test_generated_proxy_port_map_matches_scale_config() -> None:
         # envctrl entry follows the replica's web entry so Phase 2c /
         # Phase 4 reset_endpoint hits reach nginx instead of a
         # docker-loopback port. Matches build_proxy_ports().
-        expected_lines.append(
-            f"{rec['service_name']}_envctrl:{real_port + 1}:{proxy_port + 1}"
-        )
+        expected_lines.append(f"{rec['service_name']}_envctrl:{real_port + 1}:{proxy_port + 1}")
     actual_lines = [
         line.strip()
         for line in build_proxy_ports(records).splitlines()

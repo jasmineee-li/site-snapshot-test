@@ -6,8 +6,8 @@ from typing import Any
 
 import pytest
 
-from worldsim.phase_4 import placement_loop as phase_4_placement_loop
-from worldsim.phase_4.encounter_detection import EncounterResult
+from warp_taskgen.phase_4 import placement_loop as phase_4_placement_loop
+from warp_taskgen.phase_4.encounter_detection import EncounterResult
 
 
 def _task() -> dict[str, Any]:

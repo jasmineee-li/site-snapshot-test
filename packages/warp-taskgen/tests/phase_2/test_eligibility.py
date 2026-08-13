@@ -1,7 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
-from worldsim.phase_2 import eligibility
+from warp_taskgen.phase_2 import eligibility
 
 
 def test_build_cell_targets_balances_across_available_cells():

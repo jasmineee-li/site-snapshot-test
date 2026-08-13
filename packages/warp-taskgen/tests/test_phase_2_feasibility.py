@@ -16,11 +16,11 @@ from typing import Any
 
 import pytest
 
-from worldsim.editors import EditorError
-from worldsim.phase_2.phase_2c import _impl as feas
-from worldsim.phase_2.phase_2c import _impl as phase_2c_impl
-from worldsim.phase_2.phase_2c import probes, source_data_preflight, source_preflight
-from worldsim.phases import phase_2c_preflight
+from warp_taskgen.editors import EditorError
+from warp_taskgen.phase_2.phase_2c import _impl as feas
+from warp_taskgen.phase_2.phase_2c import _impl as phase_2c_impl
+from warp_taskgen.phase_2.phase_2c import probes, source_data_preflight, source_preflight
+from warp_taskgen.phases import phase_2c_preflight
 
 
 def test_reachability_resource_prefers_exposure_contract_verification_url():
@@ -593,7 +593,7 @@ def test_git_head_short_preserves_sync_stamp_lookup(monkeypatch, tmp_path):
     monkeypatch.setattr(feas, "_sync_stamp_commit", fake_sync_stamp_commit)
 
     assert feas._git_head_short() == "stamp12345678"
-    assert observed == [Path(__file__).resolve().parents[1] / "worldsim"]
+    assert observed == [Path(__file__).resolve().parents[1] / "warp_taskgen"]
 
 
 def test_safe_cleanup_observes_canonical_editor_error_patch(monkeypatch):
@@ -616,7 +616,7 @@ def test_safe_cleanup_observes_canonical_editor_error_patch(monkeypatch):
 
 
 def test_impl_host_fingerprint_observes_direct_git_head_patch(monkeypatch):
-    from worldsim.phase_2.phase_2c import _impl
+    from warp_taskgen.phase_2.phase_2c import _impl
 
     monkeypatch.setattr(_impl, "_git_head_short", lambda: "patchedhead12")
 
@@ -990,7 +990,7 @@ async def test_run_reachability_check_ignores_ryw_pseudo_signature(monkeypatch):
 
     async def fake_verify_reachable(**kwargs):
         captured.update(kwargs)
-        from worldsim.phases.phase_2_reachability import ReachabilityOutcome
+        from warp_taskgen.phases.phase_2_reachability import ReachabilityOutcome
 
         return ReachabilityOutcome.direct(
             url=str(kwargs.get("instance_site_url") or ""),
@@ -2285,7 +2285,7 @@ async def test_preflight_refreshes_stale_gitlab_storage_state(tmp_path, monkeypa
         async def start(self):
             return _FakePlaywright()
 
-    from worldsim.phases import phase_0d_auth_bootstrap
+    from warp_taskgen.phases import phase_0d_auth_bootstrap
 
     monkeypatch.setattr(phase_2c_preflight, "self_test_preflight_auth", fake_self_test_auth)
     monkeypatch.setattr(
@@ -2365,7 +2365,7 @@ async def test_preflight_skips_source_data_quarantine_when_gitlab_refresh_still_
         async def start(self):
             return _FakePlaywright()
 
-    from worldsim.phases import phase_0d_auth_bootstrap
+    from warp_taskgen.phases import phase_0d_auth_bootstrap
 
     monkeypatch.setattr(phase_2c_preflight, "self_test_preflight_auth", fake_self_test_auth)
     monkeypatch.setattr(
@@ -3633,7 +3633,7 @@ def test_replica_stats_summary_logged(tmp_path, monkeypatch, caplog):
 
     import logging
 
-    with caplog.at_level(logging.INFO, logger="worldsim.phase_2.phase_2c._impl"):
+    with caplog.at_level(logging.INFO, logger="warp_taskgen.phase_2.phase_2c._impl"):
         asyncio.run(
             feas.verify_feasibility(
                 tasks_path,

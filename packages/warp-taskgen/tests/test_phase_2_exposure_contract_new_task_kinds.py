@@ -7,7 +7,7 @@ naturally traversed issue/MR note/body surfaces.
 
 from __future__ import annotations
 
-from worldsim.phase_2.exposure_contract import build_exposure_contract
+from warp_taskgen.phase_2.exposure_contract import build_exposure_contract
 
 
 def _build(kind: str, anchors: dict, start_url: str) -> dict:
@@ -118,14 +118,14 @@ def test_unresolved_kind_remains_ineligible():
 
 def test_signature_version_bumped_to_18():
     """Persisted Phase 2 plans built before comment ordering guards must invalidate."""
-    from worldsim.phase_2.exposure_contract import exposure_contract_signature
+    from warp_taskgen.phase_2.exposure_contract import exposure_contract_signature
 
     sig = exposure_contract_signature()
     assert sig["version"] == 18
 
 
 def test_impl_signature_observes_direct_preferred_token_patch(monkeypatch):
-    from worldsim.phase_2.exposure_contract import _impl, signature
+    from warp_taskgen.phase_2.exposure_contract import _impl, signature
 
     with monkeypatch.context() as patch:
         patch.setattr(_impl, "PREFERRED_TOKEN_ORDER", ("{patched_token}",))
@@ -137,8 +137,8 @@ def test_impl_signature_observes_direct_preferred_token_patch(monkeypatch):
 
 
 def test_package_signature_observes_impl_preferred_token_patch(monkeypatch):
-    import worldsim.phase_2.exposure_contract as package
-    from worldsim.phase_2.exposure_contract import _impl, signature
+    import warp_taskgen.phase_2.exposure_contract as package
+    from warp_taskgen.phase_2.exposure_contract import _impl, signature
 
     with monkeypatch.context() as patch:
         patch.setattr(_impl, "PREFERRED_TOKEN_ORDER", ("{package_patched_token}",))

@@ -1,9 +1,9 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
-from worldsim.phase_2 import reuse
-from worldsim.phase_2 import target_inputs
-from worldsim.phase_2.text_fill.constants import DEFAULT_TEXT_FILL_MODEL
+from warp_taskgen.phase_2 import reuse
+from warp_taskgen.phase_2 import target_inputs
+from warp_taskgen.phase_2.text_fill.constants import DEFAULT_TEXT_FILL_MODEL
 
 
 def test_collect_site_profiles_returns_reusable_mapping(tmp_path):

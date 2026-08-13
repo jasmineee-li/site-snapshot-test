@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from worldsim.phases.phase_0c_reddit_enrichment import (
+from warp_taskgen.phases.phase_0c_reddit_enrichment import (
     RedditInventoryEnrichmentError,
     _db_connection_candidates,
     _read_forum_rows,
@@ -28,10 +28,10 @@ def test_enrich_reddit_forums_filters_unreachable_forums() -> None:
     ]
     with (
         patch(
-            "worldsim.phases.phase_0c_reddit_enrichment._read_forum_rows",
+            "warp_taskgen.phases.phase_0c_reddit_enrichment._read_forum_rows",
             return_value=rows,
         ),
-        patch("worldsim.phases.phase_0c_reddit_enrichment.requests.get") as mock_get,
+        patch("warp_taskgen.phases.phase_0c_reddit_enrichment.requests.get") as mock_get,
     ):
         mock_get.side_effect = [_response(200), _response(404), _response(200)]
         result = enrich_reddit_forums("http://reddit.local", "mysql://u:p@h/db")
@@ -52,17 +52,17 @@ def test_enrich_reddit_forums_filters_unreachable_forums() -> None:
 def test_enrich_reddit_forums_includes_reachable_empty_submissions() -> None:
     with (
         patch(
-            "worldsim.phases.phase_0c_reddit_enrichment._read_forum_rows",
+            "warp_taskgen.phases.phase_0c_reddit_enrichment._read_forum_rows",
             return_value=[{"id": 1, "name": "books", "title": "Books"}],
         ),
         patch(
-            "worldsim.phases.phase_0c_reddit_enrichment._read_empty_submission_rows_from_candidates",
+            "warp_taskgen.phases.phase_0c_reddit_enrichment._read_empty_submission_rows_from_candidates",
             return_value=[
                 {"id": 119, "forum_name": "books", "title": "empty thread"},
                 {"id": 120, "forum_name": "books", "title": "gone thread"},
             ],
         ),
-        patch("worldsim.phases.phase_0c_reddit_enrichment.requests.get") as mock_get,
+        patch("warp_taskgen.phases.phase_0c_reddit_enrichment.requests.get") as mock_get,
     ):
         mock_get.side_effect = [_response(200), _response(200), _response(404)]
         result = enrich_reddit_forums("http://reddit.local", "mysql://u:p@h/db")
@@ -87,10 +87,10 @@ def test_enrich_reddit_forums_includes_reachable_empty_submissions() -> None:
 def test_enrich_reddit_forums_encodes_forum_paths() -> None:
     with (
         patch(
-            "worldsim.phases.phase_0c_reddit_enrichment._read_forum_rows",
+            "warp_taskgen.phases.phase_0c_reddit_enrichment._read_forum_rows",
             return_value=[{"id": 1, "name": "personal finances", "title": "Personal"}],
         ),
-        patch("worldsim.phases.phase_0c_reddit_enrichment.requests.get") as mock_get,
+        patch("warp_taskgen.phases.phase_0c_reddit_enrichment.requests.get") as mock_get,
     ):
         mock_get.return_value = _response(200)
         enrich_reddit_forums("http://reddit.local/", "mysql://u:p@h/db")
@@ -113,14 +113,14 @@ def test_enrich_reddit_forums_prefers_runtime_db_host_for_host_side_inventory() 
 
     with (
         patch(
-            "worldsim.phases.phase_0c_reddit_enrichment._read_forum_rows",
+            "warp_taskgen.phases.phase_0c_reddit_enrichment._read_forum_rows",
             side_effect=fake_read_forum_rows,
         ),
         patch(
-            "worldsim.phases.phase_0c_reddit_enrichment._read_empty_submission_rows_from_candidates",
+            "warp_taskgen.phases.phase_0c_reddit_enrichment._read_empty_submission_rows_from_candidates",
             return_value=[],
         ),
-        patch("worldsim.phases.phase_0c_reddit_enrichment.requests.get") as mock_get,
+        patch("warp_taskgen.phases.phase_0c_reddit_enrichment.requests.get") as mock_get,
     ):
         mock_get.return_value = _response(200)
         result = enrich_reddit_forums(
@@ -172,7 +172,7 @@ def test_common_reddit_forum_inventory_filters_replica_local_probe_forums() -> N
 
 def test_read_forum_rows_wraps_connection_failures() -> None:
     with patch(
-        "worldsim.phases.phase_0c_reddit_enrichment._connect_db",
+        "warp_taskgen.phases.phase_0c_reddit_enrichment._connect_db",
         side_effect=TimeoutError("connection timed out"),
     ):
         with pytest.raises(

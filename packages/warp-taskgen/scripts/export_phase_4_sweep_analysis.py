@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from worldsim.phase_4.sweep_analysis import analyze_sweep, write_analysis_outputs
+from warp_taskgen.phase_4.sweep_analysis import analyze_sweep, write_analysis_outputs
 
 
 def main(argv: list[str] | None = None) -> int:

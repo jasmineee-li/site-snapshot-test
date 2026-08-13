@@ -199,7 +199,7 @@ acceptable.
 
 ## Running Phase 4
 
-For top-level `worldsim.main phase 4` Browser Use or AgentLab runs, use:
+For top-level `warp_taskgen.main phase 4` Browser Use or AgentLab runs, use:
 
 ```bash
 --phase-4-max-workers 48
@@ -210,7 +210,7 @@ that spelling because it is ambiguous and caused failed launches.
 
 `--workers` is reserved for `scripts/run_phase4_process_pool.py`. The process
 pool is an orchestration wrapper: each worker subprocess runs normal
-`worldsim.main phase 4` with one task, one instance, and
+`warp_taskgen.main phase 4` with one task, one instance, and
 `--phase-4-max-workers 1`.
 
 ## Outputs

@@ -1,4 +1,4 @@
-"""Unit tests for ``worldsim._async_utils.retrying``.
+"""Unit tests for ``warp_taskgen._async_utils.retrying``.
 
 Covers the transient-error retry policy that Phase 2c relies on, plus
 the optional ``on_retry`` hook used to sweep partial platform state
@@ -11,8 +11,8 @@ import asyncio
 
 import pytest
 
-from worldsim._async_utils import _DEFAULT_RETRY_KINDS, retrying
-from worldsim.editors import EditorError
+from warp_taskgen._async_utils import _DEFAULT_RETRY_KINDS, retrying
+from warp_taskgen.editors import EditorError
 
 
 def test_default_retry_kinds_include_transient_and_cleanup():

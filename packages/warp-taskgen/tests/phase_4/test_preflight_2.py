@@ -5,7 +5,7 @@ from ._fixtures import *  # noqa: F403,F401
 
 @pytest.mark.asyncio
 async def test_phase_4_run_checks_existing_storage_state_freshness(monkeypatch, tmp_path):
-    from worldsim import storage_state_preflight
+    from warp_taskgen import storage_state_preflight
 
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "phase_2").mkdir(parents=True)

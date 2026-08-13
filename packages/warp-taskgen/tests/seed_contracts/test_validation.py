@@ -1,10 +1,10 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from tests.phase_2._fixtures import *  # noqa: F403,F401
-from worldsim.phase_2 import eligibility
-from worldsim.phase_2 import plan_validation
-from worldsim.seed_contracts import delivery, validation
-from worldsim.seed_contracts.delivery import _call_delivery_path
+from warp_taskgen.phase_2 import eligibility
+from warp_taskgen.phase_2 import plan_validation
+from warp_taskgen.seed_contracts import delivery, validation
+from warp_taskgen.seed_contracts.delivery import _call_delivery_path
 
 
 def test_self_contained_adversarial_seed_admits_mode_b_api_post_then_patch():
@@ -82,7 +82,7 @@ def test_validate_seed_template_contract_admits_mode_b_reddit_multi_editor_calls
     """validate_seed_template_contract takes the editor_calls path when
     editor_calls is non-empty and accepts a multi-call template as long as
     the placeholder appears exactly once in editor_calls[*].args."""
-    from worldsim.phase_2.text_fill.seed import validate_seed_template_contract
+    from warp_taskgen.phase_2.text_fill.seed import validate_seed_template_contract
 
     seed_template = {
         "mechanism": "none",

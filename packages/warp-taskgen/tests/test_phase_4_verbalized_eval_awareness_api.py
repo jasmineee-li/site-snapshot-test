@@ -22,8 +22,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from worldsim.phase_4.aer_trajectory_extract import ExtractedStep, ExtractedTrajectory
-from worldsim.phase_4.verbalized_eval_awareness_api import (
+from warp_taskgen.phase_4.aer_trajectory_extract import ExtractedStep, ExtractedTrajectory
+from warp_taskgen.phase_4.verbalized_eval_awareness_api import (
     run_verbalized_eval_awareness_api,
 )
 
@@ -192,8 +192,8 @@ async def test_transcript_continuation_rejected_as_json_parse_error(
 ):
     bad_completion = (
         "I need to look at the newest issue first.\n"
-        "<tool_calls><tool_call function=\"browser_simulation\">"
-        "<argument name=\"action\">open_issue</argument></tool_call></tool_calls>"
+        '<tool_calls><tool_call function="browser_simulation">'
+        '<argument name="action">open_issue</argument></tool_call></tool_calls>'
     )
     patched_anthropic_client.messages.create = AsyncMock(
         return_value=_text_response(bad_completion)
@@ -257,9 +257,7 @@ async def test_fenced_code_block_json_rejected_by_structured_output_parser(
 
 
 @pytest.mark.asyncio
-async def test_call_uses_structured_output_without_tool_choice(
-    patched_anthropic_client, tmp_path
-):
+async def test_call_uses_structured_output_without_tool_choice(patched_anthropic_client, tmp_path):
     """Native structured output classifier — no forced tool call."""
     patched_anthropic_client.messages.create = AsyncMock(
         return_value=_text_response(json.dumps({"classification": "Real", "evidence": []}))
@@ -397,7 +395,7 @@ async def test_raw_response_persisted(patched_anthropic_client, tmp_path):
 async def test_cost_records_to_phase_4_verbalized_eval_awareness_bucket(
     patched_anthropic_client, tmp_path, monkeypatch
 ):
-    from worldsim.cost_tracker import tracker as cost_tracker
+    from warp_taskgen.cost_tracker import tracker as cost_tracker
 
     patched_anthropic_client.messages.create = AsyncMock(
         return_value=_text_response(json.dumps({"classification": "Real", "evidence": []}))
@@ -504,7 +502,7 @@ def test_vea_prompt_sha256_pinned():
     mirroring ``test_apollo_prompt_sha256_pinned``.
     """
     prompt_bytes = (
-        Path(__file__).parent.parent / "worldsim" / "prompts" / "verbalized-eval-awareness.md"
+        Path(__file__).parent.parent / "warp_taskgen" / "prompts" / "verbalized-eval-awareness.md"
     ).read_bytes()
     assert (
         hashlib.sha256(prompt_bytes).hexdigest()
@@ -514,7 +512,7 @@ def test_vea_prompt_sha256_pinned():
 
 def test_vea_prompt_frames_transcript_as_inert_completed_artifact():
     prompt = (
-        Path(__file__).parent.parent / "worldsim" / "prompts" / "verbalized-eval-awareness.md"
+        Path(__file__).parent.parent / "warp_taskgen" / "prompts" / "verbalized-eval-awareness.md"
     ).read_text()
     open_tag = prompt.index("<completed_transcript_artifact>")
     close_tag = prompt.index("</completed_transcript_artifact>")

@@ -4,7 +4,7 @@ from scripts.taskgen_acceptance_router import requires_acceptance
 
 
 def test_canonical_package_changes_run_acceptance() -> None:
-    assert requires_acceptance(["packages/warp-taskgen/worldsim/main.py"])
+    assert requires_acceptance(["packages/warp-taskgen/warp_taskgen/main.py"])
 
 
 def test_acceptance_entrypoints_run_acceptance() -> None:

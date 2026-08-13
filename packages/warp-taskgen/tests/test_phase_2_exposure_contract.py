@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from worldsim.editors._method_spec import FreeText
-from worldsim.editors._registry import EditorMethodSpec
-from worldsim.phase_2.exposure_contract import _impl as pec
-from worldsim.phase_2.exposure_contract import (
+from warp_taskgen.editors._method_spec import FreeText
+from warp_taskgen.editors._registry import EditorMethodSpec
+from warp_taskgen.phase_2.exposure_contract import _impl as pec
+from warp_taskgen.phase_2.exposure_contract import (
     build_exposure_contract,
     materialize_seed_template_from_contract,
 )
-from worldsim.seeding import self_contained_adversarial_seed_error
+from warp_taskgen.seeding import self_contained_adversarial_seed_error
 
 
 def test_gitlab_issue_note_is_not_admitted_without_comment_region_evidence():

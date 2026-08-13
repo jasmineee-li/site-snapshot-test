@@ -144,7 +144,7 @@ Layer 3: CloudWatch low-CPU stop alarm                   (backstop)
 `worldsim:sweep-in-progress=true` is the contract every layer respects.
 Set the tag before any work that must not be interrupted; clear it once
 the run and its archive are complete. `scripts/host_resume.sh` sets it
-automatically; `worldsim/phase_4/sweep_tag.py` (loaded by the Phase 4
+automatically; `warp_taskgen/phase_4/sweep_tag.py` (loaded by the Phase 4
 runner) sets it best-effort at run start and clears it at run end.
 
 ### Operator workflow

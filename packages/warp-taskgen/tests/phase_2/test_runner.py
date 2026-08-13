@@ -1,9 +1,9 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
-from worldsim.phase_2 import generation
-from worldsim.phase_2 import runner as phase_2_injections
-from worldsim.phase_2 import target_inputs
+from warp_taskgen.phase_2 import generation
+from warp_taskgen.phase_2 import runner as phase_2_injections
+from warp_taskgen.phase_2 import target_inputs
 
 
 @pytest.mark.asyncio
@@ -75,9 +75,9 @@ async def test_paused_run_reuses_exact_single_shard_before_api_admission(
     monkeypatch,
     tmp_path,
 ):
-    from worldsim.phase_2.pause_control import write_planning_shard_checkpoint
-    from worldsim.run_transition import resolve_run_request
-    from worldsim.state import bind_run_definition
+    from warp_taskgen.phase_2.pause_control import write_planning_shard_checkpoint
+    from warp_taskgen.run_transition import resolve_run_request
+    from warp_taskgen.state import bind_run_definition
 
     monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
@@ -136,9 +136,9 @@ async def test_paused_run_reuses_exact_single_shard_before_api_admission(
 
 @pytest.mark.asyncio
 async def test_text_fill_pause_wins_zero_success_terminal_race(monkeypatch, tmp_path):
-    from worldsim.run_control import PauseBoundaryReached, request_pause
-    from worldsim.run_transition import resolve_run_request
-    from worldsim.state import bind_run_definition
+    from warp_taskgen.run_control import PauseBoundaryReached, request_pause
+    from warp_taskgen.run_transition import resolve_run_request
+    from warp_taskgen.state import bind_run_definition
 
     monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))

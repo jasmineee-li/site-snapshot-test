@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from worldsim import main as worldsim_main
-from worldsim import task_bank
-from worldsim.cli_status import summarize_phase2c
+from warp_taskgen import main as worldsim_main
+from warp_taskgen import task_bank
+from warp_taskgen.cli_status import summarize_phase2c
 
 
 def _write_json(path: Path, payload: object) -> None:

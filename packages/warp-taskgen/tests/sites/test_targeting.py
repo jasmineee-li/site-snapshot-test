@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from worldsim.sites import (
+from warp_taskgen.sites import (
     CanonicalRoute,
     ListingItemCandidate,
     SiteCatalog,
@@ -15,8 +15,8 @@ from worldsim.sites import (
     TargetingContext,
     TargetingFailure,
 )
-from worldsim.sites.gitlab import GitLabSite
-from worldsim.sites.reddit import RedditSite
+from warp_taskgen.sites.gitlab import GitLabSite
+from warp_taskgen.sites.reddit import RedditSite
 
 PLACEHOLDERS = {
     "__GITLAB__": "https://gitlab.local",
@@ -25,10 +25,10 @@ PLACEHOLDERS = {
 
 
 def test_site_facade_and_feature_modules_preserve_contract_identity():
-    import worldsim.sites as sites
-    import worldsim.sites.catalog as catalog
-    import worldsim.sites.contracts as contracts
-    import worldsim.sites.task_evidence as task_evidence
+    import warp_taskgen.sites as sites
+    import warp_taskgen.sites.catalog as catalog
+    import warp_taskgen.sites.contracts as contracts
+    import warp_taskgen.sites.task_evidence as task_evidence
 
     for name in (
         "CanonicalRoute",
@@ -53,9 +53,9 @@ def test_site_facade_and_feature_modules_preserve_contract_identity():
 
 
 def test_catalog_compatibility_private_imports_remain_available():
-    import worldsim.sites.catalog as catalog
-    import worldsim.sites.gitlab as gitlab
-    import worldsim.sites.reddit as reddit
+    import warp_taskgen.sites.catalog as catalog
+    import warp_taskgen.sites.gitlab as gitlab
+    import warp_taskgen.sites.reddit as reddit
 
     assert gitlab.CanonicalRoute is catalog.CanonicalRoute
     assert gitlab.TargetingContext is catalog.TargetingContext
@@ -419,7 +419,7 @@ def test_gitlab_issue_listing_is_classified_by_the_site_grammar():
 
 
 def test_legacy_matchers_preserve_prefixed_resource_kinds():
-    from worldsim.phase_2.target_resolution.url_matching import _match_gitlab, _match_reddit
+    from warp_taskgen.phase_2.target_resolution.url_matching import _match_gitlab, _match_reddit
 
     assert _match_gitlab("https://gitlab.local/a/b/-/issues/7") == (
         "gitlab_issue",

@@ -65,7 +65,7 @@ eval "$(
     uv run python - "$HOST_CONFIG" <<'PY'
 import shlex
 import sys
-from worldsim.host_config import load_host_config
+from warp_taskgen.host_config import load_host_config
 
 cfg = load_host_config(sys.argv[1])
 for key, value in {

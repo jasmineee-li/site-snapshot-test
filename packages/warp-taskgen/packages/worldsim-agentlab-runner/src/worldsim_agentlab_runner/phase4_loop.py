@@ -161,9 +161,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                     network=network,
                 )
 
-                while not step_info.is_done and steps_taken < int(
-                    request.get("max_steps") or 30
-                ):
+                while not step_info.is_done and steps_taken < int(request.get("max_steps") or 30):
                     with _step_deadline(request, f"action step {step_info.step}"):
                         _update_runtime_progress(
                             output_dir,
@@ -214,9 +212,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                             action=action,
                             network=network,
                         )
-                        next_step.from_step(
-                            env, action, obs_preprocessor=agent.obs_preprocessor
-                        )
+                        next_step.from_step(env, action, obs_preprocessor=agent.obs_preprocessor)
                         _update_runtime_progress(
                             output_dir,
                             runtime,

@@ -19,7 +19,7 @@ plus Phase 4 exposure parity):
   Gate 3 - Phase 4 IPI / exposure admission (post-2c).
     For every task with ``feasibility.status == "verified"``, require the
     same contract + evidence alignment as
-    :func:`worldsim.phase_4.exposure_admission.exposure_admission_error`
+    :func:`warp_taskgen.phase_4.exposure_admission.exposure_admission_error`
     (eligible exposure, admissible ``phase4_exposure``, matching
     contract_id and verification in ``feasibility.exposure``). Catches
     dataset rows that would be skipped as ``skipped_missing_exposure`` in
@@ -46,7 +46,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from worldsim.phase_4.exposure_admission import exposure_admission_error
+from warp_taskgen.phase_4.exposure_admission import exposure_admission_error
 
 _BAD_METHODS = {"create_project", "create_group", "create_forum"}
 _CHILD_CREATE_ARG_TOKENS: dict[str, tuple[str, str]] = {

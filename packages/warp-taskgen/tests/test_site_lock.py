@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from worldsim.site_lock import reset_locks, site_lock, task_lock
+from warp_taskgen.site_lock import reset_locks, site_lock, task_lock
 
 
 @pytest.fixture(autouse=True)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from worldsim.surface_identity import canonicalize_surface_id, resolve_profile_surface
+from warp_taskgen.surface_identity import canonicalize_surface_id, resolve_profile_surface
 
 
 def _profile(*surface_ids: str) -> dict:

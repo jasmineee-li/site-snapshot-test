@@ -22,11 +22,11 @@ from typing import Any
 
 import requests
 
-from worldsim.adversarial_actions.tier3_fixtures import (
+from warp_taskgen.adversarial_actions.tier3_fixtures import (
     verify_gitlab_delete_project_fixture_pool,
     verify_gitlab_repository_fixture_pool,
 )
-from worldsim.editors.gitlab import GitlabEditor
+from warp_taskgen.editors.gitlab import GitlabEditor
 
 DEFAULT_PROJECT = "byteblaze/worldsim-tier3-fixture-01"
 DEFAULT_DELETE_PROJECT = "byteblaze/worldsim-tier3-delete-fixture-01"
@@ -150,12 +150,8 @@ def provision_document(
         "delete_project_paths": delete_project_paths or [],
         "file_path_prefix": file_path_prefix,
         "scope": scope,
-        "delete_cleanup_strategy": (
-            delete_cleanup_strategy if delete_project_paths else None
-        ),
-        "delete_reset_verified": (
-            delete_reset_verified if delete_project_paths else None
-        ),
+        "delete_cleanup_strategy": (delete_cleanup_strategy if delete_project_paths else None),
+        "delete_reset_verified": (delete_reset_verified if delete_project_paths else None),
         "replica_reports": reports,
     }
 
@@ -304,7 +300,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument("--file-path-prefix", default=DEFAULT_PREFIX)
     parser.add_argument("--scope", default=DEFAULT_SCOPE)
-    parser.add_argument("--no-create", action="store_true", help="fail if a fixture repo is missing")
+    parser.add_argument(
+        "--no-create", action="store_true", help="fail if a fixture repo is missing"
+    )
     parser.add_argument("--dry-run", action="store_true", help="verify and print without writing")
     parser.add_argument("--no-backup", action="store_true", help="do not write <instances>.bak")
     return parser.parse_args(argv)

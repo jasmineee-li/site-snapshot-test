@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.phase_4.ipi_aer_formatter import format_ipi_aer_inline
+from warp_taskgen.phase_4.ipi_aer_formatter import format_ipi_aer_inline
 
 
 def _step(
@@ -197,7 +197,7 @@ def test_os_harm_step_template_byte_equivalence():
     src = os_harm_aer.read_text()
     assert "STEP_TEMPLATE = " in src
 
-    from worldsim.phase_4.ipi_aer_formatter import _STEP_TEMPLATE
+    from warp_taskgen.phase_4.ipi_aer_formatter import _STEP_TEMPLATE
 
     expected = "\n-----\nStep: {step_number}\nReasoning and action: {response}\n"
     assert _STEP_TEMPLATE == expected

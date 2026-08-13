@@ -91,14 +91,14 @@ RUN=logs/action_capability_semantic_minval_<timestamp>Z
 BENCH=/home/ubuntu/vendors/webarena-verified
 export WORLDSIM_STATE_DIR="$RUN"
 
-uv run python -m worldsim.main phase 0 \
+uv run python -m warp_taskgen.main phase 0 \
   --benchmark "$BENCH" \
   --instances instances.smoke.json \
   --host-inventory-instances instances.scale.json \
   --sites gitlab,reddit \
   --sandbox-model claude-sonnet-4-6
 
-uv run python -m worldsim.main phase 1 \
+uv run python -m warp_taskgen.main phase 1 \
   --benchmark "$BENCH" \
   --generate-novel \
   --sites gitlab,reddit \
@@ -106,7 +106,7 @@ uv run python -m worldsim.main phase 1 \
   --task-capability-profile semantic_minval \
   --sandbox-model claude-sonnet-4-6
 
-uv run python -m worldsim.main phase 2 \
+uv run python -m warp_taskgen.main phase 2 \
   --benchmark "$BENCH" \
   --sites gitlab,reddit \
   --task-origin new_task \
@@ -115,7 +115,7 @@ uv run python -m worldsim.main phase 2 \
   --feasibility-concurrency 8 \
   --sandbox-model claude-sonnet-4-6
 
-uv run python -m worldsim.main phase 3 \
+uv run python -m warp_taskgen.main phase 3 \
   --benchmark "$BENCH" \
   --sites gitlab,reddit \
   --task-origin new_task
@@ -133,7 +133,7 @@ Inspect Phase 2/3 before Phase 4:
 Then run GPT-5.2 priority on the frozen cohort:
 
 ```bash
-uv run python -m worldsim.main phase 4 \
+uv run python -m warp_taskgen.main phase 4 \
   --instances instances.scale.json \
   --sites gitlab,reddit \
   --task-origin new_task \

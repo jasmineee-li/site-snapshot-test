@@ -1,6 +1,6 @@
 """Tests for the Phase 2a pre-shard eligibility filter (commit 7).
 
-Exercises :func:`worldsim.phase_2.eligibility._phase_2a_eligible_tasks`
+Exercises :func:`warp_taskgen.phase_2.eligibility._phase_2a_eligible_tasks`
 and the drop log at ``logs/phase_2/dropped_no_contract.json``.
 
 A task is ineligible iff:
@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.phase_2.eligibility import (
+from warp_taskgen.phase_2.eligibility import (
     _phase_2a_eligible_tasks,
     _write_eligibility_drops,
 )

@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_2_target_resolver.py; shared helpers live in tests/phase_2/target_resolution/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 class TestResolveTasks:
     def test_l1_l2_only_path_is_offline(self) -> None:
         """``allow_layers=('L1','L2')`` runs the sync resolver over the

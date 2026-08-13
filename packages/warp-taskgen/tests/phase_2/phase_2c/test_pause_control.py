@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.phase_2.phase_2c.pause_control import (
+from warp_taskgen.phase_2.phase_2c.pause_control import (
     assert_preflight_boundary,
     promotion_boundary,
     run_verification_units,
 )
-from worldsim.run_control import PauseBoundaryReached, request_pause
-from worldsim.state import save_state
+from warp_taskgen.run_control import PauseBoundaryReached, request_pause
+from warp_taskgen.state import save_state
 
 
 def _write_feasibility_state(root: Path) -> None:

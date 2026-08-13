@@ -205,7 +205,7 @@ async def test_run_adversarial_task_probes_non_scoreable_failures_before_saving_
         return None, {}
 
     def fake_determine(task, trajectory_dir):
-        from worldsim.phase_4.encounter_detection import EncounterResult
+        from warp_taskgen.phase_4.encounter_detection import EncounterResult
 
         captured["encounter_task_dir"] = trajectory_dir
         return EncounterResult(
@@ -270,7 +270,7 @@ async def test_run_adversarial_task_stamps_injection_not_encountered_on_error_pa
         return None, {}
 
     def fake_determine(task, trajectory_dir):
-        from worldsim.phase_4.encounter_detection import EncounterResult
+        from warp_taskgen.phase_4.encounter_detection import EncounterResult
 
         return EncounterResult(
             max_coverage=0.0,
@@ -328,7 +328,7 @@ async def test_run_adversarial_task_marks_agentlab_setup_timeout_as_infra_error(
         return None, {}
 
     def fake_determine(task, trajectory_dir):
-        from worldsim.phase_4.encounter_detection import EncounterResult
+        from warp_taskgen.phase_4.encounter_detection import EncounterResult
 
         return EncounterResult(
             max_coverage=0.0,
@@ -385,7 +385,7 @@ async def test_run_adversarial_task_marks_agentlab_missing_browser_as_infra_erro
         return None, {}
 
     def fake_determine(task, trajectory_dir):
-        from worldsim.phase_4.encounter_detection import EncounterResult
+        from warp_taskgen.phase_4.encounter_detection import EncounterResult
 
         return EncounterResult(
             max_coverage=0.0,
@@ -432,7 +432,7 @@ async def test_run_adversarial_task_marks_unknown_agentlab_error_with_partial_ou
     monkeypatch,
     tmp_path,
 ):
-    from worldsim.runners.agentlab import AgentLabAgentWrapper
+    from warp_taskgen.runners.agentlab import AgentLabAgentWrapper
 
     task, instances = _prepared_adv_task()
     task = bind_task_to_instance(task, instances[0], instances)
@@ -445,7 +445,7 @@ async def test_run_adversarial_task_marks_unknown_agentlab_error_with_partial_ou
         return None, {}
 
     def fake_determine(task, trajectory_dir):
-        from worldsim.phase_4.encounter_detection import EncounterResult
+        from warp_taskgen.phase_4.encounter_detection import EncounterResult
 
         return EncounterResult(
             max_coverage=1.0,
@@ -507,7 +507,7 @@ async def test_run_adversarial_task_marks_agentlab_browser_step_timeout_as_infra
         return None, {}
 
     def fake_determine(task, trajectory_dir):
-        from worldsim.phase_4.encounter_detection import EncounterResult
+        from warp_taskgen.phase_4.encounter_detection import EncounterResult
 
         return EncounterResult(
             max_coverage=0.0,
@@ -561,7 +561,7 @@ async def test_run_adversarial_task_retries_safe_agentlab_browser_step_timeout(
         return None, {}
 
     def fake_determine(task, trajectory_dir):
-        from worldsim.phase_4.encounter_detection import EncounterResult
+        from warp_taskgen.phase_4.encounter_detection import EncounterResult
 
         return EncounterResult(
             max_coverage=1.0,
@@ -637,7 +637,7 @@ async def test_run_adversarial_task_keeps_agentlab_timeout_infra_with_partial_ar
         return None, {}
 
     def fake_determine(task, trajectory_dir):
-        from worldsim.phase_4.encounter_detection import EncounterResult
+        from warp_taskgen.phase_4.encounter_detection import EncounterResult
 
         return EncounterResult(
             max_coverage=1.0,
@@ -699,7 +699,7 @@ async def test_run_adversarial_task_marks_agentlab_metadata_load_as_infra_error(
         return None, {}
 
     def fake_determine(task, trajectory_dir):
-        from worldsim.phase_4.encounter_detection import EncounterResult
+        from warp_taskgen.phase_4.encounter_detection import EncounterResult
 
         return EncounterResult(
             max_coverage=0.0,

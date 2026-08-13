@@ -62,18 +62,20 @@ override-dependencies = [
 ]
 
 [project.scripts]
-warp-taskgen = "worldsim.main:main"
-worldsim = "worldsim.main:main"
+warp-taskgen = "warp_taskgen.main:main"
+# Temporary command alias retained for one compatibility/evidence cycle.
+worldsim = "warp_taskgen.main:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["worldsim"]
+packages = ["warp_taskgen", "worldsim"]
 
 [tool.hatch.build.targets.sdist]
 include = [
+    "/warp_taskgen",
     "/worldsim",
     "/README.md",
     "/pyproject.toml",
@@ -120,7 +122,7 @@ unfixable = ["F401"]
 "scripts/*" = ["E402"]  # scripts need dotenv/logging setup before imports
 
 [tool.ruff.lint.isort]
-known-first-party = ["worldsim"]
+known-first-party = ["warp_taskgen"]
 
 [tool.ruff.format]
 quote-style = "double"

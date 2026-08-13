@@ -17,9 +17,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from worldsim.adversarial_actions import ACTION_KINDS
-from worldsim.phase_2 import runner_api
-from worldsim.phase_2.runner_api import (
+from warp_taskgen.adversarial_actions import ACTION_KINDS
+from warp_taskgen.phase_2 import runner_api
+from warp_taskgen.phase_2.runner_api import (
     _EMIT_PLANS_TOOL,
     _MAX_OUTPUT_TOKENS,
     _OVERGENERATION_MULTIPLIER,

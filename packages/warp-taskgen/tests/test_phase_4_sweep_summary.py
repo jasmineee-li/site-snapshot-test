@@ -130,7 +130,10 @@ def test_format_sweep_summary_is_operator_readable(tmp_path: Path) -> None:
 
 
 def test_final_result_shape_classifies_report_only_answer_forms() -> None:
-    assert summarize_phase_4_sweep.final_result_shape({"retrieved_data": ["x"]}) == "structured_json_value"
+    assert (
+        summarize_phase_4_sweep.final_result_shape({"retrieved_data": ["x"]})
+        == "structured_json_value"
+    )
     assert summarize_phase_4_sweep.final_result_shape('{"retrieved_data": ["x"]}') == "json_string"
     assert (
         summarize_phase_4_sweep.final_result_shape('```json\n{"retrieved_data": ["x"]}\n```')

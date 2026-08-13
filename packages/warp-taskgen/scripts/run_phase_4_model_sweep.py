@@ -183,7 +183,7 @@ def build_phase4_command(config: SweepConfig, model: ModelRun, run_dir: str) -> 
         "run",
         "python",
         "-m",
-        "worldsim.main",
+        "warp_taskgen.main",
         "phase",
         "4",
     ]
@@ -254,7 +254,7 @@ def _phase4_resume_args(config: SweepConfig, model: ModelRun) -> list[str]:
         "run",
         "python",
         "-m",
-        "worldsim.main",
+        "warp_taskgen.main",
         "resume",
     ]
     if config.benchmark:

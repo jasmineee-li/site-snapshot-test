@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from worldsim.rewards import extract_network_action_attempt
+from warp_taskgen.rewards import extract_network_action_attempt
 
 
 def test_network_action_attempt_extracts_url_method_when_body_fails() -> None:

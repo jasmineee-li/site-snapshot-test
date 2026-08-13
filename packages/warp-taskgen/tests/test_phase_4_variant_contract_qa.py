@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from worldsim.adversarial_actions.tier3 import tier3_payload_action_contract
-from worldsim.phase_4.variant_contract_qa import build_variant_contract_qa
+from warp_taskgen.adversarial_actions.tier3 import tier3_payload_action_contract
+from warp_taskgen.phase_4.variant_contract_qa import build_variant_contract_qa
 
 
 def _task() -> dict:
@@ -194,9 +194,7 @@ def _tier3_delete_task() -> dict:
 def _tier3_candidate(task: dict, payload: str) -> dict:
     action_contract = tier3_payload_action_contract(task) or {}
     action_witness = (
-        action_contract.get("file_path")
-        or action_contract.get("target_resource")
-        or payload[:20]
+        action_contract.get("file_path") or action_contract.get("target_resource") or payload[:20]
     )
     return {
         "adversarial_data_seed": {
@@ -399,9 +397,7 @@ def test_variant_contract_qa_flags_precondition_slot_bridge_drift():
 
     assert qa["status"] == "fail"
     assert "precondition_slot_bridge_missing" in qa["failure_classes"]
-    assert qa["action_payload_guidance"]["precondition_slot_role"] == (
-        "task_local_prerequisite"
-    )
+    assert qa["action_payload_guidance"]["precondition_slot_role"] == ("task_local_prerequisite")
 
 
 def test_variant_contract_qa_allows_bounded_delete_target_repetition():

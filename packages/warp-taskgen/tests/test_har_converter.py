@@ -2,7 +2,7 @@
 
 Covers three layers:
 
-1. ``worldsim.har_converter`` primitives (unit tests).
+1. ``warp_taskgen.har_converter`` primitives (unit tests).
 2. Live wire-in at ``_NetworkTraceRecorder._write_trace`` (network.har on disk
    is valid HAR, network_trace.json is unchanged).
 3. Live wire-in at ``_NetworkTraceRecorder._write_trace`` preserves the flat
@@ -16,9 +16,9 @@ from pathlib import Path
 
 import pytest
 
-import worldsim.browser_use_agent as browser_use_agent
-from worldsim.browser_use_agent import _NetworkTraceRecorder
-from worldsim.har_converter import (
+import warp_taskgen.browser_use_agent as browser_use_agent
+from warp_taskgen.browser_use_agent import _NetworkTraceRecorder
+from warp_taskgen.har_converter import (
     NetworkTraceUnavailableError,
     ensure_har_trace,
     flat_event_to_har_entry,

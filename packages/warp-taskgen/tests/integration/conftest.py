@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.auth_tokens import clear_run_token_cache
-from worldsim.config import BenchmarkConfig, load_benchmark_config
-from worldsim.http_proxy import install_proxy
+from warp_taskgen.auth_tokens import clear_run_token_cache
+from warp_taskgen.config import BenchmarkConfig, load_benchmark_config
+from warp_taskgen.http_proxy import install_proxy
 
 
 def _is_loopback_hostname(hostname: str | None) -> bool:

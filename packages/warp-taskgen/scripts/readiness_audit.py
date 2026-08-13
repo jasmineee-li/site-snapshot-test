@@ -124,6 +124,7 @@ class Audit:
     token_findings: list[TokenFinding]
     legacy_phase_imports: list[LegacyImportFinding]
     active_facade_imports: list[ActiveFacadeImportFinding]
+    legacy_namespace_imports: list[LegacyImportFinding]
 
 
 LEGACY_PHASE_IMPORT_MODULES = frozenset(
@@ -155,6 +156,17 @@ ACTIVE_COMPAT_FACADE_MODULES = frozenset(
 ACTIVE_COMPAT_FACADE_ALLOWED_PREFIXES = (
     "docs/",
     "tests/",
+)
+
+# The ``worldsim`` package name is a temporary compatibility surface.  Only
+# the adapter and explicit namespace/compatibility tests may import it; active
+# implementation/source callers must use ``warp_taskgen``. Historical docs are
+# not parsed as Python by this audit, so they need no broad test-path exemption.
+LEGACY_NAMESPACE_ALLOWED_PREFIXES = (
+    "packages/warp-taskgen/worldsim/",
+    "packages/warp-taskgen/tests/test_namespace_cutover.py",
+    "packages/warp-taskgen/tests/test_phase_compat_wrappers.py",
+    "packages/warp-taskgen/tests/test_readiness_audit.py",
 )
 
 
@@ -241,6 +253,19 @@ def _active_facade_import_findings(paths: list[str]) -> list[ActiveFacadeImportF
             paths,
             modules=ACTIVE_COMPAT_FACADE_MODULES,
             allowed_prefixes=ACTIVE_COMPAT_FACADE_ALLOWED_PREFIXES,
+        )
+    ]
+
+
+def _legacy_namespace_import_findings(paths: list[str]) -> list[LegacyImportFinding]:
+    """Find active imports of the retired top-level ``worldsim`` package."""
+
+    return [
+        LegacyImportFinding(finding.path, finding.line, finding.module)
+        for finding in _module_import_findings(
+            paths,
+            modules=frozenset({"worldsim"}),
+            allowed_prefixes=LEGACY_NAMESPACE_ALLOWED_PREFIXES,
         )
     ]
 
@@ -433,6 +458,7 @@ def build_audit() -> Audit:
         token_findings=_token_findings(files),
         legacy_phase_imports=_legacy_phase_import_findings(files),
         active_facade_imports=_active_facade_import_findings(files),
+        legacy_namespace_imports=_legacy_namespace_import_findings(files),
     )
 
 
@@ -447,6 +473,7 @@ def _print_text(audit: Audit) -> None:
     print(f"token_findings={len(audit.token_findings)}")
     print(f"legacy_phase_imports={len(audit.legacy_phase_imports)}")
     print(f"active_facade_imports={len(audit.active_facade_imports)}")
+    print(f"legacy_namespace_imports={len(audit.legacy_namespace_imports)}")
     if audit.files_over_1200_loc:
         print("largest_files:")
         for item in audit.files_over_1200_loc[:10]:
@@ -481,6 +508,12 @@ def _print_text(audit: Audit) -> None:
             print(f"  {finding.path}:{finding.line} {finding.module}")
         if len(audit.active_facade_imports) > 25:
             print(f"  ... {len(audit.active_facade_imports) - 25} more")
+    if audit.legacy_namespace_imports:
+        print("legacy_namespace_imports:")
+        for finding in audit.legacy_namespace_imports[:25]:
+            print(f"  {finding.path}:{finding.line} {finding.module}")
+        if len(audit.legacy_namespace_imports) > 25:
+            print(f"  ... {len(audit.legacy_namespace_imports) - 25} more")
 
 
 def _json_default(value: Any) -> Any:
@@ -502,7 +535,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--fail-on",
         action="append",
-        choices=("legacy-imports", "tracked-generated", "tokens"),
+        choices=("legacy-imports", "legacy-namespace-imports", "tracked-generated", "tokens"),
         default=[],
         help="fail when the selected finding class is present",
     )
@@ -520,6 +553,8 @@ def main(argv: list[str] | None = None) -> int:
     if "tokens" in args.fail_on and audit.token_findings:
         failed = True
     if "legacy-imports" in args.fail_on and audit.legacy_phase_imports:
+        failed = True
+    if "legacy-namespace-imports" in args.fail_on and audit.legacy_namespace_imports:
         failed = True
     return 1 if failed else 0
 

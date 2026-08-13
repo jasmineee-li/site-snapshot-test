@@ -9,12 +9,12 @@ from typing import Any
 
 import pytest
 
-from worldsim.phase_2 import generation
-from worldsim.phase_2 import runner_api
-from worldsim.phase_2 import plan_validation
-from worldsim.phase_2.exposure_contract import build_exposure_contract
-from worldsim.phase_2.planning_types import SiteInjectionResult
-from worldsim.state import save_state
+from warp_taskgen.phase_2 import generation
+from warp_taskgen.phase_2 import runner_api
+from warp_taskgen.phase_2 import plan_validation
+from warp_taskgen.phase_2.exposure_contract import build_exposure_contract
+from warp_taskgen.phase_2.planning_types import SiteInjectionResult
+from warp_taskgen.state import save_state
 
 
 def _strip_feasibility(tasks: list[dict]) -> list[dict]:
@@ -234,8 +234,8 @@ def _with_feasibility_status(task: dict, status: str) -> dict:
 # adversarial_data_seed, so the seed_template must preserve every benign
 # field byte-identical before appending the placeholder-bearing attack write.
 # The invariant is enforced by _validate_self_contained_adversarial_seed
-# (worldsim/phases/phase_2_injections.py) which delegates to
-# self_contained_adversarial_seed_error (worldsim/seeding.py).
+# (warp_taskgen/phases/phase_2_injections.py) which delegates to
+# self_contained_adversarial_seed_error (warp_taskgen/seeding.py).
 # ---------------------------------------------------------------------------
 
 

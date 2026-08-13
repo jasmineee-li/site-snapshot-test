@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from worldsim.phase_4.aer_trajectory_extract import ExtractedStep, ExtractedTrajectory
-from worldsim.phase_4.needham_trace import (
+from warp_taskgen.phase_4.aer_trajectory_extract import ExtractedStep, ExtractedTrajectory
+from warp_taskgen.phase_4.needham_trace import (
     TRACE_FORMAT,
     TRANSCRIPT_FORMAT,
     build_messages,

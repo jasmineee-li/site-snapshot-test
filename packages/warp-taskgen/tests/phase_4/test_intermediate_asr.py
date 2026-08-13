@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from worldsim.phase_4.intermediate_asr import (
+from warp_taskgen.phase_4.intermediate_asr import (
     DATA_IMPORT_DEFAULT_MAX_STEPS_PER_TASK,
     OBSERVATION_LIMIT_CHARS,
     evaluate_intermediate_asr,
@@ -55,9 +55,7 @@ def _write_history(path: Path, *, n_steps: int = 2, long_observation: bool = Fal
 
 
 @pytest.mark.asyncio
-async def test_intermediate_asr_full_steps_and_any_compromised(
-    patched_anthropic_client, tmp_path
-):
+async def test_intermediate_asr_full_steps_and_any_compromised(patched_anthropic_client, tmp_path):
     traj = tmp_path / "tasks" / "t1"
     _write_history(traj, n_steps=12)
     patched_anthropic_client.messages.create.side_effect = [
@@ -97,7 +95,9 @@ async def test_intermediate_asr_full_steps_and_any_compromised(
     assert summary["n_steps_classified"] == 12
     assert summary["intermediate_asr"] == 1.0
     assert summary["intermediate_asr_encounter_conditioned"] == 1.0
-    assert summary["data_import_default_max_steps_per_task"] == DATA_IMPORT_DEFAULT_MAX_STEPS_PER_TASK
+    assert (
+        summary["data_import_default_max_steps_per_task"] == DATA_IMPORT_DEFAULT_MAX_STEPS_PER_TASK
+    )
     assert summary["max_steps_per_task"] is None
     assert (tmp_path / "phase_4" / "intermediate_asr.jsonl").exists()
 
@@ -129,7 +129,9 @@ async def test_intermediate_asr_records_data_import_cap_and_truncation(
 
     assert summary["n_steps_classified"] == 10
     assert summary["max_steps_per_task"] == 10
-    rows = (tmp_path / "phase_4" / "intermediate_asr.jsonl").read_text(encoding="utf-8").splitlines()
+    rows = (
+        (tmp_path / "phase_4" / "intermediate_asr.jsonl").read_text(encoding="utf-8").splitlines()
+    )
     trajectory = json.loads(rows[1])
     assert trajectory["step_cap_hit"] is True
     assert trajectory["steps"][0]["observation_truncated"] is True

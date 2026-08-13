@@ -1,9 +1,9 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
-from worldsim.phase_2 import eligibility
-from worldsim.phase_2 import option_a
-from worldsim.phase_2 import plan_validation
+from warp_taskgen.phase_2 import eligibility
+from warp_taskgen.phase_2 import option_a
+from warp_taskgen.phase_2 import plan_validation
 
 
 def test_option_a_normalizes_gitlab_project_id_to_project_path_template():

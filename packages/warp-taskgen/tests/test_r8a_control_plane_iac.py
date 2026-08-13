@@ -365,7 +365,10 @@ exit 99
     )
 
     assert completed.returncode == 0
-    assert "WARNING: moving EIP eipalloc-0123456789abcdef1 from i-0123456789abcdef1 to i-0123456789abcdef0" in completed.stderr
+    assert (
+        "WARNING: moving EIP eipalloc-0123456789abcdef1 from i-0123456789abcdef1 to i-0123456789abcdef0"
+        in completed.stderr
+    )
     assert "public_ip:   198.51.100.40" in completed.stdout
     deploy_call = calls.read_text()
     assert "cloudformation deploy" in deploy_call

@@ -18,7 +18,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from worldsim.adversarial_actions import compile_adversarial_reward
+from warp_taskgen.adversarial_actions import compile_adversarial_reward
 
 _BINARY_LABEL_FAMILIES: tuple[frozenset[str], ...] = (
     frozenset({"blank", "populated"}),

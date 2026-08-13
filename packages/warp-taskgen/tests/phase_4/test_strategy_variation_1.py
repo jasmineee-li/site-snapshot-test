@@ -9,7 +9,7 @@ async def test_generate_variant_merges_api_tool_use_output(monkeypatch, tmp_path
     API via `variant_api.generate_variant_api` instead of a sandbox. Patch
     that function directly to verify the signature and merge contract.
     """
-    from worldsim.phase_4 import variant_api
+    from warp_taskgen.phase_4 import variant_api
 
     task, _ = _prepared_adv_task()
     captured = {}
@@ -38,7 +38,7 @@ async def test_generate_variant_merges_api_tool_use_output(monkeypatch, tmp_path
         return merged
 
     monkeypatch.setattr(variant_api, "generate_variant_api", fake_api)
-    # `generate_variant` does `from worldsim.phase_4.variant_api import generate_variant_api`
+    # `generate_variant` does `from warp_taskgen.phase_4.variant_api import generate_variant_api`
     # at call time, so patching the source module is sufficient.
 
     variant = await phase_4_strategy_variation.generate_variant(

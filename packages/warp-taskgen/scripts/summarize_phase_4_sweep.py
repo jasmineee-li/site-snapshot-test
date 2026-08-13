@@ -9,9 +9,9 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from worldsim.phase_4.answer_shapes import final_result_shape
-from worldsim.phase_4.pvpo_observations import pvpo_observation_bucket
-from worldsim.phase_4.result_summary import summarize_results
+from warp_taskgen.phase_4.answer_shapes import final_result_shape
+from warp_taskgen.phase_4.pvpo_observations import pvpo_observation_bucket
+from warp_taskgen.phase_4.result_summary import summarize_results
 
 
 def _load_json(path: Path) -> Any:
@@ -95,16 +95,22 @@ def summarize_sweep(run_dirs: list[Path]) -> dict[str, Any]:
         if not isinstance(results, list):
             raise ValueError(f"{results_path} must contain a JSON array")
         task_lookup = _load_task_lookup(run_dir)
-        task_lookup_merged.update({key: value for key, value in task_lookup.items() if key not in task_lookup_merged})
+        task_lookup_merged.update(
+            {key: value for key, value in task_lookup.items() if key not in task_lookup_merged}
+        )
         summary = summarize_results(results, task_lookup=task_lookup)
         state = _state_metadata(run_dir)
-        final_result_shapes = Counter(final_result_shape(result.get("final_result")) for result in results)
+        final_result_shapes = Counter(
+            final_result_shape(result.get("final_result")) for result in results
+        )
         model_key = "|".join(
             str(state.get(key) or "unknown")
             for key in ("agent_provider", "agent_model", "agent_service_tier", "sandbox_model")
         )
         task_ids = {str(result.get("task_id")) for result in results if result.get("task_id")}
-        paired_task_ids = task_ids if paired_task_ids is None else paired_task_ids.intersection(task_ids)
+        paired_task_ids = (
+            task_ids if paired_task_ids is None else paired_task_ids.intersection(task_ids)
+        )
         by_model_status[model_key] = Counter(summary.get("final_status_counts") or {})
         results_by_model[model_key] = {
             str(result.get("task_id")): result
@@ -173,7 +179,8 @@ def summarize_sweep(run_dirs: list[Path]) -> dict[str, Any]:
         "paired_task_count": len(paired),
         "runs": runs,
         "by_model_status": {
-            model: dict(sorted(counter.items())) for model, counter in sorted(by_model_status.items())
+            model: dict(sorted(counter.items()))
+            for model, counter in sorted(by_model_status.items())
         },
         "task_rows": task_rows,
     }

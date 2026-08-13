@@ -4,8 +4,8 @@ import types
 
 import pytest
 
-from worldsim.editors.base import EditorError
-from worldsim.editors.reddit import RedditEditor
+from warp_taskgen.editors.base import EditorError
+from warp_taskgen.editors.reddit import RedditEditor
 
 
 def _editor(instance: dict | None = None) -> RedditEditor:
@@ -74,7 +74,7 @@ def test_create_forum_allocates_fresh_name_when_requested_name_exists(monkeypatc
 
     # Collision suffix uses ``_`` (not ``-``) because Postmill silently
     # rejects POST /create_forum submissions whose forum[name] contains
-    # a dash — see worldsim/editors/reddit.py::_allocate_forum_name.
+    # a dash — see warp_taskgen/editors/reddit.py::_allocate_forum_name.
     assert result == {
         "forum_name": "books_2",
         "read_surface_urls": ["http://reddit.test/f/books_2", "/f/books_2"],

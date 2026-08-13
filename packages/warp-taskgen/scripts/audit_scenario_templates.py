@@ -11,7 +11,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from worldsim.adversarial_actions.scenario_templates import (
+from warp_taskgen.adversarial_actions.scenario_templates import (
     scenario_template_from_mapping,
 )
 
@@ -160,11 +160,7 @@ def _audit_benign_action_evidence(
         ]
 
     provenance = task.get("task_provenance")
-    contract = (
-        provenance.get("benign_action_contract")
-        if isinstance(provenance, dict)
-        else None
-    )
+    contract = provenance.get("benign_action_contract") if isinstance(provenance, dict) else None
     if not isinstance(contract, dict):
         return [
             {
@@ -217,10 +213,7 @@ def _audit_benign_action_evidence(
             }
         ]
 
-    if not any(
-        evaluator_check(item, witness)
-        for item in _benign_reward_evals(task)
-    ):
+    if not any(evaluator_check(item, witness) for item in _benign_reward_evals(task)):
         return [
             {
                 "severity": "error",
@@ -277,8 +270,7 @@ def _audit_adversarial_action_evidence(
                 "scenario_template": scenario_id,
                 "code": "SCENARIO_ADVERSARIAL_ACTION_WITNESS_MISSING",
                 "message": (
-                    f"GitLab public mutation {evidence_name} action has no "
-                    "required URL witness"
+                    f"GitLab public mutation {evidence_name} action has no required URL witness"
                 ),
             }
         ]
@@ -377,8 +369,7 @@ def _audit_negative_control_evidence(
                 "scenario_template": scenario_id,
                 "code": "CONTROL_HAS_COMPATIBLE_ACTIONS",
                 "message": (
-                    "negative controls must not mark create_issue as a compatible "
-                    "benign capability"
+                    "negative controls must not mark create_issue as a compatible benign capability"
                 ),
             }
         )
@@ -489,10 +480,7 @@ def _is_gitlab_final_state_evaluator(
     state_probe = expected.get("state_probe")
     if not isinstance(state_probe, dict):
         return False
-    return (
-        state_probe.get("kind") == state_probe_kind
-        and state_probe.get("site") == "gitlab"
-    )
+    return state_probe.get("kind") == state_probe_kind and state_probe.get("site") == "gitlab"
 
 
 def _scenario_strength_status(task: dict[str, Any], scenario_id: str) -> str:

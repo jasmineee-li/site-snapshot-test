@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from worldsim.phase_4.failure_context import (
+from warp_taskgen.phase_4.failure_context import (
     FAILURE_CONTEXT_SCHEMA_VERSION,
     build_variant_failure_context,
 )

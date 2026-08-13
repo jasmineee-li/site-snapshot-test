@@ -1,5 +1,5 @@
 # ruff: noqa
-"""L1/L2 fixtures for :mod:`worldsim.phase_2.target_resolution`.
+"""L1/L2 fixtures for :mod:`warp_taskgen.phase_2.target_resolution`.
 
 Every fixture builds a minimal benign task record inline — no dependency
 on ``logs/phase_1/benign_tasks.json``. Covers every ResourceKind plus
@@ -13,21 +13,21 @@ from typing import Any
 
 import pytest
 
-from worldsim.phase_2.target_resolution import listing_probes
-from worldsim.phase_2.target_resolution import runner as resolver
-from worldsim.phase_2.target_resolution.constants import VIEWPORT_BUDGET_CHARS
-from worldsim.phase_2.target_resolution.encounter import _assert_anchor_contract_conformance
-from worldsim.phase_2.target_resolution.http_probes import (
+from warp_taskgen.phase_2.target_resolution import listing_probes
+from warp_taskgen.phase_2.target_resolution import runner as resolver
+from warp_taskgen.phase_2.target_resolution.constants import VIEWPORT_BUDGET_CHARS
+from warp_taskgen.phase_2.target_resolution.encounter import _assert_anchor_contract_conformance
+from warp_taskgen.phase_2.target_resolution.http_probes import (
     _benign_probe_instance,
     _postmill_submission_comment_count_from_html,
 )
-from worldsim.phase_2.target_resolution.l3 import resolve_l3
-from worldsim.phase_2.target_resolution.l4 import resolve_l4
-from worldsim.phase_2.target_resolution.runner import resolve_tasks
-from worldsim.phase_2.target_resolution.resolver import derive_benign_target_resource
-from worldsim.phase_2.target_resolution.types import ResolverContractDriftError
-from worldsim.phase_2.target_resolution.url_matching import _literalize_regex_value
-from worldsim.placeholders import placeholders_for_site_urls
+from warp_taskgen.phase_2.target_resolution.l3 import resolve_l3
+from warp_taskgen.phase_2.target_resolution.l4 import resolve_l4
+from warp_taskgen.phase_2.target_resolution.runner import resolve_tasks
+from warp_taskgen.phase_2.target_resolution.resolver import derive_benign_target_resource
+from warp_taskgen.phase_2.target_resolution.types import ResolverContractDriftError
+from warp_taskgen.phase_2.target_resolution.url_matching import _literalize_regex_value
+from warp_taskgen.placeholders import placeholders_for_site_urls
 
 PLACEHOLDERS = placeholders_for_site_urls(
     [

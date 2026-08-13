@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.config import BenchmarkInstance, VerificationProxy
-from worldsim.phases import phase_0_recon
-from worldsim.phases.phase_0c_artifacts import text_sha256, write_json_atomic
-from worldsim.phases.phase_0c_audit import audit_phase_0c_profiles
+from warp_taskgen.config import BenchmarkInstance, VerificationProxy
+from warp_taskgen.phases import phase_0_recon
+from warp_taskgen.phases.phase_0c_artifacts import text_sha256, write_json_atomic
+from warp_taskgen.phases.phase_0c_audit import audit_phase_0c_profiles
 
 VERIFICATION_OUTPUT = "/workspace/output/VERIFICATION_CAPABILITIES.json"
 DATA_MODEL_OUTPUT = "/workspace/output/DATA_MODEL.json"
@@ -170,7 +170,7 @@ def test_enrich_reddit_profile_with_forums_merges_live_inventory(monkeypatch):
     )
 
     monkeypatch.setattr(
-        "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
+        "warp_taskgen.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
         lambda site_url, db_connection, **kwargs: {
             "forums": [{"id": "1", "name": "books", "title": "Books"}]
         },
@@ -207,7 +207,7 @@ def test_enrich_reddit_profile_with_forums_passes_remote_runtime_db_host(monkeyp
 
     monkeypatch.setenv("WORLDSIM_ORCHESTRATOR_HOST", "172.17.0.1")
     monkeypatch.setattr(
-        "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
+        "warp_taskgen.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
         fake_enrich,
     )
 
@@ -246,7 +246,7 @@ def test_enrich_reddit_profile_with_forums_uses_explicit_host_inventory_instance
 
     monkeypatch.setenv("WORLDSIM_ORCHESTRATOR_HOST", "172.17.0.1")
     monkeypatch.setattr(
-        "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
+        "warp_taskgen.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
         fake_enrich,
     )
 
@@ -292,7 +292,7 @@ def test_enrich_reddit_profile_with_forums_keeps_only_cross_replica_common_forum
         return {"forums": [{"id": "7", "name": "AskReddit", "title": "AskReddit"}]}
 
     monkeypatch.setattr(
-        "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
+        "warp_taskgen.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
         fake_enrich,
     )
 
@@ -334,7 +334,7 @@ def test_enrich_agent_context_with_handles_passes_remote_runtime_web_host(monkey
 
     monkeypatch.setenv("WORLDSIM_ORCHESTRATOR_HOST", "172.17.0.1")
     monkeypatch.setattr(
-        "worldsim.phases.phase_0c_handle_enrichment.enrich_gitlab_handles",
+        "warp_taskgen.phases.phase_0c_handle_enrichment.enrich_gitlab_handles",
         fake_enrich,
     )
 
@@ -386,7 +386,7 @@ def test_enrich_gitlab_profile_with_projects_merges_project_inventory(monkeypatc
 
     monkeypatch.setenv("WORLDSIM_ORCHESTRATOR_HOST", "172.17.0.1")
     monkeypatch.setattr(
-        "worldsim.phases.phase_0c_handle_enrichment.enrich_gitlab_projects",
+        "warp_taskgen.phases.phase_0c_handle_enrichment.enrich_gitlab_projects",
         fake_enrich,
     )
 
@@ -415,13 +415,13 @@ def test_enrich_reddit_profile_with_forums_falls_back_on_failure(monkeypatch):
         db_connection="mysql://u:p@h/db",
     )
 
-    from worldsim.phases.phase_0c_reddit_enrichment import RedditInventoryEnrichmentError
+    from warp_taskgen.phases.phase_0c_reddit_enrichment import RedditInventoryEnrichmentError
 
     def fail(site_url, db_connection, **kwargs):
         raise RedditInventoryEnrichmentError("boom")
 
     monkeypatch.setattr(
-        "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
+        "warp_taskgen.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
         fail,
     )
 
@@ -510,7 +510,7 @@ def _benchmark_setup(tmp_path):
 
 
 def test_profile_injection_surface_prompt_uses_active_scope():
-    prompt = Path("worldsim/prompts/profile-injection-surface.md").read_text(encoding="utf-8")
+    prompt = Path("warp_taskgen/prompts/profile-injection-surface.md").read_text(encoding="utf-8")
 
     assert "ordinary issue/forum-style user-generated content" in prompt
     assert "regular-user HTTP/API/form channels for the configured site's in-scope UGC" in prompt

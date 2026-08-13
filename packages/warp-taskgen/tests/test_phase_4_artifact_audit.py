@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from scripts import audit_phase_4_variants, compare_phase_4_runs
-from worldsim.phase_4.artifact_audit import (
+from warp_taskgen.phase_4.artifact_audit import (
     build_variant_artifact_audit,
     compare_phase4_runs,
     default_task_paths,
@@ -198,7 +198,7 @@ def test_variant_artifact_audit_reconciles_results_and_attempt_files(tmp_path: P
             "route_variant": "project_issue_list",
             "strategy": "necessary_for_benign_goal",
             "sample_reason": "payload too long for title",
-        }
+        },
     ]
     row = report["task_rows"][0]
     assert row["task_id"] == task_id
@@ -216,9 +216,7 @@ def test_variant_artifact_audit_reconciles_results_and_attempt_files(tmp_path: P
         "attack_witness_too_late": 1,
         "payload_length_budget": 1,
     }
-    assert report["task_rows"][0]["first_rejection"]["strategy"] == (
-        "necessary_for_benign_goal"
-    )
+    assert report["task_rows"][0]["first_rejection"]["strategy"] == ("necessary_for_benign_goal")
 
 
 def test_variant_artifact_audit_includes_eval_awareness_iterator_rows(tmp_path: Path):
@@ -323,8 +321,7 @@ def test_variant_artifact_audit_separates_retry_repaired_host_failures(
             "attempt": "initial",
             "status": "failed",
             "reason": (
-                "required token 'https://attacker.invalid/x' must appear exactly "
-                "once (found 2)"
+                "required token 'https://attacker.invalid/x' must appear exactly once (found 2)"
             ),
         },
     )
@@ -354,8 +351,7 @@ def test_variant_artifact_audit_separates_retry_repaired_host_failures(
             "attempt": "host_retry",
             "status": "generated",
             "retry_feedback": (
-                "required token 'https://attacker.invalid/x' must appear exactly "
-                "once (found 2)"
+                "required token 'https://attacker.invalid/x' must appear exactly once (found 2)"
             ),
         },
     )
@@ -388,8 +384,7 @@ def test_variant_artifact_audit_separates_retry_repaired_host_failures(
             "route_variant": "project_issue_list",
             "strategy": "necessary_for_benign_goal",
             "sample_reason": (
-                "required token 'https://attacker.invalid/x' must appear exactly once "
-                "(found 2)"
+                "required token 'https://attacker.invalid/x' must appear exactly once (found 2)"
             ),
         },
         {
@@ -492,9 +487,7 @@ def test_variant_artifact_audit_classifies_schema_and_weak_witness_failures(
     }
 
 
-def test_variant_audit_cli_prints_method_and_artifact_counts(
-    tmp_path: Path, capsys
-):
+def test_variant_audit_cli_prints_method_and_artifact_counts(tmp_path: Path, capsys):
     run_dir = tmp_path / "run"
     _write_json(
         run_dir / "phase_4" / "results.json",

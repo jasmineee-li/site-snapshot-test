@@ -33,7 +33,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from worldsim import outcome_taxonomy
+from warp_taskgen import outcome_taxonomy
 
 logger = logging.getLogger("reclassify_phase_4")
 

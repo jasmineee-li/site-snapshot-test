@@ -5,7 +5,7 @@ from argparse import Namespace
 
 import pytest
 
-from worldsim.phases import phase_3_benign
+from warp_taskgen.phases import phase_3_benign
 
 
 def _existing_task(task_id: str = "task-a1", **overrides: object) -> dict:

@@ -15,9 +15,9 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from worldsim.phase_2.phase_2c import probes
-from worldsim.phases import phase_2_reachability as reach
-from worldsim.phases import phase_2_render_check as render_check
+from warp_taskgen.phase_2.phase_2c import probes
+from warp_taskgen.phases import phase_2_reachability as reach
+from warp_taskgen.phases import phase_2_render_check as render_check
 
 # ---------------------------------------------------------------------------
 # Fakes

@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from worldsim.phase_4.artifact_audit import (
+from warp_taskgen.phase_4.artifact_audit import (
     build_variant_artifact_audit,
     default_task_paths,
     load_json,
@@ -81,8 +81,7 @@ def _format_text_report(
     )
     if report.get("contract_qa_failure_class_counts"):
         lines.append(
-            "Contract QA failures: "
-            f"{_fmt_count_map(report['contract_qa_failure_class_counts'])}."
+            f"Contract QA failures: {_fmt_count_map(report['contract_qa_failure_class_counts'])}."
         )
     if report["quality_flag_counts"]:
         lines.append(f"Quality flags: {_fmt_count_map(report['quality_flag_counts'])}.")

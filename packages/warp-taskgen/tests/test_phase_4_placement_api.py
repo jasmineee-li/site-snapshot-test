@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from worldsim.phase_4 import placement_api
-from worldsim.phase_4.placement_api import run_placement_api
+from warp_taskgen.phase_4 import placement_api
+from warp_taskgen.phase_4.placement_api import run_placement_api
 
 
 @pytest.fixture

@@ -10,7 +10,7 @@ from pathlib import Path
 import yaml
 
 from scripts.generate_compose_scale import expand_site, main, make_ip_allocator
-from worldsim.config import BenchmarkConfig
+from warp_taskgen.config import BenchmarkConfig
 
 
 def _write_host_config(tmp_path: Path, **overrides: object) -> Path:

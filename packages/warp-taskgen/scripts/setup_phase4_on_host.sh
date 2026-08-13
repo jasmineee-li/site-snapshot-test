@@ -259,7 +259,7 @@ if [[ "$SKIP_GITLAB_MINT" -eq 0 ]]; then
     # mint-time but fail the runtime preflight with host_bound_storage_state.
     # Re-minting costs ~30s; debugging a stale artifact costs a whole run.
     log "step 5: mint Phase 0d storage_state from $INSTANCES (unconditional)"
-    uv run python -m worldsim.main phase 0d \
+    uv run python -m warp_taskgen.main phase 0d \
         --benchmark "$BENCHMARK_ROOT" \
         --instances "$INSTANCES_PATH"
 fi

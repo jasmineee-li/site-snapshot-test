@@ -68,7 +68,7 @@ echo ""
 echo "=== Step 2: Run Phase 3 (benign baseline) ==="
 echo "    Started at $(date)"
 
-uv run python -m worldsim.main phase 3 \
+uv run python -m warp_taskgen.main phase 3 \
     --benchmark "$BENCHMARK" \
     --instances "$INSTANCES" \
     --agent-model "$AGENT_MODEL" \
@@ -101,7 +101,7 @@ echo ""
 echo "=== Step 3: Run Phase 4 (adversarial evaluation) ==="
 echo "    Started at $(date)"
 
-uv run python -m worldsim.main phase 4 \
+uv run python -m warp_taskgen.main phase 4 \
     --benchmark "$BENCHMARK" \
     --instances "$INSTANCES" \
     --agent-model "$AGENT_MODEL" \
@@ -122,7 +122,7 @@ echo "=== Step 4: ASR Analysis ==="
 if [ -f "$LOG_DIR/phase_4/results.json" ]; then
     uv run python3 -c "
 import json
-from worldsim.phase_4.result_summary import final_result_is_compliant
+from warp_taskgen.phase_4.result_summary import final_result_is_compliant
 
 results = json.load(open('$LOG_DIR/phase_4/results.json'))
 total = len(results)

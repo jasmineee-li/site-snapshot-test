@@ -111,7 +111,7 @@ if not run_path.is_absolute():
     run_path = Path(remote_dir) / run_path
 if not run_path.exists():
     raise SystemExit(f"remote run path not found: {run_path}")
-cmd = ["uv", "run", "python", "-m", "worldsim.main", "trace", *inspect_args[:1], str(run_path), *inspect_args[1:]]
+cmd = ["uv", "run", "python", "-m", "warp_taskgen.main", "trace", *inspect_args[:1], str(run_path), *inspect_args[1:]]
 metadata = {
     "remote_dir": remote_dir,
     "run": str(run_path),

@@ -6,7 +6,7 @@ from ._fixtures import *  # noqa: F403,F401
 @pytest.mark.asyncio
 async def test_run_adversarial_task_passes_instance_id_to_agent_run(monkeypatch, tmp_path):
     """Phase 4 dispatch must thread per-replica ``instance_id`` to ``agent.run``."""
-    from worldsim.phases.phase_0d_auth_bootstrap import phase_0d_instance_id
+    from warp_taskgen.phases.phase_0d_auth_bootstrap import phase_0d_instance_id
 
     instance = BenchmarkInstance(
         site_name="gitlab",

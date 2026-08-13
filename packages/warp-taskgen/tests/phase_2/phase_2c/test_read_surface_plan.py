@@ -5,10 +5,10 @@ from typing import Any
 import pytest
 
 from tests.sites.test_read_surface import FakeReadSurfaceSite
-from worldsim.phase_2.phase_2c import _impl as phase_2c_impl
-from worldsim.phase_2.phase_2c import probes
-from worldsim.seeding import SeedSiteRegistration, SeedSiteRegistry
-from worldsim.sites import ReadbackDecision, ReadbackObservation, SiteCatalog
+from warp_taskgen.phase_2.phase_2c import _impl as phase_2c_impl
+from warp_taskgen.phase_2.phase_2c import probes
+from warp_taskgen.seeding import SeedSiteRegistration, SeedSiteRegistry
+from warp_taskgen.sites import ReadbackDecision, ReadbackObservation, SiteCatalog
 
 
 @pytest.mark.asyncio

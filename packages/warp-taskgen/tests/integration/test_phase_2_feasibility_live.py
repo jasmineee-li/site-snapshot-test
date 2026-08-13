@@ -13,11 +13,11 @@ from typing import Any
 
 import pytest
 
-from worldsim.auth_tokens import acquire_tokens_for_instances
-from worldsim.config import dump_verification_proxy_config
-from worldsim.editors.gitlab import GitlabEditor
-from worldsim.failpoints import FAILPOINT_EXIT_CODE
-from worldsim.phase_2 import phase_2c as feas
+from warp_taskgen.auth_tokens import acquire_tokens_for_instances
+from warp_taskgen.config import dump_verification_proxy_config
+from warp_taskgen.editors.gitlab import GitlabEditor
+from warp_taskgen.failpoints import FAILPOINT_EXIT_CODE
+from warp_taskgen.phase_2 import phase_2c as feas
 
 pytestmark = [pytest.mark.integration, pytest.mark.feasibility]
 
@@ -264,7 +264,7 @@ def _run_phase_2c_in_subprocess(
         [
             sys.executable,
             "-m",
-            "worldsim.main",
+            "warp_taskgen.main",
             "phase",
             "2c",
             "--feasibility-instances",

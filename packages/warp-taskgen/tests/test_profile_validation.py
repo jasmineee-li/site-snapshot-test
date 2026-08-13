@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from worldsim.profile_validation import load_and_validate_profile, validate_profile
+from warp_taskgen.profile_validation import load_and_validate_profile, validate_profile
 
 
 def _db_row_value(*, table: str, value_column: str, where: dict[str, object]) -> dict:

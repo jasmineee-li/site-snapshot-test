@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from worldsim.phases.phase_0c_handle_enrichment import (
+from warp_taskgen.phases.phase_0c_handle_enrichment import (
     HandleEnrichmentError,
     _site_url_candidates,
     enrich_gitlab_handles,
@@ -39,10 +39,10 @@ def test_enrich_collects_user_and_group_handles(auth_config: dict[str, Any]) -> 
 
     with (
         patch(
-            "worldsim.phases.phase_0c_handle_enrichment.acquire_token",
+            "warp_taskgen.phases.phase_0c_handle_enrichment.acquire_token",
             return_value="glpat-deadbeef",
         ),
-        patch("worldsim.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
+        patch("warp_taskgen.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
     ):
         mock_get.side_effect = [
             _mock_response(users),
@@ -75,10 +75,10 @@ def test_enrich_collects_namespace_qualified_projects(auth_config: dict[str, Any
 
     with (
         patch(
-            "worldsim.phases.phase_0c_handle_enrichment.acquire_token",
+            "warp_taskgen.phases.phase_0c_handle_enrichment.acquire_token",
             return_value="glpat-deadbeef",
         ),
-        patch("worldsim.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
+        patch("warp_taskgen.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
     ):
         mock_get.return_value = _mock_response(projects)
         result = enrich_gitlab_projects("http://gitlab.local", auth_config)
@@ -114,10 +114,10 @@ def test_enrich_projects_prefers_runtime_web_host(auth_config: dict[str, Any]) -
 
     with (
         patch(
-            "worldsim.phases.phase_0c_handle_enrichment.acquire_token",
+            "warp_taskgen.phases.phase_0c_handle_enrichment.acquire_token",
             side_effect=fake_acquire_token,
         ),
-        patch("worldsim.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
+        patch("warp_taskgen.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
     ):
         mock_get.return_value = _mock_response(projects)
         result = enrich_gitlab_projects(
@@ -142,10 +142,10 @@ def test_enrich_prefers_runtime_web_host_for_host_side_api(auth_config: dict[str
 
     with (
         patch(
-            "worldsim.phases.phase_0c_handle_enrichment.acquire_token",
+            "warp_taskgen.phases.phase_0c_handle_enrichment.acquire_token",
             side_effect=fake_acquire_token,
         ),
-        patch("worldsim.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
+        patch("warp_taskgen.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
     ):
         mock_get.side_effect = [_mock_response(users), _mock_response(groups)]
         result = enrich_gitlab_handles(
@@ -177,10 +177,10 @@ def test_enrich_falls_back_to_original_url_after_runtime_host_failure(
 
     with (
         patch(
-            "worldsim.phases.phase_0c_handle_enrichment.acquire_token",
+            "warp_taskgen.phases.phase_0c_handle_enrichment.acquire_token",
             side_effect=fake_acquire_token,
         ),
-        patch("worldsim.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
+        patch("warp_taskgen.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
     ):
         mock_get.side_effect = [_mock_response(users), _mock_response(groups)]
         result = enrich_gitlab_handles(
@@ -206,10 +206,10 @@ def test_enrich_paginates_users(auth_config: dict[str, Any]) -> None:
 
     with (
         patch(
-            "worldsim.phases.phase_0c_handle_enrichment.acquire_token",
+            "warp_taskgen.phases.phase_0c_handle_enrichment.acquire_token",
             return_value="glpat-deadbeef",
         ),
-        patch("worldsim.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
+        patch("warp_taskgen.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
     ):
         mock_get.side_effect = [
             _mock_response(page1, next_page=2),
@@ -233,10 +233,10 @@ def test_enrich_filters_subgroup_full_paths(auth_config: dict[str, Any]) -> None
     ]
     with (
         patch(
-            "worldsim.phases.phase_0c_handle_enrichment.acquire_token",
+            "warp_taskgen.phases.phase_0c_handle_enrichment.acquire_token",
             return_value="glpat-deadbeef",
         ),
-        patch("worldsim.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
+        patch("warp_taskgen.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
     ):
         mock_get.side_effect = [_mock_response(users), _mock_response(groups)]
         result = enrich_gitlab_handles("http://gitlab.local", auth_config)
@@ -249,10 +249,10 @@ def test_enrich_dedupes_and_sorts(auth_config: dict[str, Any]) -> None:
     groups: list[dict[str, Any]] = []
     with (
         patch(
-            "worldsim.phases.phase_0c_handle_enrichment.acquire_token",
+            "warp_taskgen.phases.phase_0c_handle_enrichment.acquire_token",
             return_value="glpat-deadbeef",
         ),
-        patch("worldsim.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
+        patch("warp_taskgen.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
     ):
         mock_get.side_effect = [_mock_response(users), _mock_response(groups)]
         result = enrich_gitlab_handles("http://gitlab.local", auth_config)
@@ -271,7 +271,7 @@ def test_enrich_raises_on_missing_url(auth_config: dict[str, Any]) -> None:
 
 def test_enrich_raises_on_token_acquisition_failure(auth_config: dict[str, Any]) -> None:
     with patch(
-        "worldsim.phases.phase_0c_handle_enrichment.acquire_token",
+        "warp_taskgen.phases.phase_0c_handle_enrichment.acquire_token",
         side_effect=RuntimeError("boom"),
     ):
         with pytest.raises(HandleEnrichmentError, match="could not acquire gitlab token"):
@@ -284,10 +284,10 @@ def test_enrich_raises_on_4xx(auth_config: dict[str, Any]) -> None:
     resp.headers = {}
     with (
         patch(
-            "worldsim.phases.phase_0c_handle_enrichment.acquire_token",
+            "warp_taskgen.phases.phase_0c_handle_enrichment.acquire_token",
             return_value="glpat-deadbeef",
         ),
-        patch("worldsim.phases.phase_0c_handle_enrichment.requests.get", return_value=resp),
+        patch("warp_taskgen.phases.phase_0c_handle_enrichment.requests.get", return_value=resp),
     ):
         with pytest.raises(HandleEnrichmentError, match="HTTP 403"):
             enrich_gitlab_handles("http://gitlab.local", auth_config)

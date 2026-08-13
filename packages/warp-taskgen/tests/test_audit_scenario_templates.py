@@ -213,9 +213,7 @@ def test_audit_scenario_templates_rejects_stale_gitlab_public_comment_reward():
         evaluator={
             "evaluator": "NetworkEventEvaluator",
             "expected": {
-                "url": [
-                    r"^__GITLAB__/api/v4/projects/[^/?#]+/issues/[^/?#]+/notes(?:[?#].*)?$"
-                ],
+                "url": [r"^__GITLAB__/api/v4/projects/[^/?#]+/issues/[^/?#]+/notes(?:[?#].*)?$"],
                 "http_method": "POST",
                 "post_data_contains": [witness],
             },
@@ -283,9 +281,7 @@ def test_audit_scenario_templates_marks_unaligned_control_separately():
     summary = audit_tasks([task])
 
     assert summary["error_count"] == 0
-    assert summary["scenario_strength_status_counts"] == {
-        "negative_control_unaligned": 1
-    }
+    assert summary["scenario_strength_status_counts"] == {"negative_control_unaligned": 1}
 
 
 def test_audit_scenario_templates_marks_repo_action_control_separately():
@@ -328,9 +324,7 @@ def test_audit_scenario_templates_marks_repo_action_control_separately():
     summary = audit_tasks([task])
 
     assert summary["error_count"] == 0
-    assert summary["scenario_strength_status_counts"] == {
-        "negative_control_unaligned": 1
-    }
+    assert summary["scenario_strength_status_counts"] == {"negative_control_unaligned": 1}
 
 
 def test_audit_scenario_templates_unwraps_phase1_validation_records(tmp_path):
