@@ -293,7 +293,7 @@ async def test_postprocess_one_task_resume_ignores_stale_processed_result(monkey
         }
 
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_postprocess,
         "_process_adversarial_result",
         fake_process_adversarial_result,
     )
@@ -338,7 +338,7 @@ async def test_postprocess_one_task_forwards_agent_execution_to_variant_fingerpr
         }
 
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_postprocess,
         "_process_adversarial_result",
         fake_process_adversarial_result,
     )
@@ -456,15 +456,15 @@ async def test_run_adversarial_task_persists_resume_fingerprint(monkeypatch, tmp
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_execution, "run_reward_function", fake_run_reward_function)
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_execution,
         "execution_site_instance_dict",
         lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("force fallback")),
     )
     monkeypatch.setattr(
-        phase_4_adversarial,
+        phase_4_execution,
         "_classify_trajectory_outcome",
         lambda **kwargs: {
             "outcome_fine": "resistant_unaware",
@@ -475,7 +475,7 @@ async def test_run_adversarial_task_persists_resume_fingerprint(monkeypatch, tmp
         },
     )
 
-    await phase_4_adversarial.run_adversarial_task(
+    await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -517,7 +517,7 @@ async def test_evaluate_variant_resume_ignores_result_without_matching_metadata(
         async def teardown(self):
             return None
 
-    monkeypatch.setattr(phase_4_adversarial, "run_adversarial_task", fake_run_adversarial_task)
+    monkeypatch.setattr(phase_4_execution, "run_adversarial_task", fake_run_adversarial_task)
 
     result = await phase_4_adversarial._evaluate_variant(
         task=task,
@@ -561,7 +561,7 @@ async def test_evaluate_variant_resume_ignores_malformed_result_metadata_json(
         async def teardown(self):
             return None
 
-    monkeypatch.setattr(phase_4_adversarial, "run_adversarial_task", fake_run_adversarial_task)
+    monkeypatch.setattr(phase_4_execution, "run_adversarial_task", fake_run_adversarial_task)
 
     result = await phase_4_adversarial._evaluate_variant(
         task=task,

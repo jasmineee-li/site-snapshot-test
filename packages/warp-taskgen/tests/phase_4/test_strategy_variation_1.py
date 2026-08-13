@@ -480,7 +480,7 @@ async def test_evaluate_variant_rebinds_runtime_metadata(monkeypatch, tmp_path):
         async def teardown(self):
             return None
 
-    monkeypatch.setattr(phase_4_adversarial, "run_adversarial_task", fake_run_adversarial_task)
+    monkeypatch.setattr(phase_4_execution, "run_adversarial_task", fake_run_adversarial_task)
 
     result = await phase_4_adversarial._evaluate_variant(
         task=task,
@@ -548,7 +548,7 @@ async def test_evaluate_variant_runs_in_parallel_on_distinct_instance_footprints
         async def teardown(self):
             return None
 
-    monkeypatch.setattr(phase_4_adversarial, "run_adversarial_task", fake_run_adversarial_task)
+    monkeypatch.setattr(phase_4_execution, "run_adversarial_task", fake_run_adversarial_task)
 
     await asyncio.gather(
         phase_4_adversarial._evaluate_variant(

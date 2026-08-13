@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from worldsim.phase_4 import execution as _execution
 from worldsim.phase_4._context import install_context
 from worldsim.phase_4.execution_helpers import _effective_adversarial_seed
 from worldsim.phase_4.payload_text import (
@@ -190,7 +191,7 @@ async def _rerun_adversarial_task(
         )
         try:
             await agent.setup(instance.site_url)
-            return await run_adversarial_task(
+            return await _execution.run_adversarial_task(
                 bound_task,
                 agent,
                 instance,
@@ -269,7 +270,7 @@ async def _evaluate_variant(
                 await agent.setup(instance.site_url)
                 bound_variant = bind_task_to_instance(variant, instance, all_instances)
                 async with task_lock(bound_variant):
-                    return await run_adversarial_task(
+                    return await _execution.run_adversarial_task(
                         bound_variant,
                         agent,
                         instance,

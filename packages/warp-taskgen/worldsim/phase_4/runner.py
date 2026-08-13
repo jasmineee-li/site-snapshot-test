@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from worldsim.phase_4 import execution as _execution
 from worldsim.phase_4._context import install_context
 from worldsim.phase_4.admission import (
     _collect_agent_auth_runtime_errors,
@@ -547,12 +548,12 @@ async def run(args: argparse.Namespace) -> int:
                 site_profile=site_profiles.get(str(task.get("site", ""))),
             ),
         }
-        if callable_accepts_keyword(run_adversarial_task, "reset_cache"):
+        if callable_accepts_keyword(_execution.run_adversarial_task, "reset_cache"):
             run_kwargs["reset_cache"] = reset_cache
-        if callable_accepts_keyword(run_adversarial_task, "seed_probe_cache"):
+        if callable_accepts_keyword(_execution.run_adversarial_task, "seed_probe_cache"):
             run_kwargs["seed_probe_cache"] = seed_probe_cache
         try:
-            return await run_adversarial_task(
+            return await _execution.run_adversarial_task(
                 task,
                 agent,
                 instance,
@@ -770,7 +771,6 @@ def _agentlab_phase4_preflight_errors() -> list[str]:
 import sys as _sys
 
 from worldsim.phase_4 import eval_awareness_iterator as _eval_awareness_iterator
-from worldsim.phase_4 import execution as _execution
 from worldsim.phase_4 import placement_loop as _placement_loop
 from worldsim.phase_4 import postprocess as _postprocess
 from worldsim.phase_4 import resume as _resume
@@ -781,7 +781,8 @@ from worldsim.phase_4._context import link_modules as _link_modules
 _link_modules(
     [
         _sys.modules[__name__],
-        _execution,
+        # Execution is imported explicitly above; it is intentionally not
+        # linked into the runner's compatibility namespace.
         _eval_awareness_iterator,
         _placement_loop,
         _postprocess,

@@ -27,6 +27,7 @@ from worldsim.phase_4 import execution_helpers as phase_4_execution_helpers
 from worldsim.phase_4 import metrics as phase_4_metrics
 from worldsim.phase_4 import payload_text as phase_4_payload_text
 from worldsim.phase_4 import placement_loop as phase_4_placement_loop
+from worldsim.phase_4 import postprocess as phase_4_postprocess
 from worldsim.phase_2 import text_fill as phase_2_text_fill
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component

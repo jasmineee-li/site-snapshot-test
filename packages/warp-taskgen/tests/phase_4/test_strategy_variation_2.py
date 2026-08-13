@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 @pytest.mark.asyncio
 async def test_run_strategy_variation_handles_variant_generation_exceptions(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
@@ -185,6 +186,7 @@ async def test_run_strategy_variation_marks_partial_capacity(monkeypatch, tmp_pa
         "authority_framing",
     ]
 
+
 @pytest.mark.asyncio
 async def test_run_strategy_variation_marks_all_variant_generation_exceptions_failed(
     monkeypatch, tmp_path
@@ -231,9 +233,7 @@ async def test_run_strategy_variation_marks_all_variant_generation_exceptions_fa
 
 
 @pytest.mark.asyncio
-async def test_run_strategy_variation_uses_ecological_validity_for_progress(
-    monkeypatch, tmp_path
-):
+async def test_run_strategy_variation_uses_ecological_validity_for_progress(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
     variant = json.loads(json.dumps(task))
     variant["adversarial_data_seed"]["editor_calls"][0]["args"]["detail"] = "changed"
@@ -304,9 +304,7 @@ async def test_run_strategy_variation_runs_adaptive_budget_rounds(monkeypatch, t
             failure_context.get("adaptive_loop") if isinstance(failure_context, dict) else None
         )
         round_index = (
-            adaptive_loop.get("current_round_index")
-            if isinstance(adaptive_loop, dict)
-            else 1
+            adaptive_loop.get("current_round_index") if isinstance(adaptive_loop, dict) else 1
         )
         variant["adversarial_data_seed"]["editor_calls"][0]["args"]["detail"] = (
             f"{strategy['strategy']}-{round_index}"
@@ -371,14 +369,12 @@ async def test_evaluate_variant_obeys_browser_worker_semaphore(monkeypatch, tmp_
             "encounter": {"max_coverage": 0.5},
         }
 
-    monkeypatch.setattr(phase_4_adversarial, "run_adversarial_task", fake_run_adversarial_task)
+    monkeypatch.setattr(phase_4_execution, "run_adversarial_task", fake_run_adversarial_task)
     semaphore = asyncio.Semaphore(1)
     variants = []
     for index in range(3):
         variant = json.loads(json.dumps(task))
-        variant["adversarial_data_seed"]["editor_calls"][0]["args"]["detail"] = (
-            f"changed-{index}"
-        )
+        variant["adversarial_data_seed"]["editor_calls"][0]["args"]["detail"] = f"changed-{index}"
         variants.append(variant)
 
     await asyncio.gather(

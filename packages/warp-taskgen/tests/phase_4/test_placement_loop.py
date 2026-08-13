@@ -39,10 +39,10 @@ async def test_run_adversarial_task_uses_selected_payload_for_pvpo(monkeypatch, 
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_execution, "run_reward_function", fake_run_reward_function)
 
-    result = await phase_4_adversarial.run_adversarial_task(
+    result = await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -100,10 +100,10 @@ async def test_run_adversarial_task_passes_attack_witnesses_to_pvpo(monkeypatch,
             )
 
     monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
-    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
-    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_execution, "run_reward_function", fake_run_reward_function)
 
-    await phase_4_adversarial.run_adversarial_task(
+    await phase_4_execution.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instances[0],
@@ -139,7 +139,7 @@ async def test_pvpo_gate_does_not_downgrade_missing_screenshot_to_non_encounter(
         encoding="utf-8",
     )
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         task,
         tmp_path,
         sandbox_model="claude-sonnet-4-6",
@@ -163,7 +163,7 @@ async def test_pvpo_gate_does_not_downgrade_missing_pvpo_json_to_non_encounter(t
     screenshots_dir.mkdir()
     (screenshots_dir / "step_0.png").write_bytes(b"PNG")
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         task,
         tmp_path,
         sandbox_model="claude-sonnet-4-6",
@@ -203,7 +203,7 @@ async def test_pvpo_gate_does_not_downgrade_empty_reference_screenshot_to_non_en
     )
     (screenshots_dir / "step_0.png").write_bytes(b"")
 
-    result = await phase_4_adversarial._run_pvpo_gate(
+    result = await phase_4_placement_loop._run_pvpo_gate(
         task,
         tmp_path,
         sandbox_model="claude-sonnet-4-6",
@@ -242,7 +242,7 @@ def test_placement_fix_succeeded_predicate(
     """Trigger-aware success: restored encounter is a placement fix, not ASR success."""
     current = {"outcome": outcome, "final_status": final_status}
     assert (
-        phase_4_adversarial._placement_fix_succeeded(
+        phase_4_placement_loop._placement_fix_succeeded(
             current,
             triggered_by_task_broke=triggered_by_task_broke,
             triggered_by_not_encountered=triggered_by_not_encountered,
@@ -319,13 +319,13 @@ async def test_placement_fix_wipes_leftover_iteration_dir(monkeypatch, tmp_path)
     def fake_equiv(a, b):
         return False  # force the loop to proceed into the rerun
 
-    monkeypatch.setattr(phase_4_adversarial, "run_placement_api", fake_placement)
-    monkeypatch.setattr(phase_4_adversarial, "_rerun_adversarial_task", fake_rerun)
-    monkeypatch.setattr(phase_4_adversarial, "task_lock", fake_task_lock)
-    monkeypatch.setattr(phase_4_adversarial, "bind_task_to_instance", fake_bind)
-    monkeypatch.setattr(phase_4_adversarial, "_adversarial_seed_equivalent", fake_equiv)
+    monkeypatch.setattr(phase_4_placement_loop, "run_placement_api", fake_placement)
+    monkeypatch.setattr(phase_4_placement_loop, "_rerun_adversarial_task", fake_rerun)
+    monkeypatch.setattr(phase_4_placement_loop, "task_lock", fake_task_lock)
+    monkeypatch.setattr(phase_4_placement_loop, "bind_task_to_instance", fake_bind)
+    monkeypatch.setattr(phase_4_placement_loop, "_adversarial_seed_equivalent", fake_equiv)
 
-    result = await phase_4_adversarial._run_placement_fix_loop(
+    result = await phase_4_placement_loop._run_placement_fix_loop(
         task=task,
         initial_result=initial_result,
         instance=_FakeInstance(),

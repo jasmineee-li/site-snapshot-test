@@ -586,6 +586,7 @@ async def _run_phase_4(
     *,
     real_variant_eval: bool = False,
 ) -> int:
+    from worldsim.phase_4 import execution as phase_4_execution
     from worldsim.phase_4 import runner as phase_4_adversarial
 
     instances_path = (
@@ -725,7 +726,7 @@ async def _run_phase_4(
             "steps": result.steps,
         }
 
-    phase_4_adversarial.run_adversarial_task = fake_run_adversarial_task
+    phase_4_execution.run_adversarial_task = fake_run_adversarial_task
 
     if mode == "resume":
         state = load_state() or {}

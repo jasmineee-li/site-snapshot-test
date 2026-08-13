@@ -1,9 +1,28 @@
 """Phase 4 execution behavior."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_4._context import install_context
+import asyncio
+import json
+import logging
+import os
+import shutil
+from pathlib import Path
+from typing import Any
+
+from worldsim.agent_config import (
+    RUNTIME_METADATA_KEY,
+    execution_instance_dict,
+    execution_site_instance_dict,
+    resolve_task_inputs,
+)
+from worldsim.agent_prompt import build_agent_prompt
+from worldsim.agent_runtime import AgentRunner
+from worldsim.config import BenchmarkInstance
+from worldsim.instance_selection import select_task_site_instance
+from worldsim.phase_2.phase_2c.reddit_attribution import (
+    _attach_gitlab_issue_note_state_probe_anchors,
+)
 from worldsim.phase_4.execution_helpers import (
     _agent_context_with_instance_auth,
     _delivery_site_name,
@@ -22,6 +41,8 @@ from worldsim.phase_4.metrics import (
     _upgrade_action_attempt_from_state_confirmation,
 )
 from worldsim.phase_4.payload_text import _selected_rendered_payload
+from worldsim.phase_4.payload_witnesses import witness_texts_for_task
+from worldsim.phase_4.placement_loop import _run_pvpo_gate
 from worldsim.phase_4.preflight import (
     BaseStateProbeResult,
     PreflightReport,
@@ -30,8 +51,19 @@ from worldsim.phase_4.preflight import (
     _serialize_preflight_mismatch_records,
     preflight_adversarial_seed,
 )
+from worldsim.phase_4.resume import (
+    _seed_has_actions,
+    _seed_requires_reset,
+    _seed_target_benchmark,
+)
+from worldsim.placeholders import merge_placeholder_maps
+from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
+from worldsim.rewards import run_reward_function
+from worldsim.seeding import apply_data_seed_async
+from worldsim.task_reset_cache import TaskResetCache, result_likely_mutated_state
+from worldsim.trajectory import save_result
 
-install_context(globals())
+logger = logging.getLogger(__name__)
 
 _REWARD_EVALUATION_TIMEOUT_S = float(os.environ.get("WORLDSIM_PHASE4_REWARD_TIMEOUT_S", "120"))
 _AGENTLAB_BROWSER_STEP_TIMEOUT_RETRIES = int(
