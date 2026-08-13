@@ -215,3 +215,12 @@ audit for #138 found no remaining real core `worldsim` import, so the core
 adapter and CLI alias were removed. Historical schema/artifact identifiers,
 supported `WORLDSIM_*` environment fallbacks, persisted remote-job command
 parsing, and the separately named AgentLab sidecar remain compatible.
+
+The first post-removal audit found that the adapter-bearing and adapter-free
+wheels both identified themselves as `0.1.0`; ordinary pip therefore skipped
+the replacement and could leave stale `worldsim` files. Issue #140 corrects the
+release boundary to `0.1.1`. The package-proof lane now installs a synthetic
+projection of the adapter-bearing 0.1.0 wheel, performs a normal
+`pip install --upgrade` to 0.1.1 without force/reinstall flags, and asserts
+that pip removes both old installed surfaces through wheel-recorded ownership
+while canonical metadata and resources remain installed.

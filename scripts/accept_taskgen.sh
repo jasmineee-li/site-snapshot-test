@@ -164,6 +164,31 @@ build_and_smoke_package() {
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/warp-taskgen-agentlab-runner" --help
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/worldsim-agentlab-runner" --help
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" -c "import worldsim_agentlab_runner.sync_pvpo; import warp_taskgen.phase_4.pvpo_capture"
+
+    # Prove the real upgrade path, not only a fresh install. Version 0.1.0
+    # shipped the temporary worldsim package and console. Ordinary pip must
+    # recognize 0.1.1 as newer, uninstall the old wheel's RECORD entries, and
+    # leave only the canonical package without requiring --force-reinstall.
+    adapter_fixture="$PACKAGE_DIR/tests/fixtures/namespace_compatibility/adapter_wheel_0_1_0"
+    adapter_build_dir="$temporary_root/adapter-dist"
+    upgrade_env="$temporary_root/upgrade-venv"
+    mkdir -p "$adapter_build_dir"
+    uv build --wheel "$adapter_fixture" --out-dir "$adapter_build_dir"
+    shopt -s nullglob
+    adapter_wheels=("$adapter_build_dir"/*.whl)
+    shopt -u nullglob
+    if [[ "${#adapter_wheels[@]}" -ne 1 ]]; then
+        printf 'error: expected exactly one adapter fixture wheel in %s, found %s\n' \
+            "$adapter_build_dir" "${#adapter_wheels[@]}" >&2
+        exit 1
+    fi
+    uv venv --seed --python "$python_version" "$upgrade_env"
+    "$upgrade_env/bin/python" -m pip install --no-deps "${adapter_wheels[0]}"
+    "$upgrade_env/bin/python" -c \
+        "import importlib.util, pathlib, worldsim; assert importlib.util.find_spec('worldsim') is not None; assert pathlib.Path('$upgrade_env/bin/worldsim').is_file()"
+    "$upgrade_env/bin/python" -m pip install --upgrade --no-deps "${wheels[0]}"
+    "$upgrade_env/bin/python" -c \
+        "import importlib.metadata, importlib.resources, importlib.util, pathlib, warp_taskgen; assert importlib.metadata.version('warp-taskgen') == '0.1.1'; assert warp_taskgen.__version__ == '0.1.1'; assert importlib.util.find_spec('worldsim') is None; assert not pathlib.Path('$upgrade_env/bin/worldsim').exists(); assert importlib.resources.files('warp_taskgen').joinpath('prompts/profile-site.md').is_file()"
 }
 
 run_package_proof() {

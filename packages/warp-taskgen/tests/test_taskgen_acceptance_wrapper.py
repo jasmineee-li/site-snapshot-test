@@ -127,3 +127,12 @@ def test_test_lanes_partition_remote_job_file(
     commands = command_log.read_text(encoding="utf-8")
     assert required in commands
     assert forbidden not in commands
+
+
+def test_package_proof_uses_ordinary_versioned_pip_upgrade() -> None:
+    source = ACCEPTANCE.read_text(encoding="utf-8")
+
+    assert "tests/fixtures/namespace_compatibility/adapter_wheel_0_1_0" in source
+    assert 'python" -m pip install --upgrade --no-deps' in source
+    assert "pip install --force-reinstall" not in source
+    assert "find_spec('worldsim') is None" in source

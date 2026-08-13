@@ -17,6 +17,7 @@ from scripts import readiness_audit
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_ROOT = Path(__file__).resolve().parent / "fixtures" / "namespace_compatibility"
 HISTORICAL_ROOT = FIXTURE_ROOT / "historical_worldsim_run"
+ADAPTER_WHEEL_FIXTURE_ROOT = FIXTURE_ROOT / "adapter_wheel_0_1_0"
 SIDECAR_ROOT = PACKAGE_ROOT / "packages" / "worldsim-agentlab-runner"
 
 RUN_ID = "run-fe8344cba2614126b55b2a5c6a0f0c65"
@@ -253,3 +254,36 @@ def test_active_source_readiness_has_no_legacy_namespace_imports() -> None:
 def test_historical_fixture_is_secret_free() -> None:
     paths = [str(path) for path in FIXTURE_ROOT.rglob("*") if path.is_file()]
     assert readiness_audit._token_findings(paths) == []
+
+
+def test_core_distribution_version_is_bumped_without_bumping_sidecars() -> None:
+    package_metadata = tomllib.loads((PACKAGE_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    import warp_taskgen
+
+    assert package_metadata["project"]["version"] == "0.1.1"
+    assert warp_taskgen.__version__ == "0.1.1"
+    assert (
+        tomllib.loads((SIDECAR_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"][
+            "version"
+        ]
+        == "0.1.0"
+    )
+    evaluator_root = PACKAGE_ROOT / "packages" / "warp-taskgen-webarena-verified"
+    assert (
+        tomllib.loads((evaluator_root / "pyproject.toml").read_text(encoding="utf-8"))["project"][
+            "version"
+        ]
+        == "0.1.0"
+    )
+
+
+def test_adapter_wheel_fixture_is_explicitly_old_and_retains_retired_surfaces() -> None:
+    metadata = tomllib.loads(
+        (ADAPTER_WHEEL_FIXTURE_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    )
+
+    assert metadata["project"]["name"] == "warp-taskgen"
+    assert metadata["project"]["version"] == "0.1.0"
+    assert metadata["project"]["scripts"]["worldsim"] == "warp_taskgen.main:main"
+    assert "worldsim" in metadata["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"]
+    assert (ADAPTER_WHEEL_FIXTURE_ROOT / "worldsim" / "__init__.py").is_file()
