@@ -144,25 +144,28 @@ build_and_smoke_package() {
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/worldsim" --help
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" -m warp_taskgen.main --help
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" -m worldsim.main --help
-    PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" - <<'PY'
-from importlib import import_module
-from pathlib import Path
+    PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" \
+        "$PACKAGE_DIR/scripts/compatibility_wheel_matrix.py" \
+        --python "$isolated_env/bin/python" --package-root "$PACKAGE_DIR"
 
-import warp_taskgen
-import worldsim
-
-assert worldsim is warp_taskgen
-canonical = import_module("warp_taskgen.phase_4.pvpo_capture")
-legacy = import_module("worldsim.phase_4.pvpo_capture")
-assert legacy is canonical
-package_root = Path(warp_taskgen.__file__).parent
-for resource in (
-    "prompts/profile-site.md",
-    "voice_exemplars/registry.json",
-    "phase_4/pvpo_capture.py",
-):
-    assert (package_root / resource).is_file(), resource
-PY
+    sidecar_build_dir="$temporary_root/sidecar-dist"
+    mkdir -p "$sidecar_build_dir"
+    uv build "$PACKAGE_DIR/packages/worldsim-agentlab-runner" --out-dir "$sidecar_build_dir"
+    shopt -s nullglob
+    sidecar_wheels=("$sidecar_build_dir"/*.whl)
+    shopt -u nullglob
+    if [[ "${#sidecar_wheels[@]}" -ne 1 ]]; then
+        printf 'error: expected exactly one AgentLab sidecar wheel in %s, found %s\n' \
+            "$sidecar_build_dir" "${#sidecar_wheels[@]}" >&2
+        exit 1
+    fi
+    # The sidecar's --help path is intentionally dependency-light; install
+    # without dependencies so this smoke checks both historical console names
+    # without starting AgentLab or a browser.
+    uv pip install --python "$isolated_env/bin/python" --no-deps "${sidecar_wheels[0]}"
+    PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/warp-taskgen-agentlab-runner" --help
+    PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/worldsim-agentlab-runner" --help
+    PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" -c "import worldsim_agentlab_runner.sync_pvpo; import warp_taskgen.phase_4.pvpo_capture"
 }
 
 run_package_proof() {

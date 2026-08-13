@@ -1,0 +1,10 @@
+{
+  "schema_version": "worldsim-phase-2b-text-fill-checkpoint-v1",
+  "run_id": "run-fe8344cba2614126b55b2a5c6a0f0c65",
+  "definition_digest": "35629a1f4cd9dac92a5a5820dcd17c0029fbe1881f781ff526b442276b791c56",
+  "plan_id": "plan-000",
+  "status": "complete",
+  "task_ids": ["adv_historical_gitlab"],
+  "selected_seed": "seed-000",
+  "payload_ordinals": [0]
+}

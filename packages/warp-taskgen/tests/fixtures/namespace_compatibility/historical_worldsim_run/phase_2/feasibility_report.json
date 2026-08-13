@@ -1,0 +1,9 @@
+{
+  "schema_version": "worldsim-phase-2c-feasibility-report-v1",
+  "run_id": "run-fe8344cba2614126b55b2a5c6a0f0c65",
+  "definition_digest": "35629a1f4cd9dac92a5a5820dcd17c0029fbe1881f781ff526b442276b791c56",
+  "phase_2_status": "complete",
+  "verified_count": 1,
+  "infeasible_count": 0,
+  "source_data_dropped_count": 0
+}

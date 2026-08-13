@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "kind": "phase4_artifact_manifest",
+  "run_id": "run-fe8344cba2614126b55b2a5c6a0f0c65",
+  "definition_digest": "35629a1f4cd9dac92a5a5820dcd17c0029fbe1881f781ff526b442276b791c56",
+  "artifacts_source": "historical-worldsim-fixture",
+  "artifacts": [
+    {"path": "phase_2/shards/shard-000.manifest.json"},
+    {"path": "phase_2/text_fill/checkpoints/plan-000.json"},
+    {"path": "phase_2/feasibility_checkpoints/adv_historical_gitlab.json"},
+    {"path": "phase_4/20260812_200538/adv_historical_gitlab/results.json"},
+    {"path": "phase_4/20260812_200538/adv_historical_gitlab/eval_awareness_iterator_checkpoint.json"}
+  ]
+}
