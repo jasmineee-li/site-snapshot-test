@@ -129,6 +129,7 @@ class Audit:
 LEGACY_PHASE_IMPORT_MODULES = frozenset(
     {
         "worldsim.phases.phase_2_injections",
+        "worldsim.phases.phase_2_injections_api",
         "worldsim.phases.phase_2_output",
         "worldsim.phases.phase_2_target_resolver",
         "worldsim.phases.phase_2c_artifacts",
@@ -136,11 +137,6 @@ LEGACY_PHASE_IMPORT_MODULES = frozenset(
         "worldsim.phases.phase_4_adversarial",
     }
 )
-# `worldsim.phases.phase_2_injections_api` is intentionally omitted: on
-# `feat/worldsim-v5` it is the canonical Shape-C streaming L3 implementation,
-# not a temporary compat wrapper. The PR #11 rename to
-# `worldsim.phase_2.runner_api` was deferred to a later migration cycle, so
-# this cutover narrows scope to the six wrappers that are pure shims.
 
 LEGACY_PHASE_IMPORT_ALLOWED_PREFIXES = (
     "docs/",
@@ -490,7 +486,11 @@ def _print_text(audit: Audit) -> None:
 def _json_default(value: Any) -> Any:
     if isinstance(
         value,
-        LargeFile | LargeFileExemption | TokenFinding | LegacyImportFinding | ActiveFacadeImportFinding,
+        LargeFile
+        | LargeFileExemption
+        | TokenFinding
+        | LegacyImportFinding
+        | ActiveFacadeImportFinding,
     ):
         return asdict(value)
     raise TypeError(f"cannot serialize {type(value)!r}")

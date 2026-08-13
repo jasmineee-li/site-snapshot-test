@@ -159,6 +159,21 @@ def test_legacy_import_audit_flags_retired_phase_paths(tmp_path, monkeypatch) ->
     ]
 
 
+def test_legacy_import_audit_flags_phase_2_api_compat_path(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "worldsim" / "consumer.py"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "from worldsim.phases.phase_2_injections_api import generate_phase_2a_plans_api\n"
+    )
+
+    findings = readiness_audit._legacy_phase_import_findings(["worldsim/consumer.py"])
+
+    assert [finding.module for finding in findings] == [
+        "worldsim.phases.phase_2_injections_api",
+    ]
+
+
 def test_legacy_import_audit_allows_cutover_tests(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     path = tmp_path / "tests" / "consumer.py"
@@ -205,9 +220,7 @@ def test_legacy_import_audit_relative_import_resolution_drops_levels() -> None:
     assert readiness_audit._resolve_relative_anchor("worldsim/phases/foo.py", 5) is None
 
 
-def test_active_facade_import_audit_flags_patchable_compat_paths(
-    tmp_path, monkeypatch
-) -> None:
+def test_active_facade_import_audit_flags_patchable_compat_paths(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     path = tmp_path / "worldsim" / "consumer.py"
     path.parent.mkdir(parents=True)
@@ -241,9 +254,7 @@ def test_active_facade_import_audit_is_advisory_for_tests(tmp_path, monkeypatch)
     docs_path.write_text("from worldsim.phases import phase_2_text_fill\n")
 
     assert (
-        readiness_audit._active_facade_import_findings(
-            ["tests/consumer.py", "docs/consumer.py"]
-        )
+        readiness_audit._active_facade_import_findings(["tests/consumer.py", "docs/consumer.py"])
         == []
     )
 
