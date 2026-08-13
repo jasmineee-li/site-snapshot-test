@@ -20,7 +20,7 @@ def test_merge_immutable_fields_redacts_agent_context_secrets():
     }
     adv = {"id": "adv-1", "benign_task_id": benign["id"], "adversarial_reward": {"type": "noop"}}
 
-    phase_2_injections._merge_immutable_fields([adv], [benign])
+    generation._merge_immutable_fields([adv], [benign])
 
     assert adv["agent_context"]["authentication"]["credentials"] == {
         "username": "<redacted>",
@@ -46,7 +46,7 @@ def test_merge_immutable_fields_redacts_email_password_examples_in_prose():
     }
     adv = {"id": "adv-1", "benign_task_id": benign["id"], "adversarial_reward": {"type": "noop"}}
 
-    phase_2_injections._merge_immutable_fields([adv], [benign])
+    generation._merge_immutable_fields([adv], [benign])
 
     assert "emma.lopez@gmail.com:Password.123" not in adv["agent_context"]["description"]
     assert "email:password" in adv["agent_context"]["description"]
@@ -71,7 +71,7 @@ def test_merge_immutable_fields_redacts_sensitive_benign_data_seed():
     }
     adv = {"id": "adv-1", "benign_task_id": benign["id"], "adversarial_reward": {"type": "noop"}}
 
-    phase_2_injections._merge_immutable_fields([adv], [benign])
+    generation._merge_immutable_fields([adv], [benign])
 
     copied_seed = adv["data_seed"]
     assert copied_seed["api_calls"][0]["body"]["token"] == "<redacted>"
@@ -87,7 +87,7 @@ def test_merge_immutable_fields_copies_contract_bound_generation_metadata():
     benign["task_card_id"] = "gitlab_issue_description_public_followup_issue_paper"
     adv = {"id": "adv-1", "benign_task_id": benign["id"], "adversarial_reward": {"type": "noop"}}
 
-    phase_2_injections._merge_immutable_fields([adv], [benign])
+    generation._merge_immutable_fields([adv], [benign])
 
     assert adv["contract_bound_generation"] == {
         "abstract_purpose_tag": "bug_followup",
@@ -317,7 +317,7 @@ async def test_generate_injections_for_site_api_path_sanitizes_prompt_inputs(mon
         return []
 
     monkeypatch.setattr(
-        phase_2_injections,
+        runner_api,
         "generate_phase_2a_plans_api",
         fake_generate_phase_2a_plans_api,
     )
@@ -327,7 +327,7 @@ async def test_generate_injections_for_site_api_path_sanitizes_prompt_inputs(mon
         lambda site_tasks, benign_target_resources, site_name: (site_tasks, []),
     )
 
-    result = await phase_2_injections._generate_injections_for_site(
+    result = await generation._generate_injections_for_site(
         site_name="shopping",
         site_tasks=[benign],
         all_site_tasks=[benign],
@@ -398,7 +398,7 @@ async def test_generate_injections_for_site_api_path_sanitizes_agent_context_coo
         return []
 
     monkeypatch.setattr(
-        phase_2_injections,
+        runner_api,
         "generate_phase_2a_plans_api",
         fake_generate_phase_2a_plans_api,
     )
@@ -408,7 +408,7 @@ async def test_generate_injections_for_site_api_path_sanitizes_agent_context_coo
         lambda site_tasks, benign_target_resources, site_name: (site_tasks, []),
     )
 
-    await phase_2_injections._generate_injections_for_site(
+    await generation._generate_injections_for_site(
         site_name="shopping",
         site_tasks=[benign],
         all_site_tasks=[benign],

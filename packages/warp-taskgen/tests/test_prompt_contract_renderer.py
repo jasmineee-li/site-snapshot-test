@@ -281,8 +281,7 @@ class TestSandboxApiPathParity:
     between the two paths for the same shard input."""
 
     def test_byte_identical_prompts(self) -> None:
-        from worldsim.phase_2 import runner as phase_2_injections
-        from worldsim.phase_2 import runner_api
+        from worldsim.phase_2 import generation, runner_api
 
         benign_target_resources = {
             "t1": {
@@ -303,7 +302,7 @@ class TestSandboxApiPathParity:
         # Sandbox path: _render_generation_prompt loads the prompt with
         # contract_context + validation_command footer. API path:
         # _build_messages loads the prompt with contract_context, no footer.
-        sandbox_text = phase_2_injections._render_generation_prompt(
+        sandbox_text = generation._render_generation_prompt(
             {"framing::concealment": 1},
             validation_command="adversarial-tasks",
             contract_context=ctx,

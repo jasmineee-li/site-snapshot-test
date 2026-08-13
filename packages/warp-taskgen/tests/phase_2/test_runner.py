@@ -1,6 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import generation
 from worldsim.phase_2 import target_inputs
 
 
@@ -39,18 +40,18 @@ async def test_phase_2_run_publishes_partial_results_on_partial_site_failures(
         site_name, site_tasks, all_site_tasks=None, profile_path=None, label=None, **kwargs
     ):
         if site_name == "shopping":
-            return phase_2_injections.SiteInjectionResult(
+            return SiteInjectionResult(
                 site_name,
                 [{"id": "adv-1", "benchmark": "webarena_verified"}],
                 [],
             )
-        return phase_2_injections.SiteInjectionResult(
+        return SiteInjectionResult(
             site_name,
             [],
             ["sandbox did not produce adversarial_tasks.json"],
         )
 
-    monkeypatch.setattr(phase_2_injections, "_generate_injections_for_site", fake_generate)
+    monkeypatch.setattr(generation, "_generate_injections_for_site", fake_generate)
 
     rc = await phase_2_injections.run(Namespace(skip_feasibility=True, sandbox_model="demo"))
 
@@ -119,7 +120,7 @@ async def test_paused_run_reuses_exact_single_shard_before_api_admission(
         raise AssertionError("an exact paused shard must be reused before API admission")
 
     monkeypatch.setattr(
-        phase_2_injections,
+        generation,
         "_generate_injections_for_site",
         unexpected_api_call,
     )

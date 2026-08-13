@@ -262,7 +262,9 @@ def _configure_phase_4(state_dir: Path) -> Path:
 
 
 async def _run_phase_2(mode: str, state_dir: Path) -> int:
+    from worldsim.phase_2 import generation
     from worldsim.phase_2 import runner as phase_2_injections
+    from worldsim.phase_2.planning_types import SiteInjectionResult
     from worldsim.phase_2.text_fill.seed import materialize_adversarial_seed
 
     _configure_phase_2(state_dir)
@@ -275,7 +277,7 @@ async def _run_phase_2(mode: str, state_dir: Path) -> int:
     async def fake_generate(
         site_name, site_tasks, all_site_tasks=None, profile_path=None, label=None, **kwargs
     ):
-        return phase_2_injections.SiteInjectionResult(
+        return SiteInjectionResult(
             site_name,
             [
                 {
@@ -355,7 +357,7 @@ async def _run_phase_2(mode: str, state_dir: Path) -> int:
             )
         return finalized, diagnostics
 
-    phase_2_injections._generate_injections_for_site = fake_generate
+    generation._generate_injections_for_site = fake_generate
     phase_2_injections.fill_texts_for_tasks = fake_fill_texts_for_tasks
 
     if mode == "resume":

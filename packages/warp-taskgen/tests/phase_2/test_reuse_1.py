@@ -47,7 +47,7 @@ def test_collect_site_profiles_returns_reusable_mapping(tmp_path):
         )
     )
 
-    site_profiles, errors = phase_2_injections._collect_site_profiles(
+    site_profiles, errors = generation._collect_site_profiles(
         {"shopping": [_benign_task()]},
         profiles_dir,
     )

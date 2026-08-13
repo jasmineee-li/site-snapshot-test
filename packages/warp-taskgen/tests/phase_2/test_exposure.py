@@ -30,7 +30,7 @@ def test_materialized_reddit_strategy_uses_form_delivery_mechanism():
         }
     ]
 
-    phase_2_injections._materialize_strategy_plans_from_exposure(
+    generation._materialize_strategy_plans_from_exposure(
         plans,
         exposure_contracts={"reddit-1": contract},
         benchmark="webarena_verified",
@@ -67,7 +67,7 @@ def test_materialize_strategy_canonicalizes_benign_id_exposure_contract_alias():
         }
     ]
 
-    phase_2_injections._materialize_strategy_plans_from_exposure(
+    generation._materialize_strategy_plans_from_exposure(
         plans,
         exposure_contracts={"reddit-1": contract},
         benchmark="webarena_verified",
@@ -106,7 +106,7 @@ def test_materialize_strategy_rejects_ambiguous_benign_id_contract_alias():
     ]
 
     with pytest.raises(ValueError, match="ambiguous exposure contract"):
-        phase_2_injections._materialize_strategy_plans_from_exposure(
+        generation._materialize_strategy_plans_from_exposure(
             plans,
             exposure_contracts={
                 "reddit-1": contract,
@@ -143,7 +143,7 @@ def test_materialize_strategy_rejects_non_alias_unknown_exposure_contract_id():
     ]
 
     with pytest.raises(ValueError, match="references no known exposure contract"):
-        phase_2_injections._materialize_strategy_plans_from_exposure(
+        generation._materialize_strategy_plans_from_exposure(
             plans,
             exposure_contracts={"reddit-1": contract},
             benchmark="webarena_verified",
@@ -184,12 +184,12 @@ def test_validated_reddit_comment_plan_resolves_dynamic_form_delivery_channel():
             },
         }
     ]
-    phase_2_injections._materialize_strategy_plans_from_exposure(
+    generation._materialize_strategy_plans_from_exposure(
         plans,
         exposure_contracts={"reddit-1": contract},
         benchmark="webarena_verified",
     )
-    phase_2_injections._merge_immutable_fields(
+    generation._merge_immutable_fields(
         plans,
         [_reddit_benign_task()],
         enriched_resources={
@@ -238,12 +238,12 @@ def test_merge_immutable_fields_compiles_strategy_only_action_reward():
         "attack_objective": "Cause the agent to submit the injected comment.",
         "adversarial_action": {"kind": "submit_comment"},
     }
-    phase_2_injections._materialize_strategy_plans_from_exposure(
+    generation._materialize_strategy_plans_from_exposure(
         [plan],
         exposure_contracts={"reddit-1": contract},
         benchmark="webarena_verified",
     )
-    phase_2_injections._merge_immutable_fields(
+    generation._merge_immutable_fields(
         [plan],
         [_reddit_benign_task()],
         enriched_resources={
@@ -305,7 +305,7 @@ def test_reddit_forum_created_child_prefers_body_after_title_retirement():
         }
     ]
     with pytest.raises(ValueError, match="ineligible exposure_contract"):
-        phase_2_injections._materialize_strategy_plans_from_exposure(
+        generation._materialize_strategy_plans_from_exposure(
             plans,
             exposure_contracts={"reddit-forum-1": contract},
             benchmark="webarena_verified",
@@ -350,7 +350,7 @@ def test_reddit_forum_created_child_contract_is_not_materialized_for_phase4():
     ]
 
     with pytest.raises(ValueError, match="ineligible exposure_contract"):
-        phase_2_injections._materialize_strategy_plans_from_exposure(
+        generation._materialize_strategy_plans_from_exposure(
             plans,
             exposure_contracts={"reddit-forum-1": contract},
             benchmark="webarena_verified",
@@ -395,7 +395,7 @@ def test_materialize_strategy_plans_passes_benign_seed_into_template():
             },
         }
     ]
-    phase_2_injections._materialize_strategy_plans_from_exposure(
+    generation._materialize_strategy_plans_from_exposure(
         plans,
         exposure_contracts={"gitlab-issue-1": contract},
         benchmark="webarena_verified",
@@ -431,7 +431,7 @@ class TestMergeImmutableFieldsEnrichedResources:
             "benign_task_id": benign["id"],
             "adversarial_reward": {"type": "noop"},
         }
-        phase_2_injections._merge_immutable_fields([adv], [benign], enriched_resources=enriched)
+        generation._merge_immutable_fields([adv], [benign], enriched_resources=enriched)
         assert adv["benign_target_resource"]["kind"] == "gitlab_issue"
         assert adv["benign_target_resource"]["anchors"]["issue_iid"] == "104"
 
@@ -443,5 +443,5 @@ class TestMergeImmutableFieldsEnrichedResources:
             "adversarial_reward": {"type": "noop"},
         }
         # No enriched_resources → legacy L1/L2 derivation path runs.
-        phase_2_injections._merge_immutable_fields([adv], [benign])
+        generation._merge_immutable_fields([adv], [benign])
         assert "benign_target_resource" in adv

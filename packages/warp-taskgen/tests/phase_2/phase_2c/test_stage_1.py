@@ -3,6 +3,7 @@
 from .._fixtures import *  # noqa: F403,F401
 from worldsim.phase_2.phase_2c import artifacts as phase_2c_artifacts
 from worldsim.phase_2.phase_2c import stage as phase_2_stage
+from worldsim.phase_2 import generation
 from worldsim.phase_2.planning_types import SiteInjectionResult
 
 
@@ -194,7 +195,7 @@ async def test_phase_2_run_marks_feasibility_stage_running_before_2c(monkeypatch
             phase_2_status="complete",
         )
 
-    monkeypatch.setattr(phase_2_injections, "_generate_injections_for_site", fake_generate)
+    monkeypatch.setattr(generation, "_generate_injections_for_site", fake_generate)
     monkeypatch.setattr(phase_2_injections, "fill_texts_for_tasks", fake_fill)
     monkeypatch.setattr(phase_2_stage, "verify_feasibility", fake_verify_feasibility)
 
