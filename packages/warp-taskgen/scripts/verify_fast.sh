@@ -21,7 +21,7 @@ for arg in "$@"; do
     esac
 done
 
-"$RUN_SILENT" "ruff scoped source" "uv run ruff check worldsim tests scripts"
+"$RUN_SILENT" "ruff scoped source" "uv run ruff check warp_taskgen tests scripts"
 if [[ "$SKIP_COLLECT" -eq 0 ]]; then
     "$RUN_SILENT" "pytest collection" "uv run pytest --collect-only -q"
 fi

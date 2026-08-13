@@ -30,9 +30,10 @@ pip install -e .
 Use plain `uv sync` for runtime-only installs. PostgreSQL support is included in
 the default install; lint/test tooling is in the `dev` extra.
 
-The distribution and primary console script are named `warp-taskgen`. The Python
-package and compatibility CLI remain `worldsim` so old runbooks and artifacts
-stay resolvable; active spec filenames use WARP Taskgen names.
+The distribution and console script are named `warp-taskgen`; the canonical
+Python package is `warp_taskgen`. Historical artifact fields, environment
+fallbacks, and deployed identifiers remain readable where compatibility
+requires them.
 
 ### WebArena Verified evaluator
 

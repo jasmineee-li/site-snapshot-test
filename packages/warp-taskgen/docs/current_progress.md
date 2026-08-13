@@ -13,9 +13,12 @@ GitLab merge requests are historical/support plumbing, not active mainline
 carriers. Shopping, shopping_admin, Wikipedia, map/OSM, Magento, and classifieds
 are historical or support plumbing unless the spec explicitly reopens scope.
 
-Naming state: `warp-taskgen` is the preferred console script and package
-distribution name. The Python package, compatibility CLI, and many historical
-artifact fields remain `worldsim`; active spec filenames use WARP Taskgen names.
+Naming state: `warp-taskgen` is the canonical console script and package
+distribution name, and `warp_taskgen` is the only core Python namespace. The
+retired core `worldsim` import and CLI aliases were removed after the
+compatibility evidence cycle. Historical artifact fields, environment
+fallbacks, remote-job command forms, and the separately distributed AgentLab
+sidecar may still use `worldsim` for compatibility.
 
 ## Current Gates
 
@@ -63,8 +66,10 @@ artifact fields remain `worldsim`; active spec filenames use WARP Taskgen names.
   `paper_eligible="operator_review_required"`.
 - Top-level Phase 4 worker spelling is settled: use `--phase-4-max-workers` for
   `warp-taskgen phase 4`; `--workers` belongs only to
-  `scripts/run_phase4_process_pool.py` and is rejected by the remote launch guard
-  on top-level Phase 4 commands, including legacy `worldsim.main` spellings.
+  `scripts/run_phase4_process_pool.py` and is rejected by the remote launch
+  guard on top-level Phase 4 commands. Persisted remote-job metadata may still
+  contain historical `worldsim.main` command forms, which the parser accepts
+  for readback.
 
 ## Operator Rule
 
