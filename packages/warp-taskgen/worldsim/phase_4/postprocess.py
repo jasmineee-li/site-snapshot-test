@@ -13,7 +13,16 @@ from worldsim.phase_4.resume import (
     _phase_4_postprocess_fingerprint,
     _write_json_atomic,
 )
-from worldsim.phase_4.strategy_variation import run_strategy_variation
+
+# Compatibility export: the implementation is owned by strategy_variation.
+from worldsim.phase_4.strategy_variation import (
+    run_judge as _strategy_run_judge,
+)
+from worldsim.phase_4.strategy_variation import (
+    run_strategy_variation,
+)
+
+run_judge = _strategy_run_judge
 
 install_context(globals())
 
@@ -484,33 +493,6 @@ def _eval_awareness_iterator_skip(
         ),
         "verbalized_eval_awareness_is_aware": result.get("verbalized_eval_awareness_is_aware"),
     }
-
-
-async def run_judge(
-    task: dict[str, Any],
-    trajectory_dir: str | Path,
-    profile_path: Path,
-    *,
-    sandbox_model: str = "claude-sonnet-4-6",
-) -> dict[str, Any]:
-    """Judge classifies why an ecologically valid attack was refused.
-
-    Thin wrapper over `worldsim.phase_4.judge_api.run_judge_api`. The judge
-    is a single-turn Anthropic Messages API call with forced tool-use
-    structured output; it returns a `refusal_trigger` from a 7-value
-    taxonomy and the host-side `TRIGGER_TO_STRATEGIES` lookup in
-    `strategy_catalog.py` selects up to 3 strategies. `profile_path` is no
-    longer plumbed to the API call (host-side slicer + classification don't
-    need it) but accepted for signature compatibility.
-
-    The legacy `status` field now carries `judge_ok_actionable`,
-    `judge_ok_unactionable`, or `judge_failed`. Downstream
-    `run_strategy_variation` branches on these new values; any caller that
-    reads only `recommended_strategies` continues to work unchanged.
-    """
-    from worldsim.phase_4.judge_api import run_judge_api
-
-    return await run_judge_api(task, trajectory_dir, sandbox_model=sandbox_model)
 
 
 def _build_phase_4_result(

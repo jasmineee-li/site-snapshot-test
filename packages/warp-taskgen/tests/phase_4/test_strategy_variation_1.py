@@ -38,7 +38,6 @@ async def test_generate_variant_merges_api_tool_use_output(monkeypatch, tmp_path
         return merged
 
     monkeypatch.setattr(variant_api, "generate_variant_api", fake_api)
-    monkeypatch.setattr(phase_4_adversarial, "generate_variant_api", fake_api, raising=False)
     # `generate_variant` does `from worldsim.phase_4.variant_api import generate_variant_api`
     # at call time, so patching the source module is sufficient.
 

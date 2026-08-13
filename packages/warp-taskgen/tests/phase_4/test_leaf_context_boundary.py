@@ -15,6 +15,7 @@ RESUME_MODULE = "resume"
 VARIANT_EVAL_MODULE = "variant_eval"
 PLACEMENT_LOOP_MODULE = "placement_loop"
 EVAL_AWARENESS_ITERATOR_MODULE = "eval_awareness_iterator"
+STRATEGY_VARIATION_MODULE = "strategy_variation"
 
 
 def _source(name: str) -> str:
@@ -421,3 +422,70 @@ def test_resume_imports_in_either_order() -> None:
             cwd=PACKAGE_ROOT,
             env={"PYTHONPATH": package_root},
         )
+
+
+def test_strategy_variation_owns_explicit_dependencies_and_runner_does_not_link_it() -> None:
+    source = _source(STRATEGY_VARIATION_MODULE)
+    runner = _source("runner")
+    postprocess = _source("postprocess")
+    assert "install_context" not in source
+    assert "ruff: noqa: F821" not in source
+    assert "from worldsim.phase_4._context" not in source
+    assert "from worldsim.phase_4 import strategy_variation as _strategy_variation" not in runner
+    assert "        _strategy_variation,\n" not in runner
+    for dependency in (
+        "import asyncio",
+        "import logging",
+        "from collections.abc import Callable, Mapping",
+        "from pathlib import Path",
+        "from typing import Any",
+        "from worldsim.agent_runtime import AgentRunner",
+        "from worldsim.config import BenchmarkInstance",
+        "from worldsim.failpoints import crash_if_enabled",
+        "from worldsim.resume_metadata import instances_identity",
+        "from worldsim.task_reset_cache import callable_accepts_keyword",
+        "from worldsim.phase_4.options import",
+        "from worldsim.phase_4.strategy_catalog import ALLOWED_STRATEGIES as _ALLOWED_STRATEGIES",
+    ):
+        assert dependency in source
+    assert "logger = logging.getLogger(__name__)" in source
+    assert source.count("async def run_judge(") == 1
+    assert "from worldsim.phase_4.judge_api import run_judge_api" in source
+    assert "async def run_judge(" not in postprocess
+    assert "from worldsim.phase_4.strategy_variation import" in postprocess
+
+
+def test_strategy_variation_imports_in_either_order() -> None:
+    package_root = str(PACKAGE_ROOT)
+    for statement in (
+        "from worldsim.phase_4 import strategy_variation, runner; "
+        "assert strategy_variation.run_strategy_variation; assert runner.run",
+        "from worldsim.phase_4 import runner, strategy_variation; "
+        "assert strategy_variation.run_strategy_variation; assert runner.run",
+        "from worldsim.phase_4 import strategy_variation, postprocess; "
+        "assert strategy_variation.run_judge is postprocess.run_judge",
+        "from worldsim.phase_4 import postprocess, strategy_variation; "
+        "assert strategy_variation.run_judge is postprocess.run_judge",
+    ):
+        subprocess.run(
+            [sys.executable, "-c", statement],
+            check=True,
+            cwd=PACKAGE_ROOT,
+            env={"PYTHONPATH": package_root},
+        )
+
+
+def test_strategy_tests_do_not_patch_runner_strategy_exports() -> None:
+    test_root = PACKAGE_ROOT / "tests"
+    strategy_names = ("run_judge", "generate_variant", "_evaluate_variant")
+    for path in (
+        *test_root.glob("test_*.py"),
+        *test_root.glob("phase_4/test_*.py"),
+        test_root / "crash_resume_scenarios.py",
+    ):
+        if path.name == "test_leaf_context_boundary.py":
+            continue
+        source = path.read_text()
+        for name in strategy_names:
+            assert f"phase_4_adversarial.{name}" not in source
+            assert f'setattr(phase_4_adversarial, "{name}"' not in source
