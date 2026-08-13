@@ -587,12 +587,17 @@ def test_sync_runs_retired_namespace_postcondition_before_stamp(tmp_path: Path) 
     script = (repo_root / "scripts" / "sync_to_host.sh").read_text(encoding="utf-8")
     rsync_index = script.index('"$RJ_RSYNC_BIN"')
     cleanup_index = script.index("prune_retired_namespace.py", rsync_index)
-    refresh_index = script.index("uv sync --locked --extra dev", cleanup_index)
+    refresh_index = script.index('"$uv_bin" sync --locked --extra dev', cleanup_index)
     stamp_index = script.index('path = remote_dir / ".worldsim_sync_stamp.json"')
     assert rsync_index < cleanup_index < refresh_index < stamp_index
     assert "--refresh-env" in script
+    assert 'uv_bin="$(command -v uv || true)"' in script
+    assert 'uv_bin="$HOME/.local/bin/uv"' in script
+    assert '"$uv_bin" sync --locked --extra dev' in script
+    assert "uv is not available in PATH or at $HOME/.local/bin/uv" in script
     assert 'find_spec("worldsim") is None' in script
-    assert 'Path(".venv/bin/worldsim").exists()' in script
+    assert 'retired_console = Path(".venv/bin/worldsim")' in script
+    assert "retired_console.is_symlink()" in script
 
 
 def test_sync_dry_run_excludes_linked_worktree_git_file(tmp_path: Path) -> None:

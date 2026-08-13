@@ -259,7 +259,15 @@ REMOTE
 set -euo pipefail
 remote_dir="$1"
 cd "$remote_dir"
-uv sync --locked --extra dev
+uv_bin="$(command -v uv || true)"
+if [[ -z "$uv_bin" && -x "$HOME/.local/bin/uv" ]]; then
+    uv_bin="$HOME/.local/bin/uv"
+fi
+if [[ -z "$uv_bin" ]]; then
+    echo "ERROR: uv is not available in PATH or at $HOME/.local/bin/uv" >&2
+    exit 2
+fi
+"$uv_bin" sync --locked --extra dev
 test -x "$remote_dir/.venv/bin/python"
 test -x "$remote_dir/.venv/bin/warp-taskgen"
 "$remote_dir/.venv/bin/python" - <<'PY'
@@ -275,7 +283,8 @@ assert importlib.metadata.version("warp-taskgen") == expected
 import warp_taskgen
 assert warp_taskgen.__version__ == expected
 assert importlib.util.find_spec("worldsim") is None
-assert not Path(".venv/bin/worldsim").exists()
+retired_console = Path(".venv/bin/worldsim")
+assert not retired_console.exists() and not retired_console.is_symlink()
 assert importlib.resources.files("warp_taskgen").joinpath("prompts/profile-site.md").is_file()
 PY
 "$remote_dir/.venv/bin/warp-taskgen" --help >/dev/null
