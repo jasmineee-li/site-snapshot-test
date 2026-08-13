@@ -1,0 +1,10 @@
+{
+  "schema_version": "worldsim-phase-2a-shard-manifest-v1",
+  "run_id": "run-fe8344cba2614126b55b2a5c6a0f0c65",
+  "definition_digest": "35629a1f4cd9dac92a5a5820dcd17c0029fbe1881f781ff526b442276b791c56",
+  "shard_id": "shard-000",
+  "status": "complete",
+  "input_task_ids": ["novel_gitlab_10"],
+  "output_task_ids": ["adv_historical_gitlab"],
+  "payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

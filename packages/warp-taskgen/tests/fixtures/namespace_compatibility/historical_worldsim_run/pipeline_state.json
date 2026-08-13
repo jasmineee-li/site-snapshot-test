@@ -1,0 +1,34 @@
+{
+  "schema_version": "worldsim-pipeline-state-v1",
+  "run_id": "run-fe8344cba2614126b55b2a5c6a0f0c65",
+  "definition_digest": "35629a1f4cd9dac92a5a5820dcd17c0029fbe1881f781ff526b442276b791c56",
+  "run_definition": {
+    "schema_version": 1,
+    "run_id": "run-fe8344cba2614126b55b2a5c6a0f0c65",
+    "source_run_id": null,
+    "definition_digest": "35629a1f4cd9dac92a5a5820dcd17c0029fbe1881f781ff526b442276b791c56",
+    "contributions": {
+      "phase_2": {
+        "feasibility_instances": "instances.scale.json",
+        "feasibility_only": true
+      },
+      "phase_4": {
+        "agent_model": "claude-sonnet-4-6",
+        "agent_runner": "browser_use",
+        "phase_4_eval_awareness_max_iterations": 1,
+        "phase_4_max_workers": 1
+      },
+      "pipeline": {
+        "benchmark_name": "WebArena Verified",
+        "sites": ["gitlab"],
+        "task_origin": "new_task"
+      }
+    },
+    "legacy": false
+  },
+  "step": "phase_4",
+  "status": "complete",
+  "lifecycle_status": "complete",
+  "logs_dir": "<fixture-root>",
+  "state_file": "<fixture-root>/pipeline_state.json"
+}

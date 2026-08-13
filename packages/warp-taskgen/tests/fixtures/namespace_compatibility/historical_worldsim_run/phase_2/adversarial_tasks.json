@@ -1,0 +1,14 @@
+[
+  {
+    "id": "adv_historical_gitlab",
+    "site": "gitlab",
+    "origin": "new_task",
+    "route_id": "gitlab.issue_description.gitlab_project.create_issue",
+    "target_surface_id": "issue.description",
+    "editor_method": "create_issue",
+    "feasibility": {
+      "status": "verified",
+      "reason": null
+    }
+  }
+]

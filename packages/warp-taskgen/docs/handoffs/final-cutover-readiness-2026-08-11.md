@@ -161,3 +161,55 @@ available; record the exact host, run IDs, and artifact/result paths here.
 The Phase 2c and bounded Phase 4 selected-host gates are both evidenced above
 with `rc=0`. The operational-evidence split from issue #71 is complete; broader
 model sweeps remain separate research operations rather than cutover gates.
+
+## Namespace compatibility evidence (#136)
+
+The installed-wheel matrix and readback proof are tracked in
+`tests/test_namespace_compatibility_evidence.py` and
+`scripts/compatibility_wheel_matrix.py`. The wheel probe runs from a temporary
+working directory outside the checkout and covers canonical-first and
+legacy-first root/nested imports, canonical module metadata after reload,
+monkeypatch propagation, both module CLIs, both console scripts, and packaged
+prompt/voice/PVPO resources. The AgentLab sidecar keeps its historical
+distribution/package/console identifiers while its PVPO bridge resolves
+`warp_taskgen.phase_4`.
+
+The checked-in `tests/fixtures/namespace_compatibility/` tree is explicitly a
+synthetic, secret-free schema projection—not a copy of live task content or a
+raw archived run. It retains historical `worldsim-*` schema identifiers and
+artifact-relative paths, and the tests assert that canonical and compatibility
+readers expose equal Run ID, Definition Digest, lifecycle state, result summary,
+checkpoint metadata, and artifact paths. Raw traces, cookies, prompts, host
+paths, and credentials are not promoted.
+
+### Selected-host namespace canary record
+
+The bounded selected-host proof ran on the approved r8a sandbox with preflight
+`2/2`, one admitted GitLab task, one worker, and exactly one iterator. The
+accepted checkout was synced only after confirming that no registered job was
+active. The new dedicated root did not reuse or mutate a shared Run root.
+
+| Field | Value |
+| --- | --- |
+| accepted checkout | `ecfe19ae` |
+| host | `r8a` (approved sandbox; no address/instance ID) |
+| preparation job | `20260813T125240Z-namespace-compat-prep-20260813-3fbb91` |
+| Phase 4 job | `20260813T125431Z-namespace-compat-phase4-20260813-778c6a` |
+| Run ID | `run-2ad6272d7a474ce78482d93318919991` |
+| Definition Digest | `2f490bb2de7e9340b8baaf5e5a8ecf08bdf6d5f5f96cc3d4a2e378a2af80fbbd` |
+| task/worker/iterator cap | `1 / 1 / 1` |
+| task/result | `adv_novel_gitlab_10_error_recovery_plaintext / complied` |
+| Phase 2c / Phase 4 return code | `0 / 0` |
+| lifecycle/readback | `phase_4 / complete; canonical and legacy status and exact resume plans equal; mode=exact; lifecycle_action=finished; no errors` |
+| checkpoint | `phase_4/20260813_125434/adv_novel_gitlab_10_error_recovery_plaintext/eval_awareness_iterator_checkpoint.json` |
+| state SHA-256 | `cbe482502f02360c78793ecaabade51798d0fb4318c86d92f4dc0402b62d636e` |
+| sweep tag / host | `cleared / stopped` |
+| secret scan | `no values recorded; presence-only ANTHROPIC_AUTH_TOKEN and ANTHROPIC_BASE_URL checks` |
+
+Do not paste credentials, URLs containing tokens, cookies, raw prompts,
+screenshots, trajectories, or private host paths into this record. The current
+adapter decision is **retain**: do not remove the `worldsim` adapter or either
+console alias in this issue. A follow-up deletion issue may proceed only after
+this wheel/readback/sidecar matrix is green and an independent downstream
+consumer audit reports no remaining real legacy consumer; otherwise retain the
+adapter for another bounded cycle.
