@@ -19,6 +19,7 @@ from worldsim.adversarial_actions.capability_contracts import (
 from worldsim.adversarial_actions.scenario_templates import (
     scenario_template_from_mapping,
 )
+from worldsim.phase_2.exposure_contract import build_exposure_contract
 from worldsim.phase_2.target_resolution.constants import _REDDIT_COMMENT_VISUAL_REGION_RE
 from worldsim.phase_2.target_resolution.runner import derive_benign_target_resource
 from worldsim.phases.phase_1_task_cards import (
@@ -31,7 +32,6 @@ from worldsim.phases.phase_1_task_cards import (
     card_string_list,
     task_card_index,
 )
-from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
 from worldsim.placeholders import extract_placeholders, placeholder_for_site
 from worldsim.seeding import validate_data_seed
 
@@ -796,7 +796,14 @@ def _merge_route_contract_editor_anchors(
     anchors = dict(resource.get("anchors") or {})
     selected_anchor = _selected_route_anchor_example(route, task)
     if selected_anchor is not None:
-        for key in ("project_id", "project_path", "issue_iid", "mr_iid", "forum_name", "submission_id"):
+        for key in (
+            "project_id",
+            "project_path",
+            "issue_iid",
+            "mr_iid",
+            "forum_name",
+            "submission_id",
+        ):
             value = selected_anchor.get(key)
             if value not in (None, ""):
                 anchors[key] = str(value)
