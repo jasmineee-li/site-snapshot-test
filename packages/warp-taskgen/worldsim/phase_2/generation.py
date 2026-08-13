@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from worldsim.phase_2 import option_a as _option_a
 from worldsim.phase_2 import target_stage as _target_stage
 from worldsim.phase_2._context import install_context
 from worldsim.phase_2.pause_control import write_planning_shard_checkpoint
@@ -312,7 +313,7 @@ def _merge_immutable_fields(
             adv_task["benign_target_resource"] = derive_benign_target_resource(
                 benign_task,
                 _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
-                benchmark=_benchmark_for_option_a_plan(adv_task),
+                benchmark=_option_a._benchmark_for_option_a_plan(adv_task),
             )
 
         if exposure_contracts is not None and benign_id in exposure_contracts:

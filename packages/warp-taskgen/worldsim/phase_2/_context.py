@@ -302,25 +302,6 @@ _REQUIRED_PLAN_FIELDS = (
     "attack_objective",
     "seed_template",
 )
-_OPTION_A_SITES: frozenset[str] = frozenset({"gitlab", "reddit"})
-_OPTION_A_DANGLING_METHODS: frozenset[str] = frozenset(
-    {"create_project", "create_group", "create_forum"}
-)
-_OPTION_A_CHILD_CREATE_METHODS: dict[str, tuple[str, str]] = {
-    # method : (required_arg, required_token). Tokens carry a closing
-    # brace so :func:`_value_starts_with_token` can verify that the
-    # emitted value is a well-formed ``{benign_*}`` token that
-    # seeding.py's substitution regex (_FORMAT_TOKEN_PATTERN) will
-    # actually match. Before this change, prefix-only matching accepted
-    # malformed values like ``"{benign_submission_id"`` (missing close
-    # brace) which silently leaked into the rendered seed.
-    "create_issue": ("project_id", "{benign_project_id}"),
-    "create_issue_note": ("issue_iid", "{benign_issue_iid}"),
-    "create_mr_note": ("mr_iid", "{benign_mr_iid}"),
-    "create_submission": ("forum_name", "{benign_forum_name}"),
-    "create_comment": ("submission_id", "{benign_submission_id}"),
-}
-RIGOROUS_OPTION_A_DEFAULT = True
 _REQUIRED_V1_FIELDS = (
     "id",
     "benign_task_id",
@@ -347,7 +328,6 @@ _FINAL_STAGE_ONLY_FIELDS = frozenset(
 )
 L4_TASK_ID_SUFFIX = "_l4_"
 _L4_CLONE_BENIGN_TASK_ID_RE = re.compile(r"^(?P<source>.+)_l4_(?P<index>\d+)$")
-_WELL_FORMED_BENIGN_TOKEN_RE = re.compile(r"^\{benign_[A-Za-z_][A-Za-z0-9_.]*\}")
 
 
 def install_context(namespace: dict[str, object]) -> None:

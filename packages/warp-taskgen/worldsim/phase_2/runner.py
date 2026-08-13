@@ -651,7 +651,6 @@ import sys as _sys
 
 from worldsim.phase_2 import eligibility as _eligibility
 from worldsim.phase_2 import generation as _generation
-from worldsim.phase_2 import option_a as _option_a
 from worldsim.phase_2 import plan_validation as _plan_validation
 from worldsim.phase_2 import target_inputs as _target_inputs
 from worldsim.phase_2._context import link_modules as _link_modules
@@ -662,7 +661,6 @@ _link_modules(
         _sys.modules[__name__],
         _eligibility,
         _generation,
-        _option_a,
         _plan_validation,
         _phase_2c_stage,
     ]

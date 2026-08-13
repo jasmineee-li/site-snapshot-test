@@ -1,6 +1,6 @@
 """Option A placement validator tests (X2d).
 
-Directly exercises ``phase_2_injections._validate_option_a_placement``
+Directly exercises ``option_a._validate_option_a_placement``
 and ``_is_option_a_site`` so the Option A contract is tested in
 isolation from the surrounding surface-match / invariant checks (which
 have their own coverage in ``test_phase_2_injections.py``).
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.phase_2 import runner as phase_2_injections
+from worldsim.phase_2 import option_a as phase_2_injections
 
 
 def _base_gitlab_plan() -> dict:
