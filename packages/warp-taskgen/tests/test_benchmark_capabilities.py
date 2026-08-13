@@ -15,7 +15,7 @@ from worldsim.benchmark_contracts import (
 from worldsim.benchmark_contracts import (
     BenchmarkCatalog as ContractBenchmarkCatalog,
 )
-from worldsim.phase_2 import runner as phase_2_injections
+from worldsim.phase_2.phase_2c.config import _gate_phase_2c_benchmark
 
 
 def test_normalize_benchmark_aliases():
@@ -280,7 +280,7 @@ def test_infer_benchmark_rejects_mixed_metadata():
 
 
 def test_phase_2c_gate_accepts_webarena():
-    benchmark = phase_2_injections._gate_phase_2c_benchmark(
+    benchmark = _gate_phase_2c_benchmark(
         task_records=[{"id": "task-1", "benchmark": "WebArena Verified"}],
         raw_instances={
             "benchmark_name": "WebArena Verified",
@@ -293,7 +293,7 @@ def test_phase_2c_gate_accepts_webarena():
 
 
 def test_phase_2c_gate_accepts_instances_top_level_benchmark():
-    benchmark = phase_2_injections._gate_phase_2c_benchmark(
+    benchmark = _gate_phase_2c_benchmark(
         task_records=[{"id": "task-1", "benchmark": "WebArena Verified"}],
         raw_instances={
             "benchmark": "WebArena Verified",
@@ -307,7 +307,7 @@ def test_phase_2c_gate_accepts_instances_top_level_benchmark():
 
 def test_phase_2c_gate_rejects_unsupported_benchmark():
     with pytest.raises(ValueError, match="does not support WARP Taskgen Phase 2c"):
-        phase_2_injections._gate_phase_2c_benchmark(
+        _gate_phase_2c_benchmark(
             task_records=[{"id": "task-1", "benchmark": "wasp"}],
             raw_instances={"benchmark_name": "wasp", "instances": [{"site_name": "gitlab"}]},
             instances=[{"site_name": "gitlab", "benchmark": "wasp"}],
@@ -316,7 +316,7 @@ def test_phase_2c_gate_rejects_unsupported_benchmark():
 
 def test_phase_2c_gate_rejects_missing_metadata():
     with pytest.raises(ValueError, match="missing benchmark metadata"):
-        phase_2_injections._gate_phase_2c_benchmark(
+        _gate_phase_2c_benchmark(
             task_records=[{"id": "task-1"}],
             raw_instances={"instances": [{"site_name": "gitlab"}]},
             instances=[{"site_name": "gitlab"}],
@@ -325,7 +325,7 @@ def test_phase_2c_gate_rejects_missing_metadata():
 
 def test_phase_2c_gate_rejects_task_instance_mismatch():
     with pytest.raises(ValueError, match="mixed benchmark metadata"):
-        phase_2_injections._gate_phase_2c_benchmark(
+        _gate_phase_2c_benchmark(
             task_records=[{"id": "task-1", "benchmark": "webarena_verified"}],
             raw_instances={"benchmark_name": "wasp", "instances": [{"site_name": "gitlab"}]},
             instances=[{"site_name": "gitlab", "benchmark": "wasp"}],

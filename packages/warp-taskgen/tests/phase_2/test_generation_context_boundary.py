@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 import subprocess
 import sys
 from pathlib import Path
@@ -13,20 +12,6 @@ PHASE_2_ROOT = PACKAGE_ROOT / "worldsim" / "phase_2"
 
 def _source(name: str) -> str:
     return (PHASE_2_ROOT / name).read_text()
-
-
-def _linked_module_names() -> set[str]:
-    tree = ast.parse(_source("runner.py"))
-    names: set[str] = set()
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call) or not node.args:
-            continue
-        if not isinstance(node.func, ast.Name) or node.func.id != "_link_modules":
-            continue
-        modules = node.args[0]
-        if isinstance(modules, ast.List):
-            names.update(item.id for item in modules.elts if isinstance(item, ast.Name))
-    return names
 
 
 def _import_smoke(statement: str) -> None:
@@ -55,7 +40,6 @@ def test_generation_has_explicit_owner_dependencies() -> None:
 def test_runner_qualifies_generation_and_does_not_link_it() -> None:
     runner_source = _source("runner.py")
     assert "_generation._collect_site_profiles" in runner_source
-    assert "_generation" not in _linked_module_names()
 
 
 def test_generation_and_runner_import_in_either_order() -> None:

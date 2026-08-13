@@ -13,27 +13,11 @@ def _source(name: str) -> str:
     return (PHASE_2_ROOT / name).read_text()
 
 
-def _linked_module_names() -> set[str]:
-    tree = ast.parse(_source("runner.py"))
-    names: set[str] = set()
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
-            continue
-        if node.func.id != "_link_modules" or not node.args:
-            continue
-        modules = node.args[0]
-        if not isinstance(modules, ast.List):
-            continue
-        names.update(item.id for item in modules.elts if isinstance(item, ast.Name))
-    return names
-
-
 def test_site_injection_result_has_one_feature_local_owner() -> None:
     """The shared shard result type is imported, not inherited from runner globals."""
-    from worldsim.phase_2 import generation, runner, shards
+    from worldsim.phase_2 import generation, shards
     from worldsim.phase_2.planning_types import SiteInjectionResult
 
-    assert runner.SiteInjectionResult is SiteInjectionResult
     assert generation.SiteInjectionResult is SiteInjectionResult
     assert shards.SiteInjectionResult is SiteInjectionResult
 
@@ -57,4 +41,33 @@ def test_shards_are_explicitly_imported_and_not_linked() -> None:
     assert "ruff: noqa: F821" not in shards_source
     assert "from worldsim.phase_2 import shards as _shards" in runner_source
     assert "_shards._" in runner_source
-    assert "_shards" not in _linked_module_names()
+    assert "link_modules" not in runner_source
+
+
+def test_phase_2_linked_context_is_deleted() -> None:
+    """The Phase 2 package must not retain the linked-context aggregator."""
+    assert not (PHASE_2_ROOT / "_context.py").exists()
+    runner_source = _source("runner.py")
+    assert "install_context" not in runner_source
+    assert "link_modules" not in runner_source
+    assert "sys.modules" not in runner_source
+    assert "ruff: noqa: F821" not in runner_source
+    assert "ruff: noqa: E402" not in runner_source
+
+
+def test_runner_and_feature_import_in_either_order() -> None:
+    """Importing runner first must not manufacture feature globals."""
+    import subprocess
+    import sys
+
+    package_root = str(PACKAGE_ROOT)
+    for statement in (
+        "from worldsim.phase_2 import runner, generation; assert runner.run; assert generation._generate_injections_for_site",
+        "from worldsim.phase_2 import generation, runner; assert runner.run; assert generation._generate_injections_for_site",
+    ):
+        subprocess.run(
+            [sys.executable, "-c", statement],
+            check=True,
+            cwd=PACKAGE_ROOT,
+            env={"PYTHONPATH": package_root},
+        )

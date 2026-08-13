@@ -4,6 +4,7 @@ from .._fixtures import *  # noqa: F403,F401
 from worldsim.phase_2.phase_2c import artifacts as phase_2c_artifacts
 from worldsim.phase_2.phase_2c import stage as phase_2_stage
 from worldsim.phase_2 import generation
+from worldsim.phase_2 import runner as phase_2_injections
 from worldsim.phase_2.planning_types import SiteInjectionResult
 
 

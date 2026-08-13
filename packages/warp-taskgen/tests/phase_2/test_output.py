@@ -1,7 +1,11 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from worldsim.phase_2 import output as phase_2_output
 from worldsim.phase_2.phase_2c import stage as phase_2_stage
+from worldsim.phase_2.phase_2c import artifacts as phase_2c_artifacts
+from worldsim.phase_2.phase_2c import config as phase_2c_config
+from worldsim.phase_2.phase_2c.types import FeasibilityReport
 from worldsim.phase_2 import eligibility
 from worldsim.phase_2 import target_stage
 
@@ -116,7 +120,7 @@ def test_sanitize_task_for_output_redacts_data_seed_and_cookie_session_fields():
         }
     }
 
-    sanitized = phase_2_injections._sanitize_task_for_output(task)
+    sanitized = phase_2_output._sanitize_task_for_output(task)
 
     assert sanitized["data_seed"]["api_calls"][0]["headers"]["Authorization"] == "<redacted>"
     assert sanitized["agent_context"]["auth_mechanism"]["cookies"] == {"session": "<redacted>"}
@@ -197,27 +201,32 @@ def test_write_dropped_source_data_sidecar_dedupes_by_site_and_id(tmp_path):
     assert json.loads(path.read_text()) == [duplicate]
 
 
-def test_phase_2_injections_facade_exports_split_artifact_helpers():
+def test_phase_2c_helpers_have_canonical_feature_owners():
     assert (
-        phase_2_injections._feasibility_status({"feasibility": {"status": "verified"}})
-        == "verified"
+        phase_2c_config._feasibility_status({"feasibility": {"status": "verified"}}) == "verified"
     )
-    assert callable(phase_2_injections._merged_dropped_source_data)
-    assert callable(phase_2_injections._phase_2c_report_summary_with_artifacts)
-    assert callable(phase_2_injections._validate_phase_2c_artifact_payloads)
-    assert callable(phase_2_injections._count_feasibility_status)
-    assert callable(phase_2_injections._count_idempotency_skipped)
-    assert callable(phase_2_injections._source_data_dropped_by_kind)
-    assert callable(phase_2_injections._phase_2c_per_site_counts)
-    assert callable(phase_2_injections._validate_phase_2c_instance_record)
-    assert callable(phase_2_injections._normalize_instance_record)
-    assert callable(phase_2_injections._benchmark_values_from_seed)
-    assert callable(phase_2_injections._sanitize_agent_context_node)
-    assert callable(phase_2_injections._collect_agent_context_secrets)
+    for helper in (
+        "_merged_dropped_source_data",
+        "_phase_2c_report_summary_with_artifacts",
+        "_validate_phase_2c_artifact_payloads",
+        "_count_feasibility_status",
+        "_count_idempotency_skipped",
+        "_source_data_dropped_by_kind",
+        "_phase_2c_per_site_counts",
+    ):
+        assert callable(getattr(phase_2c_artifacts, helper))
+    for helper in (
+        "_validate_phase_2c_instance_record",
+        "_normalize_instance_record",
+        "_benchmark_values_from_seed",
+    ):
+        assert callable(getattr(phase_2c_config, helper))
+    for helper in ("_sanitize_agent_context_node", "_collect_agent_context_secrets"):
+        assert callable(getattr(phase_2_output, helper))
 
 
 def test_report_summary_can_count_merged_dropped_source_data():
-    report = phase_2_injections.FeasibilityReport(
+    report = FeasibilityReport(
         verified=[],
         infeasible=[],
         skipped_already_verified=[],
@@ -444,7 +453,7 @@ def test_merge_preserving_unfiltered_sites_drops_quarantined_map_entries(tmp_pat
         encoding="utf-8",
     )
 
-    merged = phase_2_injections._merge_preserving_unfiltered_sites(
+    merged = phase_2_output._merge_preserving_unfiltered_sites(
         path,
         [{"id": "gitlab-1", "site": "gitlab"}],
         sites_filter={"gitlab"},

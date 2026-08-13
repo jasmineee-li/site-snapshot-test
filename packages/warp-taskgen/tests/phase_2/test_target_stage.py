@@ -231,7 +231,7 @@ class TestResolveBenignTargetResourcesForShard:
     def test_token_failure_drops_probe_dependent_listing_kind(self, tmp_path, monkeypatch):
         monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
         monkeypatch.setattr(
-            phase_2_injections,
+            target_stage,
             "acquire_tokens_for_instances",
             lambda *_args, **_kwargs: ["bad credentials"],
         )

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 import subprocess
 import sys
 from pathlib import Path
@@ -14,21 +13,6 @@ STAGE_ROOT = PHASE_2_ROOT / "phase_2c"
 
 def _source(name: str) -> str:
     return (STAGE_ROOT / name).read_text()
-
-
-def _linked_module_names() -> set[str]:
-    tree = ast.parse((PHASE_2_ROOT / "runner.py").read_text())
-    names: set[str] = set()
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
-            continue
-        if node.func.id != "_link_modules" or not node.args:
-            continue
-        modules = node.args[0]
-        if not isinstance(modules, ast.List):
-            continue
-        names.update(item.id for item in modules.elts if isinstance(item, ast.Name))
-    return names
 
 
 def _import_smoke(statement: str) -> None:
@@ -49,8 +33,6 @@ def test_phase_2c_stage_has_explicit_owner_dependencies() -> None:
     assert "from worldsim.phase_2.phase_2c import artifacts as _phase_2c_artifacts" in source
     assert "from worldsim.phase_2.phase_2c.runner import verify_feasibility" in source
     assert "from worldsim.phase_2.phase_2c.types import FeasibilityReport" in source
-
-    assert "_phase_2c_stage" not in _linked_module_names()
 
 
 def test_phase_2c_stage_and_runner_import_in_either_order() -> None:
