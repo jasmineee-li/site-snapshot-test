@@ -136,3 +136,12 @@ def test_package_proof_uses_ordinary_versioned_pip_upgrade() -> None:
     assert 'python" -m pip install --upgrade --no-deps' in source
     assert "pip install --force-reinstall" not in source
     assert "find_spec('worldsim') is None" in source
+
+
+def test_package_proof_smokes_site_doctor_from_wheel_and_sdist() -> None:
+    source = ACCEPTANCE.read_text(encoding="utf-8")
+
+    assert "site doctor gitlab --benchmark webarena_verified" in source
+    assert "site doctor reddit --benchmark webarena_verified" in source
+    assert 'sdists=("$build_dir"/*.tar.gz)' in source
+    assert "from warp_taskgen.site_composition import default_site_definitions" in source

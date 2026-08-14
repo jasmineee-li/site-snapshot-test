@@ -66,6 +66,15 @@ Current and target ownership should stay explicit:
   metadata only; new callers must require the named capability before
   admission. Legacy phase flags remain derived compatibility readers during
   the current migration cycle.
+- `warp_taskgen.site_composition`: static, diagnostic-only closure of existing
+  Site and Benchmark capability owners for one requested use case.
+  `site_composition_contracts.py` owns its immutable request, definition,
+  policy, evidence, finding, and report values;
+  `site_composition_defaults.py` projects the existing GitLab/Reddit owners;
+  and `site_composition.py` owns the explicit validators. This seam must
+  not execute editors, policies, browsers, evaluators, or host probes,
+  construct runtime catalogs, or grant admission. The CLI adapter belongs in
+  `warp_taskgen.cli.site_doctor` and only renders the compiler-owned report.
 - `warp_taskgen.comparison_ingestion`: native AgentLab comparison payload
   validation, immutable comparison-result envelopes, provenance/artifact
   references, and atomic `comparison_result.json` persistence. This module

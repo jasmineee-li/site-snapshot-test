@@ -142,9 +142,29 @@ build_and_smoke_package() {
     uv pip install --python "$isolated_env/bin/python" "${wheels[0]}"
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/warp-taskgen" --help
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" -m warp_taskgen.main --help
+    PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/warp-taskgen" \
+        site doctor gitlab --benchmark webarena_verified \
+        --use-case phase_2_feasibility --json
+    PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" -c \
+        "import importlib.resources; from warp_taskgen.site_composition import default_site_definitions; assert {item.site for item in default_site_definitions()} == {'gitlab', 'reddit'}; assert importlib.resources.files('warp_taskgen').joinpath('site_composition.py').is_file()"
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" \
         "$PACKAGE_DIR/scripts/compatibility_wheel_matrix.py" \
         --python "$isolated_env/bin/python" --package-root "$PACKAGE_DIR"
+
+    shopt -s nullglob
+    sdists=("$build_dir"/*.tar.gz)
+    shopt -u nullglob
+    if [[ "${#sdists[@]}" -ne 1 ]]; then
+        printf 'error: expected exactly one sdist in %s, found %s\n' \
+            "$build_dir" "${#sdists[@]}" >&2
+        exit 1
+    fi
+    sdist_env="$temporary_root/sdist-venv"
+    uv venv --python "$python_version" "$sdist_env"
+    uv pip install --python "$sdist_env/bin/python" "${sdists[0]}"
+    PYTHON_DOTENV_DISABLED=1 "$sdist_env/bin/warp-taskgen" \
+        site doctor reddit --benchmark webarena_verified \
+        --use-case phase_2_feasibility --json
 
     sidecar_build_dir="$temporary_root/sidecar-dist"
     mkdir -p "$sidecar_build_dir"
