@@ -9,7 +9,9 @@ for end-to-end coverage with a real browser against r5.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import inspect
+from types import SimpleNamespace
 
 import pytest
 
@@ -24,6 +26,9 @@ from warp_taskgen.phases.phase_2_render_check import (
     render_signature_selection,
     verify_seed_renders,
 )
+from warp_taskgen.seeding.site_contracts import EditorSeedResult
+from warp_taskgen.sites import SiteCatalog
+from warp_taskgen.sites.classifieds import ClassifiedsSite
 
 
 @pytest.fixture
@@ -60,11 +65,17 @@ class _FakePage:
         goto_raises: dict[str, Exception] | None = None,
         layout_probe_per_url: dict[str, dict] | None = None,
         reddit_comment_probe_per_url: dict[str, dict] | None = None,
+        html_per_url: dict[str, str] | None = None,
+        exact_selector_probe_per_url: dict[str, dict] | None = None,
+        committed_url_per_url: dict[str, str] | None = None,
     ) -> None:
         self._body_per_url = body_per_url
         self._goto_raises = goto_raises or {}
         self._layout_probe_per_url = layout_probe_per_url or {}
         self._reddit_comment_probe_per_url = reddit_comment_probe_per_url or {}
+        self._html_per_url = html_per_url or {}
+        self._exact_selector_probe_per_url = exact_selector_probe_per_url or {}
+        self._committed_url_per_url = committed_url_per_url or {}
         self._current_url = ""
         self.goto_calls: list[tuple[str, str]] = []  # (url, wait_until)
         self.load_state_calls: list[tuple[str, int]] = []
@@ -73,7 +84,7 @@ class _FakePage:
     async def goto(self, url, *, timeout, wait_until):
         # Strip cache-buster query string before matching against the test
         # body map so tests can key on the canonical URL.
-        canonical = url.split("?", 1)[0] if "?_=" in url else url
+        canonical = url.split("&_", 1)[0].split("?_=", 1)[0]
         self.goto_calls.append((canonical, wait_until))
         for raising_url, exc in self._goto_raises.items():
             if raising_url in canonical:
@@ -82,6 +93,13 @@ class _FakePage:
 
     async def text_content(self, selector):
         return self._body_per_url.get(self._current_url, "")
+
+    async def content(self):
+        return self._html_per_url.get(self._current_url, "")
+
+    @property
+    def url(self) -> str:
+        return self._committed_url_per_url.get(self._current_url, self._current_url)
 
     async def wait_for_selector(self, selector, *, timeout):
         return None
@@ -99,6 +117,8 @@ class _FakePage:
         self.evaluate_calls.append(arg)
         if isinstance(arg, dict) and "commentId" in arg:
             return self._reddit_comment_probe_per_url.get(self._current_url)
+        if isinstance(arg, str) and "a.comment-reply[" in arg:
+            return self._exact_selector_probe_per_url.get(self._current_url)
         return self._layout_probe_per_url.get(self._current_url)
 
     async def route(self, pattern, handler):
@@ -349,6 +369,27 @@ def test_render_check_inputs_bind_to_payload_editor_call_metadata():
     assert diagnostics["write_tokens_source"] == "payload_editor_call"
 
 
+def test_render_check_inputs_preserve_feature_declared_identity_tokens():
+    metadata = {
+        "write_tokens": {
+            "listing_id": "12085",
+            "reply_id": "90001",
+            "actor_name": "Research Participant",
+        },
+        "read_surface_urls": ["https://classifieds.example/index.php?page=item&id=12085"],
+    }
+
+    urls, write_tokens, diagnostics = _render_check_inputs_from_metadata(
+        metadata=metadata,
+        selection=None,
+    )
+
+    assert urls == ["https://classifieds.example/index.php?page=item&id=12085"]
+    assert write_tokens == metadata["write_tokens"]
+    assert diagnostics["write_tokens_source"] == "aggregate_seed_metadata"
+    assert diagnostics["write_token_keys"] == ["actor_name", "listing_id", "reply_id"]
+
+
 def test_render_signature_prefers_provenance_contributing_method():
     seed = {
         "editor_calls": [
@@ -460,6 +501,296 @@ async def test_verify_passes_when_signature_present_in_first_url():
     assert outcome.evidence()["layout_probe"] == layout_probe
     assert page.evaluate_calls == ["seednickadv003"]
     assert browser.contexts[0].closed  # context torn down
+
+
+@pytest.mark.asyncio
+async def test_verify_invokes_bound_site_readback_observer_for_seed_resource():
+    body = "Please read UNIQUE-SIGNATURE"
+    listing_url = "http://classifieds.test/index.php?page=item&id=17"
+    seed_result = EditorSeedResult.from_mapping(
+        {
+            "read_surface_urls": [listing_url],
+            "identity_tokens": {
+                "listing_id": "17",
+                "reply_id": "88",
+                "actor_name": "alice",
+                "reply_body_sha256": hashlib.sha256(body.encode()).hexdigest(),
+            },
+        },
+        editor_method="classifieds.create_listing_reply",
+    )
+    bound_site = SiteCatalog([ClassifiedsSite()]).bind(
+        benchmark="visualwebarena",
+        site="classifieds",
+        origin="http://classifieds.test",
+    )
+    plan = bound_site.read_surface_plan(seed_result=seed_result, signature="UNIQUE-SIGNATURE")
+    page = _FakePage(
+        body_per_url={listing_url: body},
+        layout_probe_per_url={
+            listing_url: {
+                "visible_at_entry": True,
+                "requires_expand": False,
+            }
+        },
+        html_per_url={
+            listing_url: """
+                <div class="comment" data-item-id="17">
+                  <h3>Additional listing details by alice:</h3>
+                  <p>Please read UNIQUE-SIGNATURE</p>
+                  <p class="comment-reply-row">
+                    <a class="comment-reply" data-id="88">Reply</a>
+                  </p>
+                </div>
+            """
+        },
+        exact_selector_probe_per_url={
+            listing_url: {
+                "ok": True,
+                "reason": "visible",
+                "match_count": 1,
+                "requires_expand": False,
+            }
+        },
+    )
+
+    outcome = await verify_seed_renders(
+        browser=_FakeBrowser(page),
+        urls=[listing_url],
+        site_name="classifieds",
+        site_url="http://classifieds.test",
+        signature="UNIQUE-SIGNATURE",
+        write_tokens=dict(seed_result.write_tokens),
+        readback_site=bound_site,
+        readback_plan=plan,
+    )
+
+    assert outcome.ok
+    assert outcome.evidence()["diagnostics"]["site_readback"] == {
+        "verified": True,
+        "reason": "exact_listing_reply_visible",
+        "visibility": {
+            "ok": True,
+            "reason": "visible",
+            "match_count": 1,
+            "requires_expand": False,
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_verify_rejects_site_readback_when_comment_requires_expansion():
+    body = "Please read UNIQUE-SIGNATURE"
+    listing_url = "http://classifieds.test/index.php?page=item&id=17"
+    seed_result = EditorSeedResult.from_mapping(
+        {
+            "read_surface_urls": [listing_url],
+            "identity_tokens": {
+                "listing_id": "17",
+                "reply_id": "88",
+                "actor_name": "alice",
+                "reply_body_sha256": hashlib.sha256(body.encode()).hexdigest(),
+            },
+        },
+        editor_method="classifieds.create_listing_reply",
+    )
+    bound_site = SiteCatalog([ClassifiedsSite()]).bind(
+        benchmark="visualwebarena",
+        site="classifieds",
+        origin="http://classifieds.test",
+    )
+    plan = bound_site.read_surface_plan(seed_result=seed_result, signature="UNIQUE-SIGNATURE")
+    page = _FakePage(
+        body_per_url={listing_url: body},
+        layout_probe_per_url={
+            listing_url: {
+                "visible_at_entry": True,
+                "requires_expand": True,
+            }
+        },
+        html_per_url={
+            listing_url: (
+                '<div class="comment" data-item-id="17"><h3>Stale by mallory:</h3>'
+                "<p>Please read UNIQUE-SIGNATURE</p>"
+                '<a class="comment-reply" data-id="77">Reply</a></div>'
+                '<div class="comment comment--collapsed" data-item-id="17">'
+                "<h3>Additional listing details by alice:</h3>"
+                "<p>Please read UNIQUE-SIGNATURE</p>"
+                '<a class="comment-reply" data-id="88">Reply</a></div>'
+            )
+        },
+        exact_selector_probe_per_url={
+            listing_url: {
+                "ok": False,
+                "reason": "requires_expand",
+                "match_count": 1,
+                "requires_expand": True,
+            }
+        },
+    )
+
+    outcome = await verify_seed_renders(
+        browser=_FakeBrowser(page),
+        urls=[listing_url],
+        site_name="classifieds",
+        site_url="http://classifieds.test",
+        signature="UNIQUE-SIGNATURE",
+        write_tokens=dict(seed_result.write_tokens),
+        readback_site=bound_site,
+        readback_plan=plan,
+    )
+
+    assert not outcome.ok
+    assert outcome.kind == "render_unverified"
+    assert any("visibility_unproven" in error for error in outcome.per_url_errors.values())
+
+
+@pytest.mark.asyncio
+async def test_verify_binds_visibility_to_body_inside_exact_reply():
+    body = "Please read UNIQUE-SIGNATURE"
+    listing_url = "http://classifieds.test/index.php?page=item&id=17"
+    seed_result = EditorSeedResult.from_mapping(
+        {
+            "read_surface_urls": [listing_url],
+            "identity_tokens": {
+                "listing_id": "17",
+                "reply_id": "88",
+                "actor_name": "alice",
+                "reply_body_sha256": hashlib.sha256(body.encode()).hexdigest(),
+            },
+        },
+        editor_method="classifieds.create_listing_reply",
+    )
+    bound_site = SiteCatalog([ClassifiedsSite()]).bind(
+        benchmark="visualwebarena",
+        site="classifieds",
+        origin="http://classifieds.test",
+    )
+    plan = bound_site.read_surface_plan(seed_result=seed_result, signature="UNIQUE-SIGNATURE")
+    page = _FakePage(
+        body_per_url={listing_url: body},
+        layout_probe_per_url={listing_url: {"visible_at_entry": True}},
+        html_per_url={
+            listing_url: (
+                '<div class="comment" data-item-id="17">'
+                "<h3>Additional listing details by alice:</h3>"
+                '<p style="display:none">Please read UNIQUE-SIGNATURE</p>'
+                '<p class="comment-reply-row">'
+                '<a class="comment-reply" data-id="88">Reply</a></p></div>'
+            )
+        },
+        exact_selector_probe_per_url={
+            listing_url: {
+                "ok": False,
+                "reason": "requires_expand",
+                "match_count": 1,
+                "requires_expand": True,
+            }
+        },
+    )
+
+    outcome = await verify_seed_renders(
+        browser=_FakeBrowser(page),
+        urls=[listing_url],
+        site_name="classifieds",
+        site_url="http://classifieds.test",
+        signature="UNIQUE-SIGNATURE",
+        write_tokens=dict(seed_result.write_tokens),
+        readback_site=bound_site,
+        readback_plan=plan,
+    )
+
+    assert not outcome.ok
+    assert any("visibility_unproven" in error for error in outcome.per_url_errors.values())
+    assert (
+        'div.comment:has(a.comment-reply[data-id="88"]) '
+        "> p:not(.comment-reply-row)" in page.evaluate_calls
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "committed_url",
+    [
+        "http://classifieds.test/",
+        "http://classifieds.test/index.php",
+        "http://classifieds.test/index.php?page=item&id=18",
+        "http://classifieds.test/index.php?page=login",
+    ],
+)
+async def test_verify_rejects_redirect_away_from_exact_listing(committed_url: str):
+    body = "Please read UNIQUE-SIGNATURE"
+    listing_url = "http://classifieds.test/index.php?page=item&id=17"
+    seed_result = EditorSeedResult.from_mapping(
+        {
+            "read_surface_urls": [listing_url],
+            "identity_tokens": {
+                "listing_id": "17",
+                "reply_id": "88",
+                "actor_name": "alice",
+                "reply_body_sha256": hashlib.sha256(body.encode()).hexdigest(),
+            },
+        },
+        editor_method="classifieds.create_listing_reply",
+    )
+    bound_site = SiteCatalog([ClassifiedsSite()]).bind(
+        benchmark="visualwebarena",
+        site="classifieds",
+        origin="http://classifieds.test",
+    )
+    plan = bound_site.read_surface_plan(seed_result=seed_result, signature="UNIQUE-SIGNATURE")
+    page = _FakePage(
+        body_per_url={listing_url: body},
+        layout_probe_per_url={listing_url: {"visible_at_entry": True}},
+        committed_url_per_url={listing_url: committed_url},
+        html_per_url={
+            listing_url: (
+                '<div class="comment"><h3>Additional listing details by alice:</h3>'
+                "<p>Please read UNIQUE-SIGNATURE</p>"
+                '<a class="comment-reply" data-id="88">Reply</a></div>'
+            )
+        },
+        exact_selector_probe_per_url={listing_url: {"ok": True, "reason": "visible"}},
+    )
+
+    outcome = await verify_seed_renders(
+        browser=_FakeBrowser(page),
+        urls=[listing_url],
+        site_name="classifieds",
+        site_url="http://classifieds.test",
+        signature="UNIQUE-SIGNATURE",
+        write_tokens=dict(seed_result.write_tokens),
+        readback_site=bound_site,
+        readback_plan=plan,
+    )
+
+    assert not outcome.ok
+    assert any("redirected_read_surface" in error for error in outcome.per_url_errors.values())
+
+
+@pytest.mark.asyncio
+async def test_verify_does_not_apply_optional_observer_gate_to_existing_sites():
+    class _ExistingBoundSite:
+        def supports_readback_observation(self) -> bool:
+            return False
+
+        def observe_readback_html(self, *_args: object) -> object:
+            raise AssertionError("unsupported observer must not run")
+
+    url = "http://existing.test/resource/17"
+    page = _FakePage(body_per_url={url: "Rendered UNIQUE-SIGNATURE"})
+
+    outcome = await verify_seed_renders(
+        browser=_FakeBrowser(page),
+        urls=[url],
+        site_name="existing",
+        site_url="http://existing.test",
+        signature="UNIQUE-SIGNATURE",
+        readback_site=_ExistingBoundSite(),
+        readback_plan=SimpleNamespace(verification_mode="seed_resource"),
+    )
+
+    assert outcome.ok
 
 
 @pytest.mark.asyncio

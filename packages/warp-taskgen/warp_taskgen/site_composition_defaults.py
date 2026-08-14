@@ -1,12 +1,16 @@
-"""Built-in GitLab and Reddit projections for static Site diagnostics."""
+"""Built-in Site projections for static diagnostics."""
 
 from __future__ import annotations
 
 from warp_taskgen.adversarial_actions.capability_adapters import (
     capability_adapters_for_profile,
 )
+from warp_taskgen.adversarial_actions.classifieds_capability import (
+    classifieds_listing_reply_poc_adapters,
+)
 from warp_taskgen.editors import EDITOR_REGISTRY
 from warp_taskgen.editors._registry import iter_specs
+from warp_taskgen.phase_2.phase_2c.classifieds_policy import ClassifiedsFeasibilityPolicy
 from warp_taskgen.phase_2.phase_2c.webarena_policy import WebArenaFeasibilityPolicy
 from warp_taskgen.rewards.final_state_gitlab_adapter import GitLabFinalStateEvaluator
 from warp_taskgen.rewards.final_state_reddit_adapter import RedditFinalStateEvaluator
@@ -17,6 +21,8 @@ from warp_taskgen.site_composition_contracts import (
     SiteDefinition,
 )
 from warp_taskgen.sites import GitLabSite, RedditSite
+from warp_taskgen.sites.classifieds import ClassifiedsSite
+from warp_taskgen.sites.classifieds_editor import ClassifiedsEditor, classifieds_editor_specs
 
 
 def default_site_definitions() -> tuple[SiteDefinition, ...]:
@@ -75,6 +81,51 @@ def default_site_definitions() -> tuple[SiteDefinition, ...]:
         definitions.append(
             SiteDefinition(site=site, bindings=(binding,), provenance=(f"sites.{site}",))
         )
+    classifieds = ClassifiedsSite()
+    definitions.append(
+        SiteDefinition(
+            site="classifieds",
+            bindings=(
+                SiteBenchmarkBinding(
+                    benchmark="visualwebarena",
+                    targeting=CapabilityReference("supported", classifieds, ("sites.classifieds",)),
+                    profile=CapabilityReference(
+                        "supported", classifieds, ("sites.classifieds_profile",)
+                    ),
+                    editor_specs=CapabilityReference(
+                        "supported",
+                        classifieds_editor_specs(),
+                        ("sites.classifieds_editor",),
+                    ),
+                    seed=CapabilityReference(
+                        "supported",
+                        SeedSiteRegistration("visualwebarena", "classifieds", ClassifiedsEditor),
+                        ("seeding.site_contracts", "sites.classifieds_editor"),
+                    ),
+                    feasibility=CapabilityReference(
+                        "supported",
+                        ClassifiedsFeasibilityPolicy(),
+                        ("phase_2.phase_2c.classifieds_policy",),
+                    ),
+                    read_surface=CapabilityReference(
+                        "supported", classifieds, ("sites.classifieds_read_surface",)
+                    ),
+                    readback=CapabilityReference(
+                        "supported", classifieds, ("sites.classifieds_readback",)
+                    ),
+                    final_state=CapabilityReference(
+                        "not_applicable", None, ("rewards.agent_response_binary",)
+                    ),
+                    action_cards=CapabilityReference(
+                        "supported",
+                        classifieds_listing_reply_poc_adapters(),
+                        ("adversarial_actions.classifieds_capability",),
+                    ),
+                ),
+            ),
+            provenance=("sites.classifieds",),
+        )
+    )
     return tuple(definitions)
 
 

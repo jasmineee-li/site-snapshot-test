@@ -26,7 +26,12 @@ from warp_taskgen.sites.read_surface import (
     ReadSurfaceVerificationPlan,
     SiteReadSurfaceCapability,
 )
-from warp_taskgen.sites.readback import ReadbackDecision, ReadbackFailure, ReadbackObservation
+from warp_taskgen.sites.readback import (
+    ReadbackDecision,
+    ReadbackFailure,
+    ReadbackObservation,
+    ReadbackObservationCapability,
+)
 from warp_taskgen.sites.reddit import RedditSite
 
 __all__ = [
@@ -40,6 +45,7 @@ __all__ = [
     "ReadbackDecision",
     "ReadbackFailure",
     "ReadbackObservation",
+    "ReadbackObservationCapability",
     "RedditSite",
     "ResolvedTarget",
     "SiteAdapter",

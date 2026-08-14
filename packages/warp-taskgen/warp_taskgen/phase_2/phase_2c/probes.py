@@ -364,7 +364,10 @@ async def _run_render_check(
         selected_result = EditorSeedResult.from_mapping(
             {
                 "read_surface_urls": list(urls),
-                **dict(write_tokens),
+                # Keep the generic token namespace explicit.  Spreading it
+                # into the legacy top level silently dropped feature tokens
+                # such as Classifieds listing/reply/actor identities.
+                "identity_tokens": dict(write_tokens),
                 "read_surface_provenance_source": selected_provenance,
             },
             editor_method=(selection.editor_method if selection is not None else None),
@@ -389,6 +392,9 @@ async def _run_render_check(
             "verification_mode": plan.verification_mode,
             "provenance_source": plan.provenance_source,
         }
+        readback_plan = plan
+    else:
+        readback_plan = None
 
     browser_context_kwargs, auth_error = resolve_benign_browser_context_auth_fn(instance)
     if auth_error is not None:
@@ -413,6 +419,7 @@ async def _run_render_check(
             }
             if bound_site is not None:
                 verify_kwargs["readback_site"] = bound_site
+                verify_kwargs["readback_plan"] = readback_plan
             return await verify_seed_renders_fn(
                 **verify_kwargs,
             )

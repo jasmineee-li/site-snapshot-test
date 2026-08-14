@@ -9,6 +9,7 @@ from warp_taskgen.phase_2.phase_2c import _impl as phase_2c_impl
 from warp_taskgen.phase_2.phase_2c import probes
 from warp_taskgen.seeding import SeedSiteRegistration, SeedSiteRegistry
 from warp_taskgen.sites import ReadbackDecision, ReadbackObservation, SiteCatalog
+from warp_taskgen.sites.read_surface import build_read_surface_plan
 
 
 @pytest.mark.asyncio
@@ -80,6 +81,74 @@ async def test_render_check_consumes_injected_site_plan(monkeypatch: pytest.Monk
         ReadbackObservation("resource_identity", {"comment_id": "17"}, "fake observation")
     )
     assert decision == ReadbackDecision(True, "fake_decision")
+
+
+@pytest.mark.asyncio
+async def test_render_check_preserves_generic_identity_tokens_in_bound_plan(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    class GenericIdentitySite(FakeReadSurfaceSite):
+        def build_read_surface_plan(
+            self,
+            *,
+            seed_result: Any,
+            signature: str,
+            origin: str,
+        ):
+            return build_read_surface_plan(
+                site=self.site,
+                seed_result=seed_result,
+                signature=signature,
+                origin=origin,
+                identity_keys=("listing_id", "reply_id", "actor_name"),
+            )
+
+    async def fake_verify_seed_renders(**kwargs: Any):
+        captured.update(kwargs)
+        return probes.RenderOutcome.passed(
+            url=kwargs["urls"][0],
+            signature=kwargs["signature"],
+            snippet=kwargs["signature"],
+        )
+
+    monkeypatch.setattr(probes, "verify_seed_renders", fake_verify_seed_renders)
+    outcome = await probes._run_render_check(
+        browser=object(),
+        render_semaphore=None,
+        seed={
+            "editor_calls": [
+                {
+                    "site": "fake",
+                    "method": "create_message",
+                    "args": {"body": "generic identity payload"},
+                }
+            ]
+        },
+        metadata={
+            "read_surface_urls": ["/messages/17"],
+            "write_tokens": {
+                "listing_id": "17",
+                "reply_id": "88",
+                "actor_name": "alice",
+            },
+        },
+        instance={
+            "site_name": "fake",
+            "site_url": "https://fake.local",
+            "benchmark": "webarena_verified",
+        },
+        site_catalog=SiteCatalog([GenericIdentitySite()]),
+    )
+
+    assert outcome.ok
+    assert captured["write_tokens"] == {
+        "listing_id": "17",
+        "reply_id": "88",
+        "actor_name": "alice",
+    }
+    assert captured["readback_plan"].identity_tokens == captured["write_tokens"]
 
 
 @pytest.mark.asyncio

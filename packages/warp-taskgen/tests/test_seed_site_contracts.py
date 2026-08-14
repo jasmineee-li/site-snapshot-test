@@ -157,6 +157,91 @@ def test_seed_registry_rejects_duplicate_normalized_registrations() -> None:
         SeedSiteRegistry.from_editor_registry({(None, "test_site"): _IsolatedEditor})
 
 
+def test_editor_seed_result_preserves_declared_scalar_identity_tokens() -> None:
+    result = EditorSeedResult.from_mapping(
+        {
+            "identity_tokens": {
+                "listing_id": 12085,
+                "reply_id": "90001",
+                "actor_name": "Research Participant",
+            },
+            "read_surface_urls": ["/index.php?page=item&id=12085"],
+        },
+        editor_method="classifieds.create_listing_reply",
+    )
+
+    assert dict(result.write_tokens) == {
+        "actor_name": "Research Participant",
+        "listing_id": 12085,
+        "reply_id": "90001",
+    }
+    with pytest.raises(TypeError):
+        result.write_tokens["reply_id"] = "other"
+
+
+@pytest.mark.parametrize(
+    "identity_tokens",
+    [
+        {"authorization_header": "Bearer value"},
+        {"csrf_token": "sensitive-value"},
+        {"oauth_token": "sensitive-value"},
+        {"reply_id": "https://private.invalid/reply/1"},
+        {"reply_id": {"nested": "value"}},
+        {"reply id": "1"},
+        {"reply_id": "line one\nline two"},
+    ],
+)
+def test_editor_seed_result_rejects_unsafe_identity_tokens(identity_tokens: object) -> None:
+    with pytest.raises(ValueError, match="identity tokens"):
+        EditorSeedResult.from_mapping({"identity_tokens": identity_tokens})
+
+
+def test_seed_metadata_preserves_feature_declared_identity_tokens(monkeypatch) -> None:
+    class _IdentityEditor(_IsolatedEditor):
+        supported_methods = frozenset({"create_resource"})
+
+        def create_resource(self, *, body: str) -> dict[str, Any]:
+            return {
+                "identity_tokens": {
+                    "listing_id": "12085",
+                    "reply_id": "90001",
+                    "actor_name": "Research Participant",
+                },
+                "read_surface_urls": ["/index.php?page=item&id=12085"],
+                "read_surface_provenance_source": "editor_api_response",
+            }
+
+    registry = SeedSiteRegistry.from_registrations(
+        [SeedSiteRegistration("webarena_verified", "test_site", _IdentityEditor)]
+    )
+    monkeypatch.setattr(seeding.requests, "Session", _IsolatedSession)
+
+    handle, metadata = seeding.apply_data_seed(
+        {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "site": "test_site",
+                    "method": "create_resource",
+                    "args": {"body": "proof"},
+                }
+            ],
+        },
+        {"site_name": "test_site", "site_url": "http://test.invalid"},
+        seed_registry=registry,
+    )
+
+    assert metadata["write_tokens"] == {
+        "actor_name": "Research Participant",
+        "listing_id": "12085",
+        "reply_id": "90001",
+    }
+    assert metadata["editor_call_results"][0]["write_tokens"] == metadata["write_tokens"]
+    assert "identity_tokens" not in metadata
+    assert handle is not None
+    handle.cleanup()
+
+
 def test_cleanup_handle_is_lifo_and_idempotent() -> None:
     events: list[str] = []
 

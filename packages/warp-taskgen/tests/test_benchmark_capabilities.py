@@ -46,6 +46,27 @@ def test_benchmark_catalog_is_immutable_and_explicit():
     assert webarena.comparison_only_ingestion_supported is False
 
 
+def test_visualwebarena_is_an_explicit_task_idless_warp_benchmark():
+    visual = DEFAULT_BENCHMARK_CATALOG.resolve("Visual WebArena")
+
+    assert visual.canonical_name == "visualwebarena"
+    assert visual is not DEFAULT_BENCHMARK_CATALOG.resolve("webarena_verified")
+    assert visual.warp_phase_admission == (
+        "phase_1_generation",
+        "phase_2_generation",
+        "phase_2_feasibility",
+        "phase_4_execution",
+    )
+    assert visual.supported_runners == ("browser_use",)
+    assert visual.evaluator_authorities == ("warp_local_task_idless",)
+    assert visual.requires_host_api_preflight is True
+    assert resolve_evaluator_authority("visual-web-arena", task_id=None) == (
+        "warp_local_task_idless"
+    )
+    with pytest.raises(ValueError, match="no evaluator authority"):
+        resolve_evaluator_authority("visualwebarena", task_id="vendor-task")
+
+
 def test_legacy_capability_constructor_translates_to_exact_capabilities():
     legacy = BenchmarkCapabilities(
         "legacy_webarena",

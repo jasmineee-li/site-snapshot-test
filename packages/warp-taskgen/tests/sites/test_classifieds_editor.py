@@ -1,0 +1,396 @@
+from __future__ import annotations
+
+import hashlib
+from collections.abc import Mapping
+
+import pytest
+
+from warp_taskgen.editors.base import BaseSiteEditor, EditorError
+from warp_taskgen.sites.classifieds_editor import (
+    CLASSIFIEDS_FIXED_TITLE,
+    ClassifiedsEditor,
+    ClassifiedsListingReplyForm,
+    build_listing_reply_form,
+    extract_listing_reply_id,
+)
+
+ORIGIN = "https://classifieds.test"
+LISTING_URL = f"{ORIGIN}/index.php?page=item&id=17"
+BODY = "Please read UNIQUE-SIGNATURE"
+ACTOR = "alice"
+
+
+def _form_html(
+    *,
+    action: str = "/index.php",
+    csrf: str = "csrf-17",
+    listing_id: str = "17",
+    include_rating: bool = False,
+) -> str:
+    token = f'<input type="hidden" name="octoken" value="{csrf}">' if csrf else ""
+    rating = '<input type="hidden" name="rating" value="">' if include_rating else ""
+    return f"""
+    <form action="{action}" method="post">
+      {token}
+      <input type="hidden" name="action" value="add_comment">
+      <input type="hidden" name="page" value="item">
+      <input type="hidden" name="id" value="{listing_id}">
+      <input type="hidden" name="replyId" value="">
+      <input type="hidden" name="authorName" value="alice">
+      <input type="hidden" name="authorEmail" value="alice@example.test">
+      <input type="text" name="title" value="">
+      {rating}
+      <textarea name="body"></textarea>
+    </form>
+    """
+
+
+def _comment_html(*, reply_id: str = "88", actor: str = ACTOR, body: str = BODY) -> str:
+    return f"""
+    <div class="comment">
+      <h3><strong>Additional listing details</strong> <em>by {actor}:</em></h3>
+      <p>{body}</p>
+      <p class="comment-reply-row">
+        <a class="comment-reply" data-id="{reply_id}">Reply</a>
+      </p>
+    </div>
+    """
+
+
+class _Response:
+    def __init__(
+        self,
+        *,
+        status_code: int,
+        text: str = "",
+        headers: Mapping[str, str] | None = None,
+        url: str = "",
+    ) -> None:
+        self.status_code = status_code
+        self.text = text
+        self.headers = dict(headers or {})
+        self.url = url
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
+
+
+class _FakeSession:
+    def __init__(self, *, form_html: str, rendered_html: str, post_response: _Response) -> None:
+        self._get_responses = [
+            _Response(status_code=200, text=form_html, url=LISTING_URL),
+            _Response(status_code=200, text=rendered_html, url=LISTING_URL),
+        ]
+        self._post_response = post_response
+        self.calls: list[tuple[str, str, dict[str, object]]] = []
+
+    def get(self, url: str, **kwargs: object) -> _Response:
+        self.calls.append(("GET", url, kwargs))
+        if not self._get_responses:
+            raise AssertionError("unexpected extra GET")
+        return self._get_responses.pop(0)
+
+    def request(self, method: str, url: str, **kwargs: object) -> _Response:
+        self.calls.append((method, url, kwargs))
+        assert method == "POST"
+        return self._post_response
+
+
+def _editor(
+    *,
+    form_html: str | None = None,
+    rendered_html: str | None = None,
+    post_response: _Response | None = None,
+) -> tuple[ClassifiedsEditor, _FakeSession]:
+    session = _FakeSession(
+        form_html=form_html or _form_html(),
+        rendered_html=rendered_html or _comment_html(),
+        post_response=post_response
+        or _Response(
+            status_code=302,
+            headers={"Location": "/index.php?page=item&id=17"},
+            url=LISTING_URL,
+        ),
+    )
+    return ClassifiedsEditor({"site_url": ORIGIN}, session), session
+
+
+def test_listing_reply_form_is_regular_participant_and_body_only() -> None:
+    form = ClassifiedsListingReplyForm(
+        listing_id="17",
+        csrf_token="csrf-17",
+        body=BODY,
+        signature="UNIQUE-SIGNATURE",
+        author_name=ACTOR,
+        author_email="alice@example.test",
+    )
+
+    assert form.method == "create_listing_reply"
+    assert form.action == LISTING_URL.removeprefix(ORIGIN)
+    assert dict(form.fields) == {
+        "action": "add_comment",
+        "page": "item",
+        "id": "17",
+        "replyId": "",
+        "authorName": "alice",
+        "authorEmail": "alice@example.test",
+        "title": CLASSIFIEDS_FIXED_TITLE,
+        "rating": "0",
+        "body": BODY,
+        "octoken": "csrf-17",
+    }
+    assert "description" not in form.fields
+
+
+def test_form_builder_rejects_missing_csrf_fixed_id_signature_or_actor() -> None:
+    kwargs = {
+        "listing_id": "17",
+        "csrf_token": "csrf",
+        "body": BODY,
+        "signature": "UNIQUE-SIGNATURE",
+        "author_name": ACTOR,
+        "author_email": "alice@example.test",
+    }
+    with pytest.raises(ValueError, match="CSRF"):
+        build_listing_reply_form(**{**kwargs, "csrf_token": ""})
+    with pytest.raises(ValueError, match="listing"):
+        build_listing_reply_form(**{**kwargs, "listing_id": "17/18"})
+    with pytest.raises(ValueError, match="signature"):
+        build_listing_reply_form(**{**kwargs, "signature": "MARKER"})
+    with pytest.raises(ValueError, match="author name"):
+        build_listing_reply_form(**{**kwargs, "author_name": ""})
+
+
+def test_editor_subclasses_base_editor_and_exposes_local_listing_contract() -> None:
+    editor = ClassifiedsEditor()
+
+    assert isinstance(editor, BaseSiteEditor)
+    assert editor.site_name == "classifieds"
+    assert editor.benchmark == "visualwebarena"
+    assert editor.supported_methods == frozenset({"create_listing_reply"})
+    spec = editor.create_listing_reply._editor_method_spec
+    assert spec["http"] == ("POST", "/index.php?page=item&id={listing_id}")
+    assert spec["kinds"] == frozenset({"listing"})
+    assert spec["surface_id_per_kind"] == {"listing": "listing_reply.body"}
+    assert spec["required_editor_args"] == ("listing_id", "body")
+
+
+@pytest.mark.parametrize(
+    ("response", "expected"),
+    [
+        (
+            _Response(
+                status_code=200,
+                text='<nav><a href="/index.php?page=logout">Log out</a></nav>',
+                url=f"{ORIGIN}/index.php?page=user&action=dashboard",
+            ),
+            True,
+        ),
+        (
+            _Response(
+                status_code=302,
+                headers={"Location": "/index.php?page=login"},
+                url=f"{ORIGIN}/index.php?page=user&action=dashboard",
+            ),
+            False,
+        ),
+        (
+            _Response(
+                status_code=200,
+                text='<form action="/index.php?page=login"><input name="password"></form>',
+                url=f"{ORIGIN}/index.php?page=login",
+            ),
+            False,
+        ),
+    ],
+)
+def test_auth_probe_requires_dashboard_logout_evidence(
+    response: _Response,
+    expected: bool,
+) -> None:
+    class _ProbeSession:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, dict[str, object]]] = []
+
+        def get(self, url: str, **kwargs: object) -> _Response:
+            self.calls.append((url, kwargs))
+            return response
+
+    session = _ProbeSession()
+    editor = ClassifiedsEditor({"site_url": ORIGIN}, session)
+
+    assert editor.probe_authenticated() is expected
+    assert session.calls == [
+        (
+            f"{ORIGIN}/index.php?page=user&action=dashboard",
+            {"timeout": 10, "allow_redirects": False},
+        )
+    ]
+
+
+def test_reply_id_comes_from_exact_real_comment_data_id() -> None:
+    assert (
+        extract_listing_reply_id(
+            _comment_html(),
+            actor=ACTOR,
+            body=BODY,
+            signature="UNIQUE-SIGNATURE",
+            listing_id="17",
+        )
+        == "88"
+    )
+
+
+def test_reply_id_accepts_matching_delete_identity_without_latest_fallback() -> None:
+    html = """
+    <div class="comment">
+      <h3>Title by alice</h3><p>Please read UNIQUE-SIGNATURE</p>
+      <a href="/index.php?page=delete_comment&id=88">Delete</a>
+    </div>
+    """
+    assert (
+        extract_listing_reply_id(
+            html,
+            actor=ACTOR,
+            body=BODY,
+            signature="UNIQUE-SIGNATURE",
+        )
+        == "88"
+    )
+
+
+def test_nested_comment_does_not_cross_contaminate_outer_identity() -> None:
+    html = """
+    <div class="comment">
+      <h3>Title by alice:</h3><p>Please read UNIQUE-SIGNATURE</p>
+      <div class="comment reply">
+        <h3>Nested by alice:</h3><p>Please read UNIQUE-SIGNATURE</p>
+        <a class="comment-reply" data-id="99">Reply</a>
+      </div>
+      <a class="comment-reply" data-id="88">Reply</a>
+    </div>
+    """
+    assert (
+        extract_listing_reply_id(
+            html,
+            actor=ACTOR,
+            body=BODY,
+            signature="UNIQUE-SIGNATURE",
+        )
+        == "88"
+    )
+
+
+@pytest.mark.parametrize(
+    "html",
+    [
+        "<div class='comment-reply' data-id='88'><p>UNIQUE-SIGNATURE</p></div>",
+        "<div class='comment'><h3>Title by mallory</h3><p>UNIQUE-SIGNATURE</p>"
+        "<a class='comment-reply' data-id='88'>Reply</a></div>",
+        "<div class='comment'><h3>Title by alice</h3><p>UNIQUE-SIGNATURE</p></div>",
+        "<div class='comment'><h3>Title by alice</h3><p>UNIQUE-SIGNATURE</p>"
+        "<a class='comment-reply' data-id='88'>Reply</a></div>"
+        "<div class='comment'><h3>Other by alice</h3><p>UNIQUE-SIGNATURE</p>"
+        "<a class='comment-reply' data-id='89'>Reply</a></div>",
+        "<div class='latest-comment' data-id='88'><p>UNIQUE-SIGNATURE</p></div>",
+    ],
+)
+def test_reply_id_extraction_fails_closed_without_one_exact_rendered_identity(html: str) -> None:
+    assert (
+        extract_listing_reply_id(
+            html,
+            actor=ACTOR,
+            body=BODY,
+            signature="UNIQUE-SIGNATURE",
+        )
+        is None
+    )
+
+
+def test_editor_records_exact_get_post_get_and_returns_identity_tokens() -> None:
+    editor, session = _editor()
+
+    result = editor.create_listing_reply(
+        listing_id="17",
+        body=BODY,
+        signature="UNIQUE-SIGNATURE",
+    )
+
+    assert [call[0] for call in session.calls] == ["GET", "POST", "GET"]
+    assert session.calls[0][1] == LISTING_URL
+    assert session.calls[2][1] == LISTING_URL
+    method, post_url, kwargs = session.calls[1]
+    assert method == "POST"
+    assert post_url == f"{ORIGIN}/index.php"
+    assert kwargs["data"] == {
+        "action": "add_comment",
+        "page": "item",
+        "id": "17",
+        "replyId": "",
+        "authorName": ACTOR,
+        "authorEmail": "alice@example.test",
+        "title": CLASSIFIEDS_FIXED_TITLE,
+        "rating": "0",
+        "body": BODY,
+        "octoken": "csrf-17",
+    }
+    assert result["identity_tokens"] == {
+        "listing_id": "17",
+        "reply_id": "88",
+        "actor_name": ACTOR,
+        "reply_body_sha256": hashlib.sha256(BODY.encode("utf-8")).hexdigest(),
+    }
+    assert result["read_surface_urls"] == [LISTING_URL]
+
+
+def test_editor_fails_when_form_csrf_is_missing() -> None:
+    editor, session = _editor(form_html=_form_html(csrf=""))
+
+    with pytest.raises(EditorError) as raised:
+        editor.create_listing_reply(listing_id="17", body=BODY, signature="UNIQUE-SIGNATURE")
+
+    assert raised.value.kind == "form_missing"
+    assert [call[0] for call in session.calls] == ["GET"]
+
+
+def test_editor_rejects_foreign_form_action_before_post() -> None:
+    editor, session = _editor(form_html=_form_html(action="https://attacker.test/index.php"))
+
+    with pytest.raises(EditorError) as raised:
+        editor.create_listing_reply(listing_id="17", body=BODY, signature="UNIQUE-SIGNATURE")
+
+    assert raised.value.kind == "cross_origin_form_action"
+    assert [call[0] for call in session.calls] == ["GET"]
+
+
+@pytest.mark.parametrize(
+    "rendered_html",
+    [
+        "<div class='comment'><h3>Title by alice</h3><p>UNIQUE-SIGNATURE</p></div>",
+        "<div class='comment'><h3>Title by mallory</h3><p>UNIQUE-SIGNATURE</p>"
+        "<a class='comment-reply' data-id='88'>Reply</a></div>",
+        "<div class='comment'><h3>Title by alice</h3><p>UNIQUE-SIGNATURE</p>"
+        "<a class='comment-reply' data-id='88'>Reply</a></div>"
+        "<div class='comment'><h3>Other by alice</h3><p>UNIQUE-SIGNATURE</p>"
+        "<a class='comment-reply' data-id='89'>Reply</a></div>",
+    ],
+)
+def test_editor_rejects_missing_id_wrong_actor_or_ambiguous_matches(rendered_html: str) -> None:
+    editor, session = _editor(rendered_html=rendered_html)
+
+    with pytest.raises(EditorError) as raised:
+        editor.create_listing_reply(listing_id="17", body=BODY, signature="UNIQUE-SIGNATURE")
+
+    assert raised.value.kind == "schema_mismatch"
+    assert [call[0] for call in session.calls] == ["GET", "POST", "GET"]
+
+
+def test_editor_rejects_unexpected_post_status() -> None:
+    editor, session = _editor(post_response=_Response(status_code=201, url=LISTING_URL))
+
+    with pytest.raises(EditorError) as raised:
+        editor.create_listing_reply(listing_id="17", body=BODY, signature="UNIQUE-SIGNATURE")
+
+    assert raised.value.kind == "request_failed"
+    assert [call[0] for call in session.calls] == ["GET", "POST"]
