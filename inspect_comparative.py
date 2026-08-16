@@ -55,15 +55,17 @@ def load_content(sample, format_type: str) -> str | None:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--format", required=True, choices=["html", "screenshot"])
-    parser.add_argument("--pair", nargs=2, required=True,
-                        help="Two sources to pair, e.g. real webarena-infinity")
+    parser.add_argument(
+        "--pair", nargs=2, required=True, help="Two sources to pair, e.g. real webarena-infinity"
+    )
     parser.add_argument("--model", default="opus-4.6", choices=["opus-4.6", "gpt-5.4-mini"])
-    parser.add_argument("--n-examples", type=int, default=1,
-                        help="How many pair-instances to show")
-    parser.add_argument("--n-prompts", type=int, default=2,
-                        help="How many of the 8 judge prompts to show per pair")
-    parser.add_argument("--content-chars", type=int, default=800,
-                        help="Max chars of content to show (html only)")
+    parser.add_argument("--n-examples", type=int, default=1, help="How many pair-instances to show")
+    parser.add_argument(
+        "--n-prompts", type=int, default=2, help="How many of the 8 judge prompts to show per pair"
+    )
+    parser.add_argument(
+        "--content-chars", type=int, default=800, help="Max chars of content to show (html only)"
+    )
     args = parser.parse_args()
 
     src_a_filter, src_b_filter = args.pair
@@ -111,7 +113,9 @@ def main():
         print(f"# PAIR {shown}: A={a_src}:{a_id}")
         print(f"#         B={b_src}:{b_id}")
         print(f"#         website_type={md.get('website_type')}")
-        print(f"#         score (A-as-eval fraction)={r.get('score')}  modal_choice={r.get('classification')}")
+        print(
+            f"#         score (A-as-eval fraction)={r.get('score')}  modal_choice={r.get('classification')}"
+        )
         print(f"{'#' * 100}")
 
         sample_a = sample_by_id.get(a_id)
@@ -143,15 +147,22 @@ def main():
 
             if args.format == "html":
                 full_prompt = build_comparative_prompt(
-                    json_key, preamble, question, format_label,
-                    content_a or "", content_b or "",
+                    json_key,
+                    preamble,
+                    question,
+                    format_label,
+                    content_a or "",
+                    content_b or "",
                 )
                 # Don't print the full prompt (has content), just the framing
                 preamble_filled = preamble.format(format_type=format_label)
                 prompt_header = f"{preamble_filled}\n\nEnvironment A:\n[content above]\n\nEnvironment B:\n[content above]\n\n{question}"
             else:
                 full_prompt = build_comparative_prompt_screenshot(
-                    json_key, preamble, question, format_label,
+                    json_key,
+                    preamble,
+                    question,
+                    format_label,
                 )
                 prompt_header = full_prompt
 

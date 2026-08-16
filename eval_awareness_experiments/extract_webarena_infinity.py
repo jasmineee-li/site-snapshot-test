@@ -235,7 +235,7 @@ async def extract_app(
                             timeout=10000,
                         )
                     elif nav_action.startswith("click:"):
-                        selector = nav_action[len("click:"):]
+                        selector = nav_action[len("click:") :]
                         await page.click(selector, timeout=5000)
 
                     # Let the view render
@@ -296,9 +296,7 @@ def update_manifest(entries: list[dict], manifest_path: Path) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Extract website data from webarena-infinity apps"
-    )
+    parser = argparse.ArgumentParser(description="Extract website data from webarena-infinity apps")
     parser.add_argument(
         "--apps",
         type=str,
@@ -336,7 +334,9 @@ def main():
     if entries:
         update_manifest(entries, Path(args.manifest))
 
-    print(f"\nDone. Extracted {sum(len(e['pages']) for e in entries)} pages from {len(entries)} apps.")
+    print(
+        f"\nDone. Extracted {sum(len(e['pages']) for e in entries)} pages from {len(entries)} apps."
+    )
 
 
 if __name__ == "__main__":

@@ -230,7 +230,10 @@ def eval_mcq_probe_answer_position(
             pos_act = extract_chat_answer_activations(model, tokenizer, q, pos, [layer])[layer]
             neg_act = extract_chat_answer_activations(model, tokenizer, q, neg, [layer])[layer]
             labels += [1, 0]
-            scores += [score_activation(probe, pos_act, layer), score_activation(probe, neg_act, layer)]
+            scores += [
+                score_activation(probe, pos_act, layer),
+                score_activation(probe, neg_act, layer),
+            ]
         if len(set(labels)) >= 2:
             auroc = calculate_auroc(labels, scores)
             results[layer] = {
@@ -373,9 +376,7 @@ def evaluate_mcq_probe_on_sad(
         test_indices = set(id(sample) for sample in test_samples)
 
         def subset_summary(indices: set[int]) -> dict[str, Any]:
-            subset_positions = [
-                pos for pos, sample in enumerate(samples) if id(sample) in indices
-            ]
+            subset_positions = [pos for pos, sample in enumerate(samples) if id(sample) in indices]
             subset_scores = {
                 layer: [scores[pos] for pos in subset_positions]
                 for layer, scores in scores_by_layer.items()
@@ -451,11 +452,15 @@ def eval_framing_probe_position(
         labels: list[int] = []
         scores: list[float] = []
         for prompt in real_prompts:
-            act = extract_chat_prompt_position(model, tokenizer, prompt, [layer], token_position)[layer]
+            act = extract_chat_prompt_position(model, tokenizer, prompt, [layer], token_position)[
+                layer
+            ]
             labels.append(1)
             scores.append(score_activation(probe, act, layer))
         for prompt in fake_prompts:
-            act = extract_chat_prompt_position(model, tokenizer, prompt, [layer], token_position)[layer]
+            act = extract_chat_prompt_position(model, tokenizer, prompt, [layer], token_position)[
+                layer
+            ]
             labels.append(0)
             scores.append(score_activation(probe, act, layer))
         if len(set(labels)) >= 2:
@@ -551,10 +556,18 @@ def cross_validate_chat(
     labels_a: list[int] = []
     scores_a: list[float] = []
     for prompt in framing["real"]:
-        scores_a.append(score_chat_mean(mcq_probe, model, tokenizer, [{"role": "user", "content": prompt}], mcq_layer))
+        scores_a.append(
+            score_chat_mean(
+                mcq_probe, model, tokenizer, [{"role": "user", "content": prompt}], mcq_layer
+            )
+        )
         labels_a.append(0)
     for prompt in framing["fake"]:
-        scores_a.append(score_chat_mean(mcq_probe, model, tokenizer, [{"role": "user", "content": prompt}], mcq_layer))
+        scores_a.append(
+            score_chat_mean(
+                mcq_probe, model, tokenizer, [{"role": "user", "content": prompt}], mcq_layer
+            )
+        )
         labels_a.append(1)
     auroc_a = roc_auc_score(labels_a, scores_a)
 
@@ -564,21 +577,25 @@ def cross_validate_chat(
         q = item["question"]
         pos = item.get("positive") or item.get("test")
         neg = item.get("negative") or item.get("deploy")
-        scores_b.append(score_chat_mean(
-            framing_probe,
-            model,
-            tokenizer,
-            [{"role": "user", "content": q}, {"role": "assistant", "content": pos}],
-            framing_layer,
-        ))
+        scores_b.append(
+            score_chat_mean(
+                framing_probe,
+                model,
+                tokenizer,
+                [{"role": "user", "content": q}, {"role": "assistant", "content": pos}],
+                framing_layer,
+            )
+        )
         labels_b.append(1)
-        scores_b.append(score_chat_mean(
-            framing_probe,
-            model,
-            tokenizer,
-            [{"role": "user", "content": q}, {"role": "assistant", "content": neg}],
-            framing_layer,
-        ))
+        scores_b.append(
+            score_chat_mean(
+                framing_probe,
+                model,
+                tokenizer,
+                [{"role": "user", "content": q}, {"role": "assistant", "content": neg}],
+                framing_layer,
+            )
+        )
         labels_b.append(0)
         if i % 25 == 0:
             logger.info("Cross-val framing probe on MCQ: %s/%s pairs", i, len(mcq_data))
@@ -665,7 +682,9 @@ def main() -> None:
     ap.add_argument("--sad-max-per-class", type=int, default=None)
     args = ap.parse_args()
 
-    dtype = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}[args.dtype]
+    dtype = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}[
+        args.dtype
+    ]
     mcq_data = json.loads(Path(args.mcq_data).read_text())
     framing = json.loads(Path(args.framing_data).read_text())
     output_root = Path(args.output_root)
@@ -718,9 +737,9 @@ def main() -> None:
             }
         )
         if sad_results["dev_test_split"]:
-            mcq_probe.metadata["sad_test_auroc_at_selected_layer"] = sad_results[
-                "dev_test_split"
-            ]["test_auroc_at_dev_best_layer"]
+            mcq_probe.metadata["sad_test_auroc_at_selected_layer"] = sad_results["dev_test_split"][
+                "test_auroc_at_dev_best_layer"
+            ]
         mcq_probe.save(output_root / "mcq")
         mcq_results.update(
             {
@@ -731,9 +750,7 @@ def main() -> None:
             }
         )
     elif mcq_probe.best_layer is None:
-        raise ValueError(
-            "--mcq-layer-selection heldout requires --mcq-eval-split > 0."
-        )
+        raise ValueError("--mcq-layer-selection heldout requires --mcq-eval-split > 0.")
 
     framing_probe, framing_results = train_framing_chat(
         model,

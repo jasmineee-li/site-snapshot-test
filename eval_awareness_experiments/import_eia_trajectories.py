@@ -46,7 +46,12 @@ _THOUGHT_KEYS = ("thought", "reasoning", "rationale", "analysis", "planning", "T
 _ACTION_KEYS = ("action", "grounded_action", "next_action", "Action", "operation")
 _OBSERVATION_KEYS = ("observation", "element_text", "element", "page_state", "Observation")
 _INSTRUCTION_KEYS = ("instruction", "task", "task_description", "goal", "confirmed_task")
-_ATTACK_SUCCESS_KEYS = ("attack_success", "injection_success", "is_successful_attack", "attack_status")
+_ATTACK_SUCCESS_KEYS = (
+    "attack_success",
+    "injection_success",
+    "is_successful_attack",
+    "attack_status",
+)
 _ATTACK_TYPE_KEYS = ("attack_type", "injection_type", "eia_type", "attack")
 
 
@@ -215,9 +220,7 @@ def _write_task(
     task_out = out_dir / task_id
     task_out.mkdir(parents=True, exist_ok=True)
 
-    (task_out / "trajectory.json").write_text(
-        json.dumps(steps, indent=2, ensure_ascii=False)
-    )
+    (task_out / "trajectory.json").write_text(json.dumps(steps, indent=2, ensure_ascii=False))
     task_json = {
         "task_id": task_id,
         "instruction": metadata.get("instruction", ""),
@@ -234,16 +237,25 @@ def _write_task(
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Import EIA SeeAct trajectories (no new runs).")
-    parser.add_argument("--eia-path", type=Path, default=DEFAULT_EIA_PATH,
-                        help="Path to unzipped eval_results/ dir.")
-    parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR,
-                        help="Normalized output dir.")
+    parser.add_argument(
+        "--eia-path",
+        type=Path,
+        default=DEFAULT_EIA_PATH,
+        help="Path to unzipped eval_results/ dir.",
+    )
+    parser.add_argument(
+        "--out-dir", type=Path, default=DEFAULT_OUT_DIR, help="Normalized output dir."
+    )
     parser.add_argument("--n", type=int, default=20, help="Number of trajectories to select.")
     parser.add_argument("--seed", type=int, default=42, help="Sampling seed.")
-    parser.add_argument("--prefer-success", action="store_true",
-                        help="Prefer trajectories tagged attack_success=true.")
-    parser.add_argument("--clean", action="store_true",
-                        help="Remove the output dir before writing.")
+    parser.add_argument(
+        "--prefer-success",
+        action="store_true",
+        help="Prefer trajectories tagged attack_success=true.",
+    )
+    parser.add_argument(
+        "--clean", action="store_true", help="Remove the output dir before writing."
+    )
     return parser.parse_args()
 
 
@@ -267,7 +279,9 @@ def main() -> None:
         raise RuntimeError("No EIA trajectories could be parsed. Fix the importer and retry.")
 
     if args.prefer_success:
-        successful = [x for x in loaded if _normalize_attack_success(x[2].get("attack_success")) is True]
+        successful = [
+            x for x in loaded if _normalize_attack_success(x[2].get("attack_success")) is True
+        ]
         if len(successful) >= args.n:
             loaded = successful
             logger.info(f"Restricted to {len(loaded)} attack-success=true trajectories")
@@ -304,13 +318,15 @@ def main() -> None:
             source_dir=src,
             out_dir=args.out_dir,
         )
-        manifest["tasks"].append({
-            "task_id": task_id,
-            "path": str(task_path.relative_to(args.out_dir)),
-            "instruction": meta.get("instruction", "")[:200],
-            "attack_success": _normalize_attack_success(meta.get("attack_success")),
-            "n_steps": len(steps),
-        })
+        manifest["tasks"].append(
+            {
+                "task_id": task_id,
+                "path": str(task_path.relative_to(args.out_dir)),
+                "instruction": meta.get("instruction", "")[:200],
+                "attack_success": _normalize_attack_success(meta.get("attack_success")),
+                "n_steps": len(steps),
+            }
+        )
 
     manifest_path = args.out_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False))

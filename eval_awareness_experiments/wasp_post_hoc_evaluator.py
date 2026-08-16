@@ -125,15 +125,17 @@ def extract_steps_from_task(task_dir: Path, cell: dict) -> list[StepRecord]:
             logger.warning(f"  failed to load {sf.name}: {e}")
             continue
 
-        records.append(StepRecord(
-            task_id=task_id,
-            cell=dict(cell),
-            task_dir=task_dir,
-            step_index=step_idx,
-            legitimate_objective=obj_text,
-            observation_text=obs_text,
-            action_description=action,
-        ))
+        records.append(
+            StepRecord(
+                task_id=task_id,
+                cell=dict(cell),
+                task_dir=task_dir,
+                step_index=step_idx,
+                legitimate_objective=obj_text,
+                observation_text=obs_text,
+                action_description=action,
+            )
+        )
     return records
 
 
@@ -203,13 +205,15 @@ def _scan_cells(output_base: Path) -> list[dict]:
                 sd = split_info.get("study_dir")
                 if not sd or not Path(sd).exists():
                     continue
-                cells.append({
-                    "arm": arm_dir.name,
-                    "model_slug": model_dir.name,
-                    "split": split_name,
-                    "study_dir": sd,
-                    "cell_dir": str(model_dir),
-                })
+                cells.append(
+                    {
+                        "arm": arm_dir.name,
+                        "model_slug": model_dir.name,
+                        "split": split_name,
+                        "study_dir": sd,
+                        "cell_dir": str(model_dir),
+                    }
+                )
     return cells
 
 
@@ -232,11 +236,10 @@ def _walk_tasks(study_dir: Path, max_tasks: int | None) -> list[Path]:
     task_dirs = sorted(study_dir.rglob("*GenericAgent*on_webarena*"))
     # Filter to actual task dirs (containing step pickles or goal_object)
     task_dirs = [
-        t for t in task_dirs
+        t
+        for t in task_dirs
         if (
-            t.is_dir()
-            and not _is_hidden_path(study_dir, t)
-            and (t / "goal_object.pkl.gz").exists()
+            t.is_dir() and not _is_hidden_path(study_dir, t) and (t / "goal_object.pkl.gz").exists()
         )
     ]
     if max_tasks:
@@ -301,8 +304,7 @@ async def evaluate_wasp_cell_split(
                 summary["skipped_existing"] = True
                 return summary
             logger.info(
-                f"  existing {out_path.name} was for a different study_dir; "
-                "recomputing WASP ASR"
+                f"  existing {out_path.name} was for a different study_dir; " "recomputing WASP ASR"
             )
 
     task_dirs = _walk_tasks(Path(cell["study_dir"]), max_tasks_per_cell)
@@ -333,19 +335,24 @@ async def evaluate_wasp_cell_split(
 
     # Aggregate per task: compromised if ANY step classified compromised.
     for s in classified:
-        t = per_task.setdefault(s.task_id, {
-            "task_id": s.task_id,
-            "task_dir": str(s.task_dir),
-            "steps": [],
-            "any_compromised": False,
-            "any_refusal": False,
-        })
-        t["steps"].append({
-            "step_index": s.step_index,
-            "classification": s.classification,
-            "classifier_response": s.classifier_response[:1000],
-            "action_description": s.action_description[:300],
-        })
+        t = per_task.setdefault(
+            s.task_id,
+            {
+                "task_id": s.task_id,
+                "task_dir": str(s.task_dir),
+                "steps": [],
+                "any_compromised": False,
+                "any_refusal": False,
+            },
+        )
+        t["steps"].append(
+            {
+                "step_index": s.step_index,
+                "classification": s.classification,
+                "classifier_response": s.classifier_response[:1000],
+                "action_description": s.action_description[:300],
+            }
+        )
         if s.classification == "compromised":
             t["any_compromised"] = True
         if s.classification == "outright_refusal":
@@ -389,9 +396,9 @@ async def main_async(args):
     logger.info(f"Found {len(cells)} WASP cells")
 
     if args.skip_existing:
-        cells = [c for c in cells if not (
-            Path(c["cell_dir"]) / f"wasp_asr_{c['split']}.jsonl"
-        ).exists()]
+        cells = [
+            c for c in cells if not (Path(c["cell_dir"]) / f"wasp_asr_{c['split']}.jsonl").exists()
+        ]
         logger.info(f"After skip-existing: {len(cells)} cells to process")
 
     if args.max_cells:
@@ -417,16 +424,18 @@ async def main_async(args):
             max_tasks_per_cell=args.max_tasks_per_cell,
             force=not args.skip_existing,
         )
-        cell_summaries.append({
-            "arm": cell["arm"],
-            "model": cell["model_slug"],
-            "split": cell["split"],
-            "n_tasks": summary.get("n_tasks", 0),
-            "asr": summary.get("asr", 0.0),
-            "n_compromised": summary.get("n_compromised", 0),
-            "n_refusal": summary.get("n_refusal", 0),
-            "n_steps_classified": summary.get("n_steps_classified", 0),
-        })
+        cell_summaries.append(
+            {
+                "arm": cell["arm"],
+                "model": cell["model_slug"],
+                "split": cell["split"],
+                "n_tasks": summary.get("n_tasks", 0),
+                "asr": summary.get("asr", 0.0),
+                "n_compromised": summary.get("n_compromised", 0),
+                "n_refusal": summary.get("n_refusal", 0),
+                "n_steps_classified": summary.get("n_steps_classified", 0),
+            }
+        )
 
     # Print summary table
     logger.info("\n" + "=" * 80)
@@ -435,27 +444,51 @@ async def main_async(args):
     logger.info("=" * 80)
     logger.info(f"{'arm':<14} {'model':<40} {'split':<8} {'ASR':>10} {'comp/n':>10}")
     for s in cell_summaries:
-        logger.info(f"{s['arm']:<14} {s['model']:<40} {s['split']:<8} "
-                    f"{s['asr']:>10.3f} {s['n_compromised']}/{s['n_tasks']}")
+        logger.info(
+            f"{s['arm']:<14} {s['model']:<40} {s['split']:<8} "
+            f"{s['asr']:>10.3f} {s['n_compromised']}/{s['n_tasks']}"
+        )
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--output-base", type=Path,
-                   default=Path("eval_awareness_experiments/results/causal_pilot"),
-                   help="Base dir containing wasp/<arm>/<model>/ cells")
-    p.add_argument("--classifier-model", default="anthropic/claude-sonnet-4.6",
-                   help="OpenRouter model slug for the WASP-style action classifier")
-    p.add_argument("--max-tasks-per-cell", type=int, default=None,
-                   help="Cap tasks per cell (cost control). Default: all.")
-    p.add_argument("--max-steps-per-task", type=int, default=10,
-                   help="Cap classifier calls per task. Default 10 (most WASP tasks <10 steps).")
-    p.add_argument("--max-cells", type=int, default=None,
-                   help="Cap total cells processed (smoke test). Default: all 24.")
-    p.add_argument("--concurrency", type=int, default=32,
-                   help="Concurrent classifier calls (LLM semaphore).")
-    p.add_argument("--skip-existing", action="store_true",
-                   help="Skip cells that already have wasp_asr_<split>.jsonl.")
+    p.add_argument(
+        "--output-base",
+        type=Path,
+        default=Path("eval_awareness_experiments/results/causal_pilot"),
+        help="Base dir containing wasp/<arm>/<model>/ cells",
+    )
+    p.add_argument(
+        "--classifier-model",
+        default="anthropic/claude-sonnet-4.6",
+        help="OpenRouter model slug for the WASP-style action classifier",
+    )
+    p.add_argument(
+        "--max-tasks-per-cell",
+        type=int,
+        default=None,
+        help="Cap tasks per cell (cost control). Default: all.",
+    )
+    p.add_argument(
+        "--max-steps-per-task",
+        type=int,
+        default=10,
+        help="Cap classifier calls per task. Default 10 (most WASP tasks <10 steps).",
+    )
+    p.add_argument(
+        "--max-cells",
+        type=int,
+        default=None,
+        help="Cap total cells processed (smoke test). Default: all 24.",
+    )
+    p.add_argument(
+        "--concurrency", type=int, default=32, help="Concurrent classifier calls (LLM semaphore)."
+    )
+    p.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Skip cells that already have wasp_asr_<split>.jsonl.",
+    )
     args = p.parse_args()
     asyncio.run(main_async(args))
 

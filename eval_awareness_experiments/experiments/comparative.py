@@ -85,25 +85,32 @@ def _debug_dump(
     if abs_images:
         lines.append(f"image_A (A slot)   = {abs_images[0]}")
         lines.append(f"image_B (B slot)   = {abs_images[1]}")
-    lines.extend([
-        sep,
-        "",
-        "=== PROMPT TEXT SENT TO MODEL ===",
-        sub,
-        prompt_text,
-        sub,
-    ])
+    lines.extend(
+        [
+            sep,
+            "",
+            "=== PROMPT TEXT SENT TO MODEL ===",
+            sub,
+            prompt_text,
+            sub,
+        ]
+    )
     if content_a is not None:
         lines.append(f"\n(content_a: {len(content_a)} chars, embedded in prompt above)")
-        lines.append(f"(content_b: {len(content_b) if content_b else 0} chars, embedded in prompt above)")
-    lines.extend([
-        "",
-        "=== RAW RESPONSE TEXT FROM MODEL ===",
-        sub,
-        response_text,
-        sub,
-    ])
+        lines.append(
+            f"(content_b: {len(content_b) if content_b else 0} chars, embedded in prompt above)"
+        )
+    lines.extend(
+        [
+            "",
+            "=== RAW RESPONSE TEXT FROM MODEL ===",
+            sub,
+            response_text,
+            sub,
+        ]
+    )
     out_file.write_text("\n".join(lines), encoding="utf-8")
+
 
 from eval_awareness_experiments.experiments.base import BaseExperiment
 from eval_awareness_experiments.experiments.prompts import (
@@ -138,8 +145,15 @@ class ComparativeExperiment(BaseExperiment):
         """
         # Known base product names — order matters (longest prefix first)
         BASE_PRODUCTS = [
-            "elation", "figma", "gitlab", "gmail", "handshake",
-            "linear", "paypal", "superhuman", "xero",
+            "elation",
+            "figma",
+            "gitlab",
+            "gmail",
+            "handshake",
+            "linear",
+            "paypal",
+            "superhuman",
+            "xero",
         ]
         lower = wtype.lower()
         for base in BASE_PRODUCTS:
@@ -196,7 +210,9 @@ class ComparativeExperiment(BaseExperiment):
                 if sid and order:
                     done.add((sid, order))
             if done:
-                logger.info(f"Resume: skipping {len(done)} already-completed entries for format={format_type}")
+                logger.info(
+                    f"Resume: skipping {len(done)} already-completed entries for format={format_type}"
+                )
 
         for wtype, type_samples in sorted(by_type.items()):
             # Group by source within this website type
@@ -214,7 +230,9 @@ class ComparativeExperiment(BaseExperiment):
                     if len(by_source[src]) > max_per_side:
                         by_source[src] = rng.sample(by_source[src], max_per_side)
 
-            logger.info(f"Comparative group '{wtype}': {', '.join(f'{s}({len(v)})' for s, v in by_source.items())}")
+            logger.info(
+                f"Comparative group '{wtype}': {', '.join(f'{s}({len(v)})' for s, v in by_source.items())}"
+            )
 
             # Generate cross-source pairs
             for src_a, src_b in combinations(sources, 2):
@@ -247,16 +265,21 @@ class ComparativeExperiment(BaseExperiment):
                         if pair_results:
                             with open(output_file, "a", encoding="utf-8") as f:
                                 for r in pair_results:
-                                    f.write(json.dumps({
-                                        "sample_id": r.sample_id,
-                                        "experiment_type": r.experiment_type,
-                                        "model": r.model,
-                                        "format_used": r.format_used,
-                                        "score": r.score,
-                                        "classification": r.classification,
-                                        "raw_response": r.raw_response,
-                                        "metadata": r.metadata,
-                                    }) + "\n")
+                                    f.write(
+                                        json.dumps(
+                                            {
+                                                "sample_id": r.sample_id,
+                                                "experiment_type": r.experiment_type,
+                                                "model": r.model,
+                                                "format_used": r.format_used,
+                                                "score": r.score,
+                                                "classification": r.classification,
+                                                "raw_response": r.raw_response,
+                                                "metadata": r.metadata,
+                                            }
+                                        )
+                                        + "\n"
+                                    )
 
         print(f"  {self.name}: {len(all_results)} results saved to {output_file}")
         return all_results
@@ -320,9 +343,7 @@ class ComparativeExperiment(BaseExperiment):
                 prompt_text = build_comparative_prompt_screenshot(
                     json_key, preamble, question, format_label
                 )
-                output = await self.model.generate_with_images(
-                    prompt_text, [content_a, content_b]
-                )
+                output = await self.model.generate_with_images(prompt_text, [content_a, content_b])
             else:
                 prompt_text = build_comparative_prompt(
                     json_key, preamble, question, format_label, content_a, content_b
@@ -334,9 +355,13 @@ class ComparativeExperiment(BaseExperiment):
             if _DEBUG:
                 _debug_dump(
                     model=self.model.model,
-                    sample_a=sample_a, sample_b=sample_b,
-                    format_type=format_type, order_label=order_label,
-                    idx=idx, label=label, json_key=json_key,
+                    sample_a=sample_a,
+                    sample_b=sample_b,
+                    format_type=format_type,
+                    order_label=order_label,
+                    idx=idx,
+                    label=label,
+                    json_key=json_key,
                     prompt_text=prompt_text,
                     content_a=content_a if format_type != "screenshot" else None,
                     content_b=content_b if format_type != "screenshot" else None,
@@ -389,9 +414,7 @@ class ComparativeExperiment(BaseExperiment):
         # Pair-symmetric score: fraction of valid prompts that picked sample_a
         # as the simulated one. Downstream can compare to ground-truth labels.
         fraction_picking_a_as_eval = (
-            source_counts.get(sample_a.source, 0) / total_valid
-            if total_valid
-            else None
+            source_counts.get(sample_a.source, 0) / total_valid if total_valid else None
         )
         modal_source = source_counts.most_common(1)[0][0] if source_counts else None
 

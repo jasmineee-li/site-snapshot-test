@@ -77,15 +77,17 @@ def _parse_hermes_output(text: str) -> tuple[list[dict], str, str]:
         if not name:
             logger.warning(f"<tool_call> missing name: {obj}")
             continue
-        tool_calls.append({
-            "id": f"call_{i}",
-            "type": "function",
-            "function": {
-                "name": name,
-                # OpenAI-format requires arguments as a JSON string.
-                "arguments": json.dumps(args, ensure_ascii=False),
-            },
-        })
+        tool_calls.append(
+            {
+                "id": f"call_{i}",
+                "type": "function",
+                "function": {
+                    "name": name,
+                    # OpenAI-format requires arguments as a JSON string.
+                    "arguments": json.dumps(args, ensure_ascii=False),
+                },
+            }
+        )
 
     content = _TOOL_CALL_RE.sub("", text_no_think).strip()
     # Strip the canonical end-of-turn marker if it leaks in.
@@ -122,6 +124,7 @@ class HFToolCallingRunner:
         # actual HF repo, not the runtime convenience prefix.
         if model_name.startswith("local/"):
             from models.common import resolve_local_model
+
             self.hf_repo = resolve_local_model(model_name).hf_repo
             self.served_model_name = resolve_local_model(model_name).resolve_served_name()
         else:
@@ -146,6 +149,7 @@ class HFToolCallingRunner:
         # shim's `.model` for generate() and the tokenizer for chat-template
         # rendering + decoding.
         from probes.model_loader import load_model
+
         if dtype is None:
             dtype = torch.bfloat16
         logger.info(
@@ -153,7 +157,9 @@ class HFToolCallingRunner:
             f"(steering_alpha={steering_alpha}, layer={steering_layer})"
         )
         self.shim, self.tokenizer = load_model(
-            self.hf_repo, device=device, dtype=dtype,
+            self.hf_repo,
+            device=device,
+            dtype=dtype,
         )
         self.hf_model = self.shim.model
 
@@ -166,6 +172,7 @@ class HFToolCallingRunner:
                     "(point at a probes/trained/<model>/ directory)"
                 )
             from probes.contrastive_probe import ContrastiveProbe
+
             self.probe = ContrastiveProbe.load(self.probe_dir)
             if self.steering_layer is None:
                 self.steering_layer = self.probe.best_layer
@@ -207,11 +214,13 @@ class HFToolCallingRunner:
 
             if tool_calls:
                 # Append the assistant turn with tool_calls to history.
-                messages.append({
-                    "role": "assistant",
-                    "content": content,
-                    "tool_calls": tool_calls,
-                })
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": content,
+                        "tool_calls": tool_calls,
+                    }
+                )
                 for tc_idx, tc in enumerate(tool_calls):
                     name = tc["function"]["name"]
                     try:
@@ -221,25 +230,31 @@ class HFToolCallingRunner:
                         args = {}
                     else:
                         observation = await tool_executor(name, args, tc["id"])
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tc["id"],
-                        "name": name,
-                        "content": observation,
-                    })
-                    turns.append(TurnRecord(
-                        thought=thought if tc_idx == 0 else "",
-                        preamble=content if tc_idx == 0 else "",
-                        action=f"{name}({json.dumps(args, ensure_ascii=False)})",
-                        observation=observation,
-                    ))
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tc["id"],
+                            "name": name,
+                            "content": observation,
+                        }
+                    )
+                    turns.append(
+                        TurnRecord(
+                            thought=thought if tc_idx == 0 else "",
+                            preamble=content if tc_idx == 0 else "",
+                            action=f"{name}({json.dumps(args, ensure_ascii=False)})",
+                            observation=observation,
+                        )
+                    )
             else:
                 messages.append({"role": "assistant", "content": content})
-                turns.append(TurnRecord(
-                    thought=thought,
-                    action=content,
-                    observation="",
-                ))
+                turns.append(
+                    TurnRecord(
+                        thought=thought,
+                        action=content,
+                        observation="",
+                    )
+                )
                 final_answer = content
                 break
         else:
@@ -266,8 +281,7 @@ class HFToolCallingRunner:
         agent_label = self.served_model_name
         if self.steering_alpha != 0.0:
             agent_label = (
-                f"{agent_label}+steer(layer={self.steering_layer},"
-                f"alpha={self.steering_alpha})"
+                f"{agent_label}+steer(layer={self.steering_layer}," f"alpha={self.steering_alpha})"
             )
 
         return ToolCallTaskResult(
@@ -311,7 +325,11 @@ class HFToolCallingRunner:
             # blocking. Push the whole thing to a thread so the event loop
             # stays responsive (e.g. for the tool executor's I/O).
             return await asyncio.to_thread(
-                self._generate_sync, messages, tools, task_id, turn_idx,
+                self._generate_sync,
+                messages,
+                tools,
+                task_id,
+                turn_idx,
             )
 
     def _generate_sync(
@@ -334,8 +352,7 @@ class HFToolCallingRunner:
             )
         except Exception as e:
             logger.error(
-                f"apply_chat_template failed for {self.hf_repo} "
-                f"({task_id}:t{turn_idx}): {e}"
+                f"apply_chat_template failed for {self.hf_repo} " f"({task_id}:t{turn_idx}): {e}"
             )
             raise
 
@@ -357,11 +374,15 @@ class HFToolCallingRunner:
             gen_kwargs["do_sample"] = False
 
         from contextlib import nullcontext
+
         if self.steering_alpha != 0.0 and self.probe is not None:
             from probes.steering import steering_hook
+
             ctx = steering_hook(
-                self.shim, self.probe,
-                layer=self.steering_layer, alpha=self.steering_alpha,
+                self.shim,
+                self.probe,
+                layer=self.steering_layer,
+                alpha=self.steering_alpha,
             )
         else:
             ctx = nullcontext()

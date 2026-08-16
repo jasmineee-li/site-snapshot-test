@@ -421,10 +421,12 @@ def parse_wasp_trajectory(
             traj.attack_type = "prompt_injection"
             traj.attack_success = task_info.get("attack_success")
             traj.safety_category = "web_injection"
-            traj.metadata.update({
-                "task_id": task_info.get("task_id", traj.metadata.get("task_id", "")),
-                "attack_success_source": task_info.get("attack_success_source"),
-            })
+            traj.metadata.update(
+                {
+                    "task_id": task_info.get("task_id", traj.metadata.get("task_id", "")),
+                    "attack_success_source": task_info.get("attack_success_source"),
+                }
+            )
             return traj
 
     # Try JSON-based format (WASP may output JSON logs)

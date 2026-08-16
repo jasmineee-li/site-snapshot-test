@@ -69,11 +69,7 @@ def sample_items(
 
     # Filter by modality
     if modality_filter:
-        items = [
-            it
-            for it in items
-            if all(m in it.modalities for m in modality_filter)
-        ]
+        items = [it for it in items if all(m in it.modalities for m in modality_filter)]
 
     # Group by source
     by_source: dict[str, list[DataItem]] = {}

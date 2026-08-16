@@ -58,6 +58,7 @@ def _safe_get(obj, key: str, default=None):
         return obj.get(key, default)
     return getattr(obj, key, default)
 
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -185,12 +186,14 @@ def _content_spans_in_rendered(
         if start == -1:
             continue
         end = start + len(content)
-        spans.append({
-            "index": idx,
-            "role": str(message.get("role", "")),
-            "start": start,
-            "end": end,
-        })
+        spans.append(
+            {
+                "index": idx,
+                "role": str(message.get("role", "")),
+                "start": start,
+                "end": end,
+            }
+        )
         search_from = end
     return spans
 
@@ -445,7 +448,7 @@ def _resolve_sad_layer_threshold(
                 ("dev_top_layers", "sad_stages_oversight_dev"),
                 ("top_layers_all", "sad_stages_oversight_all"),
             ):
-                for item in (split.get(key) or sad.get(key) or []):
+                for item in split.get(key) or sad.get(key) or []:
                     if int(item.get("layer")) == int(layer):
                         found_threshold = float(item["threshold"])
                         source["threshold_source"] = threshold_source
@@ -588,7 +591,7 @@ def main():
         "--sad-eval",
         default=None,
         help="Optional SAD oversight eval JSON. If --layer is omitted, uses "
-             "dev best layer and threshold from this file.",
+        "dev best layer and threshold from this file.",
     )
     parser.add_argument(
         "--threshold",
@@ -601,7 +604,7 @@ def main():
         choices=["raw", "chat_user_content", "chat_messages_mean"],
         default="raw",
         help="Text tokenization for --text/--transcripts-dir. Browser chat "
-             "messages always use chat_messages_mean when available.",
+        "messages always use chat_messages_mean when available.",
     )
     parser.add_argument(
         "--browser-token-span",
@@ -629,7 +632,9 @@ def main():
 
     if args.text is None and args.transcripts_dir is None and args.browser_root is None:
         if args.messages_jsonl is None:
-            raise SystemExit("Provide --text, --transcripts-dir, --browser-root, or --messages-jsonl")
+            raise SystemExit(
+                "Provide --text, --transcripts-dir, --browser-root, or --messages-jsonl"
+            )
 
     dtype = {
         "bfloat16": torch.bfloat16,
@@ -684,7 +689,7 @@ def main():
         td = Path(args.transcripts_dir)
         task_paths = sorted(td.glob("*.json"))
         if args.max_items:
-            task_paths = task_paths[:args.max_items]
+            task_paths = task_paths[: args.max_items]
         for task_path in task_paths:
             try:
                 task_json = json.loads(task_path.read_text())
@@ -763,10 +768,12 @@ def main():
                     threshold,
                     span=args.browser_token_span,
                 )
-                result.update({
-                    "step_index": item.get("step_index"),
-                    "tokenization": args.browser_token_span,
-                })
+                result.update(
+                    {
+                        "step_index": item.get("step_index"),
+                        "tokenization": args.browser_token_span,
+                    }
+                )
                 task_id = str(item.get("task_id") or item.get("id") or "messages")
                 rows_by_task.setdefault(task_id, []).append(result)
 

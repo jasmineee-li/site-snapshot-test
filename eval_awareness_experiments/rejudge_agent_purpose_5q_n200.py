@@ -115,10 +115,7 @@ def _build_cell(
     splits = BENCHMARK_SPLITS[benchmark]
 
     if benchmark in {"wasp", "doomarena"}:
-        split_roots = {
-            split: source_cell / "_browser_runs" / split
-            for split in splits
-        }
+        split_roots = {split: source_cell / "_browser_runs" / split for split in splits}
     else:
         split_roots = _split_roots_for_toolcalling(
             benchmark=benchmark,
@@ -168,10 +165,7 @@ def _command_for(
     continuation_retries: int,
     skip_wasp_asr: bool,
 ) -> list[str]:
-    existing_dirs = [
-        f"{split}:{path}"
-        for split, path in cell.split_roots.items()
-    ]
+    existing_dirs = [f"{split}:{path}" for split, path in cell.split_roots.items()]
     cmd = [
         sys.executable,
         "-m",
@@ -394,9 +388,7 @@ def main() -> int:
                 if cell is not None:
                     cells_by_model.setdefault(model_slug, []).append(cell)
 
-        with concurrent.futures.ThreadPoolExecutor(
-            max_workers=max(1, args.model_workers)
-        ) as pool:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.model_workers)) as pool:
             future_to_model = {
                 pool.submit(
                     _run_model_cells,

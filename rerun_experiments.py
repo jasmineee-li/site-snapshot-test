@@ -41,10 +41,7 @@ from agentlab.experiments.rerun_utils import (
     rejudge_study,
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -206,7 +203,9 @@ def main():
     p_rerun.add_argument("--resume-html", help="Reuse HTML from this study directory")
     p_rerun.add_argument("--attacker-model", help="Override attacker model")
     p_rerun.add_argument("--seeds", type=int, nargs="+", default=[0], help="Seeds to run")
-    p_rerun.add_argument("--variations", type=int, default=2, help="Adversarial variations per behavior")
+    p_rerun.add_argument(
+        "--variations", type=int, default=2, help="Adversarial variations per behavior"
+    )
     p_rerun.add_argument("--n-jobs", type=int, default=4, help="Parallel jobs")
     p_rerun.add_argument("--dry-run", action="store_true", help="Show what would run")
 

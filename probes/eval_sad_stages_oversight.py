@@ -54,12 +54,8 @@ def load_sad_stages_oversight(
     password: str,
     max_per_class: int | None = None,
 ) -> list[dict[str, Any]]:
-    test_batch = load_yaml_from_zip(
-        structs_zip, "batch/test_oversight.yaml", password
-    )
-    deploy_batch = load_yaml_from_zip(
-        structs_zip, "batch/deploy_oversight.yaml", password
-    )
+    test_batch = load_yaml_from_zip(structs_zip, "batch/test_oversight.yaml", password)
+    deploy_batch = load_yaml_from_zip(structs_zip, "batch/deploy_oversight.yaml", password)
 
     samples: list[dict[str, Any]] = []
     for label_name, label, batch in (
@@ -264,7 +260,9 @@ def main() -> None:
     )
     args = ap.parse_args()
 
-    dtype = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}[args.dtype]
+    dtype = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}[
+        args.dtype
+    ]
     use_chat_template = not args.raw_tokenization
 
     samples = load_sad_stages_oversight(
@@ -284,7 +282,11 @@ def main() -> None:
     probe = ContrastiveProbe.load(args.probe_dir)
     available_layers = sorted(probe.normalized_vectors)
     layers = parse_layers(args.layers, available_layers)
-    logger.info("Scoring %s layers with %s", len(layers), "chat template" if use_chat_template else "raw tokenization")
+    logger.info(
+        "Scoring %s layers with %s",
+        len(layers),
+        "chat template" if use_chat_template else "raw tokenization",
+    )
 
     scores_by_layer: dict[int, list[float]] = {layer: [] for layer in layers}
     for idx, sample in enumerate(samples, 1):
@@ -312,9 +314,7 @@ def main() -> None:
         test_indices = set(id(sample) for sample in test_samples)
 
         def subset_summary(indices: set[int]) -> dict[str, Any]:
-            subset_positions = [
-                pos for pos, sample in enumerate(samples) if id(sample) in indices
-            ]
+            subset_positions = [pos for pos, sample in enumerate(samples) if id(sample) in indices]
             subset_scores = {
                 layer: [scores[pos] for pos in subset_positions]
                 for layer, scores in scores_by_layer.items()

@@ -285,8 +285,16 @@ def main():
             if not run_dir.is_dir():
                 continue
             agent = detect_run_agent(run)
-            traj_count = len(os.listdir(run_dir / "trajectories")) if (run_dir / "trajectories").exists() else 0
-            screenshot_count = len(os.listdir(run_dir / "screenshots")) if (run_dir / "screenshots").exists() else 0
+            traj_count = (
+                len(os.listdir(run_dir / "trajectories"))
+                if (run_dir / "trajectories").exists()
+                else 0
+            )
+            screenshot_count = (
+                len(os.listdir(run_dir / "screenshots"))
+                if (run_dir / "screenshots").exists()
+                else 0
+            )
             print(f"{run}  agent={agent}  trajs={traj_count}  screenshots={screenshot_count}")
         return
 

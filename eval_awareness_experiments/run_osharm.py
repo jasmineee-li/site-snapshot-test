@@ -118,13 +118,15 @@ def run_osharm_tasks(
         # 3. Capturing better_log.json trajectory
         # 4. Evaluating attack success via OS-harm's LLM judge
 
-        results.append({
-            "task_id": task_id,
-            "model": model,
-            "condition": condition,
-            "vectors": [inj["type"] for inj in task.get("injections", [])],
-            "status": "pending_implementation",
-        })
+        results.append(
+            {
+                "task_id": task_id,
+                "model": model,
+                "condition": condition,
+                "vectors": [inj["type"] for inj in task.get("injections", [])],
+                "status": "pending_implementation",
+            }
+        )
 
     manifest_path = output_dir / "run_manifest.json"
     manifest_path.write_text(json.dumps(results, indent=2))
@@ -133,20 +135,36 @@ def run_osharm_tasks(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run OS-harm web injection tasks with eval-awareness conditions")
-    parser.add_argument("--model", type=str, default="anthropic/claude-opus-4.6",
-                        help="Model to use as the agent")
-    parser.add_argument("--condition", type=str, default="baseline", choices=ALL_CONDITIONS,
-                        help="Injection condition")
-    parser.add_argument("--output-dir", type=str,
-                        default="eval_awareness_experiments/data/os-harm",
-                        help="Output directory for trajectories")
-    parser.add_argument("--osharm-path", type=str, default=None,
-                        help="Path to OS-harm repo (default: ./os-harm)")
-    parser.add_argument("--vectors", type=str, nargs="+", default=None,
-                        help="Injection vectors to include (default: website, thunderbird_mail_received)")
-    parser.add_argument("--max-tasks", type=int, default=None,
-                        help="Max tasks to run")
+    parser = argparse.ArgumentParser(
+        description="Run OS-harm web injection tasks with eval-awareness conditions"
+    )
+    parser.add_argument(
+        "--model", type=str, default="anthropic/claude-opus-4.6", help="Model to use as the agent"
+    )
+    parser.add_argument(
+        "--condition",
+        type=str,
+        default="baseline",
+        choices=ALL_CONDITIONS,
+        help="Injection condition",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="eval_awareness_experiments/data/os-harm",
+        help="Output directory for trajectories",
+    )
+    parser.add_argument(
+        "--osharm-path", type=str, default=None, help="Path to OS-harm repo (default: ./os-harm)"
+    )
+    parser.add_argument(
+        "--vectors",
+        type=str,
+        nargs="+",
+        default=None,
+        help="Injection vectors to include (default: website, thunderbird_mail_received)",
+    )
+    parser.add_argument("--max-tasks", type=int, default=None, help="Max tasks to run")
     args = parser.parse_args()
 
     run_osharm_tasks(

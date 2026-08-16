@@ -59,9 +59,7 @@ class TrajectoryAwarenessExperiment(BaseExperiment):
         super().__init__(model, output_dir)
         self.judge_names = judge_names or DEFAULT_JUDGES
         if purpose_continuation_model_source not in {"agent", "judge"}:
-            raise ValueError(
-                "purpose_continuation_model_source must be 'agent' or 'judge'"
-            )
+            raise ValueError("purpose_continuation_model_source must be 'agent' or 'judge'")
         self.purpose_continuation_model_source = purpose_continuation_model_source
         self.purpose_continuation_concurrency = purpose_continuation_concurrency
         self.purpose_continuation_retries = purpose_continuation_retries
@@ -87,15 +85,8 @@ class TrajectoryAwarenessExperiment(BaseExperiment):
         trajectory_agent: str | None,
     ) -> tuple[LLM, LLM, str]:
         classifier_model = self.model
-        if (
-            self.purpose_continuation_model_source == "agent"
-            and judge_name in CONTINUATION_JUDGES
-        ):
-            agent_model = (
-                sample.metadata.get("agent")
-                or trajectory_agent
-                or ""
-            )
+        if self.purpose_continuation_model_source == "agent" and judge_name in CONTINUATION_JUDGES:
+            agent_model = sample.metadata.get("agent") or trajectory_agent or ""
             if agent_model and agent_model not in {"unknown", "imported"}:
                 continuation_model = self._get_continuation_model(str(agent_model))
                 return continuation_model, classifier_model, str(agent_model)
@@ -103,7 +94,9 @@ class TrajectoryAwarenessExperiment(BaseExperiment):
         return self.model, classifier_model, self.model.model
 
     async def run_sample(
-        self, sample: WebsiteSample, format_type: str,
+        self,
+        sample: WebsiteSample,
+        format_type: str,
     ) -> list[WebsiteExperimentResult]:
         """Run trajectory awareness judges on a sample's trajectory.
 
@@ -138,12 +131,10 @@ class TrajectoryAwarenessExperiment(BaseExperiment):
         results = []
         for judge_name in self.judge_names:
             try:
-                grader_model, classifier_model, continuation_model_name = (
-                    self._judge_models_for(
-                        judge_name,
-                        sample=sample,
-                        trajectory_agent=traj.agent,
-                    )
+                grader_model, classifier_model, continuation_model_name = self._judge_models_for(
+                    judge_name,
+                    sample=sample,
+                    trajectory_agent=traj.agent,
                 )
                 judge = get_judge(
                     judge_name,
@@ -169,34 +160,22 @@ class TrajectoryAwarenessExperiment(BaseExperiment):
                     "n_steps": len(traj.steps),
                     "continuation_model": continuation_model_name,
                     "classifier_model": classifier_model.model,
-                    "purpose_continuation_model_source": (
-                        self.purpose_continuation_model_source
-                    ),
+                    "purpose_continuation_model_source": (self.purpose_continuation_model_source),
                 }
 
                 # For TAS judge, surface the 3 dimensions directly
                 if judge_name == "test_awareness_steering":
-                    meta["model_awareness"] = judge_result.metadata.get(
-                        "model_awareness", {}
-                    )
+                    meta["model_awareness"] = judge_result.metadata.get("model_awareness", {})
                     meta["hypothetical_recognition"] = judge_result.metadata.get(
                         "hypothetical_recognition", {}
                     )
-                    meta["task_performance"] = judge_result.metadata.get(
-                        "task_performance", {}
-                    )
+                    meta["task_performance"] = judge_result.metadata.get("task_performance", {})
 
                 # For 5PQ judge, surface shares + refusal counts + per-variant labels.
                 if judge_name == "purpose_continue_5q":
-                    meta["alignment_eval_share"] = judge_result.metadata.get(
-                        "alignment_eval_share"
-                    )
-                    meta["any_eval_share"] = judge_result.metadata.get(
-                        "any_eval_share"
-                    )
-                    meta["refused_share"] = judge_result.metadata.get(
-                        "refused_share"
-                    )
+                    meta["alignment_eval_share"] = judge_result.metadata.get("alignment_eval_share")
+                    meta["any_eval_share"] = judge_result.metadata.get("any_eval_share")
+                    meta["refused_share"] = judge_result.metadata.get("refused_share")
                     meta["n_engaged"] = judge_result.metadata.get("n_engaged")
                     meta["n_refused"] = judge_result.metadata.get("n_refused")
                     meta["variant_categories"] = [
@@ -216,24 +195,28 @@ class TrajectoryAwarenessExperiment(BaseExperiment):
                     else self.model.model
                 )
 
-                results.append(WebsiteExperimentResult(
-                    sample_id=sample.id,
-                    experiment_type=f"trajectory_{judge_name}",
-                    model=result_model,
-                    format_used="trajectory",
-                    score=judge_result.confidence,
-                    classification=judge_result.category.value,
-                    raw_response=judge_result.raw_response,
-                    metadata=meta,
-                ))
+                results.append(
+                    WebsiteExperimentResult(
+                        sample_id=sample.id,
+                        experiment_type=f"trajectory_{judge_name}",
+                        model=result_model,
+                        format_used="trajectory",
+                        score=judge_result.confidence,
+                        classification=judge_result.category.value,
+                        raw_response=judge_result.raw_response,
+                        metadata=meta,
+                    )
+                )
             except Exception as e:
                 logger.error(f"Judge {judge_name} failed on {sample.id}: {e}")
-                results.append(WebsiteExperimentResult(
-                    sample_id=sample.id,
-                    experiment_type=f"trajectory_{judge_name}",
-                    model=self.model.model,
-                    format_used="trajectory",
-                    metadata={"error": str(e), "judge_name": judge_name},
-                ))
+                results.append(
+                    WebsiteExperimentResult(
+                        sample_id=sample.id,
+                        experiment_type=f"trajectory_{judge_name}",
+                        model=self.model.model,
+                        format_used="trajectory",
+                        metadata={"error": str(e), "judge_name": judge_name},
+                    )
+                )
 
         return results

@@ -28,10 +28,7 @@ from eval_awareness_experiments.types import (
 logger = logging.getLogger(__name__)
 
 _PROMPT_PATH = (
-    Path(__file__).parent
-    / "prompts"
-    / "test_awareness_steering"
-    / "judgePromptEvidenceBoth.txt"
+    Path(__file__).parent / "prompts" / "test_awareness_steering" / "judgePromptEvidenceBoth.txt"
 )
 
 # Map (model_awareness, hypothetical_recognition) conclusions to categories.

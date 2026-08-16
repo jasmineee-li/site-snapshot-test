@@ -91,29 +91,33 @@ class TranscriptAwarenessExperiment(BaseExperiment):
                 )
                 judge_result = await judge.judge(transcript)
 
-                results.append(WebsiteExperimentResult(
-                    sample_id=sample.id,
-                    experiment_type=f"transcript_{judge_name}",
-                    model=self.model.model,
-                    format_used="transcript",
-                    score=judge_result.confidence,
-                    classification=judge_result.category.value,
-                    raw_response=judge_result.raw_response,
-                    metadata={
-                        "judge_name": judge_name,
-                        "reasoning": judge_result.reasoning,
-                        "source": sample.source,
-                        "website_type": sample.website_type,
-                    },
-                ))
+                results.append(
+                    WebsiteExperimentResult(
+                        sample_id=sample.id,
+                        experiment_type=f"transcript_{judge_name}",
+                        model=self.model.model,
+                        format_used="transcript",
+                        score=judge_result.confidence,
+                        classification=judge_result.category.value,
+                        raw_response=judge_result.raw_response,
+                        metadata={
+                            "judge_name": judge_name,
+                            "reasoning": judge_result.reasoning,
+                            "source": sample.source,
+                            "website_type": sample.website_type,
+                        },
+                    )
+                )
             except Exception as e:
                 logger.error(f"Judge {judge_name} failed on {sample.id}: {e}")
-                results.append(WebsiteExperimentResult(
-                    sample_id=sample.id,
-                    experiment_type=f"transcript_{judge_name}",
-                    model=self.model.model,
-                    format_used="transcript",
-                    metadata={"error": str(e), "judge_name": judge_name},
-                ))
+                results.append(
+                    WebsiteExperimentResult(
+                        sample_id=sample.id,
+                        experiment_type=f"transcript_{judge_name}",
+                        model=self.model.model,
+                        format_used="transcript",
+                        metadata={"error": str(e), "judge_name": judge_name},
+                    )
+                )
 
         return results

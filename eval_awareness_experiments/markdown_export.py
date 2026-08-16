@@ -39,7 +39,10 @@ def _bool_emoji(v: Any) -> str:
 
 
 _SCRATCHPAD_PRESETS = {
-    "scratchpad", "scratchpad_bare", "scratchpad_private", "scratchpad_green",
+    "scratchpad",
+    "scratchpad_bare",
+    "scratchpad_private",
+    "scratchpad_green",
     "motive",  # also uses <unfiltered_observations>
 }
 
@@ -83,8 +86,10 @@ def _render_header(t: dict, judge_rows: list[dict]) -> str:
     md.append(f"- **Extra-instructions preset**: {t.get('extra_instructions_preset', '?')}")
     md.append(f"- **Attack succeeded**: {_bool_emoji(t.get('attack_success'))}")
     md.append(f"- **Task passed (utility)**: {_bool_emoji(t.get('passed'))}")
-    md.append(f"- **Steps**: {len(t.get('steps', []))}"
-              + (" (hit max turns)" if t.get('metadata', {}).get('hit_max_turns') else ""))
+    md.append(
+        f"- **Steps**: {len(t.get('steps', []))}"
+        + (" (hit max turns)" if t.get("metadata", {}).get("hit_max_turns") else "")
+    )
     _complied, note = _scratchpad_compliance(t)
     if note:
         md.append(f"- **Scratchpad compliance**: {note}")
@@ -257,7 +262,9 @@ def write_markdown_for_split(
         logger.warning(f"[md] judge JSONL not found: {judge_jsonl} — skipping")
         return 0
 
-    judge_rows: list[dict] = [json.loads(l) for l in judge_jsonl.read_text().splitlines() if l.strip()]
+    judge_rows: list[dict] = [
+        json.loads(l) for l in judge_jsonl.read_text().splitlines() if l.strip()
+    ]
     by_sample: dict[str, list[dict]] = {}
     for r in judge_rows:
         by_sample.setdefault(r["sample_id"], []).append(r)

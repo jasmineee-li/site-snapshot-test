@@ -29,12 +29,14 @@ if _env_file.exists():
 @dataclass
 class _Message:
     """Mimics inspect_ai's message interface."""
+
     text: str
 
 
 @dataclass
 class GenerateResult:
     """Result from an LLM generate call. Matches the interface judges expect."""
+
     message: _Message
 
 
@@ -88,7 +90,9 @@ class LLM:
             )
 
     async def generate(
-        self, prompt: str | list, response_format: dict | None = None,
+        self,
+        prompt: str | list,
+        response_format: dict | None = None,
     ) -> GenerateResult:
         """Generate a response from the model.
 
@@ -132,7 +136,8 @@ class LLM:
         Convenience wrapper that sets response_format to json_object.
         """
         return await self.generate(
-            prompt, response_format={"type": "json_object"},
+            prompt,
+            response_format={"type": "json_object"},
         )
 
     async def generate_with_images(
@@ -160,9 +165,7 @@ class LLM:
             mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}.get(
                 suffix, "image/png"
             )
-            content.append(
-                {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
-            )
+            content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}})
         content.append({"type": "text", "text": text_prompt})
 
         messages = [{"role": "user", "content": content}]
@@ -176,9 +179,7 @@ class LLM:
                     **self._extra_kwargs(),
                 )
 
-        resp = await call_with_retry(
-            _do, retries=self.retries, label=f"llm:{self.model}:img"
-        )
+        resp = await call_with_retry(_do, retries=self.retries, label=f"llm:{self.model}:img")
         text = resp.choices[0].message.content or ""
         return GenerateResult(message=_Message(text=text))
 

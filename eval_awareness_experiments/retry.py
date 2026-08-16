@@ -100,7 +100,7 @@ async def call_with_retry(
                 raise
             if attempt >= retries:
                 raise
-            delay = base_delay * (2 ** attempt) + random.uniform(0, 0.5)
+            delay = base_delay * (2**attempt) + random.uniform(0, 0.5)
             try:
                 hdr = getattr(exc.response, "headers", None)
                 if hdr is not None:
@@ -120,7 +120,7 @@ async def call_with_retry(
             last_exc = exc
             if attempt >= retries:
                 raise
-            delay = base_delay * (2 ** attempt) + random.uniform(0, 0.5)
+            delay = base_delay * (2**attempt) + random.uniform(0, 0.5)
             logger.warning(
                 f"[{label}] {type(exc).__name__}; "
                 f"retry {attempt + 1}/{retries} after {delay:.1f}s: {exc}"
@@ -131,7 +131,7 @@ async def call_with_retry(
             last_exc = exc
             if attempt >= retries:
                 raise
-            delay = base_delay * (2 ** attempt) + random.uniform(0, 0.5)
+            delay = base_delay * (2**attempt) + random.uniform(0, 0.5)
             logger.warning(
                 f"[{label}] JSONDecodeError; "
                 f"retry {attempt + 1}/{retries} after {delay:.1f}s: {exc}"

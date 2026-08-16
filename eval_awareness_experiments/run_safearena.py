@@ -155,23 +155,42 @@ def main():
     parser = argparse.ArgumentParser(
         description="Run SafeArena tasks with eval-awareness injection conditions",
     )
-    parser.add_argument("--model", type=str, default="anthropic/claude-opus-4.6",
-                        help="Model to use as the agent")
-    parser.add_argument("--condition", type=str, default="baseline", choices=ALL_CONDITIONS,
-                        help="Injection condition")
-    parser.add_argument("--split", type=str, default="harm", choices=["harm", "safe"],
-                        help="SafeArena task split: harm (harmful tasks) or safe (benign control)")
-    parser.add_argument("--output-dir", type=str,
-                        default="eval_awareness_experiments/data/safearena",
-                        help="Output directory for trajectories")
-    parser.add_argument("--safearena-path", type=str, default=None,
-                        help="Path to SafeArena repo (default: ./safearena)")
-    parser.add_argument("--tasks-file", type=str, default=None,
-                        help="Override path to tasks JSON file")
-    parser.add_argument("--max-tasks", type=int, default=None,
-                        help="Max tasks to run (default: all)")
-    parser.add_argument("--n-jobs", type=int, default=1,
-                        help="Parallel jobs (default: 1)")
+    parser.add_argument(
+        "--model", type=str, default="anthropic/claude-opus-4.6", help="Model to use as the agent"
+    )
+    parser.add_argument(
+        "--condition",
+        type=str,
+        default="baseline",
+        choices=ALL_CONDITIONS,
+        help="Injection condition",
+    )
+    parser.add_argument(
+        "--split",
+        type=str,
+        default="harm",
+        choices=["harm", "safe"],
+        help="SafeArena task split: harm (harmful tasks) or safe (benign control)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="eval_awareness_experiments/data/safearena",
+        help="Output directory for trajectories",
+    )
+    parser.add_argument(
+        "--safearena-path",
+        type=str,
+        default=None,
+        help="Path to SafeArena repo (default: ./safearena)",
+    )
+    parser.add_argument(
+        "--tasks-file", type=str, default=None, help="Override path to tasks JSON file"
+    )
+    parser.add_argument(
+        "--max-tasks", type=int, default=None, help="Max tasks to run (default: all)"
+    )
+    parser.add_argument("--n-jobs", type=int, default=1, help="Parallel jobs (default: 1)")
     args = parser.parse_args()
 
     run_safearena_tasks(

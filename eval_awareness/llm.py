@@ -33,9 +33,7 @@ class LLMClient:
         else:
             raise ValueError(f"Unknown provider: {config.provider}")
 
-    async def call(
-        self, messages: list[dict], images: list[Path] | None = None
-    ) -> str:
+    async def call(self, messages: list[dict], images: list[Path] | None = None) -> str:
         """Call the LLM with messages and optional images.
 
         Args:
@@ -72,9 +70,7 @@ class LLMClient:
 
         raise RuntimeError("Unreachable")
 
-    async def _call_openai(
-        self, messages: list[dict], images: list[Path] | None
-    ) -> str:
+    async def _call_openai(self, messages: list[dict], images: list[Path] | None) -> str:
         formatted = _format_openai_messages(messages, images)
         resp = await self._openai.chat.completions.create(
             model=self.config.model,
@@ -84,9 +80,7 @@ class LLMClient:
         )
         return resp.choices[0].message.content
 
-    async def _call_anthropic(
-        self, messages: list[dict], images: list[Path] | None
-    ) -> str:
+    async def _call_anthropic(self, messages: list[dict], images: list[Path] | None) -> str:
         system_text, formatted = _format_anthropic_messages(messages, images)
         kwargs = dict(
             model=self.config.model,
@@ -109,9 +103,7 @@ def _encode_image(path: Path) -> tuple[str, str]:
     return base64.b64encode(data).decode("utf-8"), mime_type
 
 
-def _format_openai_messages(
-    messages: list[dict], images: list[Path] | None
-) -> list[dict]:
+def _format_openai_messages(messages: list[dict], images: list[Path] | None) -> list[dict]:
     """Format messages for OpenAI API, attaching images to the last user message."""
     formatted = []
     for msg in messages:
@@ -128,9 +120,7 @@ def _format_openai_messages(
                     parts.append(
                         {
                             "type": "image_url",
-                            "image_url": {
-                                "url": f"data:{media_type};base64,{b64}"
-                            },
+                            "image_url": {"url": f"data:{media_type};base64,{b64}"},
                         }
                     )
                 formatted[i]["content"] = parts

@@ -209,7 +209,9 @@ async def _main_async(args: argparse.Namespace) -> int:
     _rewrite_files(replacements)
 
     remaining = sum(1 for row in repaired if _row_error(row))
-    print(f"Repaired {len(repaired) - remaining}/{len(repaired)} rows; remaining_errors={remaining}")
+    print(
+        f"Repaired {len(repaired) - remaining}/{len(repaired)} rows; remaining_errors={remaining}"
+    )
     return 0 if remaining == 0 else 1
 
 

@@ -54,7 +54,9 @@ def main() -> None:
     ap.add_argument("--dtype", default="bfloat16")
     args = ap.parse_args()
 
-    dtype = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}[args.dtype]
+    dtype = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}[
+        args.dtype
+    ]
 
     mcq_data = json.loads(Path(args.mcq_data).read_text())
     fr_data = json.loads(Path(args.framing_data).read_text())
@@ -65,10 +67,14 @@ def main() -> None:
 
     mcq_probe = ContrastiveProbe.load(args.mcq_probe)
     fr_probe = ContrastiveProbe.load(args.framing_probe)
-    logger.info(f"MCQ probe best_layer={mcq_probe.best_layer}, framing probe best_layer={fr_probe.best_layer}")
+    logger.info(
+        f"MCQ probe best_layer={mcq_probe.best_layer}, framing probe best_layer={fr_probe.best_layer}"
+    )
 
     # === A: MCQ probe → framing data ===
-    print(f"\n=== A: MCQ probe scoring framing data ({len(fr_data['real']) + len(fr_data['fake'])} prompts) ===")
+    print(
+        f"\n=== A: MCQ probe scoring framing data ({len(fr_data['real']) + len(fr_data['fake'])} prompts) ==="
+    )
     labels_A: list[int] = []
     scores_A: list[float] = []
     for prompt in fr_data["real"]:
@@ -83,7 +89,9 @@ def main() -> None:
     mean_real = sum(scores_A[:n_real]) / n_real
     mean_fake = sum(scores_A[n_real:]) / n_fake
     print(f"AUROC(label=is_fake, score=MCQ-mean) = {auroc_A:.4f}")
-    print(f"  mean(real) = {mean_real:+.4f}    mean(fake) = {mean_fake:+.4f}    Δ = {mean_fake - mean_real:+.4f}")
+    print(
+        f"  mean(real) = {mean_real:+.4f}    mean(fake) = {mean_fake:+.4f}    Δ = {mean_fake - mean_real:+.4f}"
+    )
 
     # === B: Framing probe → MCQ data ===
     print(f"\n=== B: Framing probe scoring MCQ data ({len(mcq_data) * 2} prompts) ===")
@@ -108,7 +116,9 @@ def main() -> None:
     mean_pos = sum(s for l, s in zip(labels_B, scores_B, strict=True) if l == 1) / n_pairs
     mean_neg = sum(s for l, s in zip(labels_B, scores_B, strict=True) if l == 0) / n_pairs
     print(f"AUROC(label=is_eval, score=-Framing-mean) = {auroc_B:.4f}")
-    print(f"  mean(eval-positive) = {mean_pos:+.4f}    mean(deploy-neg) = {mean_neg:+.4f}    Δ = {mean_pos - mean_neg:+.4f}")
+    print(
+        f"  mean(eval-positive) = {mean_pos:+.4f}    mean(deploy-neg) = {mean_neg:+.4f}    Δ = {mean_pos - mean_neg:+.4f}"
+    )
     print(f"  (sanity) AUROC unflipped = {auroc_B_unflipped:.4f}")
 
     print("\n=== Summary ===")

@@ -110,8 +110,7 @@ def steering_hook(
                 raise ValueError(f"No probe vector for layer {tgt_layer}")
             if not (0 <= tgt_layer < n_layers_total):
                 raise IndexError(
-                    f"Layer {tgt_layer} out of range for model with "
-                    f"{n_layers_total} layers"
+                    f"Layer {tgt_layer} out of range for model with " f"{n_layers_total} layers"
                 )
             vec = vec_dict[tgt_layer]
             if vec.dim() > 1:
@@ -131,9 +130,7 @@ def steering_hook(
             )
         else:
             l, a, n = installed[0]
-            logger.info(
-                f"Installed steering hook on layer {l} (alpha={a}, |v|={n:.3f})"
-            )
+            logger.info(f"Installed steering hook on layer {l} (alpha={a}, |v|={n:.3f})")
         yield
     finally:
         for h in handles:
@@ -148,6 +145,7 @@ def _make_pre_hook(vector: torch.Tensor, alpha: float):
     `(batch, seq_len, d_model)`. We modify it in-place via tensor
     addition (returning a new tuple of args).
     """
+
     def hook(module, args, kwargs):
         if args:
             hidden_states = args[0]
@@ -219,8 +217,7 @@ def token_gated_steering_hook(
                 raise ValueError(f"No probe vector for layer {tgt_layer}")
             if not (0 <= tgt_layer < n_layers_total):
                 raise IndexError(
-                    f"Layer {tgt_layer} out of range for model with "
-                    f"{n_layers_total} layers"
+                    f"Layer {tgt_layer} out of range for model with " f"{n_layers_total} layers"
                 )
             vec = vec_dict[tgt_layer]
             if vec.dim() > 1:
@@ -232,8 +229,7 @@ def token_gated_steering_hook(
             handles.append(handle)
             installed.append((tgt_layer, alpha_per_layer, vec.norm().item()))
         logger.info(
-            "Installed token-gated steering on layers=%s alpha_per_layer=%s "
-            "prompt_positions=%s",
+            "Installed token-gated steering on layers=%s alpha_per_layer=%s " "prompt_positions=%s",
             [layer for layer, _, _ in installed],
             alpha_per_layer,
             len(state.prompt_positions),
@@ -261,10 +257,7 @@ def _make_token_gated_pre_hook(
 
         seq_len = int(hidden_states.shape[1])
         if seq_len == state.prompt_len:
-            positions = [
-                pos for pos in sorted(state.prompt_positions)
-                if 0 <= pos < seq_len
-            ]
+            positions = [pos for pos in sorted(state.prompt_positions) if 0 <= pos < seq_len]
             if not positions:
                 return None
             v = vector.to(device=hidden_states.device, dtype=hidden_states.dtype)
@@ -404,9 +397,11 @@ def generate_with_token_gated_steering_generate(
         "max_new_tokens": max_new_tokens,
         "do_sample": do_sample,
         "use_cache": True,
-        "stopping_criteria": StoppingCriteriaList([
-            _EnableAfterFirstSentenceCriteria(tokenizer, state),
-        ]),
+        "stopping_criteria": StoppingCriteriaList(
+            [
+                _EnableAfterFirstSentenceCriteria(tokenizer, state),
+            ]
+        ),
     }
     if do_sample:
         generation_kwargs["temperature"] = max(float(temperature), 1e-5)
@@ -532,10 +527,7 @@ def generate_with_token_gated_steering(
                     skip_special_tokens=False,
                     clean_up_tokenization_spaces=False,
                 )
-                if (
-                    first_sentence_end_token_index is None
-                    and _has_first_sentence(generated_text)
-                ):
+                if first_sentence_end_token_index is None and _has_first_sentence(generated_text):
                     first_sentence_end_token_index = len(generated_ids) - 1
                     state.generation_enabled = True
 
@@ -620,7 +612,7 @@ class _EnableAfterFirstSentenceCriteria(StoppingCriteria):
     ) -> bool:
         if self.state.generation_enabled:
             return False
-        generated = input_ids[0, self.state.prompt_len:].detach().cpu().tolist()
+        generated = input_ids[0, self.state.prompt_len :].detach().cpu().tolist()
         if not generated:
             return False
         text = self.tokenizer.decode(
@@ -681,9 +673,7 @@ def _decoder_layers(model):
         and hasattr(m.language_model.model, "layers")
     ):
         return m.language_model.model.layers
-    raise AttributeError(
-        f"Could not locate decoder layers on {type(m).__name__}."
-    )
+    raise AttributeError(f"Could not locate decoder layers on {type(m).__name__}.")
 
 
 def _model_input_device(hf_model) -> torch.device:

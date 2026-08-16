@@ -45,16 +45,20 @@ def extract_activations_hooked(
     def make_hook(layer: int):
         def hook_fn(activation, hook):
             act = _select_token_activation(
-                activation, tokens, token_selector, tokenizer,
-                answer_token, evidence_indices, position_index,
+                activation,
+                tokens,
+                token_selector,
+                tokenizer,
+                answer_token,
+                evidence_indices,
+                position_index,
             )
             cached[layer] = act.clone().detach()
             return activation
+
         return hook_fn
 
-    fwd_hooks = [
-        (f"blocks.{layer}.hook_resid_pre", make_hook(layer)) for layer in layers
-    ]
+    fwd_hooks = [(f"blocks.{layer}.hook_resid_pre", make_hook(layer)) for layer in layers]
 
     model.reset_hooks()
     with model.hooks(fwd_hooks=fwd_hooks):
@@ -91,14 +95,22 @@ def extract_contrastive_activations(
 
         pos_tokens = model.to_tokens(pos_prompt)
         pos_cached = extract_activations_hooked(
-            model, pos_tokens, layers, TokenSelector.ANSWER_TOKEN,
-            tokenizer, answer_token=pos_token,
+            model,
+            pos_tokens,
+            layers,
+            TokenSelector.ANSWER_TOKEN,
+            tokenizer,
+            answer_token=pos_token,
         )
 
         neg_tokens = model.to_tokens(neg_prompt)
         neg_cached = extract_activations_hooked(
-            model, neg_tokens, layers, TokenSelector.ANSWER_TOKEN,
-            tokenizer, answer_token=neg_token,
+            model,
+            neg_tokens,
+            layers,
+            TokenSelector.ANSWER_TOKEN,
+            tokenizer,
+            answer_token=neg_token,
         )
 
         for layer in layers:
@@ -172,8 +184,7 @@ def extract_framing_activations(
             ids = tokenizer.encode(text, add_special_tokens=False)
         except Exception as e:
             logger.warning(
-                f"Chat-template tokenization failed ({e}); "
-                f"falling back to plain tokenization."
+                f"Chat-template tokenization failed ({e}); " f"falling back to plain tokenization."
             )
             ids = tokenizer.encode(prompt, add_special_tokens=True)
         return torch.tensor([ids]).to(model.device)
@@ -182,7 +193,9 @@ def extract_framing_activations(
         for prompt in framing_data[label]:
             tokens = _tokenize(prompt)
             cached = extract_activations_hooked(
-                model, tokens, layers,
+                model,
+                tokens,
+                layers,
                 token_selector=TokenSelector.POSITION,
                 tokenizer=tokenizer,
                 position_index=token_position,
@@ -207,9 +220,7 @@ def _select_token_activation(
 ) -> torch.Tensor:
     if token_selector == TokenSelector.ANSWER_TOKEN:
         if tokenizer is None or answer_token is None:
-            raise ValueError(
-                "tokenizer and answer_token required for ANSWER_TOKEN selection"
-            )
+            raise ValueError("tokenizer and answer_token required for ANSWER_TOKEN selection")
         token_id = tokenizer.convert_tokens_to_ids(answer_token)
         positions = (tokens == token_id).nonzero()
         if len(positions) == 0:

@@ -57,8 +57,7 @@ def load_framing_data(data_path: str) -> dict:
         data = json.load(f)
     if not isinstance(data, dict) or "real" not in data or "fake" not in data:
         raise ValueError(
-            f"Framing data at {data_path} must be a JSON object with "
-            f"'real' and 'fake' keys."
+            f"Framing data at {data_path} must be a JSON object with " f"'real' and 'fake' keys."
         )
     return data
 
@@ -137,34 +136,26 @@ def train_framing(
     )
 
     probe = ContrastiveProbe()
-    probe.train_framing(
-        model, train_data, layers, tokenizer, token_position=token_position
-    )
+    probe.train_framing(model, train_data, layers, tokenizer, token_position=token_position)
 
     results: dict[int, dict] = {}
     if eval_real and eval_fake:
         logger.info("Evaluating framing probe on held-out split...")
-        results = _eval_framing_probe(
-            model, tokenizer, probe, eval_real, eval_fake, layers
-        )
+        results = _eval_framing_probe(model, tokenizer, probe, eval_real, eval_fake, layers)
 
     # Best layer + top-N by AUROC. If the held-out split was empty (e.g.
     # eval_split=0), fall back to the middle layer as a sane default.
     if results:
-        ranked = sorted(
-            results.items(), key=lambda kv: kv[1]["auroc"], reverse=True
-        )
+        ranked = sorted(results.items(), key=lambda kv: kv[1]["auroc"], reverse=True)
         best_layer, best_info = ranked[0]
         best_auroc = best_info["auroc"]
         top_layers = [l for l, _ in ranked[:top_n_layers]]
         threshold = best_info["threshold"]
     else:
-        logger.warning(
-            "No held-out evaluation data; selecting best_layer = middle layer."
-        )
+        logger.warning("No held-out evaluation data; selecting best_layer = middle layer.")
         best_layer = layers[len(layers) // 2]
         best_auroc = float("nan")
-        top_layers = layers[: top_n_layers]
+        top_layers = layers[:top_n_layers]
         threshold = 0.0
 
     probe.best_layer = best_layer
@@ -235,9 +226,7 @@ def train_contrastive(
             direction_tensor = torch.tensor(direction, dtype=ref.dtype, device=ref.device)
             probe.vectors[layer] = direction_tensor
             probe.normalized_vectors[layer] = direction_tensor
-            logger.info(
-                f"  Layer {layer}: logreg cv_auroc={info['cv_auroc']:.4f}"
-            )
+            logger.info(f"  Layer {layer}: logreg cv_auroc={info['cv_auroc']:.4f}")
     else:
         probe.train(model, train_data, layers, tokenizer)
 
@@ -257,13 +246,17 @@ def train_contrastive(
             pos = item.get("test") or item.get("positive")
             neg = item.get("deploy") or item.get("negative")
             try:
-                pos_score = probe.score(model, f"{question}\n\n {pos}", layer=layer, tokenizer=tokenizer)
+                pos_score = probe.score(
+                    model, f"{question}\n\n {pos}", layer=layer, tokenizer=tokenizer
+                )
                 labels.append(1)
                 scores.append(pos_score.mean_score)
             except Exception as e:
                 logger.warning(f"Error scoring positive: {e}")
             try:
-                neg_score = probe.score(model, f"{question}\n\n {neg}", layer=layer, tokenizer=tokenizer)
+                neg_score = probe.score(
+                    model, f"{question}\n\n {neg}", layer=layer, tokenizer=tokenizer
+                )
                 labels.append(0)
                 scores.append(neg_score.mean_score)
             except Exception as e:
@@ -281,8 +274,11 @@ def train_contrastive(
                 best_layer = layer
 
     top_layers = [
-        l for l, _ in sorted(
-            results.items(), key=lambda kv: kv[1].get("auroc", 0.0), reverse=True,
+        l
+        for l, _ in sorted(
+            results.items(),
+            key=lambda kv: kv[1].get("auroc", 0.0),
+            reverse=True,
         )
     ][:6]
 
@@ -331,16 +327,16 @@ def main():
         choices=["dom", "logreg"],
         default="dom",
         help="dom (difference-of-means) or logreg (L2 logistic regression). "
-             "Only applies to --dataset-format mcq.",
+        "Only applies to --dataset-format mcq.",
     )
     parser.add_argument(
         "--dataset-format",
         choices=["mcq", "framing"],
         default="mcq",
         help="mcq: list of {question, test, deploy} pairs (extract at "
-             "answer-token position). framing: {real: [...], fake: [...]} "
-             "colon-terminated prompts (extract at colon, position -2). "
-             "The framing path is the paper-fidelity option (Hua et al. 2025).",
+        "answer-token position). framing: {real: [...], fake: [...]} "
+        "colon-terminated prompts (extract at colon, position -2). "
+        "The framing path is the paper-fidelity option (Hua et al. 2025).",
     )
     parser.add_argument(
         "--token-position",
@@ -353,7 +349,7 @@ def main():
         type=int,
         default=6,
         help="How many top-AUROC layers to record in probe_info.json under "
-             "`top_layers` (used by multi-layer steering; paper uses 6).",
+        "`top_layers` (used by multi-layer steering; paper uses 6).",
     )
     args = parser.parse_args()
 
@@ -374,14 +370,23 @@ def main():
 
     if args.dataset_format == "framing":
         results = train_framing(
-            model, tokenizer, args.data, args.output, layers,
+            model,
+            tokenizer,
+            args.data,
+            args.output,
+            layers,
             eval_split=args.eval_split,
             token_position=args.token_position,
             top_n_layers=args.top_n_layers,
         )
     else:
         results = train_contrastive(
-            model, tokenizer, args.data, args.output, layers, args.eval_split,
+            model,
+            tokenizer,
+            args.data,
+            args.output,
+            layers,
+            args.eval_split,
             probe_method=args.probe_method,
         )
 

@@ -4,6 +4,7 @@ eval-awareness paper's Table 2 (DoomArena & WASP, bare arm, n200).
 Usage: run from project root:
     python scripts/compute_eval_awareness_table.py
 """
+
 import json
 from collections import defaultdict
 from pathlib import Path
@@ -44,14 +45,16 @@ def collect(benchmark: str):
                 if p_share is None:
                     p_share = p.get("score")
                 asr = v.get("metadata", {}).get("attack_success", False)
-                rows.append({
-                    "task_id": sid,
-                    "model": model_dir.name,
-                    "split": split_dir.name,
-                    "verb_eval": bool(v_eval),
-                    "purpose_share": float(p_share) if p_share is not None else None,
-                    "attack_success": bool(asr),
-                })
+                rows.append(
+                    {
+                        "task_id": sid,
+                        "model": model_dir.name,
+                        "split": split_dir.name,
+                        "verb_eval": bool(v_eval),
+                        "purpose_share": float(p_share) if p_share is not None else None,
+                        "attack_success": bool(asr),
+                    }
+                )
     return rows
 
 

@@ -174,9 +174,7 @@ class ContrastiveProbe:
             for pos in range(activation.shape[1]):
                 act = activation[0, pos, :]
                 projection = torch.dot(act, vec)
-                proj_val = (
-                    projection / vec.norm() if vector.dim() > 1 else projection.item()
-                )
+                proj_val = projection / vec.norm() if vector.dim() > 1 else projection.item()
                 if isinstance(proj_val, torch.Tensor):
                     proj_val = proj_val.item()
                 if pos == len(per_token_scores):
@@ -208,9 +206,7 @@ class ContrastiveProbe:
         mean_score = sum(filtered) / len(filtered)
         max_score = max(filtered)
         min_score = min(filtered)
-        std_score = (
-            sum((x - mean_score) ** 2 for x in filtered) / len(filtered)
-        ) ** 0.5
+        std_score = (sum((x - mean_score) ** 2 for x in filtered) / len(filtered)) ** 0.5
 
         classification, confidence = classify_score(mean_score, self.threshold)
 
@@ -261,9 +257,7 @@ class ContrastiveProbe:
         if norm_dir.exists():
             for f in sorted(norm_dir.glob("layer_*.pt")):
                 layer = int(f.stem.split("_")[1])
-                normalized_vectors[layer] = torch.load(
-                    f, map_location="cpu", weights_only=True
-                )
+                normalized_vectors[layer] = torch.load(f, map_location="cpu", weights_only=True)
         if vectors_dir.exists():
             for f in sorted(vectors_dir.glob("layer_*.pt")):
                 layer = int(f.stem.split("_")[1])
@@ -283,9 +277,7 @@ class ContrastiveProbe:
                 info = json.load(f)
             best_layer = info.get("best_layer")
             threshold = info.get("threshold", 0.0)
-            metadata = {
-                k: v for k, v in info.items() if k not in ("best_layer", "threshold")
-            }
+            metadata = {k: v for k, v in info.items() if k not in ("best_layer", "threshold")}
 
         logger.info(
             f"Loaded contrastive probe from {probe_dir} "
@@ -322,16 +314,19 @@ def train_logreg_direction(
         Cs = np.logspace(-4, 2, 20)
 
     X = np.concatenate([positive_activations, negative_activations], axis=0)
-    y = np.concatenate(
-        [np.ones(len(positive_activations)), np.zeros(len(negative_activations))]
-    )
+    y = np.concatenate([np.ones(len(positive_activations)), np.zeros(len(negative_activations))])
 
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
     clf = LogisticRegressionCV(
-        Cs=Cs, cv=5, penalty="l2", solver="lbfgs",
-        max_iter=2000, scoring="roc_auc", random_state=42,
+        Cs=Cs,
+        cv=5,
+        penalty="l2",
+        solver="lbfgs",
+        max_iter=2000,
+        scoring="roc_auc",
+        random_state=42,
     )
     clf.fit(X_scaled, y)
 

@@ -108,7 +108,9 @@ def print_p_eval_summary(summary: dict) -> None:
         for fmt in sorted(summary[source].keys()):
             for wtype in sorted(summary[source][fmt].keys()):
                 s = summary[source][fmt][wtype]
-                print(f"{source:<15} {fmt:<12} {wtype:<10} {s['mean']:>6.3f} {s['se']:>6.3f} {s['n']:>4d}")
+                print(
+                    f"{source:<15} {fmt:<12} {wtype:<10} {s['mean']:>6.3f} {s['se']:>6.3f} {s['n']:>4d}"
+                )
 
 
 def print_comparative_summary(wins: dict) -> None:
@@ -177,12 +179,19 @@ def plot_p_eval_bars(summary: dict, output_path: Path) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="Analyze eval awareness experiment results")
-    parser.add_argument("--results-dir", type=str, default="eval_awareness_experiments/results",
-                        help="Directory containing result JSONL files")
-    parser.add_argument("--output", type=str, default="eval_awareness_experiments/figures",
-                        help="Output directory for plots")
-    parser.add_argument("--csv", type=str, default=None,
-                        help="Export aggregated results to CSV")
+    parser.add_argument(
+        "--results-dir",
+        type=str,
+        default="eval_awareness_experiments/results",
+        help="Directory containing result JSONL files",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="eval_awareness_experiments/figures",
+        help="Output directory for plots",
+    )
+    parser.add_argument("--csv", type=str, default=None, help="Export aggregated results to CSV")
     args = parser.parse_args()
 
     results_dir = Path(args.results_dir)
@@ -208,23 +217,35 @@ def main():
     # Export CSV if requested
     if args.csv:
         import csv
+
         with open(args.csv, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=[
-                "sample_id", "experiment_type", "model", "format_used",
-                "score", "classification", "source", "website_type",
-            ])
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "sample_id",
+                    "experiment_type",
+                    "model",
+                    "format_used",
+                    "score",
+                    "classification",
+                    "source",
+                    "website_type",
+                ],
+            )
             writer.writeheader()
             for r in results:
-                writer.writerow({
-                    "sample_id": r.get("sample_id", ""),
-                    "experiment_type": r.get("experiment_type", ""),
-                    "model": r.get("model", ""),
-                    "format_used": r.get("format_used", ""),
-                    "score": r.get("score", ""),
-                    "classification": r.get("classification", ""),
-                    "source": r.get("metadata", {}).get("source", ""),
-                    "website_type": r.get("metadata", {}).get("website_type", ""),
-                })
+                writer.writerow(
+                    {
+                        "sample_id": r.get("sample_id", ""),
+                        "experiment_type": r.get("experiment_type", ""),
+                        "model": r.get("model", ""),
+                        "format_used": r.get("format_used", ""),
+                        "score": r.get("score", ""),
+                        "classification": r.get("classification", ""),
+                        "source": r.get("metadata", {}).get("source", ""),
+                        "website_type": r.get("metadata", {}).get("website_type", ""),
+                    }
+                )
         print(f"\nCSV exported to {args.csv}")
 
 

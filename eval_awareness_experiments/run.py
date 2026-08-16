@@ -56,46 +56,52 @@ def load_manifest(manifest_path: Path) -> list[WebsiteSample]:
                 html_path = base_path / f"{page_name}.html"
                 axtree_path = base_path / f"{page_name}_axtree.txt"
                 screenshot_path = base_path / f"{page_name}.png"
-                samples.append(WebsiteSample(
-                    id=f"{d['id']}_{page_name}",
-                    source=d["source"],
-                    website_type=website_type,
-                    html_path=str(html_path) if html_path.exists() else None,
-                    axtree_path=str(axtree_path) if axtree_path.exists() else None,
-                    screenshot_path=str(screenshot_path) if screenshot_path.exists() else None,
-                    metadata={**d.get("metadata", {}), "page": page_name},
-                ))
+                samples.append(
+                    WebsiteSample(
+                        id=f"{d['id']}_{page_name}",
+                        source=d["source"],
+                        website_type=website_type,
+                        html_path=str(html_path) if html_path.exists() else None,
+                        axtree_path=str(axtree_path) if axtree_path.exists() else None,
+                        screenshot_path=str(screenshot_path) if screenshot_path.exists() else None,
+                        metadata={**d.get("metadata", {}), "page": page_name},
+                    )
+                )
         elif "html_path" in d or "axtree_path" in d or "screenshot_path" in d:
             # Legacy format
-            samples.append(WebsiteSample(
-                id=d["id"],
-                source=d["source"],
-                website_type=d.get("website_type", "unknown"),
-                html_path=d.get("html_path"),
-                axtree_path=d.get("axtree_path"),
-                screenshot_path=d.get("screenshot_path"),
-                metadata=d.get("metadata", {}),
-            ))
+            samples.append(
+                WebsiteSample(
+                    id=d["id"],
+                    source=d["source"],
+                    website_type=d.get("website_type", "unknown"),
+                    html_path=d.get("html_path"),
+                    axtree_path=d.get("axtree_path"),
+                    screenshot_path=d.get("screenshot_path"),
+                    metadata=d.get("metadata", {}),
+                )
+            )
 
         # Expand trajectories into samples (for trajectory_awareness experiment)
         for traj in d.get("trajectories", []):
             traj_id = f"{d['id']}_traj_{traj.get('agent', 'unk')}_{traj.get('task_id', 'unk')}"
-            samples.append(WebsiteSample(
-                id=traj_id,
-                source=d["source"],
-                website_type=d.get("metadata", {}).get("website_type")
+            samples.append(
+                WebsiteSample(
+                    id=traj_id,
+                    source=d["source"],
+                    website_type=d.get("metadata", {}).get("website_type")
                     or d["id"].split("_", 1)[-1],
-                metadata={
-                    **d.get("metadata", {}),
-                    "trajectory_dir": traj.get("dir", ""),
-                    "benchmark": d["source"],
-                    "agent": traj.get("agent", ""),
-                    "task_id": traj.get("task_id", ""),
-                    "instruction": traj.get("instruction", ""),
-                    "passed": traj.get("passed"),
-                    "is_trajectory": True,
-                },
-            ))
+                    metadata={
+                        **d.get("metadata", {}),
+                        "trajectory_dir": traj.get("dir", ""),
+                        "benchmark": d["source"],
+                        "agent": traj.get("agent", ""),
+                        "task_id": traj.get("task_id", ""),
+                        "instruction": traj.get("instruction", ""),
+                        "passed": traj.get("passed"),
+                        "is_trajectory": True,
+                    },
+                )
+            )
 
     return samples
 
@@ -148,7 +154,9 @@ async def run_experiment(config: dict) -> None:
         seed = config.get("seed", 42)
         rng = random.Random(seed)
         samples = rng.sample(samples, max_samples)
-        print(f"Sampled {max_samples} of {len(samples) + max_samples - max_samples} samples (seed={seed})")
+        print(
+            f"Sampled {max_samples} of {len(samples) + max_samples - max_samples} samples (seed={seed})"
+        )
 
     print(f"Running {experiment_name} on {len(samples)} samples")
     print(f"  Models: {models}")
@@ -173,7 +181,8 @@ async def run_experiment(config: dict) -> None:
             cross_type = config.get("cross_type", False)
             for fmt in formats:
                 await experiment.run_pairs(
-                    samples, fmt,
+                    samples,
+                    fmt,
                     max_per_side=max_per_side,
                     seed=seed,
                     cross_type=cross_type,
@@ -189,25 +198,59 @@ async def run_experiment(config: dict) -> None:
 def main():
     parser = argparse.ArgumentParser(description="Run eval awareness experiments")
     parser.add_argument("--config", type=str, help="Path to YAML config file")
-    parser.add_argument("--experiment", type=str, choices=list(EXPERIMENT_CLASSES.keys()),
-                        help="Experiment type (if not using config)")
-    parser.add_argument("--models", type=str, nargs="+", default=["anthropic/claude-sonnet-4"],
-                        help="Models to use")
-    parser.add_argument("--formats", type=str, nargs="+", default=["html"],
-                        help="Format types: html, axtree, screenshot")
-    parser.add_argument("--judges", type=str, nargs="+", default=None,
-                        help="Judge names for trajectory_awareness experiment")
-    parser.add_argument("--sources", type=str, nargs="+", default=None,
-                        help="Filter by source: worldsim, webarena, agentcompany, real, doomarena, wasp, safearena")
-    parser.add_argument("--website-types", type=str, nargs="+", default=None,
-                        help="Filter by website type: github, gitlab, etc.")
-    parser.add_argument("--max-samples", type=int, default=None,
-                        help="Max samples to run (random subset)")
+    parser.add_argument(
+        "--experiment",
+        type=str,
+        choices=list(EXPERIMENT_CLASSES.keys()),
+        help="Experiment type (if not using config)",
+    )
+    parser.add_argument(
+        "--models", type=str, nargs="+", default=["anthropic/claude-sonnet-4"], help="Models to use"
+    )
+    parser.add_argument(
+        "--formats",
+        type=str,
+        nargs="+",
+        default=["html"],
+        help="Format types: html, axtree, screenshot",
+    )
+    parser.add_argument(
+        "--judges",
+        type=str,
+        nargs="+",
+        default=None,
+        help="Judge names for trajectory_awareness experiment",
+    )
+    parser.add_argument(
+        "--sources",
+        type=str,
+        nargs="+",
+        default=None,
+        help="Filter by source: worldsim, webarena, agentcompany, real, doomarena, wasp, safearena",
+    )
+    parser.add_argument(
+        "--website-types",
+        type=str,
+        nargs="+",
+        default=None,
+        help="Filter by website type: github, gitlab, etc.",
+    )
+    parser.add_argument(
+        "--max-samples", type=int, default=None, help="Max samples to run (random subset)"
+    )
     parser.add_argument("--seed", type=int, default=42, help="Random seed for sampling")
-    parser.add_argument("--manifest", type=str, default="eval_awareness_experiments/data/manifest.json",
-                        help="Path to manifest file")
-    parser.add_argument("--output-dir", type=str, default="eval_awareness_experiments/results",
-                        help="Output directory for results")
+    parser.add_argument(
+        "--manifest",
+        type=str,
+        default="eval_awareness_experiments/data/manifest.json",
+        help="Path to manifest file",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="eval_awareness_experiments/results",
+        help="Output directory for results",
+    )
     args = parser.parse_args()
 
     if args.config:
