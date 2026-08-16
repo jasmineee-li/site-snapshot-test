@@ -66,15 +66,19 @@ Current and target ownership should stay explicit:
   metadata only; new callers must require the named capability before
   admission. Legacy phase flags remain derived compatibility readers during
   the current migration cycle.
-- `warp_taskgen.site_composition`: static, diagnostic-only closure of existing
-  Site and Benchmark capability owners for one requested use case.
-  `site_composition_contracts.py` owns its immutable request, definition,
-  policy, evidence, finding, and report values;
-  `site_composition_defaults.py` projects the existing GitLab/Reddit owners;
-  and `site_composition.py` owns the explicit validators. This seam must
-  not execute editors, policies, browsers, evaluators, or host probes,
-  construct runtime catalogs, or grant admission. The CLI adapter belongs in
-  `warp_taskgen.cli.site_doctor` and only renders the compiler-owned report.
+- `warp_taskgen.site_composition`: static closure of immutable, data-only
+  `SiteComposition` declarations for one exact Site, Benchmark, use case,
+  carrier, and action kind. `site_composition_contracts.py` owns the semantic
+  owner declarations, request, finding, digest, and static-only report values;
+  the Host-Owned use-case catalog owns required owner roles and derives
+  `not_applicable`; `site_compositions/<site>.py` keeps each Site's pure
+  declaration local, and `site_composition_defaults.py` only aggregates the
+  GitLab, Reddit, and explicit Classifieds diagnostic declarations. This seam
+  reads declarations only. Executable owner behavior stays in its feature
+  module and is tested through `tests/sites/behavior_contract/` with fake adapters. The
+  canonical CLI adapter is `site composition check`; `site doctor` is a
+  temporary parser-level CLI alias, not a Python compatibility module. Static
+  completion does not grant active policy or prove live evidence.
 - `warp_taskgen.comparison_ingestion`: native AgentLab comparison payload
   validation, immutable comparison-result envelopes, provenance/artifact
   references, and atomic `comparison_result.json` persistence. This module

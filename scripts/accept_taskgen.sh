@@ -143,13 +143,14 @@ build_and_smoke_package() {
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/warp-taskgen" --help
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" -m warp_taskgen.main --help
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/warp-taskgen" \
-        site doctor gitlab --benchmark webarena_verified \
+        site composition check gitlab --benchmark webarena_verified \
         --use-case phase_2_feasibility --json
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/warp-taskgen" \
-        site doctor classifieds --benchmark visualwebarena \
-        --use-case ugc_reply --json
+        site composition check classifieds --benchmark visualwebarena \
+        --use-case public_reply --carrier listing_reply.body \
+        --action-kind answer_opposite_binary_label --json
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" -c \
-        "import importlib.resources; from warp_taskgen.site_composition import default_site_definitions; assert {item.site for item in default_site_definitions()} == {'classifieds', 'gitlab', 'reddit'}; assert importlib.resources.files('warp_taskgen').joinpath('site_composition.py').is_file()"
+        "import importlib.resources; from warp_taskgen.site_composition import default_site_compositions; assert {item.site for item in default_site_compositions()} == {'classifieds', 'gitlab', 'reddit'}; assert importlib.resources.files('warp_taskgen').joinpath('site_composition.py').is_file(); assert importlib.resources.files('warp_taskgen').joinpath('site_compositions', 'classifieds.py').is_file()"
     PYTHON_DOTENV_DISABLED=1 "$isolated_env/bin/python" \
         "$PACKAGE_DIR/scripts/compatibility_wheel_matrix.py" \
         --python "$isolated_env/bin/python" --package-root "$PACKAGE_DIR"
@@ -166,11 +167,12 @@ build_and_smoke_package() {
     uv venv --python "$python_version" "$sdist_env"
     uv pip install --python "$sdist_env/bin/python" "${sdists[0]}"
     PYTHON_DOTENV_DISABLED=1 "$sdist_env/bin/warp-taskgen" \
-        site doctor reddit --benchmark webarena_verified \
+        site composition check reddit --benchmark webarena_verified \
         --use-case phase_2_feasibility --json
     PYTHON_DOTENV_DISABLED=1 "$sdist_env/bin/warp-taskgen" \
-        site doctor classifieds --benchmark visualwebarena \
-        --use-case ugc_reply --json
+        site composition check classifieds --benchmark visualwebarena \
+        --use-case public_reply --carrier listing_reply.body \
+        --action-kind answer_opposite_binary_label --json
 
     sidecar_build_dir="$temporary_root/sidecar-dist"
     mkdir -p "$sidecar_build_dir"

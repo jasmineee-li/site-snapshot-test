@@ -1,10 +1,10 @@
-"""Proofs for the diagnostic composition package boundary.
+"""Proofs for the static Site Composition package boundary.
 
 These tests deliberately stay above the implementation details of the
-composition validator.  They protect the two boundaries a future Site
-definition must not cross: generic Phase code must remain Site-neutral, and
-the diagnostic module must be importable from the package rather than relying
-on a repository checkout or process-wide Site registration.
+Site Composition checker.  They protect the two boundaries a future Site
+composition must not cross: generic Phase code must remain Site-neutral, and
+the static module must be importable from the package rather than relying on a
+repository checkout or process-wide Site registration.
 """
 
 from __future__ import annotations
@@ -18,24 +18,24 @@ import tomllib
 from pathlib import Path
 
 from warp_taskgen.site_composition import (
-    ActiveSitePolicy,
-    CapabilityReference,
-    OperationalEvidence,
-    SiteBenchmarkBinding,
-    SiteDefinition,
-    SiteDoctorRequest,
-    compile_site_definitions,
-    default_site_definitions,
+    SiteBenchmarkComposition,
+    SiteComposition,
+    SiteCompositionCheckRequest,
+    SiteOwnerDeclaration,
+    check_site_composition,
+    default_site_compositions,
 )
 from warp_taskgen.sites import SiteCatalog
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOT = PACKAGE_ROOT / "warp_taskgen"
 
-# ``proof_forum`` is a test-only identity used by the composition conformance
-# fixture.  Keep the check narrow: ``forum`` is already a legitimate Reddit
-# domain noun in existing generic compatibility code.
-TEST_SITE_NOUNS = ("proof_forum", "proof_forum.thread_reply")
+# ``synthetic_discussion_forum`` is a test-only identity.  Keep the check
+# narrow so removing this fixture cannot alter generic production behavior.
+TEST_SITE_NOUNS = (
+    "synthetic_discussion_forum",
+    "synthetic_discussion_forum.comment_body.thread.create_comment",
+)
 GENERIC_FEATURES = (
     "phase_1",
     "phase_2",
@@ -48,6 +48,34 @@ GENERIC_FEATURES = (
 
 def _generic_production_sources() -> list[Path]:
     return [path for feature in GENERIC_FEATURES for path in (SOURCE_ROOT / feature).rglob("*.py")]
+
+
+def _missing_owner() -> SiteOwnerDeclaration:
+    return SiteOwnerDeclaration(state="missing", provenance=("test.definition",))
+
+
+def _missing_composition() -> SiteComposition:
+    missing = _missing_owner()
+    projection = SiteBenchmarkComposition(
+        benchmark="webarena_verified",
+        site_targeting=missing,
+        profile=missing,
+        editor_specification=missing,
+        regular_participant_writer=missing,
+        feasibility=missing,
+        read_surface=missing,
+        readback=missing,
+        final_state_evaluation=missing,
+        action_cards=missing,
+        supported_carriers=("comment.body",),
+        supported_action_kinds=("submit_comment",),
+        provenance=("test.definition",),
+    )
+    return SiteComposition(
+        site="synthetic_discussion_forum",
+        benchmark_compositions=(projection,),
+        provenance=("test.definition",),
+    )
 
 
 def test_test_only_site_nouns_stay_out_of_generic_phase_code() -> None:
@@ -66,99 +94,59 @@ def test_test_only_site_nouns_stay_out_of_generic_phase_code() -> None:
 
 
 def test_composition_import_does_not_mutate_the_runtime_site_catalog() -> None:
-    """Diagnostic registration is not production Site activation."""
+    """Static declarations are not production Site activation."""
 
     from warp_taskgen.editors import EDITOR_REGISTRY
 
     before = SiteCatalog().sites
     editor_before = dict(EDITOR_REGISTRY)
     importlib.import_module("warp_taskgen.site_composition")
-    default_site_definitions()
+    default_site_compositions()
     assert SiteCatalog().sites == before
     assert dict(EDITOR_REGISTRY) == editor_before
 
 
-def test_removed_definition_fails_closed_without_a_stale_edge() -> None:
-    """Deleting a definition changes only its explicit composition result."""
+def test_removed_composition_fails_closed_without_a_stale_edge() -> None:
+    """Deleting a composition changes only its explicit check result."""
 
-    request = SiteDoctorRequest(
-        site="proof_forum",
+    request = SiteCompositionCheckRequest(
+        site="synthetic_discussion_forum",
         benchmark="webarena_verified",
-        use_case="ugc_reply",
+        use_case="public_reply",
+        carrier="comment.body",
+        action_kind="submit_comment",
     )
-    policy = ActiveSitePolicy()
-    evidence = OperationalEvidence()
-    absent = CapabilityReference("missing", None, ("test.definition",))
-    registered = compile_site_definitions(
-        (
-            SiteDefinition(
-                site="proof_forum",
-                bindings=(
-                    SiteBenchmarkBinding(
-                        benchmark="webarena_verified",
-                        targeting=absent,
-                        profile=absent,
-                        editor_specs=absent,
-                        seed=absent,
-                        feasibility=absent,
-                        read_surface=absent,
-                        readback=absent,
-                        final_state=absent,
-                        action_cards=absent,
-                    ),
-                ),
-                provenance=("test.definition",),
-            ),
-        ),
-        request,
-        active_policy=policy,
-        operational_evidence=evidence,
-    )
-    removed = compile_site_definitions(
-        (),
-        request,
-        active_policy=policy,
-        operational_evidence=evidence,
-    )
+    registered = check_site_composition((_missing_composition(),), request)
+    removed = check_site_composition((), request)
 
     assert registered.static_status == "incomplete"
     assert removed.static_status == "invalid"
-    assert registered.definition_digest != removed.definition_digest
+    assert registered.site_composition_digest != removed.site_composition_digest
     assert "test.definition" not in removed.to_json()
     assert all("test.definition" not in str(finding.detail) for finding in removed.findings)
 
 
-def test_removing_unrelated_definition_preserves_active_site_diagnostics() -> None:
-    """Removing one Site cannot change another Site's diagnostic report."""
+def test_removing_unrelated_composition_preserves_active_site_checks() -> None:
+    """Removing one Site cannot change another Site's static check report."""
 
-    definitions = tuple(default_site_definitions())
+    definitions = tuple(default_site_compositions())
     gitlab_definitions = tuple(
         definition for definition in definitions if definition.site == "gitlab"
     )
-    request = SiteDoctorRequest(
+    request = SiteCompositionCheckRequest(
         site="gitlab",
         benchmark="webarena_verified",
         use_case="phase_2_feasibility",
     )
-    policy = ActiveSitePolicy()
-    evidence = OperationalEvidence()
-    complete_catalog_report = compile_site_definitions(
-        definitions,
-        request,
-        active_policy=policy,
-        operational_evidence=evidence,
-    )
-    gitlab_only_report = compile_site_definitions(
-        gitlab_definitions,
-        request,
-        active_policy=policy,
-        operational_evidence=evidence,
-    )
+    complete_catalog_report = check_site_composition(definitions, request)
+    gitlab_only_report = check_site_composition(gitlab_definitions, request)
 
     assert gitlab_definitions
     assert complete_catalog_report.static_status == gitlab_only_report.static_status
-    assert complete_catalog_report.status == gitlab_only_report.status
-    assert complete_catalog_report.definition_digest == gitlab_only_report.definition_digest
+    assert (
+        complete_catalog_report.site_composition_digest
+        == gitlab_only_report.site_composition_digest
+    )
     assert [
         (finding.capability, finding.state, finding.detail)
         for finding in complete_catalog_report.findings
