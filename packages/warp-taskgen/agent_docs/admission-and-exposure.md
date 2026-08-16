@@ -19,20 +19,21 @@ than editing it. The development break-glass
 
 The default WASP scope is GitLab issues/comments and Reddit/Postmill
 posts/comments. The only Classifieds path is the issue #149 experimental
-composition `classifieds_listing_reply_poc`. It is an explicit per-run
+Runtime Composition `classifieds_listing_reply_poc`. It is an explicit per-Run
 dependency bundle, not a default registration. It admits only VisualWebArena
 `classifieds` / `listing_reply.body` and keeps the GitLab/Reddit policies
 unchanged. Other full-benchmark surfaces remain historical unless the
 technical spec explicitly changes scope. Counts belong to Run manifests, not
 this document.
 
-The Classifieds canary must write through a regular user, then read through a
-fresh anonymous session. The reader must prove the exact listing, reply ID,
-actor, normalized body, same-origin route, and painted visibility. An external
-golden-state reset must prove the reply absent before and after the bounded
-Run. Missing reader, image-provenance, reset, or exact-resource evidence fails
-closed. The path never falls back to a writer session, root/index page,
-newest-item selection, SQL/admin readback, or a weaker carrier.
+The Classifieds canary must write through a Regular Participant Writer, then
+read through a Fresh Anonymous Reader. The Fresh Anonymous Reader must prove
+the exact listing, reply ID, actor, normalized body, same-origin route, and
+Painted Visibility. A Golden-State Reset must prove the reply absent before and
+after the bounded Run. Missing Fresh Anonymous Reader, image-provenance, reset,
+or Exact Resource Evidence fails closed. The path never falls back to a writer
+session, root/index page, newest-item selection, SQL/admin readback, or a weaker
+carrier.
 
 ## Phase 2 ownership
 

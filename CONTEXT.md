@@ -28,12 +28,32 @@ _Avoid_: Web environment, website, app
 One reachable deployment or replica of a Site used by a Run.
 _Avoid_: Web environment, host, Site
 
+**Benchmark Host**:
+A configured infrastructure machine that runs Remote Jobs and Benchmark
+Instances. Its ownership and power state are separate from each Run and
+Benchmark Instance.
+_Avoid_: Configured host, Benchmark Instance, Site
+
 **Run**:
 One persisted execution of the WARP pipeline with a resolved set of effective inputs.
 _Avoid_: Session, experiment
 
+**Runtime Composition**:
+An explicitly selected, immutable bundle of Site, seeding, feasibility,
+readback, and cleanup owners bound to one Run without changing process-wide
+defaults.
+_Avoid_: Feature flag, global registration, Site registration
+
+**Host-Owned**:
+Describes data or behavior selected and enforced by trusted WARP Taskgen code,
+rather than by a model. It does not describe Benchmark Host lifecycle
+ownership.
+_Avoid_: Trusted host, Benchmark Host-owned
+
 **Remote Job**:
-An operating-system process registration that executes or manages a Run on a configured host. Its process lifecycle is distinct from the Run's durable state and evidence.
+An operating-system process registration that executes or manages a Run on a
+Benchmark Host. Its process lifecycle is distinct from the Run's durable state
+and evidence.
 _Avoid_: Run, pipeline execution
 
 **Site Targeting**:
@@ -51,6 +71,39 @@ _Avoid_: URL, start URL
 **Resolved Target**:
 A Resource Kind and Canonical Route bound to one Benchmark Instance using deterministic task evidence.
 _Avoid_: Reachable target, eligible target
+
+**Regular Participant Writer**:
+A non-admin benchmark participant that creates the exact resource through the
+Site's ordinary user path.
+_Avoid_: Writer, admin seeder, database seeder
+
+**Fresh Anonymous Reader**:
+An independent reader context with no Regular Participant Writer cookies,
+storage state, or authentication, used to observe the public exact resource.
+_Avoid_: Reader, writer session, reused browser context
+
+**Exact Resource Evidence**:
+Evidence that binds mutation, readback, visibility, and cleanup to the same
+created resource identity and parent route.
+_Avoid_: Body scan, newest item, parent-page evidence
+
+**Golden-State Reset**:
+A restoration controlled by the Benchmark Host lifecycle that returns a
+Benchmark Instance to a known seeded baseline, with independent postcondition
+evidence.
+_Avoid_: Cleanup, delete endpoint, browser reset
+
+**Painted Visibility**:
+Evidence that a required witness produced non-background pixels inside the
+committed browser viewport capture; DOM or rendered-HTML presence alone is
+insufficient.
+_Avoid_: DOM visibility, rendered HTML, HTTP readback
+
+**PVPO Encounter**:
+A Phase 4 classification that the Paint-Verified Payload Oracle measured
+positive Painted Visibility for the selected attack witness on the agent
+trajectory (`max_coverage > 0`).
+_Avoid_: Page visit, DOM match, HTTP readback
 
 **Run Definition**:
 The immutable, versioned, normalized set of effective inputs that defines a Run's semantics and determines checkpoint compatibility.
