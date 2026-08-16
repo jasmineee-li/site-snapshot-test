@@ -14,13 +14,17 @@ from pathlib import Path
 
 import yaml
 
+from eval_awareness_experiments.experiments.comparative import ComparativeExperiment
+from eval_awareness_experiments.experiments.open_ended import OpenEndedExperiment
+from eval_awareness_experiments.experiments.p_eval import PEvalExperiment
+from eval_awareness_experiments.experiments.trajectory_awareness import (
+    TrajectoryAwarenessExperiment,
+)
+from eval_awareness_experiments.experiments.transcript_awareness import (
+    TranscriptAwarenessExperiment,
+)
 from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.types import WebsiteSample
-from eval_awareness_experiments.experiments.p_eval import PEvalExperiment
-from eval_awareness_experiments.experiments.comparative import ComparativeExperiment
-from eval_awareness_experiments.experiments.transcript_awareness import TranscriptAwarenessExperiment
-from eval_awareness_experiments.experiments.open_ended import OpenEndedExperiment
-from eval_awareness_experiments.experiments.trajectory_awareness import TrajectoryAwarenessExperiment
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -44,7 +48,7 @@ def load_manifest(manifest_path: Path) -> list[WebsiteSample]:
     data = json.loads(manifest_path.read_text(encoding="utf-8"))
     samples = []
     for d in data:
-        if "pages" in d and d["pages"]:
+        if d.get("pages"):
             # New format: expand each page into a sample
             base_path = Path(d["path"])
             website_type = d.get("metadata", {}).get("website_type") or d["id"].split("_", 1)[-1]
@@ -207,7 +211,7 @@ def main():
     args = parser.parse_args()
 
     if args.config:
-        with open(args.config, "r") as f:
+        with open(args.config) as f:
             config = yaml.safe_load(f)
     elif args.experiment:
         config = {

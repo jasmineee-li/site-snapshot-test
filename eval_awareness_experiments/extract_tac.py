@@ -252,7 +252,7 @@ async def extract_service(
                         print(f"  {service_name}/{page_name} FAILED after {max_retries} attempts (status={status})")
                         break
 
-                    info = await capture_page(page, service_output, page_name)
+                    await capture_page(page, service_output, page_name)
                     captured_pages.append(page_name)
                     print(f"  {service_name}/{page_name} ✓")
                     break

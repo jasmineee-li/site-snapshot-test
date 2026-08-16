@@ -15,9 +15,10 @@ import asyncio
 import json
 import logging
 import os
+from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from openai import AsyncOpenAI
 

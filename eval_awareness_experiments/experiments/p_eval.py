@@ -11,8 +11,11 @@ import logging
 from pathlib import Path
 
 from eval_awareness_experiments.experiments.base import BaseExperiment
-from eval_awareness_experiments.judges.probability_third_person import extract_probability, average_probabilities
 from eval_awareness_experiments.judges.binary_third_person import extract_label
+from eval_awareness_experiments.judges.probability_third_person import (
+    average_probabilities,
+    extract_probability,
+)
 from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.types import WebsiteExperimentResult, WebsiteSample
 

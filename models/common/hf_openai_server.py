@@ -15,7 +15,7 @@ from typing import Any
 
 import torch
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from transformers import AutoModelForCausalLM, AutoProcessor
 
 from probes.contrastive_probe import ContrastiveProbe

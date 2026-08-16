@@ -26,7 +26,6 @@ Usage Examples:
 """
 
 import argparse
-import json
 import logging
 import sys
 from datetime import datetime
@@ -37,10 +36,9 @@ sys.path.insert(0, str(Path(__file__).parent / "AgentLab" / "src"))
 
 from agentlab.experiments.rerun_utils import (
     RerunConfig,
+    copy_html_for_rerun,
     get_study_summary,
     rejudge_study,
-    find_experiments_to_rerun,
-    copy_html_for_rerun,
 )
 
 logging.basicConfig(
@@ -62,10 +60,10 @@ def cmd_summary(args):
     print(f"Failed/No steps: {summary['failed']}")
     print(f"No judge configured: {summary['no_judge']}")
     print(f"Successful attacks: {summary['success']}")
-    print(f"\nBy mode:")
+    print("\nBy mode:")
     print(f"  Benign: {summary['by_mode']['benign']}")
     print(f"  Adversarial: {summary['by_mode']['adversarial']}")
-    print(f"\nBy behavior:")
+    print("\nBy behavior:")
     for bid, stats in summary["by_behavior"].items():
         status = "✅" if stats["success"] > 0 else "❌"
         print(f"  {status} {bid}: {stats['success']}/{stats['total']} success")
@@ -97,9 +95,9 @@ def cmd_rejudge(args):
 
 def cmd_rerun(args):
     """Rerun experiments with flexible configuration."""
-    from agentlab.experiments.study import Study
-    from agentlab.benchmarks.redteam import RedteamBenchmark
     from agentlab.agents.generic_agent.agent_configs import AGENT_SONNET_3_7
+    from agentlab.benchmarks.redteam import RedteamBenchmark
+    from agentlab.experiments.study import Study
 
     # Create benchmark with configuration
     benchmark_kwargs = {

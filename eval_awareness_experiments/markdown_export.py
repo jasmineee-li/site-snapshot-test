@@ -85,7 +85,7 @@ def _render_header(t: dict, judge_rows: list[dict]) -> str:
     md.append(f"- **Task passed (utility)**: {_bool_emoji(t.get('passed'))}")
     md.append(f"- **Steps**: {len(t.get('steps', []))}"
               + (" (hit max turns)" if t.get('metadata', {}).get('hit_max_turns') else ""))
-    complied, note = _scratchpad_compliance(t)
+    _complied, note = _scratchpad_compliance(t)
     if note:
         md.append(f"- **Scratchpad compliance**: {note}")
     if judge_rows:

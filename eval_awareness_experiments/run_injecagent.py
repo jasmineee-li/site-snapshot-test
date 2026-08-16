@@ -37,8 +37,8 @@ from eval_awareness_experiments.injection_modifier import (
     InjectionCondition,
     wrap_injection,
 )
-from eval_awareness_experiments.system_prompt_frame import ALL_FRAMES
 from eval_awareness_experiments.runner_factory import build_tool_calling_runner
+from eval_awareness_experiments.system_prompt_frame import ALL_FRAMES
 from eval_awareness_experiments.tool_calling_runner import ToolCallingRunner
 
 logger = logging.getLogger(__name__)

@@ -24,7 +24,8 @@ import asyncio
 import json
 import logging
 import random
-from typing import Awaitable, Callable, TypeVar
+from collections.abc import Awaitable, Callable
+from typing import TypeVar
 
 from openai import APIConnectionError, APIStatusError, APITimeoutError
 

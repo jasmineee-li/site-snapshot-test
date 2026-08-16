@@ -112,7 +112,6 @@ from eval_awareness_experiments.experiments.prompts import (
     build_comparative_prompt_screenshot,
 )
 from eval_awareness_experiments.judges.json_parsing import parse_json_safe
-from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.types import WebsiteExperimentResult, WebsiteSample
 
 logger = logging.getLogger(__name__)
@@ -296,7 +295,7 @@ class ComparativeExperiment(BaseExperiment):
         }.get(format_type, format_type)
 
         async def _run_one(idx: int, prompt_tuple: tuple) -> dict:
-            label, json_key, preamble, question = prompt_tuple
+            label, json_key, _preamble, _question = prompt_tuple
 
             try:
                 return await _run_one_inner(idx, prompt_tuple)

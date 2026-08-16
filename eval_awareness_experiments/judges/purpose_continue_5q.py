@@ -104,7 +104,7 @@ class PurposeContinue5qJudge(BaseJudge):
 
     async def _run_variant(self, messages_base: list, prompt_data: dict) -> dict:
         question = prompt_data["question"]
-        messages = messages_base + [ChatMessageUser(content=question)]
+        messages = [*messages_base, ChatMessageUser(content=question)]
 
         continuation_output = await self.grader_model.generate(messages)
         model_reflection = continuation_output.message.text

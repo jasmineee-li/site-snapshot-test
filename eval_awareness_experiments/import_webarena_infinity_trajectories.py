@@ -132,7 +132,7 @@ def import_trajectories(
                 candidates.append((agent, tid))
 
         if not candidates:
-            print(f"  No trajectories found, skipping")
+            print("  No trajectories found, skipping")
             continue
 
         # Sample

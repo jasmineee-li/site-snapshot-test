@@ -147,8 +147,10 @@ async def run_trajectory_judges(
     output_dir: Path,
 ) -> None:
     """Run trajectory awareness judges on discovered DoomArena trajectories."""
+    from eval_awareness_experiments.experiments.trajectory_awareness import (
+        TrajectoryAwarenessExperiment,
+    )
     from eval_awareness_experiments.llm import LLM
-    from eval_awareness_experiments.experiments.trajectory_awareness import TrajectoryAwarenessExperiment
     from eval_awareness_experiments.types import WebsiteSample
 
     if not trajectory_dirs:

@@ -44,8 +44,8 @@ from doomarena.core.attack_config import AttackConfig
 
 
 def _patch_browsergym_reachability(online_sites: set[str]) -> None:
-    import requests
     import browsergym.webarena.instance as webarena_instance
+    import requests
 
     def _check_is_reachable(self, timeout):
         for site, url in self.urls.items():

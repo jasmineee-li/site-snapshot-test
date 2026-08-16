@@ -199,8 +199,8 @@ def summarize_layer_scores(
         if len(scores) != len(labels):
             continue
         auroc = calculate_auroc(labels, scores)
-        eval_scores = [s for label, s in zip(labels, scores) if label == 1]
-        deploy_scores = [s for label, s in zip(labels, scores) if label == 0]
+        eval_scores = [s for label, s in zip(labels, scores, strict=True) if label == 1]
+        deploy_scores = [s for label, s in zip(labels, scores, strict=True) if label == 0]
         results[str(layer)] = {
             "auroc": auroc.auroc,
             "threshold": auroc.optimal_threshold,

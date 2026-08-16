@@ -30,9 +30,10 @@ the same intervention). If you need token-conditional steering, modify
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any
 
 import torch
 from transformers import StoppingCriteria, StoppingCriteriaList
@@ -104,7 +105,7 @@ def steering_hook(
     installed: list[tuple[int, float, float]] = []
 
     try:
-        for tgt_layer, tgt_alpha in zip(target_layers, target_alphas):
+        for tgt_layer, tgt_alpha in zip(target_layers, target_alphas, strict=True):
             if tgt_layer not in vec_dict:
                 raise ValueError(f"No probe vector for layer {tgt_layer}")
             if not (0 <= tgt_layer < n_layers_total):

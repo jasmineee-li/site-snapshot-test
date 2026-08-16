@@ -192,7 +192,9 @@ class ContrastiveProbe:
             token_strings = [tokenizer.decode([t]) for t in tokens[0].tolist()]
             filtered = [
                 s
-                for s, tok in zip(per_token_scores, token_strings)
+                # strict=False: the hook only fills per_token_scores for the
+                # positions the forward pass reached, so it may be shorter.
+                for s, tok in zip(per_token_scores, token_strings, strict=False)
                 if tok.strip()
                 and "<|begin_of_text|>" not in tok
                 and "<s>" not in tok

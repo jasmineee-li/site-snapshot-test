@@ -45,11 +45,14 @@ def create_app(results_dir: Path) -> Flask:
         for c in cells:
             b, a, m = c["benchmark"], c["arm"], c["model_slug"]
             if b not in seen_b:
-                benchmarks.append(b); seen_b.add(b)
+                benchmarks.append(b)
+                seen_b.add(b)
             if a not in seen_a:
-                arms.append(a); seen_a.add(a)
+                arms.append(a)
+                seen_a.add(a)
             if m not in seen_m:
-                models.append(m); seen_m.add(m)
+                models.append(m)
+                seen_m.add(m)
             cell_index[(b, a, m)] = c
 
         # Stable arm ordering: canonical first, then alphabetical

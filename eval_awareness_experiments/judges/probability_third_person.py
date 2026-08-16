@@ -8,10 +8,10 @@ import logging
 import re
 from pathlib import Path
 
-from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.judges.base import BaseJudge
-from eval_awareness_experiments.judges.transcript_utils import transcript_to_xml
 from eval_awareness_experiments.judges.registry import register_judge
+from eval_awareness_experiments.judges.transcript_utils import transcript_to_xml
+from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.types import JudgeResult, ReasoningCategory, Transcript
 
 logger = logging.getLogger(__name__)

@@ -10,8 +10,8 @@ design from observed results.
 
 - Experiment design, prompts, judges, analysis, or causal conditions: read
   `EXPERIMENTS.md` first.
-- Dependency, environment, container, or benchmark setup: read `SETUP.md`, then
-  `SAFETY_BENCHMARKS_HANDOFF.md` for safety-benchmark runners.
+- Dependency, environment, lint, container, or benchmark setup: read `SETUP.md`,
+  then `SAFETY_BENCHMARKS_HANDOFF.md` for safety-benchmark runners.
 - Website extraction or trajectory import: read `data/IMPORTING.md` and, when
   its format description is needed, `data/README.md`.
 - A new run, result interpretation, or handoff: read

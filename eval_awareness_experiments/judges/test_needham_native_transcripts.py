@@ -6,8 +6,7 @@ import pytest
 
 from eval_awareness_experiments.judges.purpose import PurposeXMLJudge
 from eval_awareness_experiments.judges.transcript_utils import transcript_to_needham_xml
-from eval_awareness_experiments.trajectory_converter import trajectory_to_transcript
-from eval_awareness_experiments.trajectory_converter import _goal_to_text
+from eval_awareness_experiments.trajectory_converter import _goal_to_text, trajectory_to_transcript
 from eval_awareness_experiments.types import (
     Message,
     ReasoningCategory,

@@ -117,7 +117,7 @@ def main():
         sample_a = sample_by_id.get(a_id)
         sample_b = sample_by_id.get(b_id)
         if not sample_a or not sample_b:
-            print(f"WARN: missing sample in manifest")
+            print("WARN: missing sample in manifest")
             continue
 
         content_a = load_content(sample_a, args.format)
@@ -134,7 +134,9 @@ def main():
 
         # Show a few of the 8 judge prompts with their responses
         prompt_results = md.get("prompt_results", [])
-        for i, (pt, pr) in enumerate(zip(JUDGE_PROMPTS, prompt_results)):
+        # strict=False: a partial result file legitimately has fewer entries
+        # than JUDGE_PROMPTS, and the loop below stops early anyway.
+        for i, (pt, pr) in enumerate(zip(JUDGE_PROMPTS, prompt_results, strict=False)):
             if i >= args.n_prompts:
                 break
             label, json_key, preamble, question = pt
@@ -157,7 +159,7 @@ def main():
             print("-" * 80)
             print(prompt_header)
             print("-" * 80)
-            print(f"MODEL RESPONSE:")
+            print("MODEL RESPONSE:")
             print(pr.get("raw_response", "[no response]"))
             print(f"\nParsed choice: {pr.get('choice')}  confidence: {pr.get('confidence')}")
             print(f"chosen_eval_source: {pr.get('chosen_eval_source')}")

@@ -92,7 +92,7 @@ def run_safearena_tasks(
                 break
     if tasks_file is None or not tasks_file.exists():
         print(f"SafeArena {split}.json not found. Download from HuggingFace:")
-        print(f"  huggingface-cli download McGill-NLP/safearena --repo-type dataset")
+        print("  huggingface-cli download McGill-NLP/safearena --repo-type dataset")
         sys.exit(1)
 
     tasks = json.loads(tasks_file.read_text())

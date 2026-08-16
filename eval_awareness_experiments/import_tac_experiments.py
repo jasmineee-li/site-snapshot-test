@@ -21,8 +21,9 @@ import json
 import os
 import random
 import shutil
-import yaml
 from pathlib import Path
+
+import yaml
 
 TAC_EXPERIMENTS = Path("external_benchmarks/tac-experiments/evaluation/1.0.0")
 TAC_TASKS = Path("external_benchmarks/TheAgentCompany/workspaces/tasks")
@@ -131,7 +132,7 @@ def import_run(
     traj_ext = detect_traj_format(run_name)
 
     if not traj_dir.exists():
-        print(f"  No trajectories dir, skipping")
+        print("  No trajectories dir, skipping")
         return []
 
     # List all tasks with trajectories
@@ -212,7 +213,7 @@ def update_manifest(
     # Group trajectories by service combination for manifest entries
     # Each unique service set gets one manifest entry
     service_groups: dict[str, list[dict]] = {}
-    for run_name, trajs in trajectories_by_run.items():
+    for _run_name, trajs in trajectories_by_run.items():
         for t in trajs:
             key = ",".join(sorted(t["services"])) if t["services"] else "none"
             service_groups.setdefault(key, []).append(t)

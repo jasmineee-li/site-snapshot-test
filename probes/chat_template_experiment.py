@@ -187,10 +187,13 @@ def score_chat_mean(
     vector = probe.normalized_vectors[layer]
     vec = vector[0] if vector.dim() > 1 else vector
     scores: list[float] = []
+    # Decode once, up here: `hook_fn` must not close over `tokens`, because the
+    # `finally` below deletes that binding. A hook that outlived the `with`
+    # block and read `tokens` would raise NameError instead of scoring.
+    token_strings = [tokenizer.decode([t]) for t in tokens[0].tolist()]
 
     def hook_fn(activation, hook):
         v = vec.to(device=activation.device, dtype=activation.dtype)
-        token_strings = [tokenizer.decode([t]) for t in tokens[0].tolist()]
         for pos, tok in enumerate(token_strings):
             if not tok.strip() or tok.startswith("<|") or tok in {"<s>", "</s>"}:
                 continue
@@ -583,7 +586,9 @@ def cross_validate_chat(
     auroc_b = roc_auc_score(labels_b, [-s for s in scores_b])
 
     def mean_for(labels: list[int], scores: list[float], label: int) -> float:
-        vals = [s for l, s in zip(labels, scores) if l == label]
+        # strict=False: lengths come from the caller, so keep the historical
+        # truncate-to-shortest behavior rather than raising mid-experiment.
+        vals = [s for l, s in zip(labels, scores, strict=False) if l == label]
         return sum(vals) / len(vals)
 
     cosine_at_mcq = None

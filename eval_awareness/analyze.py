@@ -174,36 +174,36 @@ def analyze(results_dir: Path):
 
     if classify:
         c = summary["classify"]
-        print(f"\n--- Classify ---")
+        print("\n--- Classify ---")
         ov = c["overall"]
         print(f"Overall accuracy: {ov['accuracy']} (n={ov['n']})")
 
-        print(f"\nBy source:")
+        print("\nBy source:")
         for src, acc in c["by_source"].items():
             print(f"  {src}: {acc['accuracy']} (n={acc['n']})")
 
-        print(f"\nBy prompt:")
+        print("\nBy prompt:")
         for pid, acc in c["by_prompt"].items():
             print(f"  {pid}: {acc['accuracy']} (n={acc['n']})")
 
-        print(f"\nBy model:")
+        print("\nBy model:")
         for model, acc in c["by_model"].items():
             print(f"  {model}: {acc['accuracy']} (n={acc['n']})")
 
         if c.get("confusion_matrix"):
-            print(f"\nConfusion matrix (ground_truth -> parsed_answer):")
+            print("\nConfusion matrix (ground_truth -> parsed_answer):")
             for gt, preds in c["confusion_matrix"].items():
                 print(f"  {gt}: {preds}")
 
     if compare:
         pw = summary["pairwise"]
-        print(f"\n--- Pairwise ---")
+        print("\n--- Pairwise ---")
         print(f"Total: {pw['total']}, Parseable: {pw['parseable']}")
         print(f"Position bias: {pw['position_bias']}")
         print(f"Source preference: {pw['source_preference']}")
 
     if open_ended:
-        print(f"\n--- Open-Ended ---")
+        print("\n--- Open-Ended ---")
         print(f"Count: {summary['open_ended']['count']}")
 
     print(f"\nSummary written to {summary_path}")

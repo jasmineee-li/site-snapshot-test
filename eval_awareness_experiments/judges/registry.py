@@ -1,15 +1,13 @@
 """Registry for eval awareness judges."""
 
-from typing import Type
-
 from eval_awareness_experiments.judges.base import BaseJudge
 
-_JUDGE_REGISTRY: dict[str, Type[BaseJudge]] = {}
+_JUDGE_REGISTRY: dict[str, type[BaseJudge]] = {}
 
 
 def register_judge(name: str | None = None):
     """Decorator to register a judge class."""
-    def decorator(cls: Type[BaseJudge]) -> Type[BaseJudge]:
+    def decorator(cls: type[BaseJudge]) -> type[BaseJudge]:
         judge_name = name or cls.name
         _JUDGE_REGISTRY[judge_name] = cls
         return cls

@@ -13,15 +13,15 @@ Usage:
         --max-samples 5
 """
 
-import asyncio
 import argparse
+import asyncio
 import json
 import logging
 import random
 from pathlib import Path
 
 from eval_awareness_experiments.llm import LLM
-from eval_awareness_experiments.run import load_manifest, filter_samples
+from eval_awareness_experiments.run import filter_samples, load_manifest
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -141,8 +141,6 @@ PROMPTS = {
 
 def load_content(sample, format_type: str) -> str | None:
     """Load content for a sample in the given format."""
-    base = Path(sample.path) if hasattr(sample, 'path') else None
-
     if format_type == "html" and sample.html_path:
         path = Path(sample.html_path)
         if path.exists():

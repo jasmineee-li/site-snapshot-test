@@ -105,8 +105,8 @@ def main() -> None:
     auroc_B = roc_auc_score(labels_B, [-s for s in scores_B])
     auroc_B_unflipped = roc_auc_score(labels_B, scores_B)
     n_pairs = len(labels_B) // 2
-    mean_pos = sum(s for l, s in zip(labels_B, scores_B) if l == 1) / n_pairs
-    mean_neg = sum(s for l, s in zip(labels_B, scores_B) if l == 0) / n_pairs
+    mean_pos = sum(s for l, s in zip(labels_B, scores_B, strict=True) if l == 1) / n_pairs
+    mean_neg = sum(s for l, s in zip(labels_B, scores_B, strict=True) if l == 0) / n_pairs
     print(f"AUROC(label=is_eval, score=-Framing-mean) = {auroc_B:.4f}")
     print(f"  mean(eval-positive) = {mean_pos:+.4f}    mean(deploy-neg) = {mean_neg:+.4f}    Δ = {mean_pos - mean_neg:+.4f}")
     print(f"  (sanity) AUROC unflipped = {auroc_B_unflipped:.4f}")

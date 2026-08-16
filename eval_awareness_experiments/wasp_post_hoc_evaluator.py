@@ -42,7 +42,7 @@ import logging
 import pickle
 import re
 import sys
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
