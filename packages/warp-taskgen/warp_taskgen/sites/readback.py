@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Set
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, Literal
+from typing import Any, Literal, Protocol, runtime_checkable
 
 ReadbackKind = Literal["resource_identity", "resource_signature", "comment_visibility"]
 
@@ -62,9 +62,69 @@ class ReadbackFailure:
     detail: str
 
 
+@runtime_checkable
+class ReadbackObservationCapability(Protocol):
+    """Optional Site-owned interpretation of an ordinary-reader HTML page.
+
+    The render executor owns the browser context and supplies the resulting
+    HTML.  A Site may project that HTML into a typed :class:`ReadbackObservation`
+    using its already-bound read-surface plan; no selector language or browser
+    behavior is part of this capability.
+    """
+
+    def observe_readback_html(
+        self,
+        html: str,
+        plan: Any,
+    ) -> ReadbackObservation | ReadbackFailure: ...
+
+    def readback_visibility_selector(self, plan: Any) -> str | ReadbackFailure: ...
+
+
 class BoundReadback:
     _adapter: Any
     _context: Any
+
+    def supports_readback_observation(self) -> bool:
+        """Return whether the bound adapter declares the optional HTML hook."""
+
+        return callable(getattr(self._adapter, "observe_readback_html", None)) and callable(
+            getattr(self._adapter, "readback_visibility_selector", None)
+        )
+
+    def readback_visibility_selector(self, plan: Any) -> str | ReadbackFailure:
+        """Return one Site-owned selector for the exact observed resource."""
+
+        selector_builder = getattr(self._adapter, "readback_visibility_selector", None)
+        if not callable(selector_builder):
+            return ReadbackFailure(
+                self._context.site,
+                "unsupported_readback_visibility",
+                "Site does not provide exact-resource visibility targeting",
+            )
+        try:
+            selector = selector_builder(plan)
+        except Exception as exc:
+            return ReadbackFailure(
+                self._context.site,
+                "readback_visibility_error",
+                f"{exc.__class__.__name__}: {exc}",
+            )
+        if isinstance(selector, ReadbackFailure):
+            return selector
+        if (
+            not isinstance(selector, str)
+            or not selector.strip()
+            or len(selector) > 240
+            or "\n" in selector
+            or "\r" in selector
+        ):
+            return ReadbackFailure(
+                self._context.site,
+                "invalid_readback_visibility",
+                "Site returned an invalid exact-resource selector",
+            )
+        return selector.strip()
 
     def interpret_readback(
         self,
@@ -106,6 +166,55 @@ class BoundReadback:
             )
         return decision
 
+    def observe_readback_html(
+        self,
+        html: str,
+        plan: Any,
+    ) -> ReadbackObservation | ReadbackFailure:
+        """Project ordinary-reader HTML through an optional Site capability.
+
+        Existing Sites do not need this hook: the compatibility render path
+        continues to use their established readback probes.  A Site that
+        declares the hook owns the HTML interpretation and is still checked
+        by :meth:`interpret_readback` before render verification can pass.
+        """
+
+        observer = getattr(self._adapter, "observe_readback_html", None)
+        if not callable(observer):
+            return ReadbackFailure(
+                self._context.site,
+                "unsupported_readback_observation",
+                "Site does not provide ordinary-reader HTML observation",
+            )
+        if not isinstance(html, str):
+            return ReadbackFailure(
+                self._context.site,
+                "malformed_readback_html",
+                "ordinary-reader readback HTML must be text",
+            )
+        supported = getattr(self._adapter, "supported_benchmarks", frozenset())
+        if self._context.benchmark not in supported:
+            return ReadbackFailure(
+                self._context.site,
+                "unsupported_benchmark",
+                f"benchmark {self._context.benchmark!r} is not supported by this Site",
+            )
+        try:
+            observation = observer(html, plan)
+        except Exception as exc:
+            return ReadbackFailure(
+                self._context.site,
+                "readback_observer_error",
+                f"{exc.__class__.__name__}: {exc}",
+            )
+        if not isinstance(observation, (ReadbackObservation, ReadbackFailure)):
+            return ReadbackFailure(
+                self._context.site,
+                "invalid_readback_observation",
+                "Site returned an unsupported readback observation value",
+            )
+        return observation
+
 
 __all__ = [
     "BoundReadback",
@@ -113,5 +222,6 @@ __all__ = [
     "ReadbackFailure",
     "ReadbackKind",
     "ReadbackObservation",
+    "ReadbackObservationCapability",
     "identity_token_text",
 ]

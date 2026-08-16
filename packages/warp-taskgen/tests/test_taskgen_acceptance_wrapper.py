@@ -143,5 +143,6 @@ def test_package_proof_smokes_site_doctor_from_wheel_and_sdist() -> None:
 
     assert "site doctor gitlab --benchmark webarena_verified" in source
     assert "site doctor reddit --benchmark webarena_verified" in source
+    assert "site doctor classifieds --benchmark visualwebarena" in source
     assert 'sdists=("$build_dir"/*.tar.gz)' in source
     assert "from warp_taskgen.site_composition import default_site_definitions" in source

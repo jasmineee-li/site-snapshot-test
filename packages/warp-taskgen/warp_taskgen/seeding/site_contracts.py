@@ -12,6 +12,7 @@ cleanup semantics; Phase 2/2c still owns exposure and admission policy.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -21,6 +22,60 @@ from warp_taskgen.benchmark_capabilities import get_benchmark_capabilities, norm
 
 EditorFactory = Callable[[dict[str, Any], Any], Any]
 EditorKey = tuple[str, str]
+
+_IDENTITY_TOKEN_KEY_RE = re.compile(r"[a-z][a-z0-9_]{0,63}")
+_SENSITIVE_IDENTITY_TERMS = (
+    "authorization",
+    "cookie",
+    "credential",
+    "header",
+    "password",
+    "secret",
+    "token",
+)
+_LEGACY_WRITE_TOKEN_KEYS = (
+    "note_id",
+    "issue_iid",
+    "project_id",
+    "comment_id",
+    "submission_id",
+    "review_id",
+)
+
+
+def normalize_identity_tokens(value: object) -> Mapping[str, str | int]:
+    """Validate small, secret-free scalar identities emitted by an editor."""
+
+    if value in (None, {}):
+        return MappingProxyType({})
+    if not isinstance(value, Mapping) or len(value) > 16:
+        raise ValueError("identity tokens must be a small mapping")
+    normalized: dict[str, str | int] = {}
+    for raw_key, raw_value in value.items():
+        if not isinstance(raw_key, str):
+            raise ValueError("identity tokens require semantic string keys")
+        key = raw_key.strip().lower()
+        if _IDENTITY_TOKEN_KEY_RE.fullmatch(key) is None or any(
+            term in key for term in _SENSITIVE_IDENTITY_TERMS
+        ):
+            raise ValueError("identity tokens require safe semantic keys")
+        if isinstance(raw_value, bool) or not isinstance(raw_value, (str, int)):
+            raise ValueError("identity tokens require scalar string or integer values")
+        token_value: str | int
+        if isinstance(raw_value, str):
+            token_value = raw_value.strip()
+            if (
+                not token_value
+                or len(token_value) > 200
+                or "\n" in token_value
+                or "\r" in token_value
+                or "://" in token_value
+            ):
+                raise ValueError("identity tokens require bounded non-URL values")
+        else:
+            token_value = raw_value
+        normalized[key] = token_value
+    return MappingProxyType(dict(sorted(normalized.items())))
 
 
 @dataclass(frozen=True)
@@ -225,21 +280,17 @@ class EditorSeedResult:
             if isinstance(raw_urls, list)
             else ()
         )
-        write_tokens = {
-            key: value[key]
-            for key in (
-                "note_id",
-                "issue_iid",
-                "project_id",
-                "comment_id",
-                "submission_id",
-                "review_id",
-            )
-            if value.get(key) not in (None, "")
+        write_tokens: dict[str, str | int] = {
+            key: value[key] for key in _LEGACY_WRITE_TOKEN_KEYS if value.get(key) not in (None, "")
         }
+        declared_tokens = normalize_identity_tokens(value.get("identity_tokens"))
+        for key, token_value in declared_tokens.items():
+            if key in write_tokens and write_tokens[key] != token_value:
+                raise ValueError(f"identity tokens conflict for {key!r}")
+            write_tokens[key] = token_value
         source = value.get("read_surface_provenance_source")
         return cls(
-            write_tokens=MappingProxyType(write_tokens),
+            write_tokens=MappingProxyType(dict(sorted(write_tokens.items()))),
             created_resources=resources,
             read_surface_urls=urls,
             read_surface_provenance_source=(
@@ -279,4 +330,5 @@ __all__ = [
     "ReadSurfaceFact",
     "SeedSiteRegistration",
     "SeedSiteRegistry",
+    "normalize_identity_tokens",
 ]

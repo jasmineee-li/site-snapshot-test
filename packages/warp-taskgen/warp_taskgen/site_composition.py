@@ -323,6 +323,19 @@ def _validate_reference(
         )
         if any(not callable(getattr(owner, method, None)) for method in required):
             return "unsupported", "Site has no complete profile-route capability"
+        if request.carrier:
+            try:
+                canonical = owner.canonicalize_surface_id(
+                    benchmark=binding.benchmark,
+                    raw_surface_id=request.carrier,
+                )
+            except Exception as exc:
+                return (
+                    "unsupported",
+                    f"profile carrier validation failed ({exc.__class__.__name__})",
+                )
+            if canonical is None:
+                return "missing", "profile does not expose the requested carrier"
     elif name == "editor_specs":
         from warp_taskgen.editors._registry import EditorMethodSpec
 
@@ -654,7 +667,11 @@ def compile_site_definitions(
             request=request,
         )
         findings.append(_finding(name, state, detail=detail, provenance=reference.provenance))
-        if state != "supported":
+        if state != "supported" and not (
+            request.use_case in _DIAGNOSTIC_USE_CASES
+            and name == "final_state"
+            and state == "not_applicable"
+        ):
             required_failures.append(name)
 
     diagnostic_use_case = request.use_case in _DIAGNOSTIC_USE_CASES

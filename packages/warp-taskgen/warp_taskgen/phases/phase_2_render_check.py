@@ -26,11 +26,17 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from urllib.parse import quote as urlquote
-from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from warp_taskgen.agent_auth import playwright_storage_state
-from warp_taskgen.sites import ReadbackDecision, ReadbackObservation, default_catalog
+from warp_taskgen.seeding.site_contracts import normalize_identity_tokens
+from warp_taskgen.sites import (
+    ReadbackDecision,
+    ReadbackFailure,
+    ReadbackObservation,
+    default_catalog,
+)
 from warp_taskgen.sites.gitlab_readback import note_html_for_id, rendered_note_text
 
 logger = logging.getLogger(__name__)
@@ -645,6 +651,90 @@ async def _layout_probe_for_signature(page: Any, normalized_needle: str) -> dict
     return result if isinstance(result, dict) else None
 
 
+async def _exact_selector_layout_probe(page: Any, selector: str) -> dict[str, Any] | None:
+    """Prove one exact Site-owned resource marker is rendered and not hidden."""
+
+    try:
+        result = await page.evaluate(
+            """
+            (selector) => {
+              let matches;
+              try {
+                matches = Array.from(document.querySelectorAll(String(selector || "")));
+              } catch (_) {
+                return { ok: false, reason: "invalid_selector", match_count: 0 };
+              }
+              if (matches.length !== 1) {
+                return { ok: false, reason: "identity_count", match_count: matches.length };
+              }
+              const marker = matches[0];
+              let requiresExpand = false;
+              for (let node = marker; node; node = node.parentElement) {
+                const style = window.getComputedStyle(node);
+                if (
+                  style.display === "none" ||
+                  style.visibility === "hidden" ||
+                  Number(style.opacity || "1") === 0
+                ) {
+                  requiresExpand = true;
+                  break;
+                }
+                if (node.tagName === "DETAILS" && !node.open) {
+                  requiresExpand = true;
+                  break;
+                }
+                if (node.classList && node.classList.contains("comment--collapsed")) {
+                  requiresExpand = true;
+                  break;
+                }
+              }
+              const rect = marker.getBoundingClientRect();
+              const painted = rect.width > 0 && rect.height > 0;
+              return {
+                ok: painted && !requiresExpand,
+                reason: !painted ? "not_painted" : (requiresExpand ? "requires_expand" : "visible"),
+                match_count: 1,
+                requires_expand: requiresExpand,
+                rect_top: rect.top,
+                rect_bottom: rect.bottom,
+              };
+            }
+            """,
+            selector,
+        )
+    except Exception:
+        logger.debug("phase 2c exact-resource layout probe failed", exc_info=True)
+        return None
+    return result if isinstance(result, dict) else None
+
+
+def _same_committed_render_surface(expected_url: str, committed_url: object) -> bool:
+    """Require navigation to remain on the requested route after redirects."""
+
+    if not isinstance(committed_url, str) or not committed_url.strip():
+        return False
+    try:
+        expected = urlsplit(expected_url)
+        committed = urlsplit(committed_url)
+        expected_query = sorted(
+            (key, value)
+            for key, value in parse_qsl(expected.query, keep_blank_values=True)
+            if key != "_"
+        )
+        committed_query = sorted(
+            (key, value)
+            for key, value in parse_qsl(committed.query, keep_blank_values=True)
+            if key != "_"
+        )
+    except (TypeError, ValueError):
+        return False
+    return (expected.scheme, expected.netloc, expected.path) == (
+        committed.scheme,
+        committed.netloc,
+        committed.path,
+    ) and expected_query == committed_query
+
+
 def _extract_note_html(body: str, note_id_str: str) -> str | None:
     """Compatibility facade for Site-owned GitLab note interpretation."""
     try:
@@ -876,6 +966,16 @@ _WRITE_TOKEN_KEYS: tuple[str, ...] = (
 def _write_tokens_from_mapping(value: Any) -> dict[str, Any]:
     if not isinstance(value, dict):
         return {}
+    declared = value.get("write_tokens")
+    if isinstance(declared, dict):
+        try:
+            return dict(normalize_identity_tokens(declared))
+        except ValueError:
+            return {}
+    try:
+        return dict(normalize_identity_tokens(value))
+    except ValueError:
+        pass
     write_tokens: dict[str, Any] = {}
     for key in _WRITE_TOKEN_KEYS:
         token_value = value.get(key)
@@ -934,6 +1034,9 @@ def _render_check_inputs_from_metadata(
 
     call_record = _editor_call_record_for_selection(metadata, selection)
     if call_record is None:
+        if write_tokens:
+            diagnostics["write_tokens_source"] = "aggregate_seed_metadata"
+            diagnostics["write_token_keys"] = sorted(write_tokens)
         return urls, write_tokens, diagnostics
 
     call_urls = call_record.get("read_surface_urls")
@@ -1571,6 +1674,7 @@ async def verify_seed_renders(
     write_tokens: dict[str, Any] | None = None,
     diagnostics: dict[str, Any] | None = None,
     readback_site: Any | None = None,
+    readback_plan: Any | None = None,
 ) -> RenderOutcome:
     """Open a fresh context, try each URL until the signature appears.
 
@@ -1701,6 +1805,82 @@ async def verify_seed_renders(
                         raw_pos = pos
                     snippet = body_text[max(0, raw_pos - 40) : raw_pos + len(signature) + 40]
                     layout_probe = await _layout_probe_for_signature(page, needle)
+                    supports_site_observer = getattr(
+                        readback_site, "supports_readback_observation", None
+                    )
+                    site_readback_observer = (
+                        getattr(readback_site, "observe_readback_html", None)
+                        if callable(supports_site_observer) and supports_site_observer()
+                        else None
+                    )
+                    if (
+                        readback_plan is not None
+                        and getattr(readback_plan, "verification_mode", None) == "seed_resource"
+                        and callable(site_readback_observer)
+                    ):
+                        if not _same_committed_render_surface(target, getattr(page, "url", None)):
+                            errors[target] = "site_readback_failed:redirected_read_surface"
+                            continue
+                        visibility_selector = readback_site.readback_visibility_selector(
+                            readback_plan
+                        )
+                        if isinstance(visibility_selector, ReadbackFailure):
+                            errors[target] = (
+                                "site_readback_failed:"
+                                f"{visibility_selector.reason}:{visibility_selector.detail}"
+                            )
+                            continue
+                        exact_layout_probe = await _exact_selector_layout_probe(
+                            page, visibility_selector
+                        )
+                        if not isinstance(exact_layout_probe, dict) or not exact_layout_probe.get(
+                            "ok"
+                        ):
+                            reason = (
+                                exact_layout_probe.get("reason", "probe_failed")
+                                if isinstance(exact_layout_probe, dict)
+                                else "probe_failed"
+                            )
+                            errors[target] = f"site_readback_failed:visibility_unproven:{reason}"
+                            continue
+                        try:
+                            html = await page.content()
+                        except Exception as exc:
+                            errors[target] = (
+                                "site_readback_failed:readback_html_unavailable:"
+                                f"{exc.__class__.__name__}"
+                            )
+                            continue
+                        observation = site_readback_observer(html, readback_plan)
+                        if isinstance(observation, ReadbackFailure):
+                            # Sites without the optional observation capability
+                            # retain their established render/readback path.
+                            if observation.reason != "unsupported_readback_observation":
+                                errors[target] = (
+                                    "site_readback_failed:"
+                                    f"{observation.reason}:{observation.detail}"
+                                )
+                                continue
+                        elif not isinstance(observation, ReadbackObservation):
+                            errors[target] = "site_readback_failed:invalid_readback_observation"
+                            continue
+                        else:
+                            decision = readback_site.interpret_readback(observation)
+                            if not isinstance(decision, ReadbackDecision) or not decision.verified:
+                                reason = (
+                                    decision.reason
+                                    if isinstance(decision, ReadbackDecision)
+                                    else "invalid_readback_decision"
+                                )
+                                errors[target] = f"site_readback_failed:{reason}"
+                                continue
+                            readback_diagnostics = dict(diagnostics or {})
+                            readback_diagnostics["site_readback"] = {
+                                "verified": True,
+                                "reason": decision.reason,
+                                "visibility": exact_layout_probe,
+                            }
+                            diagnostics = readback_diagnostics
                     if strict_reddit_comment_visibility:
                         probe = await _reddit_seed_comment_visibility_probe(
                             page,

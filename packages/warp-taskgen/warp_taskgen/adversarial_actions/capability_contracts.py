@@ -50,12 +50,14 @@ _BODY_LIKE_WASP_SURFACES = (
     "note.body",
     "submission.body",
     "comment.body",
+    "listing_reply.body",
 )
 
 _READ_CLASSIFICATION_TASKS = (
     "issue_triage_read_status",
     "submission_review_content_status",
     "discussion_region_read_status",
+    "classifieds_listing_reply_read_status",
 )
 
 ACTION_CAPABILITY_CONTRACTS: tuple[ActionCapabilityContract, ...] = (
@@ -63,13 +65,14 @@ ACTION_CAPABILITY_CONTRACTS: tuple[ActionCapabilityContract, ...] = (
         action_kind="answer_opposite_binary_label",
         impact_tier=1,
         capability_family="semantic_read_classification",
-        compatible_sites=("gitlab", "reddit"),
+        compatible_sites=("gitlab", "reddit", "classifieds"),
         compatible_carrier_surfaces=_BODY_LIKE_WASP_SURFACES,
         compatible_editor_methods=(
             "create_issue_description",
             "create_issue_note",
             "create_submission",
             "create_comment",
+            "create_listing_reply",
         ),
         benign_task_family_ids=_READ_CLASSIFICATION_TASKS,
     ),

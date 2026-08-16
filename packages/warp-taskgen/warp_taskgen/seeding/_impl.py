@@ -25,6 +25,7 @@ import os
 import re
 import time
 import urllib.parse
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -72,6 +73,7 @@ _IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0
 _PATH_PARAM_PATTERN = re.compile(r"\{([^}/]+)\}")
 _UNRESOLVED_TEMPLATE_TOKEN = re.compile(r"\{[^}/]+\}")
 _FORMAT_TOKEN_PATTERN = re.compile(r"(?<!\{)\{([A-Za-z_][A-Za-z0-9_\.]*)\}(?!\})")
+_BENIGN_ANCHOR_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _FREE_TEXT_EDITOR_ARG_NAMES = frozenset(
     {
         "body",
@@ -289,6 +291,24 @@ def apply_data_seed(
             metadata["created_resource"] = _primary_created_resource(created_resources)
         if editor_call_result_accumulator:
             metadata["editor_call_results"] = editor_call_result_accumulator
+            declared_write_tokens: dict[str, Any] = {}
+            for record in editor_call_result_accumulator:
+                raw_tokens = record.get("write_tokens")
+                if isinstance(raw_tokens, dict):
+                    declared_write_tokens.update(raw_tokens)
+            if any(
+                key
+                not in {
+                    "note_id",
+                    "issue_iid",
+                    "project_id",
+                    "comment_id",
+                    "submission_id",
+                    "review_id",
+                }
+                for key in declared_write_tokens
+            ):
+                metadata["write_tokens"] = dict(sorted(declared_write_tokens.items()))
         # Hoist authoritative write-identifier tokens from the merged
         # seed_context into metadata so downstream verifiers (render-check
         # read-your-write fastpath) can match server-reported IDs instead
@@ -374,6 +394,7 @@ def _build_seed_context(seed: dict[str, Any], instance: dict[str, Any]) -> dict[
         # them at seed-apply time.
         anchors = (task.get("benign_target_resource") or {}).get("anchors") or {}
         if isinstance(anchors, dict):
+            _merge_seed_context(context, _project_benign_anchor_context(anchors))
             if anchors.get("project_id") is not None:
                 context["benign_project_id"] = str(anchors["project_id"])
             if anchors.get("project_path"):
@@ -403,6 +424,31 @@ def _build_seed_context(seed: dict[str, Any], instance: dict[str, Any]) -> dict[
     context.setdefault("topic", context.get("task_id", "task"))
     context.setdefault("intent", context.get("instruction") or context.get("topic") or "task")
     return context
+
+
+def _project_benign_anchor_context(anchors: Mapping[str, Any]) -> dict[str, str]:
+    """Project safe scalar task anchors into generic ``benign_*`` tokens.
+
+    Site-specific anchor aliases remain above for compatibility with the
+    existing GitLab and Reddit seed shapes.  New Site methods can declare a
+    semantic ``Token("{benign_<anchor>}")`` without adding a resolver branch;
+    only bounded, non-secret scalar anchors are exposed.
+    """
+
+    projected: dict[str, str] = {}
+    for raw_key, raw_value in anchors.items():
+        if not isinstance(raw_key, str):
+            continue
+        key = raw_key.strip().lower()
+        if _BENIGN_ANCHOR_KEY_PATTERN.fullmatch(key) is None:
+            continue
+        if isinstance(raw_value, bool) or not isinstance(raw_value, (str, int)):
+            continue
+        value = str(raw_value).strip()
+        if not value or len(value) > 200 or "\n" in value or "\r" in value or "://" in value:
+            continue
+        projected[f"benign_{key}"] = value
+    return projected
 
 
 def _derive_task_seed_context(
@@ -634,7 +680,57 @@ def _collect_benign_tokens(value: Any) -> set[str]:
     return tokens
 
 
-def _assert_benign_tokens_bound(value: Any, task: Any) -> None:
+def _declared_tokens_for_seed_call(
+    value: Any,
+    task: Any,
+    *,
+    seed_registry: SeedSiteRegistry,
+) -> frozenset[str]:
+    """Read declared token bindings from an explicit per-run editor registry."""
+
+    if not isinstance(value, Mapping) or not isinstance(task, dict):
+        return frozenset()
+    resource = task.get("benign_target_resource")
+    if not isinstance(resource, Mapping):
+        return frozenset()
+    kind = resource.get("kind")
+    if not isinstance(kind, str) or not kind.strip():
+        return frozenset()
+    site = str(value.get("site") or task.get("site") or "").strip().lower()
+    method = str(value.get("method") or "").strip()
+    if not site or not method:
+        return frozenset()
+    try:
+        benchmark = _infer_editor_call_benchmark(value, task)
+    except EditorError:
+        return frozenset()
+    registration = seed_registry.get(benchmark, site)
+    if registration is None:
+        return frozenset()
+    method_spec = getattr(
+        getattr(registration.editor_factory, method, None),
+        "_editor_method_spec",
+        None,
+    )
+    if not isinstance(method_spec, Mapping) or kind not in method_spec.get("kinds", ()):
+        return frozenset()
+    bindings = method_spec.get("bindings")
+    if not isinstance(bindings, Mapping):
+        return frozenset()
+    declared: set[str] = set()
+    for binding in bindings.values():
+        tokens = getattr(binding, "tokens", ())
+        if isinstance(tokens, (set, frozenset, tuple, list)):
+            declared.update(token for token in tokens if isinstance(token, str))
+    return frozenset(declared)
+
+
+def _assert_benign_tokens_bound(
+    value: Any,
+    task: Any,
+    *,
+    seed_registry: SeedSiteRegistry | None = None,
+) -> None:
     """Raise :class:`UnboundTokenError` if ``value`` references any
     ``{benign_<x>}`` token not in the contract's
     :func:`available_tokens_for_kind` for the task's kind + anchors.
@@ -660,16 +756,27 @@ def _assert_benign_tokens_bound(value: Any, task: Any) -> None:
     if not tokens_referenced:
         return
 
-    # Lazy import — warp_taskgen.editors package pulls in requests etc;
-    # defer until a seed call actually needs the contract check.
-    from warp_taskgen.editors._registry import available_tokens_for_kind
-
     site = str(task.get("site") or "").strip().lower() or None
     try:
         benchmark = _infer_task_benchmark(task)
     except ValueError as exc:
         raise ValueError(f"seed token contract benchmark metadata is invalid: {exc}") from exc
-    available = available_tokens_for_kind(kind, anchors, benchmark=benchmark, site=site)
+    # An explicit Site registry is intentionally isolated from the historical
+    # process-wide editor contract registry.  Read its method declaration when
+    # available; the legacy path retains the existing global lookup and shapes.
+    if seed_registry is not None:
+        declared = _declared_tokens_for_seed_call(
+            value,
+            task,
+            seed_registry=seed_registry,
+        )
+        available = declared & frozenset(f"{{benign_{key}}}" for key in anchors)
+    else:
+        # Lazy import — defer the global registry import until a seed call
+        # actually needs the contract check.
+        from warp_taskgen.editors._registry import available_tokens_for_kind
+
+        available = available_tokens_for_kind(kind, anchors, benchmark=benchmark, site=site)
     for token in sorted(tokens_referenced):
         if token not in available:
             task_id = task.get("id") or task.get("benign_task_id") or "unknown"
@@ -855,7 +962,11 @@ def _apply_editor_seed_call(
     # the resolver's anchors don't support. Catches plans that pass the
     # legacy Option A validator (which only checks the innermost anchor)
     # but would render an empty string at substitution time.
-    _assert_benign_tokens_bound(call, instance.get("seed_task"))
+    _assert_benign_tokens_bound(
+        call,
+        instance.get("seed_task"),
+        seed_registry=seed_registry,
+    )
     delay_s = _editor_call_pre_delay_s(call)
     if delay_s > 0:
         logger.info("Waiting %.2fs before applying ordered editor seed call", delay_s)
@@ -959,12 +1070,20 @@ def _apply_editor_seed_call(
             sanitized = {
                 k: v
                 for k, v in result.items()
-                if k not in {"read_surface_urls", "read_surface_provenance_source"}
+                if k
+                not in {
+                    "identity_tokens",
+                    "read_surface_urls",
+                    "read_surface_provenance_source",
+                }
             }
             if sanitized:
                 _merge_seed_context(seed_context, sanitized)
         else:
-            _merge_seed_context(seed_context, result)
+            sanitized = {k: v for k, v in result.items() if k != "identity_tokens"}
+            _merge_seed_context(seed_context, sanitized)
+        if normalized_result.write_tokens:
+            _merge_seed_context(seed_context, dict(normalized_result.write_tokens))
 
 
 def _editor_call_pre_delay_s(call: dict[str, Any]) -> float:
