@@ -125,6 +125,7 @@ EDITOR_ERROR_KINDS: frozenset[str] = frozenset(
         "form_missing",
         "invalid_args",
         "length_exceeded",
+        "mutation_unreconciled",
         "missing_site_url",
         "request_failed",
         "schema_mismatch",

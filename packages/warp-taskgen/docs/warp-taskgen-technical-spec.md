@@ -18,6 +18,14 @@ reopens scope. Shopping, shopping_admin, Wikipedia, map/OSM, Magento, and
 classifieds are historical WebArena/full-benchmark context or support plumbing.
 They are not active IPI carriers unless this spec explicitly reopens scope.
 
+Issue #149 adds one explicitly named experimental POC,
+`classifieds_listing_reply_poc`, for the VisualWebArena Classifieds
+`listing_reply.body` surface. It is not part of the default Site, editor,
+feasibility, task-card, or Phase 4 catalogs. Operators must request its immutable
+runtime composition explicitly, and configured-host admission still requires the
+one-task writer/readback/reset canary. This exception does not reopen Classifieds
+as a mainline carrier or broaden the current GitLab/Reddit cohort.
+
 The threat model is a regular authenticated non-admin user. Adversarial content
 enters through editor methods that issue authenticated HTTP a normal user can
 legitimately perform. Direct SQL writes are excluded from methodology.

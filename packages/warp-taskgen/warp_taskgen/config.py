@@ -26,7 +26,9 @@ from warp_taskgen.db_urls import parse_supported_db_connection
 from warp_taskgen.placeholders import merge_placeholder_maps
 from warp_taskgen.pvpo_endpoint import validate_pvpo_cdp_url
 
-_SEEDING_AUTH_TYPES = frozenset({"none", "http_headers", "bearer_token", "web_login"})
+_SEEDING_AUTH_TYPES = frozenset(
+    {"none", "http_headers", "bearer_token", "web_login", "storage_state"}
+)
 _AGENT_AUTH_TYPES = frozenset({"none", "unknown", "storage_state", "http_basic", "http_headers"})
 
 
@@ -113,6 +115,8 @@ def _validate_seeding_auth_block(value: Any, *, field_name: str) -> dict[str, An
         )
     if auth_type == "none":
         return value
+    if auth_type == "storage_state":
+        return _validate_agent_auth_block(value, field_name=field_name)
     if auth_type == "http_headers":
         headers = value.get("headers")
         if not isinstance(headers, dict) or not headers:
@@ -340,6 +344,15 @@ class BenchmarkInstance(BaseModel):
         None,
         description="Agent Playwright auth derived from instance config. Overrides "
         "Phase 0c's auth_mechanism for reliable, static auth injection.",
+    )
+    reader_auth: dict[str, Any] | None = Field(
+        None,
+        exclude_if=lambda value: value is None,
+        description=(
+            "Optional independent-reader auth declaration. Feature-owned contracts "
+            "may require an explicit anonymous value; the generic config preserves "
+            "this metadata without selecting an auth strategy."
+        ),
     )
     pvpo_cdp_url: str | None = Field(
         None,

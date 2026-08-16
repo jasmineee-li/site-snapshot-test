@@ -59,6 +59,7 @@ from warp_taskgen.phase_4.resume import (
 from warp_taskgen.placeholders import merge_placeholder_maps
 from warp_taskgen.resume_metadata import RESULT_FINGERPRINT_KEY
 from warp_taskgen.rewards import run_reward_function
+from warp_taskgen.runtime_composition import RequiredSeedCleanupError, RuntimeComposition
 from warp_taskgen.seeding import apply_data_seed_async
 from warp_taskgen.task_reset_cache import TaskResetCache, result_likely_mutated_state
 from warp_taskgen.trajectory import save_result
@@ -241,6 +242,7 @@ async def run_adversarial_task(
     reset_cache: TaskResetCache | None = None,
     resume_fingerprint: str | None = None,
     seed_probe_cache: dict[tuple[str, str], BaseStateProbeResult] | None = None,
+    runtime_composition: RuntimeComposition | None = None,
 ) -> dict[str, Any]:
     """Run one adversarial task: reset -> seed adversarial data -> agent -> evaluate.
 
@@ -374,11 +376,16 @@ async def run_adversarial_task(
                     seed_instance_dict["seed_target_surface_id"] = target_surface_id
                 try:
                     preflight_seed = raw_adv_seed if raw_adv_seed is not None else adv_seed
+                    preflight_kwargs: dict[str, Any] = {
+                        "benchmark": _seed_target_benchmark(task, seed_instance_dict),
+                        "base_state_cache": seed_probe_cache,
+                    }
+                    if runtime_composition is not None:
+                        preflight_kwargs["seed_registry"] = runtime_composition.seed_registry
                     preflight = await preflight_adversarial_seed(
                         preflight_seed,
                         seed_instance_dict,
-                        benchmark=_seed_target_benchmark(task, seed_instance_dict),
-                        base_state_cache=seed_probe_cache,
+                        **preflight_kwargs,
                     )
                 except ValueError as exc:
                     preflight = PreflightReport(
@@ -426,8 +433,15 @@ async def run_adversarial_task(
                     await _reset_task_environment(task)
                     if reset_cache is not None:
                         reset_cache.mark_clean(task, extra_bindings=reset_cache_bindings)
+                apply_kwargs: dict[str, Any] = {}
+                if runtime_composition is not None:
+                    apply_kwargs["seed_registry"] = runtime_composition.seed_registry
+                    if runtime_composition.strict_seed_cleanup:
+                        apply_kwargs["strict_cleanup"] = True
                 seed_cleanup, seed_metadata = await apply_data_seed_async(
-                    adv_seed, seed_instance_dict
+                    adv_seed,
+                    seed_instance_dict,
+                    **apply_kwargs,
                 )
                 _attach_gitlab_issue_note_state_probe_anchors(
                     task,
@@ -854,7 +868,23 @@ async def run_adversarial_task(
         if seed_cleanup is not None:
             try:
                 await asyncio.to_thread(seed_cleanup.cleanup)
-            except Exception:
+            except Exception as exc:
                 logger.exception("seed cleanup failed for task %s", task_id)
                 if reset_cache is not None:
                     reset_cache.mark_dirty(task, extra_bindings=reset_cache_bindings)
+                if runtime_composition is not None and runtime_composition.strict_seed_cleanup:
+                    # ``save_result`` runs before the common cleanup boundary so
+                    # evaluators can inspect the completed browser trajectory.
+                    # A required cleanup failure invalidates that completion:
+                    # leaving the sentinel would make resume silently reuse a
+                    # result produced against contaminated host state.
+                    try:
+                        (task_dir / "result.json").unlink(missing_ok=True)
+                    except OSError:
+                        logger.exception(
+                            "could not invalidate result after seed cleanup failure for task %s",
+                            task_id,
+                        )
+                    raise RequiredSeedCleanupError(
+                        f"required seed cleanup failed for task {task_id}"
+                    ) from exc

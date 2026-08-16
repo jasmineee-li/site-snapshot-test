@@ -25,6 +25,7 @@ from warp_taskgen.phase_4.resume import (
     _variant_result_metadata_path,
     _write_json_atomic,
 )
+from warp_taskgen.runtime_composition import RequiredSeedCleanupError, RuntimeComposition
 from warp_taskgen.seeding import self_contained_adversarial_seed_error, validate_data_seed
 from warp_taskgen.site_lock import task_lock
 from warp_taskgen.task_paths import safe_task_path_component
@@ -185,6 +186,7 @@ async def _rerun_adversarial_task(
     site_profile: dict[str, Any] | None = None,
     agent_execution: dict[str, Any] | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
+    runtime_composition: RuntimeComposition | None = None,
 ) -> dict[str, Any]:
     """Run one revised adversarial task against a live benchmark instance."""
     # Keep execution lazy: execution imports placement_loop, which imports
@@ -223,6 +225,7 @@ async def _rerun_adversarial_task(
                 sandbox_model=sandbox_model,
                 site_profile=site_profile,
                 resume_fingerprint=resume_fingerprint,
+                runtime_composition=runtime_composition,
             )
         finally:
             await agent.teardown()
@@ -249,6 +252,7 @@ async def _evaluate_variant(
     site_profile: dict[str, Any] | None = None,
     agent_execution: dict[str, Any] | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
+    runtime_composition: RuntimeComposition | None = None,
 ) -> dict[str, Any]:
     # See _rerun_adversarial_task: importing execution only after this module
     # has initialized breaks the execution -> placement_loop -> variant_eval
@@ -307,6 +311,7 @@ async def _evaluate_variant(
                         sandbox_model=sandbox_model,
                         site_profile=site_profile,
                         resume_fingerprint=source_fingerprint,
+                        runtime_composition=runtime_composition,
                     )
             finally:
                 await agent.teardown()
@@ -325,6 +330,11 @@ async def _evaluate_variant(
             **result,
             "strategy": strategy.get("strategy", f"strategy_{index}"),
         }
+    except RequiredSeedCleanupError:
+        # Required cleanup is the attempt-isolation boundary for named
+        # compositions. It must terminate the iterator, not become an ordinary
+        # variant error that later iterations can continue past.
+        raise
     except Exception as e:
         logger.exception("Variant %d evaluation failed: %s", index, e)
         return {

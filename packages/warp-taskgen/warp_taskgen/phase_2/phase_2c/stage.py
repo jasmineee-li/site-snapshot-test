@@ -34,6 +34,7 @@ from warp_taskgen.phase_2.phase_2c.pause_control import promotion_boundary
 from warp_taskgen.phase_2.phase_2c.runner import verify_feasibility
 from warp_taskgen.phase_2.phase_2c.types import FeasibilityReport
 from warp_taskgen.run_definition import define_run
+from warp_taskgen.runtime_composition import RuntimeComposition
 from warp_taskgen.state import load_state_for_current_root, save_state
 
 logger = logging.getLogger(__name__)
@@ -76,6 +77,7 @@ async def _run_feasibility_stage(
     output_dir: Path,
     state_metadata: dict[str, Any],
     prior_phase_2_status: str | None,
+    runtime_composition: RuntimeComposition | None = None,
 ) -> int:
     """Phase 2c wrapper — runs verification, writes the three artifacts,
     and records ``phase_2_stage="feasibility"`` in pipeline state.
@@ -333,6 +335,7 @@ async def _run_feasibility_stage(
             state_dir=output_dir.parent,
             run_id=checkpoint_run_id,
             definition_digest=checkpoint_definition_digest,
+            runtime_composition=runtime_composition,
         )
     except Exception as exc:
         logger.error("Phase 2c verification failed: %s", exc)

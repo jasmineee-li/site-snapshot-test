@@ -1,0 +1,40 @@
+{
+  "schema": "warp.classifieds_canary_retained_evidence.v1",
+  "run": {
+    "id": "run-34b2327b67ad42a18e480998fe301b68",
+    "definition_digest": "3b698ef508913f1246d1dc6ae1f3c5477a87cd22de4c29d64c8ea16a0e9bcfdc",
+    "root": "logs/classifieds-canary/20260816T085318Z-issue149-retry7",
+    "remote_job_id": "20260816T085626Z-classifieds-listing-reply-canary-13b0c6"
+  },
+  "warp_source": {
+    "base_commit": "680bcea0c969296c33dd19c35e31df480a219eec",
+    "runtime_projection": "all .py and .sh files beneath warp_taskgen/ and scripts/, sorted by path and hashed as the concatenated sha256sum manifest",
+    "runtime_projection_sha256": "72350a1c23badf88c81438529aff06b4fe995337902c2e32e37b83ed54774cb4",
+    "remote_job_metadata_sha256": "5979002ae6d4b485586aa5be8f22bfae214b081dfde527a94e3a34d94f1421af"
+  },
+  "retention": {
+    "configured_host_run_path": "/home/ubuntu/warp-taskgen/logs/classifieds-canary/20260816T085318Z-issue149-retry7",
+    "configured_host_job_path": "/home/ubuntu/warp-taskgen/logs/remote_jobs/20260816T085626Z-classifieds-listing-reply-canary-13b0c6/metadata.json",
+    "configured_host_storage": "stopped EBS-backed sandbox host",
+    "operator_copy_at_review_time": "/private/tmp/classifieds-retry7-artifacts"
+  },
+  "artifacts": {
+    "completion.json": "4f7242fc8e5f81844b112eae263df2fa89b6787a1a961f1ebc56bda15a8e5e41",
+    "preflight.json": "5bb3f0f3cac41060bccaaa9e4f53ce2707b720b1c2f2e7c9eb6b97e86d183584",
+    "classifieds_probe.json": "c82d7e0adb518a9338bf95a5c493af7b94735cebd2b58f45ebc03dfcbae483ad",
+    "status.json": "451671e12469c0edbc832d747648694ada1c3b7e1d2c1533492274dc3dd1dd21",
+    "resume-plan.json": "43279b857c624ba6d0253d7fff29598e15140ebe77cd7a33c3c1c7a44cb6c1b5",
+    "phase_4/results.json": "11894da6fe6f74cb71906733847cb0bc67969fa12e11e1acc51ac7815b9c35af",
+    "pipeline_state.json": "8237456a03fd4b61f167548278a19473a7a3dd2d63a149ee0013d21fce89c30b"
+  },
+  "post_run_lifecycle": {
+    "observed_at": "2026-08-16T09:22:04Z",
+    "configured_host": "r8a",
+    "state": "stopped",
+    "instance_type": "r8a.24xlarge",
+    "lifecycle_tags": [],
+    "provider_file_absent": true,
+    "canary_containers_absent": true
+  },
+  "secrets_recorded": false
+}

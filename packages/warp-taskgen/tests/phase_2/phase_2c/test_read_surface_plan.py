@@ -7,6 +7,7 @@ import pytest
 from tests.sites.test_read_surface import FakeReadSurfaceSite
 from warp_taskgen.phase_2.phase_2c import _impl as phase_2c_impl
 from warp_taskgen.phase_2.phase_2c import probes
+from warp_taskgen.runtime_composition import classifieds_listing_reply_poc
 from warp_taskgen.seeding import SeedSiteRegistration, SeedSiteRegistry
 from warp_taskgen.sites import ReadbackDecision, ReadbackObservation, SiteCatalog
 from warp_taskgen.sites.read_surface import build_read_surface_plan
@@ -84,6 +85,327 @@ async def test_render_check_consumes_injected_site_plan(monkeypatch: pytest.Monk
 
 
 @pytest.mark.asyncio
+async def test_render_check_uses_anonymous_reader_contract_without_writer_auth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+    reader_instances: list[dict[str, Any]] = []
+
+    async def fake_verify_seed_renders(**kwargs: Any):
+        captured.update(kwargs)
+        return probes.RenderOutcome.passed(
+            url=kwargs["urls"][0],
+            signature=kwargs["signature"],
+            snippet=kwargs["signature"],
+        )
+
+    def reader_preflight(instance: dict[str, Any]) -> Any:
+        reader_instances.append(instance)
+        return type("ReaderResult", (), {"ok": True})()
+
+    monkeypatch.setattr(probes, "verify_seed_renders", fake_verify_seed_renders)
+    monkeypatch.setattr(
+        probes,
+        "_resolve_benign_browser_context_auth",
+        lambda _instance: (_ for _ in ()).throw(AssertionError("writer auth reused")),
+    )
+    outcome = await probes._run_render_check(
+        browser=object(),
+        render_semaphore=None,
+        seed={
+            "editor_calls": [
+                {
+                    "site": "fake",
+                    "method": "create_message",
+                    "args": {"body": "anonymous reader body"},
+                }
+            ]
+        },
+        metadata={"read_surface_urls": ["/messages/17"]},
+        instance={
+            "site_name": "fake",
+            "site_url": "https://fake.local",
+            "benchmark": "webarena_verified",
+        },
+        site_catalog=SiteCatalog([FakeReadSurfaceSite()]),
+        reader_preflight=reader_preflight,
+    )
+
+    assert outcome.ok
+    assert reader_instances and reader_instances[0]["site_name"] == "fake"
+    assert captured["browser_context_kwargs"] == {}
+
+
+@pytest.mark.asyncio
+async def test_classifieds_composition_reader_gate_ignores_failing_writer_auth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The named POC reaches render only through its anonymous reader gate."""
+
+    composition = classifieds_listing_reply_poc()
+    captured: dict[str, Any] = {}
+
+    async def fake_verify_seed_renders(**kwargs: Any):
+        captured.update(kwargs)
+        return probes.RenderOutcome.passed(
+            url=kwargs["urls"][0],
+            signature=kwargs["signature"],
+            snippet=kwargs["signature"],
+        )
+
+    monkeypatch.setattr(probes, "verify_seed_renders", fake_verify_seed_renders)
+    monkeypatch.setattr(
+        probes,
+        "_resolve_benign_browser_context_auth",
+        lambda _instance: (_ for _ in ()).throw(AssertionError("writer auth reused")),
+    )
+    outcome = await probes._run_render_check(
+        browser=object(),
+        render_semaphore=None,
+        seed={
+            "editor_calls": [
+                {
+                    "site": "classifieds",
+                    "method": "create_listing_reply",
+                    "args": {"body": "anonymous reader body"},
+                }
+            ]
+        },
+        metadata={
+            "read_surface_urls": ["/index.php?page=item&id=17"],
+            "write_tokens": {
+                "listing_id": "17",
+                "reply_id": "19",
+                "actor_name": "alice",
+                "reply_body_sha256": "body-hash",
+            },
+            "editor_call_results": [
+                {
+                    "call_index": 0,
+                    "editor_method": "create_listing_reply",
+                    "read_surface_urls": ["/index.php?page=item&id=17"],
+                    "read_surface_provenance_source": "classifieds.regular_participant",
+                }
+            ],
+        },
+        instance={
+            "site_name": "classifieds",
+            "site_url": "https://classifieds.local",
+            "benchmark": "visualwebarena",
+            "reader_auth": {"type": "none"},
+            "agent_auth": {
+                "type": "storage_state",
+                "storage_state": {"path": "/deliberately/missing-writer-state.json"},
+            },
+        },
+        site_catalog=composition.site_catalog,
+        reader_preflight=composition.reader_preflight,
+    )
+
+    assert outcome.ok
+    assert captured["browser_context_kwargs"] == {}
+
+
+@pytest.mark.asyncio
+async def test_classifieds_composition_missing_reader_auth_fails_before_render(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    composition = classifieds_listing_reply_poc()
+    render_called = False
+
+    async def should_not_render(**kwargs: Any):
+        nonlocal render_called
+        render_called = True
+        raise AssertionError(f"render ran without reader auth: {kwargs!r}")
+
+    monkeypatch.setattr(probes, "verify_seed_renders", should_not_render)
+    monkeypatch.setattr(
+        probes,
+        "_resolve_benign_browser_context_auth",
+        lambda _instance: (_ for _ in ()).throw(AssertionError("writer auth reused")),
+    )
+    outcome = await probes._run_render_check(
+        browser=object(),
+        render_semaphore=None,
+        seed={
+            "editor_calls": [
+                {
+                    "site": "classifieds",
+                    "method": "create_listing_reply",
+                    "args": {"body": "anonymous reader body"},
+                }
+            ]
+        },
+        metadata={
+            "read_surface_urls": ["/index.php?page=item&id=17"],
+            "write_tokens": {
+                "listing_id": "17",
+                "reply_id": "19",
+                "actor_name": "alice",
+                "reply_body_sha256": "body-hash",
+            },
+            "editor_call_results": [
+                {
+                    "call_index": 0,
+                    "editor_method": "create_listing_reply",
+                    "read_surface_urls": ["/index.php?page=item&id=17"],
+                    "read_surface_provenance_source": "classifieds.regular_participant",
+                }
+            ],
+        },
+        instance={
+            "site_name": "classifieds",
+            "site_url": "https://classifieds.local",
+            "benchmark": "visualwebarena",
+            "agent_auth": {
+                "type": "storage_state",
+                "storage_state": {"path": "/deliberately/missing-writer-state.json"},
+            },
+        },
+        site_catalog=composition.site_catalog,
+        reader_preflight=composition.reader_preflight,
+    )
+
+    assert not outcome.ok
+    assert outcome.kind == "auth_missing"
+    assert not render_called
+
+
+@pytest.mark.asyncio
+async def test_classifieds_composition_missing_reader_auth_skips_seed_and_render(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    composition = classifieds_listing_reply_poc()
+    seed_called = False
+    render_called = False
+
+    async def should_not_seed(*args: Any, **kwargs: Any):
+        nonlocal seed_called
+        seed_called = True
+        raise AssertionError(f"seed ran without reader auth: {args!r} {kwargs!r}")
+
+    async def should_not_render(*args: Any, **kwargs: Any):
+        nonlocal render_called
+        render_called = True
+        raise AssertionError(f"render ran without reader auth: {args!r} {kwargs!r}")
+
+    monkeypatch.setattr(phase_2c_impl, "apply_data_seed_async", should_not_seed)
+    monkeypatch.setattr(phase_2c_impl, "_run_render_check", should_not_render)
+    result = await phase_2c_impl._verify_one(
+        {
+            "id": "classifieds-reader-auth-missing",
+            "site": "classifieds",
+            "benchmark": "visualwebarena",
+            "adversarial_data_seed": {
+                "editor_calls": [
+                    {
+                        "site": "classifieds",
+                        "method": "create_listing_reply",
+                        "args": {"body": "anonymous reader body"},
+                    }
+                ]
+            },
+        },
+        {
+            "site_name": "classifieds",
+            "site_url": "https://classifieds.local",
+            "benchmark": "visualwebarena",
+            "agent_auth": {
+                "type": "storage_state",
+                "storage_state": {"path": "/deliberately/missing-writer-state.json"},
+            },
+        },
+        retry_count=0,
+        fingerprint_base={"host_config": "test", "editor_commit": "test"},
+        ttl_hours=None,
+        force_reverify=True,
+        cleanup_warnings=[],
+        browser=object(),
+        seed_registry=composition.seed_registry,
+        site_catalog=composition.site_catalog,
+        runtime_composition=composition,
+    )
+
+    assert result["feasibility"]["status"] == "infeasible"
+    assert result["feasibility"]["errors"][0]["kind"] == "auth_missing"
+    assert not seed_called
+    assert not render_called
+
+
+@pytest.mark.asyncio
+async def test_classifieds_composition_cleanup_failure_invalidates_phase2c_verification(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from warp_taskgen.editors.base import EditorError
+
+    composition = classifieds_listing_reply_poc()
+
+    class FailingCleanup:
+        def cleanup(self) -> None:
+            raise EditorError("cleanup_failed", "reply id remains visible")
+
+    async def fake_seed(*args: Any, **kwargs: Any):
+        return FailingCleanup(), {
+            "read_surface_urls": ["/index.php?page=item&id=17"],
+            "write_tokens": {
+                "listing_id": "17",
+                "reply_id": "19",
+                "actor_name": "alice",
+                "reply_body_sha256": "a" * 64,
+            },
+        }
+
+    async def fake_render(**kwargs: Any):
+        return probes.RenderOutcome.passed(
+            url="https://classifieds.local/index.php?page=item&id=17",
+            signature="canary",
+            snippet="canary",
+        )
+
+    async def fake_reachability(**kwargs: Any):
+        return None
+
+    monkeypatch.setattr(phase_2c_impl, "apply_data_seed_async", fake_seed)
+    monkeypatch.setattr(phase_2c_impl, "_run_render_check", fake_render)
+    monkeypatch.setattr(phase_2c_impl, "_run_reachability_check", fake_reachability)
+
+    warnings: list[str] = []
+    with pytest.raises(RuntimeError, match="cleanup_failed"):
+        await phase_2c_impl._verify_one(
+            {
+                "id": "classifieds-cleanup-failure",
+                "site": "classifieds",
+                "benchmark": "visualwebarena",
+                "adversarial_data_seed": {
+                    "editor_calls": [
+                        {
+                            "site": "classifieds",
+                            "method": "create_listing_reply",
+                            "args": {"listing_id": "17", "body": "canary"},
+                        }
+                    ]
+                },
+            },
+            {
+                "site_name": "classifieds",
+                "site_url": "https://classifieds.local",
+                "benchmark": "visualwebarena",
+                "reader_auth": {"type": "none"},
+            },
+            retry_count=0,
+            fingerprint_base={"host_config": "test", "editor_commit": "test"},
+            ttl_hours=None,
+            force_reverify=True,
+            cleanup_warnings=warnings,
+            browser=object(),
+            seed_registry=composition.seed_registry,
+            site_catalog=composition.site_catalog,
+            runtime_composition=composition,
+        )
+    assert warnings and "cleanup_failed" in warnings[0]
+
+
+@pytest.mark.asyncio
 async def test_render_check_preserves_generic_identity_tokens_in_bound_plan(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -149,6 +471,7 @@ async def test_render_check_preserves_generic_identity_tokens_in_bound_plan(
         "actor_name": "alice",
     }
     assert captured["readback_plan"].identity_tokens == captured["write_tokens"]
+    assert captured["readback_plan"].persist_readback_identity_tokens is False
 
 
 @pytest.mark.asyncio

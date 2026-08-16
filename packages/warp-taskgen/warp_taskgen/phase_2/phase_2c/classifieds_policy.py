@@ -72,14 +72,14 @@ def _location_is_classifieds_login(location: str | None) -> bool:
 
 @dataclass(frozen=True)
 class ClassifiedsFeasibilityPolicy(WebArenaFeasibilityPolicy):
-    """Probe only an exact seeded listing through the ordinary participant lane."""
+    """Probe one public listing through the fresh anonymous reader lane."""
 
     site: str = "classifieds"
-    auth_path: str | None = "/index.php?page=user&action=dashboard"
+    auth_path: str | None = None
     benchmark: str = "visualwebarena"
 
     def requires_authenticated_preflight(self) -> bool:
-        return True
+        return False
 
     def probe_targets(self, task: dict[str, Any], instance_site_url: str) -> list[ProbeTarget]:
         targets: list[ProbeTarget] = []
@@ -148,8 +148,8 @@ class ClassifiedsFeasibilityPolicy(WebArenaFeasibilityPolicy):
             quarantine=True,
             http_status=status,
             detail=(
-                "Classifieds ordinary-reader probe reached a login redirect/form; "
-                "authenticated storage state is missing or unusable"
+                "Classifieds public listing unexpectedly requires authentication; "
+                "the anonymous-reader contract is unavailable"
             ),
         )
 

@@ -68,6 +68,11 @@ def test_gitlab_issue_selector_waits_on_note_element():
     assert ".note" in reach._SITE_SELECTORS["gitlab_mr"]
 
 
+def test_classifieds_listing_waits_for_comment_and_exact_witnesses():
+    assert reach._SITE_SELECTORS["listing"] == "div.comment"
+    assert "listing" in reach._DYNAMIC_WITNESS_KINDS
+
+
 def test_reachability_defaults_match_render_check_timeouts():
     # Bumped post-bulkhead to match render_check's selector timeout
     # (10s) after widening the note-wait window — 5s was tight under

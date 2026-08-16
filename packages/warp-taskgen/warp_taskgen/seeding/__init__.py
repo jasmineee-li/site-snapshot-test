@@ -62,9 +62,15 @@ def apply_data_seed(
     instance: dict[str, Any],
     *,
     seed_registry: SeedSiteRegistry | None = None,
+    strict_cleanup: bool = False,
 ) -> tuple[Any, dict[str, Any]]:
     _sync_legacy_patches()
-    return _legacy_impl.apply_data_seed(seed, instance, seed_registry=seed_registry)
+    return _legacy_impl.apply_data_seed(
+        seed,
+        instance,
+        seed_registry=seed_registry,
+        strict_cleanup=strict_cleanup,
+    )
 
 
 async def apply_data_seed_async(
@@ -72,12 +78,14 @@ async def apply_data_seed_async(
     instance: dict[str, Any],
     *,
     seed_registry: SeedSiteRegistry | None = None,
+    strict_cleanup: bool = False,
 ) -> tuple[Any, dict[str, Any]]:
     _sync_legacy_patches()
     return await _legacy_impl.apply_data_seed_async(
         seed,
         instance,
         seed_registry=seed_registry,
+        strict_cleanup=strict_cleanup,
     )
 
 

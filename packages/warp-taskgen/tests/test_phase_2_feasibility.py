@@ -2588,6 +2588,108 @@ def test_case_06_cleanup_error_yields_warning(tmp_path, monkeypatch):
     assert "cleanup_failed" in report.cleanup_warnings[0]
 
 
+def test_named_composition_cleanup_failure_aborts_public_phase2c_runner(tmp_path, monkeypatch):
+    from warp_taskgen.editors import EDITOR_REGISTRY
+    from warp_taskgen.phase_2.phase_2c.policy import default_feasibility_policy_catalog
+    from warp_taskgen.runtime_composition import (
+        RequiredSeedCleanupError,
+        RuntimeComposition,
+    )
+    from warp_taskgen.seeding.site_contracts import SeedSiteRegistration, SeedSiteRegistry
+    from warp_taskgen.sites.catalog import SiteCatalog
+
+    async def fail_cleanup(*args, **kwargs):
+        warnings: list[str] = []
+        feas._safe_cleanup(
+            _FakeHandle(raises=True),
+            warnings,
+            "classifieds-task",
+            raise_on_failure=True,
+        )
+
+    monkeypatch.setattr(feas, "_verify_one", fail_cleanup)
+    tasks_path = _write_tasks(tmp_path, [_task()])
+    editor = EDITOR_REGISTRY[("webarena_verified", "gitlab")]
+    monkeypatch.setattr(editor, "probe_base_state", classmethod(lambda _cls, _instance: None))
+    composition = RuntimeComposition(
+        name="strict-cleanup-test",
+        site_catalog=SiteCatalog(),
+        seed_registry=SeedSiteRegistry.from_registrations(
+            (
+                SeedSiteRegistration(
+                    "webarena_verified",
+                    "gitlab",
+                    editor,
+                ),
+            )
+        ),
+        feasibility_policy_catalog=default_feasibility_policy_catalog(),
+        strict_seed_cleanup=True,
+    )
+
+    with pytest.raises(RequiredSeedCleanupError, match="cleanup_failed"):
+        asyncio.run(
+            feas.verify_feasibility(
+                tasks_path,
+                instances=[_gitlab_instance()],
+                concurrency=1,
+                retry_count=0,
+                runtime_composition=composition,
+            )
+        )
+
+
+def test_named_composition_partial_seed_cleanup_failure_aborts_public_phase2c_runner(
+    tmp_path, monkeypatch
+):
+    from warp_taskgen.editors import EDITOR_REGISTRY
+    from warp_taskgen.phase_2.phase_2c.policy import default_feasibility_policy_catalog
+    from warp_taskgen.runtime_composition import RequiredSeedCleanupError, RuntimeComposition
+    from warp_taskgen.seeding.site_contracts import SeedSiteRegistration, SeedSiteRegistry
+    from warp_taskgen.sites.catalog import SiteCatalog
+
+    async def fake_apply(seed, instance, **kwargs):
+        assert kwargs["strict_cleanup"] is True
+        primary = EditorError("request_failed", "second call failed after a partial write")
+        raise RequiredSeedCleanupError(
+            "required seed cleanup failed after seed execution error",
+            primary_error=primary,
+            cleanup_error=RuntimeError("delete witness failed"),
+        ) from primary
+
+    async def no_source_preflight(raw, **kwargs):
+        return []
+
+    monkeypatch.setattr(feas, "apply_data_seed_async", fake_apply)
+    monkeypatch.setattr(feas, "_run_preflight_and_filter_raw", no_source_preflight)
+    tasks_path = _write_tasks(tmp_path, [_task()])
+    editor = EDITOR_REGISTRY[("webarena_verified", "gitlab")]
+    monkeypatch.setattr(editor, "probe_base_state", classmethod(lambda _cls, _instance: None))
+    composition = RuntimeComposition(
+        name="strict-partial-seed-test",
+        site_catalog=SiteCatalog(),
+        seed_registry=SeedSiteRegistry.from_registrations(
+            (SeedSiteRegistration("webarena_verified", "gitlab", editor),)
+        ),
+        feasibility_policy_catalog=default_feasibility_policy_catalog(),
+        strict_seed_cleanup=True,
+    )
+
+    with pytest.raises(RequiredSeedCleanupError) as raised:
+        asyncio.run(
+            feas.verify_feasibility(
+                tasks_path,
+                instances=[_gitlab_instance()],
+                concurrency=1,
+                retry_count=0,
+                runtime_composition=composition,
+            )
+        )
+
+    assert isinstance(raised.value.primary_error, EditorError)
+    assert raised.value.primary_error.kind == "request_failed"
+
+
 # ---------------------------------------------------------------------------
 # Case 7 — fingerprint match ⇒ skip
 # ---------------------------------------------------------------------------

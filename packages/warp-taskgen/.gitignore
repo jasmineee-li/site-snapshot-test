@@ -42,6 +42,8 @@ data/hf/**
 *.sqlite3
 instances.json
 instances.*.local.json
+instances.classifieds-canary.json
+canaries/classifieds-canary.compose.yaml
 configs/benchmark_hosts/*.local.yaml
 
 # Vendors — external benchmark clones (user runs `git clone` themselves)

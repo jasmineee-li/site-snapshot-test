@@ -18,6 +18,16 @@ posts/comments. Magento, Wikipedia, OpenStreetMap, shopping, and classifieds
 remain historical unless the spec changes. Counts belong to run manifests, not
 this document.
 
+The only Classifieds exception is the issue #149 experimental composition
+`classifieds_listing_reply_poc`. It is an explicit per-run dependency bundle,
+not a default registration. It admits only VisualWebArena
+`classifieds` / `listing_reply.body`, requires a regular-user write followed by
+fresh anonymous-reader exact-ID/body/actor/painted-visibility proof, and requires
+external golden-state reset before and after the bounded run. Missing reader,
+image-provenance, reset, or exact-resource evidence fails closed; it never falls
+back to the writer session, root/index pages, newest-item selection, or the
+GitLab/Reddit policies.
+
 ## Phase 2 ownership
 
 Phase 2a planners emit a high-level `adversarial_action`, not evaluator JSON.

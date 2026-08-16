@@ -266,6 +266,7 @@ async def _run_render_check(
     metadata: dict[str, Any],
     instance: dict[str, Any],
     site_catalog: SiteCatalog | None = None,
+    reader_preflight: Any | None = None,
 ) -> RenderOutcome:
     render_outcome_cls = RenderOutcome
     render_check_inputs_from_metadata_fn = _render_check_inputs_from_metadata
@@ -396,14 +397,41 @@ async def _run_render_check(
     else:
         readback_plan = None
 
-    browser_context_kwargs, auth_error = resolve_benign_browser_context_auth_fn(instance)
-    if auth_error is not None:
-        return render_outcome_cls.failed(
-            kind=auth_probe_failure_kind_fn(auth_error),
-            detail=auth_error,
-            urls_tried=[],
-            per_url_errors={},
-        )
+    if reader_preflight is not None:
+        try:
+            reader_result = reader_preflight(instance)
+        except Exception as exc:
+            return render_outcome_cls.failed(
+                kind="auth_unusable",
+                detail=f"independent reader preflight raised {exc.__class__.__name__}: {exc}",
+                urls_tried=[],
+                per_url_errors={},
+            )
+        if not getattr(reader_result, "ok", False):
+            reason = str(getattr(reader_result, "reason", "reader_contract_failed"))
+            detail = str(getattr(reader_result, "detail", "independent reader contract failed"))
+            return render_outcome_cls.failed(
+                kind="auth_missing" if reason == "missing_reader_auth" else "auth_unusable",
+                detail=f"independent reader preflight failed: {reason}: {detail}",
+                urls_tried=[],
+                per_url_errors={},
+            )
+        reader_metadata = getattr(reader_result, "to_metadata", None)
+        if callable(reader_metadata):
+            render_diagnostics = dict(render_diagnostics or {})
+            render_diagnostics["reader_preflight"] = reader_metadata()
+        # The reader contract is deliberately anonymous and fresh.  Do not
+        # resolve the writer's benign storage state on this path.
+        browser_context_kwargs = {}
+    else:
+        browser_context_kwargs, auth_error = resolve_benign_browser_context_auth_fn(instance)
+        if auth_error is not None:
+            return render_outcome_cls.failed(
+                kind=auth_probe_failure_kind_fn(auth_error),
+                detail=auth_error,
+                urls_tried=[],
+                per_url_errors={},
+            )
 
     async def _do() -> RenderOutcome:
         try:

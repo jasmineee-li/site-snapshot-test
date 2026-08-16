@@ -29,6 +29,7 @@ from warp_taskgen.phases.phase_2_render_check import (
 from warp_taskgen.seeding.site_contracts import EditorSeedResult
 from warp_taskgen.sites import SiteCatalog
 from warp_taskgen.sites.classifieds import ClassifiedsSite
+from warp_taskgen.sites.readback import ReadbackDecision, ReadbackObservation
 
 
 @pytest.fixture
@@ -575,6 +576,56 @@ async def test_verify_invokes_bound_site_readback_observer_for_seed_resource():
             "match_count": 1,
             "requires_expand": False,
         },
+        "identity_tokens": dict(seed_result.write_tokens),
+    }
+    assert page.load_state_calls == [("domcontentloaded", 10000)]
+
+
+@pytest.mark.asyncio
+async def test_verify_preserves_legacy_readback_diagnostics_without_identity_opt_in():
+    """Legacy Site readbacks must not gain feature-specific identity fields."""
+
+    class _LegacyBoundSite:
+        def supports_readback_observation(self) -> bool:
+            return True
+
+        def readback_visibility_selector(self, _plan: object) -> str:
+            return "a.comment-reply[data-id]"
+
+        def observe_readback_html(self, _html: str, _plan: object) -> ReadbackObservation:
+            return ReadbackObservation(
+                kind="resource_signature",
+                identity_tokens={"comment_id": "17"},
+                payload={"comment_id": "17"},
+                signature="UNIQUE-SIGNATURE",
+            )
+
+        def interpret_readback(self, _observation: ReadbackObservation) -> ReadbackDecision:
+            return ReadbackDecision(True, "legacy_readback_verified")
+
+    url = "http://legacy.test/resource/17"
+    page = _FakePage(
+        body_per_url={url: "Rendered UNIQUE-SIGNATURE"},
+        html_per_url={url: "<a class='comment-reply' data-id='17'>reply</a>"},
+        layout_probe_per_url={url: {"visible_at_entry": True}},
+        exact_selector_probe_per_url={url: {"ok": True, "reason": "visible"}},
+    )
+
+    outcome = await verify_seed_renders(
+        browser=_FakeBrowser(page),
+        urls=[url],
+        site_name="legacy",
+        site_url="http://legacy.test",
+        signature="UNIQUE-SIGNATURE",
+        readback_site=_LegacyBoundSite(),
+        readback_plan=SimpleNamespace(verification_mode="seed_resource"),
+    )
+
+    assert outcome.ok
+    assert outcome.evidence()["diagnostics"]["site_readback"] == {
+        "verified": True,
+        "reason": "legacy_readback_verified",
+        "visibility": {"ok": True, "reason": "visible"},
     }
 
 
@@ -702,10 +753,7 @@ async def test_verify_binds_visibility_to_body_inside_exact_reply():
 
     assert not outcome.ok
     assert any("visibility_unproven" in error for error in outcome.per_url_errors.values())
-    assert (
-        'div.comment:has(a.comment-reply[data-id="88"]) '
-        "> p:not(.comment-reply-row)" in page.evaluate_calls
-    )
+    assert 'div.comment:has(a.comment-reply[data-id="88"]) > p:not([class])' in page.evaluate_calls
 
 
 @pytest.mark.asyncio

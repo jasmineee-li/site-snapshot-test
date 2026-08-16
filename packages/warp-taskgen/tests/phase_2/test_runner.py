@@ -68,6 +68,7 @@ async def test_phase_2_run_publishes_partial_results_on_partial_site_failures(
     assert state["generation_failures"] == [
         "gitlab: sandbox did not produce adversarial_tasks.json"
     ]
+    assert "runtime_composition" not in state
 
 
 @pytest.mark.asyncio

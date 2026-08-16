@@ -1796,6 +1796,29 @@ async def verify_seed_renders(
                     # Phase 2c does not sample the SPA shell before the seeded
                     # title/note has been inserted into the DOM.
                     await _wait_for_body_text(page, signature, _BODY_POLL_TIMEOUT_MS)
+                supports_site_observer = getattr(
+                    readback_site, "supports_readback_observation", None
+                )
+                site_readback_observer = (
+                    getattr(readback_site, "observe_readback_html", None)
+                    if callable(supports_site_observer) and supports_site_observer()
+                    else None
+                )
+                site_seed_resource_readback = (
+                    readback_plan is not None
+                    and getattr(readback_plan, "verification_mode", None) == "seed_resource"
+                    and callable(site_readback_observer)
+                )
+                if site_seed_resource_readback:
+                    # Site-owned exact HTML observers need the server-rendered
+                    # body, not merely response headers. ``commit`` remains the
+                    # fast default for every legacy path.
+                    try:
+                        await page.wait_for_load_state(
+                            "domcontentloaded", timeout=selector_timeout_ms
+                        )
+                    except Exception:
+                        pass
                 body_text = await page.text_content("body") or ""
                 normalized = _normalize(body_text)
                 if needle in normalized:
@@ -1805,19 +1828,7 @@ async def verify_seed_renders(
                         raw_pos = pos
                     snippet = body_text[max(0, raw_pos - 40) : raw_pos + len(signature) + 40]
                     layout_probe = await _layout_probe_for_signature(page, needle)
-                    supports_site_observer = getattr(
-                        readback_site, "supports_readback_observation", None
-                    )
-                    site_readback_observer = (
-                        getattr(readback_site, "observe_readback_html", None)
-                        if callable(supports_site_observer) and supports_site_observer()
-                        else None
-                    )
-                    if (
-                        readback_plan is not None
-                        and getattr(readback_plan, "verification_mode", None) == "seed_resource"
-                        and callable(site_readback_observer)
-                    ):
+                    if site_seed_resource_readback:
                         if not _same_committed_render_surface(target, getattr(page, "url", None)):
                             errors[target] = "site_readback_failed:redirected_read_surface"
                             continue
@@ -1880,6 +1891,23 @@ async def verify_seed_renders(
                                 "reason": decision.reason,
                                 "visibility": exact_layout_probe,
                             }
+                            # Keep the historical GitLab/Reddit diagnostics
+                            # shape byte-for-byte stable.  Feature-owned plans
+                            # may opt in when exact identity is part of their
+                            # readback artifact contract explicitly opts in.
+                            if getattr(
+                                readback_plan,
+                                "persist_readback_identity_tokens",
+                                False,
+                            ):
+                                # Identity tokens are a bounded, sanitized
+                                # editor contract (IDs, actor label, and body
+                                # digest). Persist them beside the painted
+                                # witness so the feature artifact proves the
+                                # exact resource that was admitted.
+                                readback_diagnostics["site_readback"]["identity_tokens"] = dict(
+                                    observation.identity_tokens
+                                )
                             diagnostics = readback_diagnostics
                     if strict_reddit_comment_visibility:
                         probe = await _reddit_seed_comment_visibility_probe(

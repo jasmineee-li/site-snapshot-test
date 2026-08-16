@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from warp_taskgen.phase_2.phase_2c.classifieds_policy import ClassifiedsFeasibilityPolicy
@@ -8,6 +10,7 @@ from warp_taskgen.phase_2.phase_2c.policy import (
     PreflightClassification,
     ProbeTarget,
 )
+from warp_taskgen.phases.phase_2c_preflight import preflight_benign_targets
 
 
 def _task() -> dict[str, object]:
@@ -40,8 +43,8 @@ def test_classifieds_policy_is_explicit_and_targets_only_exact_listing() -> None
 
     assert catalog.get("visualwebarena", "classifieds") is policy
     assert catalog.get("webarena_verified", "classifieds") is None
-    assert policy.requires_authenticated_preflight() is True
-    assert policy.auth_self_test_path() == "/index.php?page=user&action=dashboard"
+    assert policy.requires_authenticated_preflight() is False
+    assert policy.auth_self_test_path() is None
     assert policy.probe_targets(_task(), "https://classifieds.test") == [
         ProbeTarget(
             "https://classifieds.test/index.php?page=item&id=12085",
@@ -119,3 +122,56 @@ def test_classifieds_policy_classifies_login_surfaces_as_auth_failures(
         http_status=status,
         detail=classification.detail,
     )
+    assert "anonymous-reader contract" in classification.detail
+
+
+def test_classifieds_source_preflight_probes_with_anonymous_context() -> None:
+    calls: list[str] = []
+    context_options: list[dict[str, object]] = []
+
+    class _Response:
+        def __init__(self) -> None:
+            self.status = 200
+            self.headers: dict[str, str] = {}
+
+        async def text(self) -> str:
+            return "<html>public listing</html>"
+
+        async def dispose(self) -> None:
+            return None
+
+    class _Context:
+        async def get(self, url: str, **_kwargs: object) -> _Response:
+            calls.append(url)
+            return _Response()
+
+    async def factory(options: dict[str, object]) -> _Context:
+        context_options.append(dict(options))
+        return _Context()
+
+    catalog = FeasibilityPolicyCatalog.from_policies((ClassifiedsFeasibilityPolicy(),))
+    keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            [_task()],
+            instances_by_site={
+                "classifieds": [
+                    {
+                        "site_name": "classifieds",
+                        "benchmark": "visualwebarena",
+                        "site_url": "https://classifieds.test",
+                        "preflight_request_context": {},
+                    }
+                ]
+            },
+            request_context_factory=factory,
+            feasibility_policy_catalog=catalog,
+        )
+    )
+
+    assert keep and not dropped
+    assert len(context_options) == 1
+    assert not any(
+        key in context_options[0]
+        for key in ("storage_state", "extra_http_headers", "http_credentials")
+    )
+    assert calls == ["https://classifieds.test/index.php?page=item&id=12085"]

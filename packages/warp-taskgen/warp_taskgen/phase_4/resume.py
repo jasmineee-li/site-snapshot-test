@@ -184,6 +184,7 @@ def _phase_4_state_metadata(
     phase_4_eval_awareness_max_iterations: int | None = None,
     skip_intermediate_asr: bool = False,
     intermediate_asr_max_steps_per_task: int | None = None,
+    runtime_composition: str | None = None,
     agent_llm_timeout: float | None = None,
     agent_step_timeout: float | None = None,
     agent_task_timeout: float | None = None,
@@ -203,6 +204,8 @@ def _phase_4_state_metadata(
         "allow_unknown_auth": allow_unknown_auth,
         "skip_host_bound_storage_state_auth": skip_host_bound_storage_state_auth,
     }
+    if runtime_composition:
+        metadata["runtime_composition"] = runtime_composition
     if sites is not None:
         metadata["sites"] = sites
     if adversarial_action_kind is not None:

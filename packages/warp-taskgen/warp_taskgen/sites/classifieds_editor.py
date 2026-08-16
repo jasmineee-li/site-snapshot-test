@@ -18,10 +18,13 @@ from urllib.parse import parse_qsl, urljoin, urlsplit
 
 from warp_taskgen.editors._method_spec import FreeText, Token, editor_method
 from warp_taskgen.editors._registry import EditorMethodSpec
-from warp_taskgen.editors.base import BaseSiteEditor, EditorError
+from warp_taskgen.editors.base import BaseSiteEditor, EditorError, _FormParser
 from warp_taskgen.sites.classifieds_reply_html import (
     extract_listing_reply_id,
     normalize_reply_body,
+    rendered_listing_reply_id_presence,
+    rendered_listing_reply_ids,
+    rendered_listing_surface_present,
 )
 
 _ID_RE = re.compile(r"^[1-9][0-9]*$")
@@ -224,21 +227,79 @@ class ClassifiedsEditor(BaseSiteEditor):
         response = self.session.get(
             f"{self._site_url().rstrip('/')}/index.php?page=user&action=dashboard",
             timeout=10,
-            allow_redirects=False,
+            allow_redirects=True,
         )
         status = int(getattr(response, "status_code", 0) or 0)
         if status in {401, 403}:
             return False
-        if 300 <= status < 400:
-            return False
         if status != 200:
             response.raise_for_status()
+            return False
+        final_url = urlsplit(str(getattr(response, "url", "") or ""))
+        site_url = urlsplit(self._site_url())
+        final_query = dict(parse_qsl(final_url.query, keep_blank_values=True))
+        if (
+            (final_url.scheme, final_url.netloc) != (site_url.scheme, site_url.netloc)
+            or final_url.path != "/index.php"
+            or final_query.get("page") != "user"
+            or final_query.get("action") not in {"dashboard", "items"}
+        ):
             return False
         # The dashboard route alone is not proof: an unauthenticated server
         # may render its login page with HTTP 200. Require the regular-user
         # logout control that the authenticated shell exposes.
         body = _response_text(response).casefold()
         return any(marker in body for marker in ("page=logout", "action=logout", "/logout"))
+
+    @staticmethod
+    def _sanitize_editor_error(exc: EditorError) -> EditorError:
+        # BaseSiteEditor includes a short raw response snippet on HTTP errors.
+        # Classifieds forms contain the CSRF token and authenticated email, so
+        # never carry that snippet into Phase 2/4 evidence.
+        exc.response_snippet = None
+        return exc
+
+    def _form_get(self, path: str, *, allow_missing: bool = False) -> Any:
+        try:
+            return super()._form_get(path, allow_missing=allow_missing)
+        except EditorError as exc:
+            self._sanitize_editor_error(exc)
+            raise
+
+    def _submit_exact_form(
+        self, action_path: str, form_fields: dict[str, Any], **kwargs: Any
+    ) -> Any:
+        try:
+            return super()._submit_exact_form(action_path, form_fields, **kwargs)
+        except EditorError as exc:
+            self._sanitize_editor_error(exc)
+            raise
+
+    def _fetch_form_state(
+        self,
+        path: str,
+        *,
+        action_contains: str | None = None,
+        required_fields: tuple[str, ...] = (),
+    ) -> dict[str, Any]:
+        """Fetch the form and retain its page witness for mutation recovery."""
+
+        response = self._form_get(path)
+        parser = _FormParser()
+        parser.feed(response.text)
+        action_filter = (action_contains or "").lower()
+        for form in parser.forms:
+            action = str(form.get("action") or "")
+            if action_filter and action_filter not in action.lower():
+                continue
+            available = set(form.get("fields", {})) | set(form.get("select_options", {}))
+            if all(field in available for field in required_fields):
+                form["_response_text"] = response.text
+                return form
+        raise EditorError(
+            "form_missing",
+            f"{self.site_name} editor could not find expected form for {path}",
+        )
 
     def validate_args(self, method_name: str, args: Mapping[str, Any]) -> None:
         if method_name != "create_listing_reply":
@@ -328,27 +389,84 @@ class ClassifiedsEditor(BaseSiteEditor):
             ).fields
         )
 
-        response = self._submit_exact_form(form_action, payload)
-        self._validate_submit_response(response, listing_text)
-
-        rendered = self._form_get(path)
-        if rendered is None or getattr(rendered, "status_code", 200) != 200:
-            raise EditorError(
-                "request_failed", "classifieds listing refetch did not return HTTP 200"
+        # Capture the complete stable-ID set from the same GET that supplied
+        # the form before the POST. If the POST times out (or returns a status
+        # whose commit semantics are unclear), the exact ``post - pre`` delta
+        # is the only safe way to register cleanup.
+        pre_write_ids = rendered_listing_reply_ids(str(form.get("_response_text") or ""))
+        rendered: Any = None
+        post_attempted = False
+        try:
+            response = self._submit_exact_form(form_action, payload)
+            post_attempted = True
+            self._validate_submit_response(response, listing_text)
+            rendered = self._form_get(path)
+            if rendered is None or getattr(rendered, "status_code", 200) != 200:
+                raise EditorError(
+                    "request_failed", "classifieds listing refetch did not return HTTP 200"
+                )
+            self._validate_rendered_response_url(rendered, listing_text)
+            reply_id = extract_listing_reply_id(
+                _response_text(rendered),
+                actor=actor_name,
+                body=body_text,
+                signature=signature_text,
+                listing_id=listing_text,
             )
-        self._validate_rendered_response_url(rendered, listing_text)
-        reply_id = extract_listing_reply_id(
-            _response_text(rendered),
-            actor=actor_name,
-            body=body_text,
-            signature=signature_text,
-            listing_id=listing_text,
+            if reply_id is None:
+                raise EditorError(
+                    "schema_mismatch",
+                    "classifieds listing refetch did not expose one exact rendered reply id",
+                )
+        except EditorError as primary_error:
+            # A form-auth/4xx rejection raised before a response was
+            # returned is known not to have committed. Preserve the ordinary
+            # editor error for those cases. Once the POST returned (including
+            # an unexpected status), or for an ambiguous 5xx, reconcile the
+            # exact ID delta before surfacing the primary error.
+            known_prewrite_rejection = not post_attempted and (
+                primary_error.kind == "auth_missing"
+                or (
+                    primary_error.http_status is not None and 400 <= primary_error.http_status < 500
+                )
+            )
+            if not known_prewrite_rejection:
+                try:
+                    self._reconcile_post_submit_failure(
+                        path=path,
+                        listing_id=listing_text,
+                        csrf_token=csrf,
+                        pre_write_ids=pre_write_ids,
+                        rendered=rendered,
+                    )
+                except EditorError as reconciliation_error:
+                    # Keep the primary submit/readback failure visible in the
+                    # exception chain even when the exact post-write delta is
+                    # not safe to identify.
+                    raise reconciliation_error from primary_error
+            raise primary_error
+        except Exception as exc:
+            primary_error = EditorError(
+                "request_failed", "classifieds listing POST/refetch raised an unexpected error"
+            )
+            try:
+                self._reconcile_post_submit_failure(
+                    path=path,
+                    listing_id=listing_text,
+                    csrf_token=csrf,
+                    pre_write_ids=pre_write_ids,
+                    rendered=rendered,
+                )
+            except EditorError as reconciliation_error:
+                raise reconciliation_error from primary_error
+            raise primary_error from exc
+        self._push_cleanup(
+            lambda: self._delete_listing_reply(
+                listing_id=listing_text,
+                reply_id=reply_id,
+                csrf_token=csrf,
+            )
         )
-        if reply_id is None:
-            raise EditorError(
-                "schema_mismatch",
-                "classifieds listing refetch did not expose one exact rendered reply id",
-            )
         surface = f"{self._site_url().rstrip('/')}{path}"
         return {
             "listing_id": listing_text,
@@ -373,6 +491,121 @@ class ClassifiedsEditor(BaseSiteEditor):
             "read_surface_urls": [surface],
             "read_surface_provenance_source": "classifieds.regular_participant",
         }
+
+    def _reconcile_post_submit_failure(
+        self,
+        *,
+        path: str,
+        listing_id: str,
+        csrf_token: str,
+        pre_write_ids: frozenset[str] | None,
+        rendered: Any,
+    ) -> None:
+        """Register one exact post-submit delta for cleanup, or fail closed.
+
+        The POST may have committed even when its readback is malformed. We
+        only delete a single ID that was absent from the pre-write witness and
+        newly present in a complete post-write witness. Any ambiguity becomes
+        a terminal ``mutation_unreconciled`` error instead of leaving an
+        untracked reply behind.
+        """
+
+        html = ""
+        if getattr(rendered, "status_code", 0) == 200:
+            try:
+                self._validate_rendered_response_url(rendered, listing_id)
+            except EditorError:
+                pass
+            else:
+                html = _response_text(rendered)
+        if not html:
+            try:
+                recovery = self._form_get(path)
+            except Exception as exc:
+                raise EditorError(
+                    "mutation_unreconciled",
+                    "classifieds post-submit mutation could not be read back",
+                ) from exc
+            if recovery is None or getattr(recovery, "status_code", 0) != 200:
+                raise EditorError(
+                    "mutation_unreconciled",
+                    "classifieds post-submit mutation readback remained unavailable",
+                )
+            try:
+                self._validate_rendered_response_url(recovery, listing_id)
+            except EditorError as exc:
+                raise EditorError(
+                    "mutation_unreconciled",
+                    "classifieds post-submit recovery targeted the wrong listing",
+                ) from exc
+            html = _response_text(recovery)
+
+        post_write_ids = rendered_listing_reply_ids(html)
+        if pre_write_ids is None or post_write_ids is None:
+            raise EditorError(
+                "mutation_unreconciled",
+                "classifieds post-submit mutation had no complete ID witnesses",
+            )
+        delta = post_write_ids - pre_write_ids
+        if len(delta) != 1:
+            raise EditorError(
+                "mutation_unreconciled",
+                "classifieds post-submit mutation did not produce one exact new reply ID",
+            )
+        reply_id = next(iter(delta))
+        self._push_cleanup(
+            lambda: self._delete_listing_reply(
+                listing_id=listing_id,
+                reply_id=reply_id,
+                csrf_token=csrf_token,
+            )
+        )
+
+    def _delete_listing_reply(
+        self,
+        *,
+        listing_id: str,
+        reply_id: str,
+        csrf_token: str,
+    ) -> None:
+        """Delete the exact writer-owned reply, then prove its ID is absent."""
+
+        response = self.session.get(
+            f"{self._site_url().rstrip('/')}/index.php",
+            params={
+                "page": "item",
+                "action": "delete_comment",
+                "id": listing_id,
+                "comment": reply_id,
+                "octoken": csrf_token,
+            },
+            timeout=10,
+            allow_redirects=False,
+        )
+        status = int(getattr(response, "status_code", 0) or 0)
+        location = _response_headers(response).get("Location")
+        if status not in {302, 303} or not isinstance(location, str):
+            raise EditorError("cleanup_failed", "Classifieds reply delete did not redirect")
+        resolved = urljoin(f"{self._site_url().rstrip('/')}/", location)
+        if not self._same_origin_listing_url(resolved, listing_id):
+            raise EditorError("cleanup_failed", "Classifieds reply delete left the listing")
+        witness = self._form_get(_listing_path(listing_id))
+        if witness is None or getattr(witness, "status_code", 0) != 200:
+            raise EditorError("cleanup_failed", "Classifieds cleanup witness was unavailable")
+        self._validate_rendered_response_url(witness, listing_id)
+        witness_html = _response_text(witness)
+        if not rendered_listing_surface_present(
+            witness_html,
+            listing_id,
+            origin=self._site_url(),
+        ):
+            raise EditorError(
+                "cleanup_failed",
+                "Classifieds cleanup did not preserve the exact listing surface",
+            )
+        presence = rendered_listing_reply_id_presence(witness_html, reply_id)
+        if presence is not False:
+            raise EditorError("cleanup_failed", "Classifieds cleanup did not prove reply absence")
 
     def _validate_form_state(self, fields: Mapping[str, str], listing_id: str) -> None:
         missing_keys = [key for key in _FORM_REQUIRED_KEYS if key not in fields]

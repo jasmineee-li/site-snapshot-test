@@ -59,6 +59,7 @@ from warp_taskgen.placeholders import (
     placeholder_for_site,
     placeholders_for_site_urls,
 )
+from warp_taskgen.runtime_composition import RequiredSeedCleanupError
 
 logger = logging.getLogger(__name__)
 
@@ -485,7 +486,7 @@ async def run_tasks_by_site(
         from warp_taskgen.run_control import PauseBoundaryReached, RunInterrupted
 
         for batch in grouped_results:
-            if isinstance(batch, (PauseBoundaryReached, RunInterrupted)):
+            if isinstance(batch, (PauseBoundaryReached, RunInterrupted, RequiredSeedCleanupError)):
                 raise batch
         for batch in grouped_results:
             if isinstance(batch, BaseException):

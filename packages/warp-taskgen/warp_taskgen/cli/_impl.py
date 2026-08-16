@@ -37,6 +37,7 @@ from warp_taskgen.phase_4.options import (
 )
 from warp_taskgen.phases.phase_1_task_cards import task_capability_profile_choices
 from warp_taskgen.runners import available_runners
+from warp_taskgen.runtime_composition import RUNTIME_COMPOSITION_CHOICES
 
 load_dotenv(override=True)  # override=True: .env values win over empty-string shell vars.
 
@@ -292,6 +293,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Phase 1 generate-new-tasks: compile a named host-owned action-capability "
             "task-card profile. Mutually exclusive with --task-card-plan."
+        ),
+    )
+    phase_cmd.add_argument(
+        "--runtime-composition",
+        choices=RUNTIME_COMPOSITION_CHOICES,
+        default=None,
+        help=(
+            "Explicit runtime Site composition for a bounded POC. Omit to preserve "
+            "the default GitLab/Reddit runtime."
         ),
     )
     phase_cmd.add_argument(
@@ -765,6 +775,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=task_capability_profile_choices(),
         default=argparse.SUPPRESS,
         help="Override saved Phase 1 compiled action-capability task-card profile.",
+    )
+    resume_cmd.add_argument(
+        "--runtime-composition",
+        choices=RUNTIME_COMPOSITION_CHOICES,
+        default=argparse.SUPPRESS,
+        help="Override the saved runtime Site composition for the resumed phase.",
     )
     resume_cmd.add_argument(
         "--phase-1-action-counts",
@@ -2005,6 +2021,13 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
         validate_run_definition_binding,
     )
 
+    phase = str(getattr(args, "phase", ""))
+    # ``phase 2c`` is the CLI alias for Phase 2 feasibility-only execution.
+    # Normalize the alias before projecting the immutable Run Definition so
+    # later phases observe the same value that Phase 2 persists.
+    if phase == "2c":
+        args.feasibility_only = True
+
     transition = getattr(args, "_run_transition", None)
     if transition is None:
         try:
@@ -2035,7 +2058,6 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
         with bind_run_definition(definition, state_dir=get_state_dir()):
             return _dispatch_phase_with_run_context(args)
 
-    phase = str(getattr(args, "phase", ""))
     from warp_taskgen.phase_2.run_lock import Phase2AlreadyRunning
 
     @contextlib.contextmanager

@@ -212,7 +212,7 @@ def test_classifieds_observes_exact_reply_from_independent_reader_html() -> None
     assert observation.payload["independent_reader"] is True
     assert ClassifiedsSite().interpret_readback(observation).verified
     assert ClassifiedsReadbackCapability().readback_visibility_selector(plan) == (
-        'div.comment:has(a.comment-reply[data-id="88"]) > p:not(.comment-reply-row)'
+        'div.comment:has(a.comment-reply[data-id="88"]) > p:not([class])'
     )
 
 
