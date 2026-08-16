@@ -240,18 +240,25 @@ async def run_all(
 
 def main():
     parser = argparse.ArgumentParser(description="Run realism critique experiment")
-    parser.add_argument("--models", nargs="+",
-                        default=["anthropic/claude-opus-4.6:thinking", "openai/gpt-5.4:thinking"])
+    parser.add_argument(
+        "--models",
+        nargs="+",
+        default=["anthropic/claude-opus-4.6:thinking", "openai/gpt-5.4:thinking"],
+    )
     parser.add_argument("--formats", nargs="+", default=["screenshot", "html", "axtree"])
-    parser.add_argument("--prompts", nargs="+", default=["informed_eval", "blind"],
-                        choices=list(PROMPTS.keys()))
+    parser.add_argument(
+        "--prompts", nargs="+", default=["informed_eval", "blind"], choices=list(PROMPTS.keys())
+    )
     parser.add_argument("--sources", nargs="+", default=None)
     parser.add_argument("--website-types", nargs="+", default=None)
-    parser.add_argument("--max-samples", type=int, default=None,
-                        help="Max samples to run (random subset)")
+    parser.add_argument(
+        "--max-samples", type=int, default=None, help="Max samples to run (random subset)"
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--manifest", default="eval_awareness_experiments/data/manifest.json")
-    parser.add_argument("--output-dir", default="eval_awareness_experiments/results/realism_critique")
+    parser.add_argument(
+        "--output-dir", default="eval_awareness_experiments/results/realism_critique"
+    )
     args = parser.parse_args()
 
     samples = load_manifest(Path(args.manifest))
@@ -271,10 +278,15 @@ def main():
     print(f"  Prompts: {args.prompts}")
     print(f"  Sources: {set(s.source for s in samples)}")
 
-    results = asyncio.run(run_all(
-        args.models, args.formats, args.prompts, samples,
-        Path(args.output_dir),
-    ))
+    results = asyncio.run(
+        run_all(
+            args.models,
+            args.formats,
+            args.prompts,
+            samples,
+            Path(args.output_dir),
+        )
+    )
 
     print(f"\nDone. {len(results)} total critiques.")
 

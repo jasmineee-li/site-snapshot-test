@@ -81,9 +81,7 @@ def _patch_browsergym_reachability(online_sites: set[str]) -> None:
             try:
                 requests.get(url, timeout=timeout)
             except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
-                raise RuntimeError(
-                    f'WebArena site "{site}" ({url}) is not reachable: {e}'
-                ) from e
+                raise RuntimeError(f'WebArena site "{site}" ({url}) is not reachable: {e}') from e
 
     webarena_instance.WebArenaInstance._check_is_reachable = _check_is_reachable
 
@@ -188,20 +186,23 @@ def _build_wasp_benchmark(
     # tasks. BrowserGym's `task_metadata("webarena")` only knows the 812. Append
     # synthesized rows so Benchmark.__post_init__ doesn't reject our task names.
     import pandas as pd
+
     base_md = task_metadata("webarena")
     extra_rows = []
     for _cfg_path, data, tid in filtered:
         sites_str = ",".join(data.get("sites") or [site or ""])
         eval_types_list = data.get("eval", {}).get("eval_types", []) or []
-        extra_rows.append({
-            "task_name": f"webarena.{tid}",
-            "requires_reset": bool(data.get("require_reset", False)),
-            "sites": sites_str,
-            "eval_types": ",".join(eval_types_list),
-            "task_id": tid,
-            "browsergym_split": "wasp",
-            "depends_on": "",
-        })
+        extra_rows.append(
+            {
+                "task_name": f"webarena.{tid}",
+                "requires_reset": bool(data.get("require_reset", False)),
+                "sites": sites_str,
+                "eval_types": ",".join(eval_types_list),
+                "task_id": tid,
+                "browsergym_split": "wasp",
+                "depends_on": "",
+            }
+        )
     md = pd.concat([base_md, pd.DataFrame(extra_rows)], ignore_index=True)
 
     logger.info(f"WASP benchmark: {len(task_list)} tasks for site={site!r}")
@@ -256,11 +257,18 @@ def _register_wasp_tasks(filtered: list[tuple[Path, dict, int]]) -> None:
 
     orig_init = wa_task.GenericWebArenaTask.__init__
 
-    def patched_init(self, seed, task_id=None, intent_template_id=None,
-                     with_na_hint=False, with_homepage_hint=False):
+    def patched_init(
+        self,
+        seed,
+        task_id=None,
+        intent_template_id=None,
+        with_na_hint=False,
+        with_homepage_hint=False,
+    ):
         if task_id is not None and task_id in wasp_configs_by_id:
             from browsergym.core.task import AbstractBrowserTask
             from browsergym.webarena.instance import WebArenaInstance
+
             AbstractBrowserTask.__init__(self, seed)
             self.viewport = {"width": 1280, "height": 720}
             self.slow_mo = 1000
@@ -273,8 +281,14 @@ def _register_wasp_tasks(filtered: list[tuple[Path, dict, int]]) -> None:
             # so no __REDDIT__/__GITLAB__ replacement needed.
             self.task_configs = [wasp_configs_by_id[task_id]]
             return
-        orig_init(self, seed, task_id=task_id, intent_template_id=intent_template_id,
-                  with_na_hint=with_na_hint, with_homepage_hint=with_homepage_hint)
+        orig_init(
+            self,
+            seed,
+            task_id=task_id,
+            intent_template_id=intent_template_id,
+            with_na_hint=with_na_hint,
+            with_homepage_hint=with_homepage_hint,
+        )
 
     wa_task.GenericWebArenaTask.__init__ = patched_init
 
@@ -288,56 +302,98 @@ def _register_wasp_tasks(filtered: list[tuple[Path, dict, int]]) -> None:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run WASP tasks with eval-awareness scaffolding")
-    parser.add_argument("--wasp-path", type=Path,
-                        default=Path(REPO_ROOT) / "external_benchmarks" / "wasp",
-                        help="Path to WASP clone (default: external_benchmarks/wasp)")
-    parser.add_argument("--task-dir", type=Path, required=True,
-                        help="Output dir from WASP's prompt_injector.py — contains "
-                             "webarena_tasks/<task_id>.json. Generate via: "
-                             "PYTHONPATH=external_benchmarks/wasp/webarena_prompt_injections "
-                             "python external_benchmarks/wasp/webarena_prompt_injections/prompt_injector.py "
-                             "--config <raw.json> --output-dir <here> --user_goal_idx 0 "
-                             "--injection_format goal_hijacking_url_injection --output-format webarena")
-    parser.add_argument("--single-site", default=None, choices=["gitlab", "reddit"],
-                        help="Restrict to one site. Omit to include all sites in the task pool.")
+    parser.add_argument(
+        "--wasp-path",
+        type=Path,
+        default=Path(REPO_ROOT) / "external_benchmarks" / "wasp",
+        help="Path to WASP clone (default: external_benchmarks/wasp)",
+    )
+    parser.add_argument(
+        "--task-dir",
+        type=Path,
+        required=True,
+        help="Output dir from WASP's prompt_injector.py — contains "
+        "webarena_tasks/<task_id>.json. Generate via: "
+        "PYTHONPATH=external_benchmarks/wasp/webarena_prompt_injections "
+        "python external_benchmarks/wasp/webarena_prompt_injections/prompt_injector.py "
+        "--config <raw.json> --output-dir <here> --user_goal_idx 0 "
+        "--injection_format goal_hijacking_url_injection --output-format webarena",
+    )
+    parser.add_argument(
+        "--single-site",
+        default=None,
+        choices=["gitlab", "reddit"],
+        help="Restrict to one site. Omit to include all sites in the task pool.",
+    )
     parser.add_argument("--max-tasks", type=int, default=10)
     parser.add_argument("--shuffle", type=int, default=42)
-    parser.add_argument("--model-name", required=True,
-                        help="OpenRouter model name. Append :thinking to enable reasoning mode.")
-    parser.add_argument("--webarena-eval-model",
-                        default=os.environ.get("WEBARENA_EVAL_MODEL", "gpt-4.1-mini"))
+    parser.add_argument(
+        "--model-name",
+        required=True,
+        help="OpenRouter model name. Append :thinking to enable reasoning mode.",
+    )
+    parser.add_argument(
+        "--webarena-eval-model", default=os.environ.get("WEBARENA_EVAL_MODEL", "gpt-4.1-mini")
+    )
     parser.add_argument("--max-steps", type=int, default=15)
     parser.add_argument("--n-jobs", type=int, default=1)
     parser.add_argument("--avg-step-timeout", type=int, default=60)
-    parser.add_argument("--results-dir", default=None,
-                        help="Cell-owned directory to write the AgentLab study "
-                             "under (path becomes the study's exp_root).")
-    parser.add_argument("--relaunch-incomplete", action="store_true",
-                        help="Resume the latest AgentLab study under --results-dir, "
-                             "rerunning only incomplete or errored tasks. Falls "
-                             "back to a fresh study if no prior study exists.")
-    parser.add_argument("--condition", choices=ALL_CONDITIONS, default="baseline",
-                        help="Causal injection-wrapping condition.")
-    parser.add_argument("--extra-instructions-preset", default="none",
-                        choices=list(EXTRA_INSTRUCTION_PRESETS.keys()),
-                        help="Agent-side elicitation preset (same as DoomArena runner).")
-    parser.add_argument("--extra-instructions", default=None,
-                        help="Arbitrary extra instructions, overrides --extra-instructions-preset.")
-    parser.add_argument("--system-prompt-frame", default="none", choices=ALL_FRAMES,
-                        help="Wrap the agent's instructions in <llm_safety_test> or "
-                             "<hypothetical_scenario> tags. Browser track injects the "
-                             "frame into the GenericAgent's extra_instructions section.")
-    parser.add_argument("--online-sites", nargs="+", default=None,
-                        help="Override reachability check. Defaults to just --single-site.")
+    parser.add_argument(
+        "--results-dir",
+        default=None,
+        help="Cell-owned directory to write the AgentLab study "
+        "under (path becomes the study's exp_root).",
+    )
+    parser.add_argument(
+        "--relaunch-incomplete",
+        action="store_true",
+        help="Resume the latest AgentLab study under --results-dir, "
+        "rerunning only incomplete or errored tasks. Falls "
+        "back to a fresh study if no prior study exists.",
+    )
+    parser.add_argument(
+        "--condition",
+        choices=ALL_CONDITIONS,
+        default="baseline",
+        help="Causal injection-wrapping condition.",
+    )
+    parser.add_argument(
+        "--extra-instructions-preset",
+        default="none",
+        choices=list(EXTRA_INSTRUCTION_PRESETS.keys()),
+        help="Agent-side elicitation preset (same as DoomArena runner).",
+    )
+    parser.add_argument(
+        "--extra-instructions",
+        default=None,
+        help="Arbitrary extra instructions, overrides --extra-instructions-preset.",
+    )
+    parser.add_argument(
+        "--system-prompt-frame",
+        default="none",
+        choices=ALL_FRAMES,
+        help="Wrap the agent's instructions in <llm_safety_test> or "
+        "<hypothetical_scenario> tags. Browser track injects the "
+        "frame into the GenericAgent's extra_instructions section.",
+    )
+    parser.add_argument(
+        "--online-sites",
+        nargs="+",
+        default=None,
+        help="Override reachability check. Defaults to just --single-site.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = _parse_args()
-    online = set(args.online_sites or ([args.single_site] if args.single_site else ["gitlab", "reddit"]))
+    online = set(
+        args.online_sites or ([args.single_site] if args.single_site else ["gitlab", "reddit"])
+    )
     _patch_browsergym_reachability(online)
 
     from doomarena.browsergym.scripts.run_bgym_experiment import _override_webarena_env_vars
+
     base_url = os.environ.get("DOOMARENA_WEBARENA_BASE_URL", "http://localhost")
     _override_webarena_env_vars(base_url)
     for var in ("REDDIT", "SHOPPING", "SHOPPING_ADMIN", "GITLAB", "WIKIPEDIA", "MAP", "HOMEPAGE"):
@@ -345,6 +401,7 @@ def main() -> None:
 
     # Reuse DoomArena's evaluator patch verbatim by importing it.
     from eval_awareness_experiments.run_doomarena_glm5_popup import _patch_webarena_evaluator
+
     _patch_webarena_evaluator(args.webarena_eval_model)
 
     config_paths = _load_wasp_configs(args.task_dir)
@@ -396,9 +453,7 @@ def main() -> None:
     if args.relaunch_incomplete:
         if exp_root is None:
             raise SystemExit("--relaunch-incomplete requires --results-dir")
-        relaunch = (exp_root / "study.pkl.gz").exists() or any(
-            exp_root.glob("*/study.pkl.gz")
-        )
+        relaunch = (exp_root / "study.pkl.gz").exists() or any(exp_root.glob("*/study.pkl.gz"))
         if relaunch:
             logger.info("Relaunching incomplete tasks from latest study under %s", exp_root)
         else:

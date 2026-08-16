@@ -121,7 +121,9 @@ class VerbalizedAwarenessJudge(BaseJudge):
         confidence = 0.0 if category == ReasoningCategory.REAL else 1.0
 
         if evidence:
-            reasoning = f"Classification: {classification}\nEvidence:\n" + "\n".join(f"- {e}" for e in evidence)
+            reasoning = f"Classification: {classification}\nEvidence:\n" + "\n".join(
+                f"- {e}" for e in evidence
+            )
         else:
             reasoning = f"Classification: {classification} (no evidence extracted)"
 

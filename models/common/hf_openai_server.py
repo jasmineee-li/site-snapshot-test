@@ -140,9 +140,7 @@ def _parse_max_memory(value: str | None) -> dict[int | str, str] | None:
             continue
         key, sep, memory = part.partition(":")
         if not sep:
-            raise ValueError(
-                f"Invalid --max-memory entry {part!r}; expected '<device>:<memory>'"
-            )
+            raise ValueError(f"Invalid --max-memory entry {part!r}; expected '<device>:<memory>'")
         key = key.strip()
         memory = memory.strip()
         max_memory[int(key) if key.isdigit() else key] = memory
@@ -263,11 +261,13 @@ def chat_completions(request: ChatCompletionRequest) -> dict[str, Any]:
                     clean_up_tokenization_spaces=False,
                 )
                 text = _strip_stop(_strip_turn_markers(text), request.stop)
-                choices.append({
-                    "index": idx,
-                    "message": {"role": "assistant", "content": text},
-                    "finish_reason": "stop",
-                })
+                choices.append(
+                    {
+                        "index": idx,
+                        "message": {"role": "assistant", "content": text},
+                        "finish_reason": "stop",
+                    }
+                )
     else:
         layers, alpha_per_layer = steering_config
         for idx in range(n):
@@ -287,11 +287,13 @@ def chat_completions(request: ChatCompletionRequest) -> dict[str, Any]:
                 prompt_tokens = int(result["prompt_len"])
             total_completion_tokens += len(result["generated_ids"])
             text = _strip_stop(_strip_turn_markers(result["text"]), request.stop)
-            choices.append({
-                "index": idx,
-                "message": {"role": "assistant", "content": text},
-                "finish_reason": "stop",
-            })
+            choices.append(
+                {
+                    "index": idx,
+                    "message": {"role": "assistant", "content": text},
+                    "finish_reason": "stop",
+                }
+            )
 
     return {
         "id": f"chatcmpl-{uuid.uuid4().hex}",
@@ -315,9 +317,15 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=8002)
     parser.add_argument("--dtype", default="bfloat16", choices=["bfloat16", "float16", "float32"])
     parser.add_argument("--device-map", default="auto")
-    parser.add_argument("--max-new-tokens-cap", type=int, default=int(os.environ.get("HF_OPENAI_MAX_NEW_TOKENS_CAP", "2048")))
+    parser.add_argument(
+        "--max-new-tokens-cap",
+        type=int,
+        default=int(os.environ.get("HF_OPENAI_MAX_NEW_TOKENS_CAP", "2048")),
+    )
     parser.add_argument("--max-memory", default=os.environ.get("HF_OPENAI_MAX_MEMORY"))
-    parser.add_argument("--steering-probe-dir", default=os.environ.get("HF_OPENAI_STEERING_PROBE_DIR"))
+    parser.add_argument(
+        "--steering-probe-dir", default=os.environ.get("HF_OPENAI_STEERING_PROBE_DIR")
+    )
     parser.add_argument("--steering-layers", default=os.environ.get("HF_OPENAI_STEERING_LAYERS"))
     parser.add_argument(
         "--steering-alpha-per-layer",

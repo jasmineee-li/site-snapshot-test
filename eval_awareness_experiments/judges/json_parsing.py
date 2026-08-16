@@ -26,7 +26,7 @@ def parse_json_response(response: str) -> dict:
         first_newline = cleaned.find("\n")
         last_fence = cleaned.rfind("```")
         if first_newline != -1 and last_fence > first_newline:
-            cleaned = cleaned[first_newline + 1:last_fence].strip()
+            cleaned = cleaned[first_newline + 1 : last_fence].strip()
 
     # Try direct parse
     try:

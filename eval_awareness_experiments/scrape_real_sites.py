@@ -396,7 +396,9 @@ async def capture_site(site: str, config: dict, output_dir: Path) -> dict | None
         profile_dir = AUTH_DIR / f"{site}_profile"
         if not profile_dir.exists() or not any(profile_dir.iterdir()):
             print(f"  {site}: SKIP — auth required but no profile at {profile_dir}")
-            print(f"         Run: python -m eval_awareness_experiments.scrape_real_sites --login {site}")
+            print(
+                f"         Run: python -m eval_awareness_experiments.scrape_real_sites --login {site}"
+            )
             return None
 
     captured: list[str] = []
@@ -481,10 +483,7 @@ def update_manifest(entries: list[dict], manifest_path: Path) -> None:
 
     new_ids = {e["id"] for e in entries}
     # Keep non-real entries AND real entries we didn't just re-capture
-    preserved = [
-        e for e in existing
-        if e.get("source") != "real" or e.get("id") not in new_ids
-    ]
+    preserved = [e for e in existing if e.get("source") != "real" or e.get("id") not in new_ids]
     preserved.extend(entries)
 
     manifest_path.parent.mkdir(parents=True, exist_ok=True)

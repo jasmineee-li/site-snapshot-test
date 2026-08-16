@@ -127,15 +127,42 @@ agentlab = { path = "AgentLab", editable = true }
 
 [tool.black]
 line-length = 100
-exclude = '''
+
+# Exclusions are expressed as `force-exclude` rather than `exclude` or
+# `extend-exclude`, for two separate reasons:
+#
+#  * A bare `exclude` REPLACES Black's built-in default exclusion set. The
+#    previous value here did exactly that, so `.mypy_cache/`, `.pytest_cache/`,
+#    `.ruff_cache/`, `.tox/`, `.nox/`, `.hg/`, `.svn/`, `.direnv/`,
+#    `.ipynb_checkpoints/`, `__pypackages__/`, `buck-out/` and `venv/` were all
+#    left formattable. Leaving `exclude` unset restores those defaults, which is
+#    also why `.eggs/`, `.git/`, `.venv/`, `_build/`, `build/` and `dist/` no
+#    longer need to be named below — Black already excludes them.
+#  * `extend-exclude` filters only Black's recursive directory walk. A path
+#    passed explicitly — by a pre-commit hook, an editor's format-on-save, or
+#    `black some/file.py` — bypasses it entirely. `force-exclude` applies in
+#    both cases and is otherwise identical to `exclude`, so it needs no
+#    companion `extend-exclude`.
+#
+# The list mirrors [tool.ruff] `extend-exclude` below so both tools see the same
+# 96 first-party Python files. Without it, `black .` from the repo root rewrites
+# 21 files under `AgentLab/` — a vendored upstream tree CLAUDE.md marks
+# read-only — and 62 under `packages/`, which is formatted by `ruff format`
+# through its own config and never by Black.
+#
+# `vendors/`, `.claude/` and `.codex-worktrees/` are ignored in a working clone
+# only via `.git/info/exclude`, which is per-clone and unversioned, so they must
+# be named here to stay excluded for every checkout.
+force-exclude = '''
 /(
-    \.eggs
-  | \.git
-  | \.venv
-  | _build
-  | build
-  | dist
-  | webarena
+    AgentLab            # vendored upstream tree, read-only reference
+  | vendors             # vendored upstream sources, read-only reference
+  | packages            # warp-taskgen formats with `ruff format`, not Black
+  | worldsim            # retired namespace; HTML/PNG fixtures only
+  | notebooks           # imported DoomArena tutorial notebook, not first-party
+  | webarena            # local WebArena clone; carried over from the old exclude
+  | \.claude/worktrees  # agent topic worktrees
+  | \.codex-worktrees   # agent topic worktrees
 )/
 '''
 
@@ -159,7 +186,7 @@ extend-exclude = [
     "packages/",          # warp-taskgen owns its own [tool.ruff] config
     "worldsim/",          # retired namespace, stale local build artifacts only
     "dist/",              # built wheels/sdists (also a Ruff default)
-    "notebooks/",         # exploratory notebooks; black[jupyter] owns them
+    "notebooks/",         # imported tutorial notebook; no formatter owns it
     ".claude/worktrees/", # agent topic worktrees
     ".codex-worktrees/",  # agent topic worktrees
 ]

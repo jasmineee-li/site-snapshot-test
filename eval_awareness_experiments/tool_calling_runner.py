@@ -55,9 +55,7 @@ ToolExecutor = Callable[[str, dict, str], Awaitable[str]]
 # An attack_evaluator takes the full post-run message list and returns
 # (attack_success, passed). Either may be None if the benchmark doesn't
 # provide a signal for it.
-AttackEvaluator = Callable[
-    [list[dict]], Awaitable[tuple[bool | None, bool | None]]
-]
+AttackEvaluator = Callable[[list[dict]], Awaitable[tuple[bool | None, bool | None]]]
 
 
 def _sanitize_openai_schema(schema: Any) -> Any:
@@ -73,15 +71,9 @@ def _sanitize_openai_schema(schema: Any) -> Any:
     if not isinstance(schema, dict):
         return schema
 
-    sanitized = {
-        key: _sanitize_openai_schema(value)
-        for key, value in schema.items()
-    }
+    sanitized = {key: _sanitize_openai_schema(value) for key, value in schema.items()}
     schema_type = sanitized.get("type")
-    is_array = (
-        schema_type == "array"
-        or (isinstance(schema_type, list) and "array" in schema_type)
-    )
+    is_array = schema_type == "array" or (isinstance(schema_type, list) and "array" in schema_type)
     if is_array and "items" not in sanitized:
         sanitized["items"] = {"type": "string"}
     return sanitized
@@ -100,6 +92,7 @@ class TurnRecord:
     instead of into the reasoning channel, so it must be preserved for the
     judge to see.
     """
+
     thought: str
     action: str
     observation: str
@@ -178,6 +171,7 @@ class ToolCallingRunner:
         if self.model_name.startswith("local/"):
             from models.common import resolve_local_model
             from models.common.vllm_client import make_async_openai_client
+
             spec = resolve_local_model(self.model_name)
             self.model_name = spec.resolve_served_name()
             # Local servers don't speak OpenRouter's reasoning-effort knob;
@@ -250,6 +244,7 @@ class ToolCallingRunner:
         safe_tools = _sanitize_openai_tools(tools) if tools else []
 
         for turn_idx in range(self.max_turns):
+
             async def _do_turn():
                 async with self._semaphore:
                     return await self._client.chat.completions.create(
@@ -273,21 +268,23 @@ class ToolCallingRunner:
 
             if tool_calls:
                 # Record assistant turn with tool calls.
-                messages.append({
-                    "role": "assistant",
-                    "content": content,
-                    "tool_calls": [
-                        {
-                            "id": tc.id,
-                            "type": "function",
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments,
-                            },
-                        }
-                        for tc in tool_calls
-                    ],
-                })
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": content,
+                        "tool_calls": [
+                            {
+                                "id": tc.id,
+                                "type": "function",
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments,
+                                },
+                            }
+                            for tc in tool_calls
+                        ],
+                    }
+                )
                 # Execute each tool call sequentially. One TurnRecord per call.
                 for tc_idx, tc in enumerate(tool_calls):
                     name = tc.function.name
@@ -298,26 +295,32 @@ class ToolCallingRunner:
                         args = {}
                     else:
                         observation = await tool_executor(name, args, tc.id)
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tc.id,
-                        "content": observation,
-                    })
-                    turns.append(TurnRecord(
-                        # Attribute reasoning + preamble only to the first tool-call of the turn
-                        thought=thought if tc_idx == 0 else "",
-                        preamble=content if tc_idx == 0 else "",
-                        action=f"{name}({json.dumps(args, ensure_ascii=False)})",
-                        observation=observation,
-                    ))
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tc.id,
+                            "content": observation,
+                        }
+                    )
+                    turns.append(
+                        TurnRecord(
+                            # Attribute reasoning + preamble only to the first tool-call of the turn
+                            thought=thought if tc_idx == 0 else "",
+                            preamble=content if tc_idx == 0 else "",
+                            action=f"{name}({json.dumps(args, ensure_ascii=False)})",
+                            observation=observation,
+                        )
+                    )
             else:
                 # Final text turn. Record and stop.
                 messages.append({"role": "assistant", "content": content})
-                turns.append(TurnRecord(
-                    thought=thought,
-                    action=content,
-                    observation="",
-                ))
+                turns.append(
+                    TurnRecord(
+                        thought=thought,
+                        action=content,
+                        observation="",
+                    )
+                )
                 final_answer = content
                 break
         else:

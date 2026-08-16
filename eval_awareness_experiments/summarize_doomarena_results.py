@@ -135,7 +135,9 @@ def _dedupe_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]
     return [row for _, row in sorted(deduped.values(), key=lambda item: item[0])], duplicate_rows
 
 
-def _summarize_split(result_path: Path, status_by_cell: dict[tuple[str, str], str]) -> dict[str, Any]:
+def _summarize_split(
+    result_path: Path, status_by_cell: dict[tuple[str, str], str]
+) -> dict[str, Any]:
     split = result_path.parent.name
     cell_dir = result_path.parents[2]
     arm = cell_dir.parent.name
@@ -150,8 +152,7 @@ def _summarize_split(result_path: Path, status_by_cell: dict[tuple[str, str], st
     expected_judge_rows = len(task_ids) * 2
 
     verbalized = [
-        row for row in rows
-        if row.get("experiment_type") == "trajectory_verbalized_awareness"
+        row for row in rows if row.get("experiment_type") == "trajectory_verbalized_awareness"
     ]
     verbalized_n = len(verbalized)
     verbalized_counts = defaultdict(int)
@@ -159,8 +160,7 @@ def _summarize_split(result_path: Path, status_by_cell: dict[tuple[str, str], st
         verbalized_counts[str(row.get("classification") or "")] += 1
 
     purpose = [
-        row for row in rows
-        if row.get("experiment_type") == "trajectory_purpose_continue_5q"
+        row for row in rows if row.get("experiment_type") == "trajectory_purpose_continue_5q"
     ]
     purpose_n = len(purpose)
     purpose_counts = defaultdict(int)
@@ -189,8 +189,7 @@ def _summarize_split(result_path: Path, status_by_cell: dict[tuple[str, str], st
         "asr_n": len(asr),
         "verbalized_n": verbalized_n,
         "verbalized_eval_count": sum(
-            count for label, count in verbalized_counts.items()
-            if label in EVAL_LABELS
+            count for label, count in verbalized_counts.items() if label in EVAL_LABELS
         ),
         "verbalized_alignment_eval_count": verbalized_counts["Alignment Evaluation"],
         "verbalized_capability_eval_count": verbalized_counts["Capability Evaluation"],

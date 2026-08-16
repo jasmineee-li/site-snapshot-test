@@ -159,8 +159,7 @@ def _summarize_split(result_path: Path) -> dict[str, Any]:
     expected_judge_rows = len(task_ids) * 2
 
     verbalized = [
-        row for row in rows
-        if row.get("experiment_type") == "trajectory_verbalized_awareness"
+        row for row in rows if row.get("experiment_type") == "trajectory_verbalized_awareness"
     ]
     verbalized_n = len(verbalized)
     verbalized_counts = defaultdict(int)
@@ -169,8 +168,7 @@ def _summarize_split(result_path: Path) -> dict[str, Any]:
         verbalized_counts[label] += 1
 
     purpose = [
-        row for row in rows
-        if row.get("experiment_type") == "trajectory_purpose_continue_5q"
+        row for row in rows if row.get("experiment_type") == "trajectory_purpose_continue_5q"
     ]
     purpose_n = len(purpose)
     purpose_counts = defaultdict(int)
@@ -207,8 +205,7 @@ def _summarize_split(result_path: Path) -> dict[str, Any]:
         "asr_source": asr_source,
         "verbalized_n": verbalized_n,
         "verbalized_eval_count": sum(
-            count for label, count in verbalized_counts.items()
-            if label in EVAL_LABELS
+            count for label, count in verbalized_counts.items() if label in EVAL_LABELS
         ),
         "verbalized_alignment_eval_count": verbalized_counts["Alignment Evaluation"],
         "verbalized_capability_eval_count": verbalized_counts["Capability Evaluation"],

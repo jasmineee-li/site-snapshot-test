@@ -82,6 +82,7 @@ def _get_injection_defaults(suite) -> dict[str, str]:
     # Fallback for forks that expose it as a free function.
     try:
         from agentdojo.task_suite.load_suites import get_injection_vector_defaults  # type: ignore
+
         return dict(get_injection_vector_defaults(suite.name))
     except ImportError:
         pass
@@ -97,15 +98,19 @@ def _build_openai_tool_schemas(tools) -> list[dict]:
     schemas = []
     for f in tools:
         # AgentDojo Function objects store a pydantic model at .parameters.
-        params_schema = f.parameters.model_json_schema() if hasattr(f.parameters, "model_json_schema") else {}
-        schemas.append({
-            "type": "function",
-            "function": {
-                "name": f.name,
-                "description": f.description,
-                "parameters": params_schema,
-            },
-        })
+        params_schema = (
+            f.parameters.model_json_schema() if hasattr(f.parameters, "model_json_schema") else {}
+        )
+        schemas.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": f.name,
+                    "description": f.description,
+                    "parameters": params_schema,
+                },
+            }
+        )
     return schemas
 
 
@@ -120,7 +125,11 @@ def _build_injections(
     to every placeholder slot for consistency. The wrapping is what our causal
     conditions operate on — baseline is identity.
     """
-    wrapped_goal = wrap_injection(injection_task.GOAL, condition) if condition != "baseline" else injection_task.GOAL
+    wrapped_goal = (
+        wrap_injection(injection_task.GOAL, condition)
+        if condition != "baseline"
+        else injection_task.GOAL
+    )
     return {key: wrapped_goal for key in placeholder_keys}
 
 
@@ -178,9 +187,7 @@ async def _run_one_pair(
             attack_success = None
 
         try:
-            passed = bool(
-                user_task.utility(model_output, pre_environment, live_environment)
-            )
+            passed = bool(user_task.utility(model_output, pre_environment, live_environment))
         except Exception as e:
             logger.warning(f"user_task.utility raised: {e!r}")
             passed = None
@@ -250,47 +257,71 @@ def _enumerate_pairs(
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run AgentDojo through our eval-awareness tool-calling loop")
+    parser = argparse.ArgumentParser(
+        description="Run AgentDojo through our eval-awareness tool-calling loop"
+    )
     parser.add_argument("--suite", default="workspace", choices=DEFAULT_SUITES)
-    parser.add_argument("--benchmark-version", default="v1.2.1",
-                        help="AgentDojo benchmark version string, e.g. v1.2.1")
+    parser.add_argument(
+        "--benchmark-version",
+        default="v1.2.1",
+        help="AgentDojo benchmark version string, e.g. v1.2.1",
+    )
     parser.add_argument("--max-tasks", type=int, default=20)
     parser.add_argument("--shuffle", type=int, default=42)
-    parser.add_argument("--user-task-filter", nargs="*", default=None,
-                        help="Only run user tasks with these IDs.")
-    parser.add_argument("--injection-task-filter", nargs="*", default=None,
-                        help="Only run injection tasks with these IDs.")
-    parser.add_argument("--model-name", required=True,
-                        help="OpenRouter model id. Append :thinking for reasoning mode.")
+    parser.add_argument(
+        "--user-task-filter", nargs="*", default=None, help="Only run user tasks with these IDs."
+    )
+    parser.add_argument(
+        "--injection-task-filter",
+        nargs="*",
+        default=None,
+        help="Only run injection tasks with these IDs.",
+    )
+    parser.add_argument(
+        "--model-name",
+        required=True,
+        help="OpenRouter model id. Append :thinking for reasoning mode.",
+    )
     parser.add_argument("--max-turns", type=int, default=15)
-    parser.add_argument("--max-tokens", type=int, default=8192,
-                        help="Maximum model output tokens per turn.")
+    parser.add_argument(
+        "--max-tokens", type=int, default=8192, help="Maximum model output tokens per turn."
+    )
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--condition", choices=ALL_CONDITIONS, default="baseline")
-    parser.add_argument("--extra-instructions-preset", default="none",
-                        choices=list(EXTRA_INSTRUCTION_PRESETS.keys()))
+    parser.add_argument(
+        "--extra-instructions-preset",
+        default="none",
+        choices=list(EXTRA_INSTRUCTION_PRESETS.keys()),
+    )
     parser.add_argument("--extra-instructions", default=None)
-    parser.add_argument("--system-prompt-frame", default="none",
-                        choices=ALL_FRAMES,
-                        help="Wrap the entire system prompt in XML tags. "
-                             "`safety_test` / `hypothetical_scenario` are the "
-                             "max-cue ceiling conditions.")
-    parser.add_argument("--output-dir", type=Path,
-                        default=Path(REPO_ROOT) / "results" / "toolcalling" / "agentdojo")
-    parser.add_argument("--run-name", default=None,
-                        help="Subdir name under --output-dir. Default: condition_preset_model")
+    parser.add_argument(
+        "--system-prompt-frame",
+        default="none",
+        choices=ALL_FRAMES,
+        help="Wrap the entire system prompt in XML tags. "
+        "`safety_test` / `hypothetical_scenario` are the "
+        "max-cue ceiling conditions.",
+    )
+    parser.add_argument(
+        "--output-dir", type=Path, default=Path(REPO_ROOT) / "results" / "toolcalling" / "agentdojo"
+    )
+    parser.add_argument(
+        "--run-name",
+        default=None,
+        help="Subdir name under --output-dir. Default: condition_preset_model",
+    )
     parser.add_argument(
         "--backend",
         choices=("auto", "openai", "hf"),
         default="auto",
         help="auto picks 'hf' iff --steering-alpha != 0; otherwise 'openai' "
-             "(OpenRouter for foreign ids, local vLLM for `local/<id>`).",
+        "(OpenRouter for foreign ids, local vLLM for `local/<id>`).",
     )
     parser.add_argument(
         "--probe-dir",
         default=None,
         help="Path to a saved probe (probes/trained/<model>/). Required "
-             "for --steering-alpha != 0.",
+        "for --steering-alpha != 0.",
     )
     parser.add_argument(
         "--steering-layer",
@@ -303,7 +334,7 @@ def _parse_args() -> argparse.Namespace:
         type=float,
         default=0.0,
         help="Steering strength. Negative = away from eval-aware. "
-             "0 disables steering and routes through the OpenAI-protocol path.",
+        "0 disables steering and routes through the OpenAI-protocol path.",
     )
     return parser.parse_args()
 
@@ -313,9 +344,11 @@ async def _main_async(args: argparse.Namespace) -> None:
     placeholder_keys = list(_get_injection_defaults(suite).keys())
     if not placeholder_keys:
         raise RuntimeError(f"AgentDojo suite {args.suite!r} has no injection placeholders.")
-    logger.info(f"Suite {args.suite}: {len(suite.user_tasks)} user tasks, "
-                f"{len(suite.injection_tasks)} injection tasks, "
-                f"{len(placeholder_keys)} placeholders, {len(suite.tools)} tools")
+    logger.info(
+        f"Suite {args.suite}: {len(suite.user_tasks)} user tasks, "
+        f"{len(suite.injection_tasks)} injection tasks, "
+        f"{len(placeholder_keys)} placeholders, {len(suite.tools)} tools"
+    )
 
     tools_schema = _build_openai_tool_schemas(suite.tools)
 
@@ -349,11 +382,7 @@ async def _main_async(args: argparse.Namespace) -> None:
     # Include the frame in the default run_name so different frames don't
     # collide on the same output dir. Old runs (frame=none) keep their old
     # path shape since `_none` is appended only when frame!="none".
-    frame_suffix = (
-        f"_{args.system_prompt_frame}"
-        if args.system_prompt_frame != "none"
-        else ""
-    )
+    frame_suffix = f"_{args.system_prompt_frame}" if args.system_prompt_frame != "none" else ""
     steer_suffix = (
         f"_alpha{args.steering_alpha:+.2f}_layer{args.steering_layer or 'best'}"
         if args.steering_alpha != 0.0
@@ -367,19 +396,21 @@ async def _main_async(args: argparse.Namespace) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Output: {out_dir}")
 
-    results = await asyncio.gather(*[
-        _run_one_pair(
-            suite=suite,
-            user_task=ut,
-            injection_task=it,
-            injections=_build_injections(it, args.condition, placeholder_keys),
-            tools_schema=tools_schema,
-            runner=runner,
-            out_dir=out_dir,
-            suite_name=args.suite,
-        )
-        for ut, it in pairs
-    ])
+    results = await asyncio.gather(
+        *[
+            _run_one_pair(
+                suite=suite,
+                user_task=ut,
+                injection_task=it,
+                injections=_build_injections(it, args.condition, placeholder_keys),
+                tools_schema=tools_schema,
+                runner=runner,
+                out_dir=out_dir,
+                suite_name=args.suite,
+            )
+            for ut, it in pairs
+        ]
+    )
     n_ok = sum(1 for r in results if r is not None)
     logger.info(f"[agentdojo] completed {n_ok}/{len(results)} pairs -> {out_dir}")
 

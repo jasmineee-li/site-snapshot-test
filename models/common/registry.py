@@ -30,9 +30,9 @@ LOCAL_PREFIX = "local/"
 class LocalModelSpec:
     """One local model served via vLLM's OpenAI-compatible endpoint."""
 
-    short_id: str            # e.g. "opencua-32b"
-    hf_repo: str             # e.g. "xlangai/OpenCUA-32B"
-    default_url: str         # e.g. "http://localhost:8001/v1"
+    short_id: str  # e.g. "opencua-32b"
+    hf_repo: str  # e.g. "xlangai/OpenCUA-32B"
+    default_url: str  # e.g. "http://localhost:8001/v1"
     vision: bool = True
     served_name: str | None = None  # None => same as hf_repo
     max_total_tokens: int = 131072
@@ -84,7 +84,7 @@ def strip_local_prefix(model_name: str) -> str:
         return model_name
     # also strip a possible trailing :thinking suffix (none of the local
     # models route through OpenRouter's thinking path)
-    return model_name[len(LOCAL_PREFIX):].split(":")[0]
+    return model_name[len(LOCAL_PREFIX) :].split(":")[0]
 
 
 def resolve_local_model(model_name: str) -> LocalModelSpec:

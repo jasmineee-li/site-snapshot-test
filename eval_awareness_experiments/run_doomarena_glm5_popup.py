@@ -54,9 +54,7 @@ def _patch_browsergym_reachability(online_sites: set[str]) -> None:
             try:
                 requests.get(url, timeout=timeout)
             except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
-                raise RuntimeError(
-                    f'WebArena site "{site}" ({url}) is not reachable: {e}'
-                ) from e
+                raise RuntimeError(f'WebArena site "{site}" ({url}) is not reachable: {e}') from e
 
     webarena_instance.WebArenaInstance._check_is_reachable = _check_is_reachable
 
@@ -275,31 +273,51 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--max-steps", type=int, default=10)
     parser.add_argument("--report-port", type=int, default=1234)
     parser.add_argument("--n-jobs", type=int, default=1)
-    parser.add_argument("--results-dir", default=None,
-                        help="Cell-owned directory to write the AgentLab study "
-                             "under (path becomes the study's exp_root). When "
-                             "omitted, AgentLab defaults to results/browsergym/. "
-                             "Setting this avoids the cross-cell study_dir race "
-                             "when multiple parallel cells run concurrently.")
-    parser.add_argument("--relaunch-incomplete", action="store_true",
-                        help="Resume the latest AgentLab study under --results-dir, "
-                             "rerunning only incomplete or errored tasks. Falls "
-                             "back to a fresh study if no prior study exists.")
-    parser.add_argument("--avg-step-timeout", type=int, default=60,
-                        help="Per-step timeout (s). Total per task = max_steps × this. "
-                             "Default 60s → 15min at max_steps=15.")
-    parser.add_argument("--extra-instructions-preset", default="none",
-                        choices=list(EXTRA_INSTRUCTION_PRESETS.keys()),
-                        help="Appends a persistent system-prompt-like instruction "
-                             "to the agent. 'scratchpad' encourages pre-action "
-                             "meta-reasoning.")
-    parser.add_argument("--extra-instructions", default=None,
-                        help="Override with arbitrary extra instructions string "
-                             "(takes precedence over --extra-instructions-preset).")
-    parser.add_argument("--system-prompt-frame", default="none", choices=ALL_FRAMES,
-                        help="Wrap the agent's instructions in <llm_safety_test> or "
-                             "<hypothetical_scenario> tags. Browser track injects the "
-                             "frame into the GenericAgent's extra_instructions section.")
+    parser.add_argument(
+        "--results-dir",
+        default=None,
+        help="Cell-owned directory to write the AgentLab study "
+        "under (path becomes the study's exp_root). When "
+        "omitted, AgentLab defaults to results/browsergym/. "
+        "Setting this avoids the cross-cell study_dir race "
+        "when multiple parallel cells run concurrently.",
+    )
+    parser.add_argument(
+        "--relaunch-incomplete",
+        action="store_true",
+        help="Resume the latest AgentLab study under --results-dir, "
+        "rerunning only incomplete or errored tasks. Falls "
+        "back to a fresh study if no prior study exists.",
+    )
+    parser.add_argument(
+        "--avg-step-timeout",
+        type=int,
+        default=60,
+        help="Per-step timeout (s). Total per task = max_steps × this. "
+        "Default 60s → 15min at max_steps=15.",
+    )
+    parser.add_argument(
+        "--extra-instructions-preset",
+        default="none",
+        choices=list(EXTRA_INSTRUCTION_PRESETS.keys()),
+        help="Appends a persistent system-prompt-like instruction "
+        "to the agent. 'scratchpad' encourages pre-action "
+        "meta-reasoning.",
+    )
+    parser.add_argument(
+        "--extra-instructions",
+        default=None,
+        help="Override with arbitrary extra instructions string "
+        "(takes precedence over --extra-instructions-preset).",
+    )
+    parser.add_argument(
+        "--system-prompt-frame",
+        default="none",
+        choices=ALL_FRAMES,
+        help="Wrap the agent's instructions in <llm_safety_test> or "
+        "<hypothetical_scenario> tags. Browser track injects the "
+        "frame into the GenericAgent's extra_instructions section.",
+    )
     return parser.parse_args()
 
 
@@ -311,6 +329,7 @@ def main() -> None:
     # transitively by the evaluator patch) finds them. DoomArena sets the WA_
     # prefixed vars; webarena reads the bare names. Set both.
     from doomarena.browsergym.scripts.run_bgym_experiment import _override_webarena_env_vars
+
     base_url = os.environ.get("DOOMARENA_WEBARENA_BASE_URL", "http://localhost")
     _override_webarena_env_vars(base_url)
     # Also set bare names that webarena.browser_env.env_config reads directly.
@@ -385,9 +404,7 @@ def main() -> None:
     if args.relaunch_incomplete:
         if exp_root is None:
             raise SystemExit("--relaunch-incomplete requires --results-dir")
-        relaunch = (exp_root / "study.pkl.gz").exists() or any(
-            exp_root.glob("*/study.pkl.gz")
-        )
+        relaunch = (exp_root / "study.pkl.gz").exists() or any(exp_root.glob("*/study.pkl.gz"))
         if relaunch:
             logging.info("Relaunching incomplete tasks from latest study under %s", exp_root)
         else:

@@ -244,12 +244,16 @@ async def extract_service(
 
                     if is_error and attempt < max_retries - 1:
                         wait = 10 * (attempt + 1)
-                        print(f"  {service_name}/{page_name} got error (status={status}, title='{title}'), retrying in {wait}s...")
+                        print(
+                            f"  {service_name}/{page_name} got error (status={status}, title='{title}'), retrying in {wait}s..."
+                        )
                         await asyncio.sleep(wait)
                         continue
 
                     if is_error:
-                        print(f"  {service_name}/{page_name} FAILED after {max_retries} attempts (status={status})")
+                        print(
+                            f"  {service_name}/{page_name} FAILED after {max_retries} attempts (status={status})"
+                        )
                         break
 
                     await capture_page(page, service_output, page_name)

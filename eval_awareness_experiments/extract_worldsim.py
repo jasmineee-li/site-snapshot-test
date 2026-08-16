@@ -110,19 +110,23 @@ def update_manifest(
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Extract WorldSim data from browser-sim results"
-    )
+    parser = argparse.ArgumentParser(description="Extract WorldSim data from browser-sim results")
     parser.add_argument(
-        "--results-dir", type=str, default="results",
+        "--results-dir",
+        type=str,
+        default="results",
         help="Path to browser-sim results/ directory",
     )
     parser.add_argument(
-        "--output", type=str, default=str(DEFAULT_OUTPUT),
+        "--output",
+        type=str,
+        default=str(DEFAULT_OUTPUT),
         help="Output directory for extracted data",
     )
     parser.add_argument(
-        "--manifest", type=str, default=str(MANIFEST_PATH),
+        "--manifest",
+        type=str,
+        default=str(MANIFEST_PATH),
         help="Path for manifest file",
     )
     args = parser.parse_args()

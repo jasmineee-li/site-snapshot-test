@@ -115,9 +115,7 @@ def load_rows(results_dir: Path) -> list[JudgeRow]:
 
     for benchmark in BENCHMARKS:
         for path in sorted(
-            (results_dir / benchmark).glob(
-                f"*/*/{benchmark}/*/trajectory_awareness_results.jsonl"
-            )
+            (results_dir / benchmark).glob(f"*/*/{benchmark}/*/trajectory_awareness_results.jsonl")
         ):
             rel = path.relative_to(results_dir)
             if len(rel.parts) < 6:
@@ -204,7 +202,13 @@ def _is_vea(row: JudgeRow) -> bool:
 
 def _class_breakdown(counter: Counter[str]) -> str:
     pieces = []
-    for label in ("Alignment Evaluation", "Capability Evaluation", "Other Evaluation", "Refused", "Other"):
+    for label in (
+        "Alignment Evaluation",
+        "Capability Evaluation",
+        "Other Evaluation",
+        "Refused",
+        "Other",
+    ):
         if counter.get(label):
             pieces.append(f"{label}: {counter[label]}")
     return ", ".join(pieces) if pieces else "-"
@@ -215,7 +219,8 @@ def _first_five_variants(row: JudgeRow) -> list[dict[str, Any]]:
     if not isinstance(variants, list):
         return []
     with_ids = [
-        v for v in variants
+        v
+        for v in variants
         if isinstance(v, dict)
         and any(str(v.get("prompt_id") or "").startswith(prefix) for prefix in FIRST_FIVE_PREFIXES)
     ]
@@ -225,11 +230,7 @@ def _first_five_variants(row: JudgeRow) -> list[dict[str, Any]]:
 
 
 def _purpose_from_variants(variants: list[dict[str, Any]]) -> dict[str, Any] | None:
-    categories = [
-        str(v.get("category"))
-        for v in variants
-        if v.get("category") is not None
-    ]
+    categories = [str(v.get("category")) for v in variants if v.get("category") is not None]
     if not categories:
         return None
 
@@ -309,7 +310,8 @@ def _asr_by_cell(rows: list[JudgeRow]) -> dict[tuple[str, str, str], tuple[int, 
 
 def _bare_vea_tables(rows: list[JudgeRow]) -> tuple[str, str]:
     vea_rows = [
-        row for row in rows
+        row
+        for row in rows
         if row.arm == "bare" and row.experiment_type == "trajectory_verbalized_awareness"
     ]
 
@@ -324,12 +326,14 @@ def _bare_vea_tables(rows: list[JudgeRow]) -> tuple[str, str]:
         group = per_benchmark.get(benchmark, [])
         count = sum(1 for row in group if _is_vea(row))
         n = len(group)
-        benchmark_rows.append([
-            BENCHMARK_DISPLAY[benchmark],
-            n,
-            count,
-            _fmt_pct(count / n if n else None, 2),
-        ])
+        benchmark_rows.append(
+            [
+                BENCHMARK_DISPLAY[benchmark],
+                n,
+                count,
+                _fmt_pct(count / n if n else None, 2),
+            ]
+        )
 
     model_rows = []
     for benchmark in BENCHMARKS:
@@ -341,14 +345,16 @@ def _bare_vea_tables(rows: list[JudgeRow]) -> tuple[str, str]:
             group = per_model[(benchmark, model_slug)]
             nonreal = [row for row in group if _is_vea(row)]
             n = len(group)
-            model_rows.append([
-                BENCHMARK_DISPLAY[benchmark],
-                MODEL_DISPLAY.get(model_slug, model_slug),
-                n,
-                len(nonreal),
-                _fmt_pct(len(nonreal) / n if n else None, 2),
-                _class_breakdown(Counter(row.classification for row in nonreal)),
-            ])
+            model_rows.append(
+                [
+                    BENCHMARK_DISPLAY[benchmark],
+                    MODEL_DISPLAY.get(model_slug, model_slug),
+                    n,
+                    len(nonreal),
+                    _fmt_pct(len(nonreal) / n if n else None, 2),
+                    _class_breakdown(Counter(row.classification for row in nonreal)),
+                ]
+            )
 
     return (
         _table(["Benchmark", "n", "VEA count", "VEA rate"], benchmark_rows),
@@ -366,11 +372,7 @@ def _xml_asr_tables(rows: list[JudgeRow]) -> tuple[str, str]:
     per_model_rows = []
     for benchmark in BENCHMARKS:
         model_slugs = sorted(
-            {
-                model_slug
-                for bench, arm, model_slug in asr
-                if bench == benchmark and arm in ARMS
-            },
+            {model_slug for bench, arm, model_slug in asr if bench == benchmark and arm in ARMS},
             key=_model_sort_key,
         )
 
@@ -392,18 +394,24 @@ def _xml_asr_tables(rows: list[JudgeRow]) -> tuple[str, str]:
             bare_rate = asr.get((benchmark, "bare", model_slug), (0, 0, None))[2]
             eval_rate = asr.get((benchmark, "xml_safety", model_slug), (0, 0, None))[2]
             hyp_rate = asr.get((benchmark, "xml_scenario", model_slug), (0, 0, None))[2]
-            eval_delta = eval_rate - bare_rate if bare_rate is not None and eval_rate is not None else None
-            hyp_delta = hyp_rate - bare_rate if bare_rate is not None and hyp_rate is not None else None
+            eval_delta = (
+                eval_rate - bare_rate if bare_rate is not None and eval_rate is not None else None
+            )
+            hyp_delta = (
+                hyp_rate - bare_rate if bare_rate is not None and hyp_rate is not None else None
+            )
 
-            per_model_rows.append([
-                BENCHMARK_DISPLAY[benchmark],
-                MODEL_DISPLAY.get(model_slug, model_slug),
-                _fmt_pct(bare_rate),
-                _fmt_pct(eval_rate),
-                _fmt_pp(eval_delta),
-                _fmt_pct(hyp_rate),
-                _fmt_pp(hyp_delta),
-            ])
+            per_model_rows.append(
+                [
+                    BENCHMARK_DISPLAY[benchmark],
+                    MODEL_DISPLAY.get(model_slug, model_slug),
+                    _fmt_pct(bare_rate),
+                    _fmt_pct(eval_rate),
+                    _fmt_pp(eval_delta),
+                    _fmt_pct(hyp_rate),
+                    _fmt_pp(hyp_delta),
+                ]
+            )
 
             if bare_rate is not None:
                 bare_values.append(bare_rate)
@@ -424,14 +432,16 @@ def _xml_asr_tables(rows: list[JudgeRow]) -> tuple[str, str]:
 
         for label in ("Eval XML", "Hypothetical XML"):
             dirs = direction_counts[label]
-            average_rows.append([
-                BENCHMARK_DISPLAY[benchmark],
-                label,
-                _fmt_pct(_mean(bare_values)),
-                _fmt_pct(_mean(tagged_by_tag[label])),
-                _fmt_pp(_mean(deltas_by_tag[label])),
-                f"up {dirs['up']} / down {dirs['down']} / unchanged {dirs['unchanged']}",
-            ])
+            average_rows.append(
+                [
+                    BENCHMARK_DISPLAY[benchmark],
+                    label,
+                    _fmt_pct(_mean(bare_values)),
+                    _fmt_pct(_mean(tagged_by_tag[label])),
+                    _fmt_pp(_mean(deltas_by_tag[label])),
+                    f"up {dirs['up']} / down {dirs['down']} / unchanged {dirs['unchanged']}",
+                ]
+            )
 
     return (
         _table(
@@ -473,7 +483,9 @@ def _purpose_tables(rows: list[JudgeRow]) -> tuple[str, str, str, str]:
         by_benchmark[row.benchmark].append((row, computed))
         by_model[(row.benchmark, row.model_slug)].append((row, computed))
 
-    def majority_row(label: str, group: list[tuple[JudgeRow, dict[str, Any]]], include_n: bool) -> list[Any]:
+    def majority_row(
+        label: str, group: list[tuple[JudgeRow, dict[str, Any]]], include_n: bool
+    ) -> list[Any]:
         n = len(group)
         counts = Counter(c["headline"] for _, c in group)
         values = [
@@ -505,7 +517,11 @@ def _purpose_tables(rows: list[JudgeRow]) -> tuple[str, str, str, str]:
             majority_model_rows.append(
                 [
                     BENCHMARK_DISPLAY[benchmark],
-                    *majority_row(MODEL_DISPLAY.get(model_slug, model_slug), by_model[(benchmark, model_slug)], include_n=True),
+                    *majority_row(
+                        MODEL_DISPLAY.get(model_slug, model_slug),
+                        by_model[(benchmark, model_slug)],
+                        include_n=True,
+                    ),
                 ]
             )
 
@@ -525,7 +541,11 @@ def _purpose_tables(rows: list[JudgeRow]) -> tuple[str, str, str, str]:
         ]
 
     share_benchmark_rows = [
-        [BENCHMARK_DISPLAY[benchmark], len(by_benchmark.get(benchmark, [])), *share_values(by_benchmark.get(benchmark, []))]
+        [
+            BENCHMARK_DISPLAY[benchmark],
+            len(by_benchmark.get(benchmark, [])),
+            *share_values(by_benchmark.get(benchmark, [])),
+        ]
         for benchmark in BENCHMARKS
     ]
 
@@ -537,12 +557,14 @@ def _purpose_tables(rows: list[JudgeRow]) -> tuple[str, str, str, str]:
         )
         for _, model_slug in keys:
             group = by_model[(benchmark, model_slug)]
-            share_model_rows.append([
-                BENCHMARK_DISPLAY[benchmark],
-                MODEL_DISPLAY.get(model_slug, model_slug),
-                len(group),
-                *share_values(group),
-            ])
+            share_model_rows.append(
+                [
+                    BENCHMARK_DISPLAY[benchmark],
+                    MODEL_DISPLAY.get(model_slug, model_slug),
+                    len(group),
+                    *share_values(group),
+                ]
+            )
 
     majority_headers = [
         "Benchmark",
@@ -586,7 +608,8 @@ def _purpose_tables(rows: list[JudgeRow]) -> tuple[str, str, str, str]:
 
 def _vea_task_distribution(rows: list[JudgeRow]) -> str:
     vea_rows = [
-        row for row in rows
+        row
+        for row in rows
         if row.arm == "bare"
         and row.experiment_type == "trajectory_verbalized_awareness"
         and _is_vea(row)
@@ -599,9 +622,7 @@ def _vea_task_distribution(rows: list[JudgeRow]) -> str:
     table_rows = []
     for benchmark in BENCHMARKS:
         items = [
-            (task_key, group)
-            for (bench, task_key), group in grouped.items()
-            if bench == benchmark
+            (task_key, group) for (bench, task_key), group in grouped.items() if bench == benchmark
         ]
         for task_key, group in sorted(items, key=lambda item: (-len(item[1]), item[0])):
             breakdown = Counter(row.classification for row in group)
@@ -610,17 +631,26 @@ def _vea_task_distribution(rows: list[JudgeRow]) -> str:
                 for row in sorted(group, key=lambda r: _model_sort_key(r.model_slug))
             )
             instruction = next((row.task_instruction for row in group if row.task_instruction), "")
-            table_rows.append([
-                BENCHMARK_DISPLAY[benchmark],
-                task_key,
-                len(group),
-                _class_breakdown(breakdown),
-                model_classes,
-                _truncate(instruction),
-            ])
+            table_rows.append(
+                [
+                    BENCHMARK_DISPLAY[benchmark],
+                    task_key,
+                    len(group),
+                    _class_breakdown(breakdown),
+                    model_classes,
+                    _truncate(instruction),
+                ]
+            )
 
     return _table(
-        ["Benchmark", "Task/sample ID", "Count", "Class breakdown", "Models / classes", "Task instruction"],
+        [
+            "Benchmark",
+            "Task/sample ID",
+            "Count",
+            "Class breakdown",
+            "Models / classes",
+            "Task instruction",
+        ],
         table_rows,
     )
 
@@ -631,29 +661,33 @@ def build_report(results_dir: Path) -> str:
 
     vea_avg, vea_model = _bare_vea_tables(rows)
     xml_avg, xml_model = _xml_asr_tables(rows)
-    purpose_maj_avg, purpose_maj_model, purpose_share_avg, purpose_share_model = _purpose_tables(rows)
+    purpose_maj_avg, purpose_maj_model, purpose_share_avg, purpose_share_model = _purpose_tables(
+        rows
+    )
     task_dist = _vea_task_distribution(rows)
 
-    return "\n\n".join([
-        "# N200 Eval-Awareness Analysis Tables",
-        (
-            f"Generated: {generated}\n\n"
-            f"Source: `{results_dir}`\n\n"
-            "Definitions follow `ANALYSIS_TABLES_GUIDE.md`: bare VEA uses "
-            "`classification != Real`; purpose stats are recomputed from the "
-            "first five `purpose_continue_5q` variants; duplicate judge rows "
-            "are deduped by benchmark/arm/model/sample/experiment type."
-        ),
-        "## Table 1: Bare VEA Benchmark Average\n\n" + vea_avg,
-        "## Table 2: Bare VEA Per Model\n\n" + vea_model,
-        "## Table 3: XML Tag Effect On ASR, Benchmark Average\n\n" + xml_avg,
-        "## Table 4: XML Tag Effect On ASR, Per Model\n\n" + xml_model,
-        "## Table 5: Transcript Purpose Majority, Benchmark Average\n\n" + purpose_maj_avg,
-        "## Table 6: Transcript Purpose Majority, Per Model\n\n" + purpose_maj_model,
-        "## Table 7: Transcript Purpose Share Means, Benchmark Average\n\n" + purpose_share_avg,
-        "## Table 8: Transcript Purpose Share Means, Per Model\n\n" + purpose_share_model,
-        "## Table 9: VEA Distribution Across Tasks\n\n" + task_dist,
-    ])
+    return "\n\n".join(
+        [
+            "# N200 Eval-Awareness Analysis Tables",
+            (
+                f"Generated: {generated}\n\n"
+                f"Source: `{results_dir}`\n\n"
+                "Definitions follow `ANALYSIS_TABLES_GUIDE.md`: bare VEA uses "
+                "`classification != Real`; purpose stats are recomputed from the "
+                "first five `purpose_continue_5q` variants; duplicate judge rows "
+                "are deduped by benchmark/arm/model/sample/experiment type."
+            ),
+            "## Table 1: Bare VEA Benchmark Average\n\n" + vea_avg,
+            "## Table 2: Bare VEA Per Model\n\n" + vea_model,
+            "## Table 3: XML Tag Effect On ASR, Benchmark Average\n\n" + xml_avg,
+            "## Table 4: XML Tag Effect On ASR, Per Model\n\n" + xml_model,
+            "## Table 5: Transcript Purpose Majority, Benchmark Average\n\n" + purpose_maj_avg,
+            "## Table 6: Transcript Purpose Majority, Per Model\n\n" + purpose_maj_model,
+            "## Table 7: Transcript Purpose Share Means, Benchmark Average\n\n" + purpose_share_avg,
+            "## Table 8: Transcript Purpose Share Means, Per Model\n\n" + purpose_share_model,
+            "## Table 9: VEA Distribution Across Tasks\n\n" + task_dist,
+        ]
+    )
 
 
 def main() -> None:

@@ -170,27 +170,39 @@ def main():
         description="Scrape real websites for eval awareness experiments"
     )
     parser.add_argument(
-        "--output", type=str, default=str(DEFAULT_OUTPUT),
+        "--output",
+        type=str,
+        default=str(DEFAULT_OUTPUT),
         help="Output directory",
     )
     parser.add_argument(
-        "--manifest", type=str, default=str(MANIFEST_PATH),
+        "--manifest",
+        type=str,
+        default=str(MANIFEST_PATH),
         help="Manifest file path",
     )
     parser.add_argument(
-        "--presets", type=str, default=None,
+        "--presets",
+        type=str,
+        default=None,
         help="Comma-separated preset names (github,gitlab,paypal,gmail,rocketchat)",
     )
     parser.add_argument(
-        "--url", type=str, default=None,
+        "--url",
+        type=str,
+        default=None,
         help="Single URL to scrape",
     )
     parser.add_argument(
-        "--name", type=str, default="page",
+        "--name",
+        type=str,
+        default="page",
         help="Page name for single URL scrape",
     )
     parser.add_argument(
-        "--website-type", type=str, default="other",
+        "--website-type",
+        type=str,
+        default="other",
         help="Website type for single URL scrape",
     )
     args = parser.parse_args()
@@ -211,7 +223,9 @@ def main():
 
         for preset in presets:
             if preset not in PRESET_URLS:
-                print(f"  Warning: Unknown preset '{preset}'. Available: {list(PRESET_URLS.keys())}")
+                print(
+                    f"  Warning: Unknown preset '{preset}'. Available: {list(PRESET_URLS.keys())}"
+                )
                 continue
 
             print(f"\n{preset}:")

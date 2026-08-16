@@ -55,9 +55,7 @@ def parse_response(raw: str, template: PromptTemplate) -> str | None:
 
     # Then check if exactly one choice appears (word boundary match)
     found = [
-        c
-        for c in template.choices
-        if re.search(r"\b" + re.escape(c.upper()) + r"\b", raw_upper)
+        c for c in template.choices if re.search(r"\b" + re.escape(c.upper()) + r"\b", raw_upper)
     ]
     if len(found) == 1:
         return found[0]
@@ -258,15 +256,11 @@ async def run_experiment(config_path: Path):
                 for item in items:
                     if template.type == "open_ended":
                         tasks.append(
-                            _run_single_open_ended(
-                                client, template, item, modality, semaphore
-                            )
+                            _run_single_open_ended(client, template, item, modality, semaphore)
                         )
                     else:
                         tasks.append(
-                            _run_single_classify(
-                                client, template, item, modality, semaphore
-                            )
+                            _run_single_classify(client, template, item, modality, semaphore)
                         )
 
     print(f"Running {len(tasks)} evaluations with concurrency={concurrency}...")

@@ -47,14 +47,23 @@ def run_doomarena_site(
     logger.info(f"=== Running DoomArena on {site} ({max_tasks} tasks, model={agent_model}) ===")
 
     cmd = [
-        sys.executable, "-m", DOOMARENA_RUNNER,
-        "--single-site", site,
-        "--max-tasks", str(max_tasks),
-        "--online-sites", *ALL_ONLINE_SITES,
-        "--model-name", agent_model,
-        "--max-steps", str(max_steps),
-        "--report-port", str(report_port),
-        "--shuffle", "42",
+        sys.executable,
+        "-m",
+        DOOMARENA_RUNNER,
+        "--single-site",
+        site,
+        "--max-tasks",
+        str(max_tasks),
+        "--online-sites",
+        *ALL_ONLINE_SITES,
+        "--model-name",
+        agent_model,
+        "--max-steps",
+        str(max_steps),
+        "--report-port",
+        str(report_port),
+        "--shuffle",
+        "42",
     ]
 
     env = os.environ.copy()
@@ -128,14 +137,16 @@ def discover_trajectory_dirs(study_dir: Path) -> list[dict]:
         except (json.JSONDecodeError, OSError):
             pass
 
-        trajectories.append({
-            "task_dir": str(task_dir),
-            "task_id": task_id,
-            "n_steps": len(steps),
-            "has_summary": True,
-            "attack_success": attack_success,
-            "task_reward": task_reward,
-        })
+        trajectories.append(
+            {
+                "task_dir": str(task_dir),
+                "task_id": task_id,
+                "n_steps": len(steps),
+                "has_summary": True,
+                "attack_success": attack_success,
+                "task_reward": task_reward,
+            }
+        )
     return trajectories
 
 
@@ -191,19 +202,32 @@ async def run_trajectory_judges(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="End-to-end DoomArena pipeline: run tasks + judge transcripts")
+    parser = argparse.ArgumentParser(
+        description="End-to-end DoomArena pipeline: run tasks + judge transcripts"
+    )
     parser.add_argument("--sites", nargs="+", default=DEFAULT_SITES)
     parser.add_argument("--tasks-per-site", type=int, default=20)
     parser.add_argument("--agent-model", default="z-ai/glm-5:thinking")
     parser.add_argument("--judge-model", default="anthropic/claude-opus-4.6:thinking")
-    parser.add_argument("--judges", nargs="+", default=["test_awareness_steering", "verbalized_awareness"])
+    parser.add_argument(
+        "--judges", nargs="+", default=["test_awareness_steering", "verbalized_awareness"]
+    )
     parser.add_argument("--max-steps", type=int, default=15)
-    parser.add_argument("--output-dir", default="eval_awareness_experiments/results/doomarena_trajectory_awareness")
-    parser.add_argument("--skip-doomarena", action="store_true", help="Skip DoomArena runs, only run judges on existing study dirs")
-    parser.add_argument("--study-dirs", nargs="+",
-                        help="Explicit study dirs to judge (with --skip-doomarena). "
-                             "Format: 'site:path' (e.g. 'reddit:results/browsergym/study_...') "
-                             "or just 'path' (site auto-detected from attack_results_v2.csv)")
+    parser.add_argument(
+        "--output-dir", default="eval_awareness_experiments/results/doomarena_trajectory_awareness"
+    )
+    parser.add_argument(
+        "--skip-doomarena",
+        action="store_true",
+        help="Skip DoomArena runs, only run judges on existing study dirs",
+    )
+    parser.add_argument(
+        "--study-dirs",
+        nargs="+",
+        help="Explicit study dirs to judge (with --skip-doomarena). "
+        "Format: 'site:path' (e.g. 'reddit:results/browsergym/study_...') "
+        "or just 'path' (site auto-detected from attack_results_v2.csv)",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -255,7 +279,9 @@ def main():
         else:
             # Find most recent study dirs by scanning attack CSVs
             results_dir = REPO_ROOT / "results" / "browsergym"
-            for study_dir in sorted(results_dir.glob("study_*"), key=lambda p: p.stat().st_mtime, reverse=True):
+            for study_dir in sorted(
+                results_dir.glob("study_*"), key=lambda p: p.stat().st_mtime, reverse=True
+            ):
                 for site in args.sites:
                     if site not in study_dirs_by_site:
                         csv_path = study_dir / "attack_results_v2.csv"
@@ -286,19 +312,23 @@ def main():
     for site, study_dir in study_dirs_by_site.items():
         logger.info(f"\n=== Judging trajectories for {site} from {study_dir} ===")
         trajectories = discover_trajectory_dirs(study_dir)
-        logger.info(f"  Found {len(trajectories)} trajectories ({sum(t['n_steps'] for t in trajectories)} total steps)")
+        logger.info(
+            f"  Found {len(trajectories)} trajectories ({sum(t['n_steps'] for t in trajectories)} total steps)"
+        )
 
         pipeline_manifest["sites"].setdefault(site, {})
         pipeline_manifest["sites"][site]["n_trajectories"] = len(trajectories)
         pipeline_manifest["sites"][site]["trajectory_dirs"] = [t["task_dir"] for t in trajectories]
 
-        asyncio.run(run_trajectory_judges(
-            trajectory_dirs=trajectories,
-            site=site,
-            judge_model=args.judge_model,
-            judge_names=args.judges,
-            output_dir=output_dir,
-        ))
+        asyncio.run(
+            run_trajectory_judges(
+                trajectory_dirs=trajectories,
+                site=site,
+                judge_model=args.judge_model,
+                judge_names=args.judges,
+                output_dir=output_dir,
+            )
+        )
 
         pipeline_manifest["sites"][site]["status"] = "judges_complete"
 

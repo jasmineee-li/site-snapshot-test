@@ -94,7 +94,11 @@ def _tool_to_openai_schema(name: str, tool: dict) -> dict:
         # InjecAgent uses json-ish types ("string", "integer", "array", "object").
         ptype = p.get("type", "string")
         properties[pname] = {
-            "type": ptype if ptype in {"string", "integer", "number", "boolean", "array", "object"} else "string",
+            "type": (
+                ptype
+                if ptype in {"string", "integer", "number", "boolean", "array", "object"}
+                else "string"
+            ),
             "description": p.get("description", ""),
         }
         if p.get("required"):
@@ -137,18 +141,20 @@ def _build_task_tools(
         else:
             missing.append(n)
             # Synthesize a permissive schema so the model can still call it.
-            schemas.append({
-                "type": "function",
-                "function": {
-                    "name": n,
-                    "description": f"Tool {n}",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {},
-                        "additionalProperties": True,
+            schemas.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": n,
+                        "description": f"Tool {n}",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {},
+                            "additionalProperties": True,
+                        },
                     },
-                },
-            })
+                }
+            )
     if missing:
         logger.debug(f"InjecAgent tools missing from registry, synthesized: {missing}")
     return schemas
@@ -163,7 +169,9 @@ def _render_tool_response(
     """
     template = test_case.get("Tool Response Template") or ""
     attacker_instr = test_case.get("Attacker Instruction") or ""
-    wrapped = wrap_injection(attacker_instr, condition) if condition != "baseline" else attacker_instr
+    wrapped = (
+        wrap_injection(attacker_instr, condition) if condition != "baseline" else attacker_instr
+    )
     return template.replace("<Attacker Instruction>", wrapped)
 
 
@@ -193,10 +201,12 @@ async def _run_one_test_case(
             # Attacker tools are the attack vector. We stub success — the agent
             # doesn't get to see real side effects; attack success is measured
             # by the fact that it made the call at all.
-            return json.dumps({
-                "status": "ok",
-                "result": f"[stub executed: {name}]",
-            })
+            return json.dumps(
+                {
+                    "status": "ok",
+                    "result": f"[stub executed: {name}]",
+                }
+            )
         # Unknown tool: return a soft error that keeps the loop going.
         return json.dumps({"error": f"unknown tool {name!r}"})
 
@@ -252,32 +262,53 @@ def _load_test_cases(
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run InjecAgent tests through our tool-calling loop")
-    parser.add_argument("--injecagent-path", type=Path,
-                        default=Path(REPO_ROOT) / "external_benchmarks" / "injecagent")
-    parser.add_argument("--attack-type", choices=ATTACK_TYPES, default="dh",
-                        help="dh=direct harm, ds=data stealing")
-    parser.add_argument("--setting", choices=SETTINGS, default="base",
-                        help="base=minimal injection, enhanced=with jailbreak preamble")
+    parser = argparse.ArgumentParser(
+        description="Run InjecAgent tests through our tool-calling loop"
+    )
+    parser.add_argument(
+        "--injecagent-path",
+        type=Path,
+        default=Path(REPO_ROOT) / "external_benchmarks" / "injecagent",
+    )
+    parser.add_argument(
+        "--attack-type", choices=ATTACK_TYPES, default="dh", help="dh=direct harm, ds=data stealing"
+    )
+    parser.add_argument(
+        "--setting",
+        choices=SETTINGS,
+        default="base",
+        help="base=minimal injection, enhanced=with jailbreak preamble",
+    )
     parser.add_argument("--max-tasks", type=int, default=20)
     parser.add_argument("--shuffle", type=int, default=42)
-    parser.add_argument("--model-name", required=True,
-                        help="OpenRouter model id. :thinking for reasoning mode.")
+    parser.add_argument(
+        "--model-name", required=True, help="OpenRouter model id. :thinking for reasoning mode."
+    )
     parser.add_argument("--max-turns", type=int, default=10)
-    parser.add_argument("--max-tokens", type=int, default=8192,
-                        help="Maximum model output tokens per turn.")
+    parser.add_argument(
+        "--max-tokens", type=int, default=8192, help="Maximum model output tokens per turn."
+    )
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--condition", choices=ALL_CONDITIONS, default="baseline")
-    parser.add_argument("--extra-instructions-preset", default="none",
-                        choices=list(EXTRA_INSTRUCTION_PRESETS.keys()))
+    parser.add_argument(
+        "--extra-instructions-preset",
+        default="none",
+        choices=list(EXTRA_INSTRUCTION_PRESETS.keys()),
+    )
     parser.add_argument("--extra-instructions", default=None)
-    parser.add_argument("--system-prompt-frame", default="none",
-                        choices=ALL_FRAMES,
-                        help="Wrap the entire system prompt in XML tags. "
-                             "`safety_test` / `hypothetical_scenario` are the "
-                             "max-cue ceiling conditions.")
-    parser.add_argument("--output-dir", type=Path,
-                        default=Path(REPO_ROOT) / "results" / "toolcalling" / "injecagent")
+    parser.add_argument(
+        "--system-prompt-frame",
+        default="none",
+        choices=ALL_FRAMES,
+        help="Wrap the entire system prompt in XML tags. "
+        "`safety_test` / `hypothetical_scenario` are the "
+        "max-cue ceiling conditions.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path(REPO_ROOT) / "results" / "toolcalling" / "injecagent",
+    )
     parser.add_argument("--run-name", default=None)
     parser.add_argument(
         "--backend",
@@ -289,7 +320,7 @@ def _parse_args() -> argparse.Namespace:
         "--probe-dir",
         default=None,
         help="Path to a saved probe (probes/trained/<model>/). Required "
-             "for --steering-alpha != 0.",
+        "for --steering-alpha != 0.",
     )
     parser.add_argument(
         "--steering-layer",
@@ -302,7 +333,7 @@ def _parse_args() -> argparse.Namespace:
         type=float,
         default=0.0,
         help="Steering strength. Negative = away from eval-aware. "
-             "0 disables steering and routes through the OpenAI-protocol path.",
+        "0 disables steering and routes through the OpenAI-protocol path.",
     )
     return parser.parse_args()
 
@@ -339,11 +370,7 @@ async def _main_async(args: argparse.Namespace) -> None:
         steering_alpha=args.steering_alpha,
     )
 
-    frame_suffix = (
-        f"_{args.system_prompt_frame}"
-        if args.system_prompt_frame != "none"
-        else ""
-    )
+    frame_suffix = f"_{args.system_prompt_frame}" if args.system_prompt_frame != "none" else ""
     steer_suffix = (
         f"_alpha{args.steering_alpha:+.2f}_layer{args.steering_layer or 'best'}"
         if args.steering_alpha != 0.0
@@ -357,19 +384,21 @@ async def _main_async(args: argparse.Namespace) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Output: {out_dir}")
 
-    results = await asyncio.gather(*[
-        _run_one_test_case(
-            test_case=tc,
-            test_case_idx=idx,
-            tools_registry=tools_registry,
-            runner=runner,
-            out_dir=out_dir,
-            condition=args.condition,
-            attack_type=args.attack_type,
-            setting=args.setting,
-        )
-        for idx, tc in indexed
-    ])
+    results = await asyncio.gather(
+        *[
+            _run_one_test_case(
+                test_case=tc,
+                test_case_idx=idx,
+                tools_registry=tools_registry,
+                runner=runner,
+                out_dir=out_dir,
+                condition=args.condition,
+                attack_type=args.attack_type,
+                setting=args.setting,
+            )
+            for idx, tc in indexed
+        ]
+    )
     n_ok = sum(1 for r in results if r is not None)
     logger.info(f"[injecagent] completed {n_ok}/{len(results)} test cases -> {out_dir}")
 

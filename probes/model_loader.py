@@ -67,9 +67,7 @@ class HookedTransformerShim:
             dtype: e.g. torch.bfloat16.
             revision: git revision / checkpoint.
         """
-        tokenizer = AutoTokenizer.from_pretrained(
-            model_path, use_fast=True, trust_remote_code=True
-        )
+        tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True, trust_remote_code=True)
         if getattr(tokenizer, "pad_token", None) is None:
             tokenizer.pad_token = tokenizer.eos_token or tokenizer.unk_token
 
@@ -106,17 +104,13 @@ class HookedTransformerShim:
             model_hf,
             ["num_hidden_layers", "n_layers", "num_layers", "n_layer"],
         )
-        d_model = _get_config_value(
-            cfg_hf, None, ["hidden_size", "d_model", "n_embd", "dim"]
-        )
+        d_model = _get_config_value(cfg_hf, None, ["hidden_size", "d_model", "n_embd", "dim"])
         n_heads = _get_config_value(
             cfg_hf, None, ["num_attention_heads", "n_heads", "num_heads", "n_head"]
         )
 
         if n_layers is None:
-            raise ValueError(
-                f"Could not determine number of layers for model {model_path}."
-            )
+            raise ValueError(f"Could not determine number of layers for model {model_path}.")
 
         cfg = SimpleNamespace(
             model_name=model_path,
@@ -160,19 +154,11 @@ class HookedTransformerShim:
         finally:
             self._hooks = old_hooks
 
-    def to_tokens(
-        self, prompt: str | list[str], prepend_bos: bool = True
-    ) -> torch.Tensor:
+    def to_tokens(self, prompt: str | list[str], prepend_bos: bool = True) -> torch.Tensor:
         if isinstance(prompt, (list, tuple)):
-            ids = [
-                self.tokenizer.encode(p, add_special_tokens=prepend_bos)
-                for p in prompt
-            ]
+            ids = [self.tokenizer.encode(p, add_special_tokens=prepend_bos) for p in prompt]
             max_len = max(len(seq) for seq in ids)
-            padded = [
-                seq + [self.tokenizer.pad_token_id] * (max_len - len(seq))
-                for seq in ids
-            ]
+            padded = [seq + [self.tokenizer.pad_token_id] * (max_len - len(seq)) for seq in ids]
             return torch.tensor(padded).to(self.device)
         ids = self.tokenizer.encode(prompt, add_special_tokens=prepend_bos)
         return torch.tensor([ids]).to(self.device)
@@ -234,9 +220,7 @@ class HookedTransformerShim:
                     cache[post_name] = hidden_states[layer_idx + 1]
 
         if remove_batch_dim and tokens.shape[0] == 1:
-            cache = {
-                k: v.squeeze(0) if v.shape[0] == 1 else v for k, v in cache.items()
-            }
+            cache = {k: v.squeeze(0) if v.shape[0] == 1 else v for k, v in cache.items()}
 
         logits = outputs.logits
         if remove_batch_dim and logits.shape[0] == 1:
@@ -260,8 +244,11 @@ class HookedTransformerShim:
         # Some VL configurations: model.language_model.layers
         if hasattr(m, "language_model") and hasattr(m.language_model, "layers"):
             return m.language_model.layers
-        if hasattr(m, "language_model") and hasattr(m.language_model, "model") \
-                and hasattr(m.language_model.model, "layers"):
+        if (
+            hasattr(m, "language_model")
+            and hasattr(m.language_model, "model")
+            and hasattr(m.language_model.model, "layers")
+        ):
             return m.language_model.model.layers
         raise AttributeError(
             f"Could not locate decoder layers on {type(m).__name__}. "
@@ -279,19 +266,23 @@ def _load_vl(model_path: str, load_kwargs: dict, model_type: str = "") -> Any:
     """
     if model_type == "qwen3_vl":
         from transformers import Qwen3VLForConditionalGeneration  # type: ignore
+
         return Qwen3VLForConditionalGeneration.from_pretrained(model_path, **load_kwargs)
 
     if model_type == "qwen2_5_vl":
         from transformers import Qwen2_5_VLForConditionalGeneration  # type: ignore
+
         return Qwen2_5_VLForConditionalGeneration.from_pretrained(model_path, **load_kwargs)
 
     try:
         from transformers import AutoModelForVision2Seq  # type: ignore
+
         return AutoModelForVision2Seq.from_pretrained(model_path, **load_kwargs)
     except (ImportError, ValueError):
         pass
 
     from transformers import AutoModel
+
     return AutoModel.from_pretrained(model_path, **load_kwargs)
 
 

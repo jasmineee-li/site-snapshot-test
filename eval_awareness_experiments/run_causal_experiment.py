@@ -162,10 +162,7 @@ def run_causal_experiment(
     if skip_wasp_asr:
         print("  WASP ASR classifier: skipped")
     elif "wasp" in benchmarks:
-        print(
-            "  WASP ASR classifier: "
-            f"{wasp_asr_classifier_model or 'pipeline default'}"
-        )
+        print("  WASP ASR classifier: " f"{wasp_asr_classifier_model or 'pipeline default'}")
     if skip_existing:
         print("  Skip-existing: ON (cells already complete will be skipped)")
     print()
@@ -181,6 +178,7 @@ def run_causal_experiment(
     completed_cells: set[tuple[str, str, str]] = set()
     if skip_existing and output_base.exists():
         from eval_awareness_experiments.run_manifest import scan as scan_manifest
+
         expected_splits_by_benchmark: dict[str, list[str]] = {}
         for benchmark in benchmarks:
             effective_splits = (benchmark_splits or {}).get(benchmark, splits)
@@ -193,7 +191,8 @@ def run_causal_experiment(
                 benchmark: tasks_per_split
                 for benchmark in benchmarks
                 if tasks_per_split is not None
-            } or None,
+            }
+            or None,
         )
         for c in m["cells"]:
             if c["status"].startswith("complete"):
@@ -219,31 +218,43 @@ def run_causal_experiment(
         # manipulation lives in `frame`, not `condition`.
         arm = _arm_name(preset, frame)
         model_slug = model.replace("/", "_").replace(":", "_")
-        combo_out = (
-            output_base
-            / benchmark
-            / arm
-            / model_slug
-        )
+        combo_out = output_base / benchmark / arm / model_slug
 
         if skip_existing and (benchmark, arm, model_slug) in completed_cells:
             print(f"[{i}/{len(combos)}] SKIP {benchmark}/{arm}/{model} (already complete)")
-            run_log.append({
-                "benchmark": benchmark, "arm": arm, "condition": condition,
-                "model": model, "preset": preset, "system_prompt_frame": frame,
-                "stage": stage, "status": "skipped (already complete)",
-                "output_dir": str(combo_out), "cmd": None,
-            })
+            run_log.append(
+                {
+                    "benchmark": benchmark,
+                    "arm": arm,
+                    "condition": condition,
+                    "model": model,
+                    "preset": preset,
+                    "system_prompt_frame": frame,
+                    "stage": stage,
+                    "status": "skipped (already complete)",
+                    "output_dir": str(combo_out),
+                    "cmd": None,
+                }
+            )
             continue
         cmd = [
-            sys.executable, "-m", "eval_awareness_experiments.run_safety_pipeline",
-            "--benchmark", benchmark,
-            "--model-name", model,
-            "--condition", condition,
-            "--extra-instructions-preset", preset,
-            "--system-prompt-frame", frame,
-            "--stage", stage,
-            "--output-dir", str(combo_out),
+            sys.executable,
+            "-m",
+            "eval_awareness_experiments.run_safety_pipeline",
+            "--benchmark",
+            benchmark,
+            "--model-name",
+            model,
+            "--condition",
+            condition,
+            "--extra-instructions-preset",
+            preset,
+            "--system-prompt-frame",
+            frame,
+            "--stage",
+            stage,
+            "--output-dir",
+            str(combo_out),
         ]
         if judge_model:
             cmd.extend(["--judge-model", judge_model])
@@ -265,15 +276,19 @@ def run_causal_experiment(
         if browser_stage1_overhead is not None:
             cmd.extend(["--browser-stage1-overhead", str(browser_stage1_overhead)])
         if browser_stage1_idle_timeout is not None:
-            cmd.extend([
-                "--browser-stage1-idle-timeout",
-                str(browser_stage1_idle_timeout),
-            ])
+            cmd.extend(
+                [
+                    "--browser-stage1-idle-timeout",
+                    str(browser_stage1_idle_timeout),
+                ]
+            )
         if browser_stage1_relaunch_attempts is not None:
-            cmd.extend([
-                "--browser-stage1-relaunch-attempts",
-                str(browser_stage1_relaunch_attempts),
-            ])
+            cmd.extend(
+                [
+                    "--browser-stage1-relaunch-attempts",
+                    str(browser_stage1_relaunch_attempts),
+                ]
+            )
         if browser_splits_sequential:
             cmd.append("--browser-splits-sequential")
         if browser_relaunch_incomplete:
@@ -288,10 +303,12 @@ def run_causal_experiment(
             if wasp_asr_concurrency is not None:
                 cmd.extend(["--wasp-asr-concurrency", str(wasp_asr_concurrency)])
             if wasp_asr_max_steps_per_task is not None:
-                cmd.extend([
-                    "--wasp-asr-max-steps-per-task",
-                    str(wasp_asr_max_steps_per_task),
-                ])
+                cmd.extend(
+                    [
+                        "--wasp-asr-max-steps-per-task",
+                        str(wasp_asr_max_steps_per_task),
+                    ]
+                )
             if wasp_asr_force:
                 cmd.append("--wasp-asr-force")
 
@@ -312,18 +329,20 @@ def run_causal_experiment(
                 print("  OK")
                 status = "ok"
 
-        run_log.append({
-            "benchmark": benchmark,
-            "arm": arm,
-            "condition": condition,
-            "model": model,
-            "preset": preset,
-            "system_prompt_frame": frame,
-            "stage": stage,
-            "status": status,
-            "output_dir": str(combo_out),
-            "cmd": " ".join(cmd),
-        })
+        run_log.append(
+            {
+                "benchmark": benchmark,
+                "arm": arm,
+                "condition": condition,
+                "model": model,
+                "preset": preset,
+                "system_prompt_frame": frame,
+                "stage": stage,
+                "status": status,
+                "output_dir": str(combo_out),
+                "cmd": " ".join(cmd),
+            }
+        )
 
     output_base.mkdir(parents=True, exist_ok=True)
     # Per-process log filename — when 16 parallel streams share the same
@@ -332,6 +351,7 @@ def run_causal_experiment(
     # uniqueness without coordination.
     import os
     from datetime import datetime
+
     suffix = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{os.getpid()}"
     log_path = output_base / f"causal_experiment_log__{suffix}.json"
     log_path.write_text(json.dumps(run_log, indent=2))
@@ -342,87 +362,171 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Matrix runner: benchmarks × conditions × models × presets via run_safety_pipeline"
     )
-    parser.add_argument("--models", nargs="+", default=DEFAULT_MODELS,
-                        help="OpenRouter model ids (use :thinking for reasoning).")
-    parser.add_argument("--benchmarks", nargs="+", default=["doomarena"],
-                        choices=ALL_BENCHMARKS)
-    parser.add_argument("--conditions", nargs="+", default=["baseline"],
-                        choices=ALL_CONDITIONS)
-    parser.add_argument("--extra-instructions-presets", nargs="+", default=["none"],
-                        choices=ALL_PRESETS, dest="presets")
-    parser.add_argument("--system-prompt-frames", nargs="+", default=["none"],
-                        choices=ALL_FRAMES, dest="frames",
-                        help="Wrap the entire system prompt in XML tags. "
-                             "Browser benchmarks inject framed content through "
-                             "AgentLab extra_instructions.")
-    parser.add_argument("--tasks-per-split", type=int, default=None,
-                        help="Forwarded to run_safety_pipeline (e.g. WASP has 2 splits, so 20 → 40 tasks/combo).")
+    parser.add_argument(
+        "--models",
+        nargs="+",
+        default=DEFAULT_MODELS,
+        help="OpenRouter model ids (use :thinking for reasoning).",
+    )
+    parser.add_argument("--benchmarks", nargs="+", default=["doomarena"], choices=ALL_BENCHMARKS)
+    parser.add_argument("--conditions", nargs="+", default=["baseline"], choices=ALL_CONDITIONS)
+    parser.add_argument(
+        "--extra-instructions-presets",
+        nargs="+",
+        default=["none"],
+        choices=ALL_PRESETS,
+        dest="presets",
+    )
+    parser.add_argument(
+        "--system-prompt-frames",
+        nargs="+",
+        default=["none"],
+        choices=ALL_FRAMES,
+        dest="frames",
+        help="Wrap the entire system prompt in XML tags. "
+        "Browser benchmarks inject framed content through "
+        "AgentLab extra_instructions.",
+    )
+    parser.add_argument(
+        "--tasks-per-split",
+        type=int,
+        default=None,
+        help="Forwarded to run_safety_pipeline (e.g. WASP has 2 splits, so 20 → 40 tasks/combo).",
+    )
     parser.add_argument("--stage", default="all", choices=ALL_STAGES)
-    parser.add_argument("--judge-model", default=None,
-                        help="Judge model for stage 2 (defaults to pipeline default).")
-    parser.add_argument("--judges", nargs="+", default=None,
-                        help="Judge names (e.g. test_awareness_steering verbalized_awareness "
-                             "purpose_continue_5q). Omit to use pipeline defaults.")
-    parser.add_argument("--output-base", type=Path,
-                        default=Path("eval_awareness_experiments/results/new_results"))
+    parser.add_argument(
+        "--judge-model",
+        default=None,
+        help="Judge model for stage 2 (defaults to pipeline default).",
+    )
+    parser.add_argument(
+        "--judges",
+        nargs="+",
+        default=None,
+        help="Judge names (e.g. test_awareness_steering verbalized_awareness "
+        "purpose_continue_5q). Omit to use pipeline defaults.",
+    )
+    parser.add_argument(
+        "--output-base", type=Path, default=Path("eval_awareness_experiments/results/new_results")
+    )
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--skip-existing", action="store_true",
-                        help="Before each combo, scan --output-base for cells "
-                             "already marked complete (via run_manifest) and "
-                             "skip them. Lets re-runs of the same matrix pick "
-                             "up where they left off.")
-    parser.add_argument("--splits", nargs="+", default=None,
-                        help="Forwarded to run_safety_pipeline. For DoomArena, "
-                             "use 'reddit gitlab' to skip the heavy/flaky "
-                             "shopping splits.")
-    parser.add_argument("--benchmark-splits", nargs="+", default=None,
-                        help="Benchmark-specific split overrides, comma-separated. "
-                             "Example: doomarena=reddit,shopping,shopping_admin,gitlab "
-                             "wasp=reddit,gitlab. Overrides --splits for matching benchmarks.")
-    parser.add_argument("--max-steps", type=int, default=None,
-                        help="Forwarded to run_safety_pipeline/browser runners.")
-    parser.add_argument("--toolcalling-max-tokens", type=int, default=None,
-                        help="Forwarded to run_safety_pipeline for "
-                             "AgentDojo/InjecAgent output-token budget.")
-    parser.add_argument("--avg-step-timeout", type=int, default=None,
-                        help="Forwarded to run_safety_pipeline/browser runners. "
-                             "Per-task timeout is max_steps × avg_step_timeout.")
-    parser.add_argument("--browser-stage1-timeout", type=int, default=None,
-                        help="Forwarded to run_safety_pipeline.")
-    parser.add_argument("--browser-stage1-overhead", type=int, default=None,
-                        help="Forwarded to run_safety_pipeline. Used only when "
-                             "--browser-stage1-timeout is omitted.")
-    parser.add_argument("--browser-stage1-idle-timeout", type=int, default=None,
-                        help="Forwarded to run_safety_pipeline. Browser split "
-                             "idle watchdog in seconds; use 0 to disable.")
-    parser.add_argument("--browser-stage1-relaunch-attempts", type=int, default=None,
-                        help="Forwarded to run_safety_pipeline. Total attempts "
-                             "per browser split, including the first launch.")
-    parser.add_argument("--browser-splits-sequential", action="store_true",
-                        help="Forwarded to run_safety_pipeline for debugging "
-                             "site/container contention.")
-    parser.add_argument("--browser-relaunch-incomplete", action="store_true",
-                        help="Forwarded to run_safety_pipeline. Browser benchmarks "
-                             "resume the latest AgentLab study under each split root, "
-                             "rerunning incomplete or errored tasks instead of "
-                             "starting a fresh study.")
-    parser.add_argument("--wasp-task-dir", default=None,
-                        help="Forwarded to run_safety_pipeline for WASP. "
-                             "Use this to point a model stream at its own "
-                             "planted task pool, e.g. /tmp/wasp_full_gpt.")
-    parser.add_argument("--skip-wasp-asr", action="store_true",
-                        help="Forwarded to run_safety_pipeline for WASP. "
-                             "Disables automatic post-hoc ASR classification.")
-    parser.add_argument("--wasp-asr-classifier-model", default=None,
-                        help="Forwarded to run_safety_pipeline for WASP. "
-                             "Defaults to the pipeline's ASR classifier model.")
-    parser.add_argument("--wasp-asr-concurrency", type=int, default=None,
-                        help="Forwarded to run_safety_pipeline for WASP.")
-    parser.add_argument("--wasp-asr-max-steps-per-task", type=int, default=None,
-                        help="Forwarded to run_safety_pipeline for WASP.")
-    parser.add_argument("--wasp-asr-force", action="store_true",
-                        help="Forwarded to run_safety_pipeline for WASP. "
-                             "Recompute existing wasp_asr_<split>.jsonl files.")
+    parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Before each combo, scan --output-base for cells "
+        "already marked complete (via run_manifest) and "
+        "skip them. Lets re-runs of the same matrix pick "
+        "up where they left off.",
+    )
+    parser.add_argument(
+        "--splits",
+        nargs="+",
+        default=None,
+        help="Forwarded to run_safety_pipeline. For DoomArena, "
+        "use 'reddit gitlab' to skip the heavy/flaky "
+        "shopping splits.",
+    )
+    parser.add_argument(
+        "--benchmark-splits",
+        nargs="+",
+        default=None,
+        help="Benchmark-specific split overrides, comma-separated. "
+        "Example: doomarena=reddit,shopping,shopping_admin,gitlab "
+        "wasp=reddit,gitlab. Overrides --splits for matching benchmarks.",
+    )
+    parser.add_argument(
+        "--max-steps",
+        type=int,
+        default=None,
+        help="Forwarded to run_safety_pipeline/browser runners.",
+    )
+    parser.add_argument(
+        "--toolcalling-max-tokens",
+        type=int,
+        default=None,
+        help="Forwarded to run_safety_pipeline for " "AgentDojo/InjecAgent output-token budget.",
+    )
+    parser.add_argument(
+        "--avg-step-timeout",
+        type=int,
+        default=None,
+        help="Forwarded to run_safety_pipeline/browser runners. "
+        "Per-task timeout is max_steps × avg_step_timeout.",
+    )
+    parser.add_argument(
+        "--browser-stage1-timeout", type=int, default=None, help="Forwarded to run_safety_pipeline."
+    )
+    parser.add_argument(
+        "--browser-stage1-overhead",
+        type=int,
+        default=None,
+        help="Forwarded to run_safety_pipeline. Used only when "
+        "--browser-stage1-timeout is omitted.",
+    )
+    parser.add_argument(
+        "--browser-stage1-idle-timeout",
+        type=int,
+        default=None,
+        help="Forwarded to run_safety_pipeline. Browser split "
+        "idle watchdog in seconds; use 0 to disable.",
+    )
+    parser.add_argument(
+        "--browser-stage1-relaunch-attempts",
+        type=int,
+        default=None,
+        help="Forwarded to run_safety_pipeline. Total attempts "
+        "per browser split, including the first launch.",
+    )
+    parser.add_argument(
+        "--browser-splits-sequential",
+        action="store_true",
+        help="Forwarded to run_safety_pipeline for debugging " "site/container contention.",
+    )
+    parser.add_argument(
+        "--browser-relaunch-incomplete",
+        action="store_true",
+        help="Forwarded to run_safety_pipeline. Browser benchmarks "
+        "resume the latest AgentLab study under each split root, "
+        "rerunning incomplete or errored tasks instead of "
+        "starting a fresh study.",
+    )
+    parser.add_argument(
+        "--wasp-task-dir",
+        default=None,
+        help="Forwarded to run_safety_pipeline for WASP. "
+        "Use this to point a model stream at its own "
+        "planted task pool, e.g. /tmp/wasp_full_gpt.",
+    )
+    parser.add_argument(
+        "--skip-wasp-asr",
+        action="store_true",
+        help="Forwarded to run_safety_pipeline for WASP. "
+        "Disables automatic post-hoc ASR classification.",
+    )
+    parser.add_argument(
+        "--wasp-asr-classifier-model",
+        default=None,
+        help="Forwarded to run_safety_pipeline for WASP. "
+        "Defaults to the pipeline's ASR classifier model.",
+    )
+    parser.add_argument(
+        "--wasp-asr-concurrency",
+        type=int,
+        default=None,
+        help="Forwarded to run_safety_pipeline for WASP.",
+    )
+    parser.add_argument(
+        "--wasp-asr-max-steps-per-task",
+        type=int,
+        default=None,
+        help="Forwarded to run_safety_pipeline for WASP.",
+    )
+    parser.add_argument(
+        "--wasp-asr-force",
+        action="store_true",
+        help="Forwarded to run_safety_pipeline for WASP. "
+        "Recompute existing wasp_asr_<split>.jsonl files.",
+    )
     args = parser.parse_args()
     benchmark_splits = _parse_benchmark_splits(args.benchmark_splits)
 

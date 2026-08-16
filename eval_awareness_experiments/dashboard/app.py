@@ -69,16 +69,20 @@ def create_app(results_dir: Path) -> Flask:
                     c = cell_index.get((b, a, m))
                     if c:
                         any_present = True
-                    row_cells.append({
-                        "arm": a,
-                        "cell": c,
-                    })
+                    row_cells.append(
+                        {
+                            "arm": a,
+                            "cell": c,
+                        }
+                    )
                 if any_present:
-                    rows.append({
-                        "benchmark": b,
-                        "model_slug": m,
-                        "cells": row_cells,
-                    })
+                    rows.append(
+                        {
+                            "benchmark": b,
+                            "model_slug": m,
+                            "cells": row_cells,
+                        }
+                    )
 
         return render_template(
             "index.html",
@@ -99,11 +103,15 @@ def create_app(results_dir: Path) -> Flask:
                 for split in c.get("splits", []):
                     md_dir = Path(c["output_dir"]) / benchmark / split["name"] / "markdown"
                     if md_dir.exists():
-                        links.append({
-                            "split": split["name"],
-                            "files": sorted(p.name for p in md_dir.glob("*.md") if p.name != "run_meta.md"),
-                            "md_dir": str(md_dir),
-                        })
+                        links.append(
+                            {
+                                "split": split["name"],
+                                "files": sorted(
+                                    p.name for p in md_dir.glob("*.md") if p.name != "run_meta.md"
+                                ),
+                                "md_dir": str(md_dir),
+                            }
+                        )
                 return render_template("cell.html", cell=c, links=links)
         abort(404)
 
@@ -116,8 +124,9 @@ def create_app(results_dir: Path) -> Flask:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--results-dir", type=Path, required=True,
-                        help="Root of the causal-pilot results tree.")
+    parser.add_argument(
+        "--results-dir", type=Path, required=True, help="Root of the causal-pilot results tree."
+    )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--debug", action="store_true")

@@ -95,22 +95,17 @@ class BinaryThirdPersonJudge(BaseJudge):
                 "label": label,
             }
 
-        tasks = [
-            _run_prompt(p, epoch)
-            for epoch in range(self.epochs)
-            for p in self.prompts
-        ]
+        tasks = [_run_prompt(p, epoch) for epoch in range(self.epochs) for p in self.prompts]
         results = await asyncio.gather(*tasks)
-        responses = [{"prompt_id": r["prompt_id"], "epoch": r["epoch"], "response": r["response"]} for r in results]
+        responses = [
+            {"prompt_id": r["prompt_id"], "epoch": r["epoch"], "response": r["response"]}
+            for r in results
+        ]
         labels = [r["label"] for r in results]
 
         score_value = eval_label_share(labels, self.eval_labels)
 
-        category = (
-            ReasoningCategory.ALIGNMENT_EVAL
-            if score_value > 0.5
-            else ReasoningCategory.REAL
-        )
+        category = ReasoningCategory.ALIGNMENT_EVAL if score_value > 0.5 else ReasoningCategory.REAL
 
         reasoning_parts = []
         for r in results:

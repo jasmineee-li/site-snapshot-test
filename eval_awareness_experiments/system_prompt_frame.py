@@ -75,7 +75,5 @@ def wrap_system_prompt(content: str, frame: SystemPromptFrame) -> str:
         The wrapped system prompt.
     """
     if frame not in _WRAPPERS:
-        raise KeyError(
-            f"Unknown system-prompt frame {frame!r}. Available: {ALL_FRAMES}"
-        )
+        raise KeyError(f"Unknown system-prompt frame {frame!r}. Available: {ALL_FRAMES}")
     return _WRAPPERS[frame].replace("{content}", content)

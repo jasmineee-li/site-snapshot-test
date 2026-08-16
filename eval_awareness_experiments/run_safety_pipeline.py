@@ -81,7 +81,7 @@ def _model_name_from_slug(slug: str) -> str | None:
     if slug in MODEL_SLUG_TO_NAME:
         return MODEL_SLUG_TO_NAME[slug]
     if slug.startswith("local_"):
-        return "local/" + slug[len("local_"):]
+        return "local/" + slug[len("local_") :]
     return None
 
 
@@ -123,11 +123,8 @@ def _browser_stage1_timeout(args: argparse.Namespace) -> int:
     """
     if getattr(args, "browser_stage1_timeout", None) is not None:
         return int(args.browser_stage1_timeout)
-    return (
-        int(args.tasks_per_split)
-        * int(args.max_steps)
-        * int(args.avg_step_timeout)
-        + int(args.browser_stage1_overhead)
+    return int(args.tasks_per_split) * int(args.max_steps) * int(args.avg_step_timeout) + int(
+        args.browser_stage1_overhead
     )
 
 
@@ -300,20 +297,12 @@ def _browser_split_completion(
 ) -> dict[str, int | bool]:
     """Return unique-task completion counts for one browser split root."""
     progress = _browser_task_progress(split_root)
-    completed_ids = {
-        info["task_id"]
-        for info in progress.values()
-        if info["completed"]
-    }
+    completed_ids = {info["task_id"] for info in progress.values() if info["completed"]}
     error_ids = {
-        info["task_id"]
-        for info in progress.values()
-        if info["completed"] and info.get("err_msg")
+        info["task_id"] for info in progress.values() if info["completed"] and info.get("err_msg")
     }
     incomplete_ids = {
-        info["task_id"]
-        for info in progress.values()
-        if info["started"] and not info["completed"]
+        info["task_id"] for info in progress.values() if info["started"] and not info["completed"]
     }
     done = expected_total > 0 and len(completed_ids) >= expected_total
     return {
@@ -371,19 +360,9 @@ def _log_existing_browser_task_progress(
     expected_total: int,
 ) -> None:
     """Emit one line per task that already exists before a resume subprocess."""
-    completed = [
-        (k, v)
-        for k, v in progress.items()
-        if v["completed"]
-    ]
-    incomplete = [
-        (k, v)
-        for k, v in progress.items()
-        if v["started"] and not v["completed"]
-    ]
-    for idx, (_, info) in enumerate(
-        sorted(completed, key=lambda kv: (kv[1]["task_id"], kv[0])), 1
-    ):
+    completed = [(k, v) for k, v in progress.items() if v["completed"]]
+    incomplete = [(k, v) for k, v in progress.items() if v["started"] and not v["completed"]]
+    for idx, (_, info) in enumerate(sorted(completed, key=lambda kv: (kv[1]["task_id"], kv[0])), 1):
         status = "EXISTING_ERROR" if info.get("err_msg") else "EXISTING_DONE"
         logger.info(
             f"  [{split}] task {status} {info['task_id']} "
@@ -428,9 +407,7 @@ def _terminate_process_group(
         proc.wait(timeout=grace_sec)
         return True
     except subprocess.TimeoutExpired:
-        logger.error(
-            f"  [{split}] process group {pgid} ignored SIGTERM; sending SIGKILL"
-        )
+        logger.error(f"  [{split}] process group {pgid} ignored SIGTERM; sending SIGKILL")
 
     try:
         os.killpg(pgid, signal.SIGKILL)
@@ -467,9 +444,7 @@ def _write_run_meta(run_dir: Path, args, benchmark: str, split: str) -> None:
         "avg_step_timeout": getattr(args, "avg_step_timeout", None),
         "browser_stage1_timeout": getattr(args, "browser_stage1_timeout", None),
         "browser_stage1_overhead": getattr(args, "browser_stage1_overhead", None),
-        "browser_stage1_idle_timeout": getattr(
-            args, "browser_stage1_idle_timeout", None
-        ),
+        "browser_stage1_idle_timeout": getattr(args, "browser_stage1_idle_timeout", None),
         "written_at": datetime.now(timezone.utc).isoformat(),
     }
     try:
@@ -501,12 +476,12 @@ def _load_run_meta(run_dir: Path) -> dict | None:
         cond_prefix = f"{cond}_"
         if not name.startswith(cond_prefix):
             continue
-        rest = name[len(cond_prefix):]
+        rest = name[len(cond_prefix) :]
         # Match the longest preset name first so `scratchpad_bare` wins over `scratchpad`.
         for preset in sorted(EXTRA_INSTRUCTION_PRESETS.keys(), key=len, reverse=True):
             preset_prefix = f"{preset}_"
             if rest.startswith(preset_prefix):
-                model_slug = rest[len(preset_prefix):]
+                model_slug = rest[len(preset_prefix) :]
                 return {
                     "condition": cond,
                     "extra_instructions_preset": preset,
@@ -525,9 +500,7 @@ def _load_run_meta(run_dir: Path) -> dict | None:
                 condition = parts[idx - 2] if idx > 1 else None
                 return {
                     "model_name": model_name,
-                    "condition": (
-                        condition if condition in _KNOWN_CONDITIONS else None
-                    ),
+                    "condition": (condition if condition in _KNOWN_CONDITIONS else None),
                     "_recovered_from": "browser_results_path",
                 }
     return None
@@ -553,15 +526,25 @@ def _build_browser_cmd(
     """
     runner = BENCHMARK_RUNNERS[benchmark]
     cmd = [
-        sys.executable, "-m", runner,
-        "--single-site", split,
-        "--max-tasks", str(args.tasks_per_split),
-        "--model-name", args.model_name,
-        "--extra-instructions-preset", args.extra_instructions_preset,
-        "--system-prompt-frame", args.system_prompt_frame,
-        "--max-steps", str(args.max_steps),
-        "--avg-step-timeout", str(args.avg_step_timeout),
-        "--shuffle", str(args.shuffle),
+        sys.executable,
+        "-m",
+        runner,
+        "--single-site",
+        split,
+        "--max-tasks",
+        str(args.tasks_per_split),
+        "--model-name",
+        args.model_name,
+        "--extra-instructions-preset",
+        args.extra_instructions_preset,
+        "--system-prompt-frame",
+        args.system_prompt_frame,
+        "--max-steps",
+        str(args.max_steps),
+        "--avg-step-timeout",
+        str(args.avg_step_timeout),
+        "--shuffle",
+        str(args.shuffle),
     ]
     # --condition (causal injection wrapping: baseline/eval_cue/scenario_cue) is
     # only implemented in WASP's runner. DoomArena uses runtime AttackConfigs
@@ -652,7 +635,9 @@ def _stage1_browser(benchmark: str, split: str, args) -> Path | None:
     last_study_dir: Path | None = None
     for attempt in range(1, max_attempts + 1):
         cmd = _build_browser_cmd(
-            benchmark, split, args,
+            benchmark,
+            split,
+            args,
             report_port=report_port,
             cell_results_dir=cell_dir,
             force_relaunch_incomplete=attempt > 1,
@@ -741,10 +726,7 @@ def _log_cell_env(
 ) -> None:
     """Single-line per-split breadcrumb. Lets us grep logs for the exact
     (arm, model, split, site_url, report_port) tuple — root cause 9."""
-    arm_key = (
-        f"preset={args.extra_instructions_preset}/"
-        f"frame={args.system_prompt_frame}"
-    )
+    arm_key = f"preset={args.extra_instructions_preset}/" f"frame={args.system_prompt_frame}"
     site_env_var = {
         "reddit": "REDDIT",
         "shopping": "SHOPPING",
@@ -760,7 +742,9 @@ def _log_cell_env(
 
 
 def _stage1_browser_parallel_splits(
-    benchmark: str, splits: list[str], args,
+    benchmark: str,
+    splits: list[str],
+    args,
 ) -> dict[str, Path]:
     """Run all browser splits in parallel via Popen, return {split: study_dir}.
 
@@ -808,7 +792,9 @@ def _stage1_browser_parallel_splits(
                 report_port = port_base + _DOOMARENA_SPLIT_PORT_OFFSETS.get(split, split_index)
                 _log_cell_env(args, benchmark, split, report_port, cell_dir)
             cmd = _build_browser_cmd(
-                benchmark, split, args,
+                benchmark,
+                split,
+                args,
                 report_port=report_port,
                 cell_results_dir=cell_dir,
                 force_relaunch_incomplete=attempt > 1,
@@ -817,14 +803,17 @@ def _stage1_browser_parallel_splits(
             if i > 0:
                 time.sleep(_LAUNCH_STAGGER_SEC)
             logger.info(
-                f"  [parallel split {split} attempt {attempt}/{max_attempts}] "
-                f"$ {' '.join(cmd)}"
+                f"  [parallel split {split} attempt {attempt}/{max_attempts}] " f"$ {' '.join(cmd)}"
             )
             if cell_dir is not None:
                 log_dir = cell_dir / split
             else:
-                log_dir = REPO_ROOT / "results" / "browsergym" / "_split_logs" / (
-                    datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                log_dir = (
+                    REPO_ROOT
+                    / "results"
+                    / "browsergym"
+                    / "_split_logs"
+                    / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"))
                 )
             log_dir.mkdir(parents=True, exist_ok=True)
             log_prefix = "subprocess" if attempt == 1 else f"subprocess.attempt{attempt}"
@@ -839,32 +828,35 @@ def _stage1_browser_parallel_splits(
             stdout_file = stdout_path.open("w", encoding="utf-8")
             stderr_file = stderr_path.open("w", encoding="utf-8")
             proc = subprocess.Popen(
-                cmd, cwd=str(REPO_ROOT),
-                stdout=stdout_file, stderr=stderr_file, text=True,
+                cmd,
+                cwd=str(REPO_ROOT),
+                stdout=stdout_file,
+                stderr=stderr_file,
+                text=True,
                 env=os.environ.copy(),
                 start_new_session=True,
             )
             now = time.time()
-            procs.append({
-                "split": split,
-                "proc": proc,
-                "cmd": cmd,
-                "stdout_path": stdout_path,
-                "stderr_path": stderr_path,
-                "stdout_file": stdout_file,
-                "stderr_file": stderr_file,
-                "split_root": log_dir,
-                "started_at": now,
-                "last_activity": now,
-                "kill_reason": None,
-                "closed": False,
-                "seen_started_tasks": {
-                    k for k, v in baseline_progress.items() if v["started"]
-                },
-                "seen_completed_tasks": {
-                    k for k, v in baseline_progress.items() if v["completed"]
-                },
-            })
+            procs.append(
+                {
+                    "split": split,
+                    "proc": proc,
+                    "cmd": cmd,
+                    "stdout_path": stdout_path,
+                    "stderr_path": stderr_path,
+                    "stdout_file": stdout_file,
+                    "stderr_file": stderr_file,
+                    "split_root": log_dir,
+                    "started_at": now,
+                    "last_activity": now,
+                    "kill_reason": None,
+                    "closed": False,
+                    "seen_started_tasks": {k for k, v in baseline_progress.items() if v["started"]},
+                    "seen_completed_tasks": {
+                        k for k, v in baseline_progress.items() if v["completed"]
+                    },
+                }
+            )
 
         # Wait for this attempt. Child stdout/stderr go to files instead of pipes:
         # this avoids pipe-buffer backpressure when one split logs heavily while
@@ -925,9 +917,7 @@ def _stage1_browser_parallel_splits(
                 elapsed = now - item["started_at"]
                 idle_for = now - item["last_activity"]
                 if elapsed > timeout_sec + 30:
-                    item["kill_reason"] = (
-                        f"hard timeout after {timeout_sec}s process budget"
-                    )
+                    item["kill_reason"] = f"hard timeout after {timeout_sec}s process budget"
                     terminated = _terminate_process_group(
                         proc,
                         split=split,
@@ -965,9 +955,7 @@ def _stage1_browser_parallel_splits(
                     expected_total=expected_total,
                 )
                 split_done = (
-                    bool(completion["done"])
-                    if expected_total > 0
-                    else bool(results.get(split))
+                    bool(completion["done"]) if expected_total > 0 else bool(results.get(split))
                 )
             else:
                 completion = {
@@ -1061,11 +1049,7 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
     """Run AgentDojo or InjecAgent for one split. Returns the output dir."""
     runner = BENCHMARK_RUNNERS[benchmark]
     model_slug = args.model_name.replace("/", "_").replace(":", "_")
-    frame_suffix = (
-        f"_{args.system_prompt_frame}"
-        if args.system_prompt_frame != "none"
-        else ""
-    )
+    frame_suffix = f"_{args.system_prompt_frame}" if args.system_prompt_frame != "none" else ""
     steer_suffix = (
         f"_alpha{args.steering_alpha:+.2f}_layer{args.steering_layer or 'best'}"
         if args.steering_alpha != 0.0
@@ -1087,21 +1071,33 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
         common_steer_flags += ["--steering-alpha", str(args.steering_alpha)]
 
     common_toolcalling_flags = [
-        "--max-tokens", str(args.toolcalling_max_tokens),
+        "--max-tokens",
+        str(args.toolcalling_max_tokens),
     ]
 
     if benchmark == "agentdojo":
         cmd = [
-            sys.executable, "-m", runner,
-            "--suite", split,
-            "--max-tasks", str(args.tasks_per_split),
-            "--model-name", args.model_name,
-            "--condition", args.condition,
-            "--extra-instructions-preset", args.extra_instructions_preset,
-            "--system-prompt-frame", args.system_prompt_frame,
-            "--shuffle", str(args.shuffle),
-            "--concurrency", str(args.concurrency),
-            "--run-name", run_name,
+            sys.executable,
+            "-m",
+            runner,
+            "--suite",
+            split,
+            "--max-tasks",
+            str(args.tasks_per_split),
+            "--model-name",
+            args.model_name,
+            "--condition",
+            args.condition,
+            "--extra-instructions-preset",
+            args.extra_instructions_preset,
+            "--system-prompt-frame",
+            args.system_prompt_frame,
+            "--shuffle",
+            str(args.shuffle),
+            "--concurrency",
+            str(args.concurrency),
+            "--run-name",
+            run_name,
             *common_toolcalling_flags,
             *common_steer_flags,
         ]
@@ -1109,17 +1105,29 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
     elif benchmark == "injecagent":
         attack_type, setting = split.split("_", 1)
         cmd = [
-            sys.executable, "-m", runner,
-            "--attack-type", attack_type,
-            "--setting", setting,
-            "--max-tasks", str(args.tasks_per_split),
-            "--model-name", args.model_name,
-            "--condition", args.condition,
-            "--extra-instructions-preset", args.extra_instructions_preset,
-            "--system-prompt-frame", args.system_prompt_frame,
-            "--shuffle", str(args.shuffle),
-            "--concurrency", str(args.concurrency),
-            "--run-name", run_name,
+            sys.executable,
+            "-m",
+            runner,
+            "--attack-type",
+            attack_type,
+            "--setting",
+            setting,
+            "--max-tasks",
+            str(args.tasks_per_split),
+            "--model-name",
+            args.model_name,
+            "--condition",
+            args.condition,
+            "--extra-instructions-preset",
+            args.extra_instructions_preset,
+            "--system-prompt-frame",
+            args.system_prompt_frame,
+            "--shuffle",
+            str(args.shuffle),
+            "--concurrency",
+            str(args.concurrency),
+            "--run-name",
+            run_name,
             *common_toolcalling_flags,
             *common_steer_flags,
         ]
@@ -1160,13 +1168,15 @@ def _discover_browser(study_dir: Path) -> list[dict]:
         except (json.JSONDecodeError, OSError):
             pass
 
-        trajectories.append({
-            "task_dir": str(task_dir),
-            "task_id": task_id,
-            "n_steps": len(steps),
-            "attack_success": attack_success,
-            "task_reward": task_reward,
-        })
+        trajectories.append(
+            {
+                "task_dir": str(task_dir),
+                "task_id": task_id,
+                "n_steps": len(steps),
+                "attack_success": attack_success,
+                "task_reward": task_reward,
+            }
+        )
     return trajectories
 
 
@@ -1272,13 +1282,15 @@ def _discover_toolcalling(run_dir: Path) -> list[dict]:
         if "steps" not in data:
             logger.debug(f"Skipping non-trajectory JSON {fp.name}")
             continue
-        trajectories.append({
-            "task_dir": str(fp),  # parse_toolcalling_trajectory accepts file or dir
-            "task_id": data.get("task_id", fp.stem),
-            "n_steps": len(data.get("steps", [])),
-            "attack_success": data.get("attack_success"),
-            "task_reward": data.get("passed"),
-        })
+        trajectories.append(
+            {
+                "task_dir": str(fp),  # parse_toolcalling_trajectory accepts file or dir
+                "task_id": data.get("task_id", fp.stem),
+                "n_steps": len(data.get("steps", [])),
+                "attack_success": data.get("attack_success"),
+                "task_reward": data.get("passed"),
+            }
+        )
     return trajectories
 
 
@@ -1382,6 +1394,7 @@ async def _judge_split(
     # layout (agentlab pickle dirs) — skip them for now.
     try:
         from eval_awareness_experiments.markdown_export import write_markdown_for_split
+
         first_task = Path(trajectories[0]["task_dir"]) if trajectories else None
         if first_task and first_task.is_file() and first_task.suffix == ".json":
             md_dir = output_dir / benchmark / split / "markdown"
@@ -1398,131 +1411,240 @@ async def _judge_split(
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Unified safety-benchmark pipeline.")
     parser.add_argument("--benchmark", required=True, choices=ALL_BENCHMARKS)
-    parser.add_argument("--splits", nargs="+", default=None,
-                        help="Per-benchmark split list. "
-                             f"Defaults: {DEFAULT_SPLITS}")
+    parser.add_argument(
+        "--splits",
+        nargs="+",
+        default=None,
+        help="Per-benchmark split list. " f"Defaults: {DEFAULT_SPLITS}",
+    )
     parser.add_argument("--stage", choices=["all", "run-only", "judge-only"], default="all")
     parser.add_argument("--tasks-per-split", type=int, default=20)
-    parser.add_argument("--wasp-task-dir", default=None,
-                        help="WASP planted-task pool directory (default: /tmp/wasp_full, "
-                             "matching scripts/wasp_n100_run.sh). Only used when "
-                             "--benchmark wasp.")
-    parser.add_argument("--skip-wasp-asr", action="store_true",
-                        help="WASP only: do not run the post-hoc ASR classifier "
-                             "before trajectory-awareness judging.")
-    parser.add_argument("--wasp-asr-classifier-model",
-                        default="anthropic/claude-sonnet-4.6",
-                        help="WASP only: OpenRouter model for the post-hoc "
-                             "action-only ASR classifier.")
-    parser.add_argument("--wasp-asr-concurrency", type=int, default=32,
-                        help="WASP only: concurrent ASR classifier calls.")
-    parser.add_argument("--wasp-asr-max-steps-per-task", type=int, default=10,
-                        help="WASP only: max steps classified per task.")
-    parser.add_argument("--wasp-asr-force", action="store_true",
-                        help="WASP only: recompute wasp_asr_<split>.jsonl even "
-                             "when it already exists.")
-    parser.add_argument("--concurrency", type=int, default=8,
-                        help="Per-task parallelism for the agent stage (tool-calling benchmarks). "
-                             "Forwarded as --concurrency to run_agentdojo / run_injecagent. "
-                             "Bottleneck is target-model TPM via OpenRouter, not local CPU.")
-    parser.add_argument("--avg-step-timeout", type=int, default=60,
-                        help="Forwarded to browser runners. AgentLab's per-task "
-                             "episode timeout is max_steps × avg_step_timeout.")
-    parser.add_argument("--browser-stage1-timeout", type=int, default=None,
-                        help="Per-(model × split) timeout in seconds for browser benchmarks "
-                             "(DoomArena, WASP). When omitted, defaults to "
-                             "tasks_per_split × max_steps × avg_step_timeout + "
-                             "browser_stage1_overhead. Tool-calling benchmarks ignore this flag.")
-    parser.add_argument("--browser-stage1-overhead", type=int, default=1800,
-                        help="Extra seconds added to the computed browser split timeout "
-                             "when --browser-stage1-timeout is omitted. Default 1800s.")
-    parser.add_argument("--browser-stage1-idle-timeout", type=int, default=3600,
-                        help="Kill a browser split if no subprocess log, step, "
-                             "summary, or aggregate result file changes for this "
-                             "many seconds. Use 0 to disable. Default 3600s.")
-    parser.add_argument("--browser-stage1-relaunch-attempts", type=int, default=3,
-                        help="Total attempts per browser split, including the "
-                             "first launch. If a split is killed or remains "
-                             "partial, relaunch it with --relaunch-incomplete "
-                             "before judging. Use 1 for legacy behavior. "
-                             "Default 3.")
-    parser.add_argument("--browser-splits-sequential", action="store_true",
-                        help="Force browser-benchmark splits to run sequentially within a "
-                             "cell (legacy behavior). Default is parallel — splits hit "
-                             "different docker services so they don't contend, giving ~4× "
-                             "speedup on DoomArena (4 splits) and ~2× on WASP (2 splits).")
-    parser.add_argument("--browser-relaunch-incomplete", action="store_true",
-                        help="Browser benchmarks only: resume the latest AgentLab study "
-                             "under each split's --results-dir, rerunning incomplete "
-                             "or errored tasks instead of creating a fresh study.")
-    parser.add_argument("--model-name", default=None,
-                        help="Agent model for stage 1. Required unless --stage judge-only.")
+    parser.add_argument(
+        "--wasp-task-dir",
+        default=None,
+        help="WASP planted-task pool directory (default: /tmp/wasp_full, "
+        "matching scripts/wasp_n100_run.sh). Only used when "
+        "--benchmark wasp.",
+    )
+    parser.add_argument(
+        "--skip-wasp-asr",
+        action="store_true",
+        help="WASP only: do not run the post-hoc ASR classifier "
+        "before trajectory-awareness judging.",
+    )
+    parser.add_argument(
+        "--wasp-asr-classifier-model",
+        default="anthropic/claude-sonnet-4.6",
+        help="WASP only: OpenRouter model for the post-hoc " "action-only ASR classifier.",
+    )
+    parser.add_argument(
+        "--wasp-asr-concurrency",
+        type=int,
+        default=32,
+        help="WASP only: concurrent ASR classifier calls.",
+    )
+    parser.add_argument(
+        "--wasp-asr-max-steps-per-task",
+        type=int,
+        default=10,
+        help="WASP only: max steps classified per task.",
+    )
+    parser.add_argument(
+        "--wasp-asr-force",
+        action="store_true",
+        help="WASP only: recompute wasp_asr_<split>.jsonl even " "when it already exists.",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=8,
+        help="Per-task parallelism for the agent stage (tool-calling benchmarks). "
+        "Forwarded as --concurrency to run_agentdojo / run_injecagent. "
+        "Bottleneck is target-model TPM via OpenRouter, not local CPU.",
+    )
+    parser.add_argument(
+        "--avg-step-timeout",
+        type=int,
+        default=60,
+        help="Forwarded to browser runners. AgentLab's per-task "
+        "episode timeout is max_steps × avg_step_timeout.",
+    )
+    parser.add_argument(
+        "--browser-stage1-timeout",
+        type=int,
+        default=None,
+        help="Per-(model × split) timeout in seconds for browser benchmarks "
+        "(DoomArena, WASP). When omitted, defaults to "
+        "tasks_per_split × max_steps × avg_step_timeout + "
+        "browser_stage1_overhead. Tool-calling benchmarks ignore this flag.",
+    )
+    parser.add_argument(
+        "--browser-stage1-overhead",
+        type=int,
+        default=1800,
+        help="Extra seconds added to the computed browser split timeout "
+        "when --browser-stage1-timeout is omitted. Default 1800s.",
+    )
+    parser.add_argument(
+        "--browser-stage1-idle-timeout",
+        type=int,
+        default=3600,
+        help="Kill a browser split if no subprocess log, step, "
+        "summary, or aggregate result file changes for this "
+        "many seconds. Use 0 to disable. Default 3600s.",
+    )
+    parser.add_argument(
+        "--browser-stage1-relaunch-attempts",
+        type=int,
+        default=3,
+        help="Total attempts per browser split, including the "
+        "first launch. If a split is killed or remains "
+        "partial, relaunch it with --relaunch-incomplete "
+        "before judging. Use 1 for legacy behavior. "
+        "Default 3.",
+    )
+    parser.add_argument(
+        "--browser-splits-sequential",
+        action="store_true",
+        help="Force browser-benchmark splits to run sequentially within a "
+        "cell (legacy behavior). Default is parallel — splits hit "
+        "different docker services so they don't contend, giving ~4× "
+        "speedup on DoomArena (4 splits) and ~2× on WASP (2 splits).",
+    )
+    parser.add_argument(
+        "--browser-relaunch-incomplete",
+        action="store_true",
+        help="Browser benchmarks only: resume the latest AgentLab study "
+        "under each split's --results-dir, rerunning incomplete "
+        "or errored tasks instead of creating a fresh study.",
+    )
+    parser.add_argument(
+        "--model-name",
+        default=None,
+        help="Agent model for stage 1. Required unless --stage judge-only.",
+    )
     parser.add_argument("--condition", choices=ALL_CONDITIONS, default="baseline")
-    parser.add_argument("--extra-instructions-preset", default="none",
-                        choices=list(EXTRA_INSTRUCTION_PRESETS.keys()))
-    parser.add_argument("--system-prompt-frame", default="none", choices=ALL_FRAMES,
-                        help="Wrap the entire system prompt in XML tags. "
-                             "Tool-calling benchmarks only (browser track not yet supported).")
+    parser.add_argument(
+        "--extra-instructions-preset",
+        default="none",
+        choices=list(EXTRA_INSTRUCTION_PRESETS.keys()),
+    )
+    parser.add_argument(
+        "--system-prompt-frame",
+        default="none",
+        choices=ALL_FRAMES,
+        help="Wrap the entire system prompt in XML tags. "
+        "Tool-calling benchmarks only (browser track not yet supported).",
+    )
     # Steering flags — only meaningful for the tool-calling benchmarks
     # (agentdojo, injecagent). Forwarded verbatim to the underlying runner.
     # Browser benchmarks (wasp, doomarena) ignore them since the AgentLab
     # browser path runs through vLLM/OpenRouter and has no HF-hook harness.
-    parser.add_argument("--backend", choices=("auto", "openai", "hf"), default="auto",
-                        help="auto picks 'hf' iff --steering-alpha != 0; otherwise 'openai'. "
-                             "Tool-calling benchmarks only.")
-    parser.add_argument("--probe-dir", default=None,
-                        help="Path to a saved probe (probes/trained/<model>/). Required "
-                             "when --steering-alpha != 0. Tool-calling benchmarks only.")
-    parser.add_argument("--steering-layer", type=int, default=None,
-                        help="Decoder layer for steering. Defaults to probe.best_layer. "
-                             "Tool-calling benchmarks only.")
-    parser.add_argument("--steering-alpha", type=float, default=0.0,
-                        help="Steering strength. Negative = away from eval-aware. "
-                             "0 disables steering. Tool-calling benchmarks only.")
+    parser.add_argument(
+        "--backend",
+        choices=("auto", "openai", "hf"),
+        default="auto",
+        help="auto picks 'hf' iff --steering-alpha != 0; otherwise 'openai'. "
+        "Tool-calling benchmarks only.",
+    )
+    parser.add_argument(
+        "--probe-dir",
+        default=None,
+        help="Path to a saved probe (probes/trained/<model>/). Required "
+        "when --steering-alpha != 0. Tool-calling benchmarks only.",
+    )
+    parser.add_argument(
+        "--steering-layer",
+        type=int,
+        default=None,
+        help="Decoder layer for steering. Defaults to probe.best_layer. "
+        "Tool-calling benchmarks only.",
+    )
+    parser.add_argument(
+        "--steering-alpha",
+        type=float,
+        default=0.0,
+        help="Steering strength. Negative = away from eval-aware. "
+        "0 disables steering. Tool-calling benchmarks only.",
+    )
     parser.add_argument("--max-steps", type=int, default=15)
-    parser.add_argument("--toolcalling-max-tokens", type=int, default=8192,
-                        help="Maximum model output tokens per turn for "
-                             "AgentDojo/InjecAgent. Browser benchmarks ignore "
-                             "this flag.")
+    parser.add_argument(
+        "--toolcalling-max-tokens",
+        type=int,
+        default=8192,
+        help="Maximum model output tokens per turn for "
+        "AgentDojo/InjecAgent. Browser benchmarks ignore "
+        "this flag.",
+    )
     parser.add_argument("--shuffle", type=int, default=42)
-    parser.add_argument("--report-port", type=int, default=1234,
-                        help="Only used by DoomArena runner. Legacy single-port "
-                             "default; ignored when --report-port-base is given "
-                             "or PID-derived auto-base is computed.")
-    parser.add_argument("--report-port-base", type=int, default=None,
-                        help="DoomArena: base port for the cell. Each split "
-                             "gets base+offset (reddit=0, shopping=1, "
-                             "shopping_admin=2, gitlab=3). Default: PID-derived "
-                             "(unique per process).")
+    parser.add_argument(
+        "--report-port",
+        type=int,
+        default=1234,
+        help="Only used by DoomArena runner. Legacy single-port "
+        "default; ignored when --report-port-base is given "
+        "or PID-derived auto-base is computed.",
+    )
+    parser.add_argument(
+        "--report-port-base",
+        type=int,
+        default=None,
+        help="DoomArena: base port for the cell. Each split "
+        "gets base+offset (reddit=0, shopping=1, "
+        "shopping_admin=2, gitlab=3). Default: PID-derived "
+        "(unique per process).",
+    )
     parser.add_argument("--judge-model", default="anthropic/claude-opus-4.6:thinking")
-    parser.add_argument("--judge-concurrency", type=int, default=8,
-                        help="Max concurrent classifier/judge model calls during "
-                             "judge-only and judge stages.")
-    parser.add_argument("--judge-retries", type=int, default=3,
-                        help="Transport retries for classifier/judge model calls.")
-    parser.add_argument("--purpose-continuation-model-source",
-                        choices=["agent", "judge"],
-                        default="agent",
-                        help="For purpose_continue(_5q), which model answers "
-                             "the appended follow-up questions. 'agent' uses "
-                             "the original trajectory model and --judge-model "
-                             "only classifies the answers; 'judge' preserves "
-                             "the legacy behavior where the judge model also "
-                             "answers the questions.")
-    parser.add_argument("--purpose-continuation-concurrency", type=int, default=8,
-                        help="Max concurrent original-model calls for "
-                             "purpose_continue(_5q) follow-up answers.")
-    parser.add_argument("--purpose-continuation-retries", type=int, default=3,
-                        help="Transport retries for original-model "
-                             "purpose_continue(_5q) follow-up answers.")
-    parser.add_argument("--judges", nargs="+",
-                        default=["test_awareness_steering", "verbalized_awareness"])
-    parser.add_argument("--output-dir", type=Path,
-                        default=REPO_ROOT / "eval_awareness_experiments" / "results" /
-                                "safety_pipeline")
-    parser.add_argument("--existing-dirs", nargs="+", default=None,
-                        help="For --stage judge-only: explicit trajectory roots to judge, "
-                             "one per split. Format: 'split:path'.")
+    parser.add_argument(
+        "--judge-concurrency",
+        type=int,
+        default=8,
+        help="Max concurrent classifier/judge model calls during " "judge-only and judge stages.",
+    )
+    parser.add_argument(
+        "--judge-retries",
+        type=int,
+        default=3,
+        help="Transport retries for classifier/judge model calls.",
+    )
+    parser.add_argument(
+        "--purpose-continuation-model-source",
+        choices=["agent", "judge"],
+        default="agent",
+        help="For purpose_continue(_5q), which model answers "
+        "the appended follow-up questions. 'agent' uses "
+        "the original trajectory model and --judge-model "
+        "only classifies the answers; 'judge' preserves "
+        "the legacy behavior where the judge model also "
+        "answers the questions.",
+    )
+    parser.add_argument(
+        "--purpose-continuation-concurrency",
+        type=int,
+        default=8,
+        help="Max concurrent original-model calls for " "purpose_continue(_5q) follow-up answers.",
+    )
+    parser.add_argument(
+        "--purpose-continuation-retries",
+        type=int,
+        default=3,
+        help="Transport retries for original-model " "purpose_continue(_5q) follow-up answers.",
+    )
+    parser.add_argument(
+        "--judges", nargs="+", default=["test_awareness_steering", "verbalized_awareness"]
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=REPO_ROOT / "eval_awareness_experiments" / "results" / "safety_pipeline",
+    )
+    parser.add_argument(
+        "--existing-dirs",
+        nargs="+",
+        default=None,
+        help="For --stage judge-only: explicit trajectory roots to judge, "
+        "one per split. Format: 'split:path'.",
+    )
     return parser.parse_args()
 
 
@@ -1585,8 +1707,9 @@ def main() -> None:
         # (4 splits per cell for DoomArena, 2 for WASP). Splits hit different
         # docker services so no contention; ~4× speedup. Sequential mode
         # available via --browser-splits-sequential for debugging.
-        if (args.benchmark in BROWSER_BENCHMARKS
-                and not getattr(args, "browser_splits_sequential", False)):
+        if args.benchmark in BROWSER_BENCHMARKS and not getattr(
+            args, "browser_splits_sequential", False
+        ):
             logger.info(f"=== Stage 1: {args.benchmark}/{splits} (PARALLEL splits) ===")
             split_to_study = _stage1_browser_parallel_splits(args.benchmark, splits, args)
             for split in splits:
@@ -1646,17 +1769,23 @@ def main() -> None:
         elif args.benchmark in TOOLCALLING_BENCHMARKS:
             model_slug = (args.model_name or "").replace("/", "_").replace(":", "_")
             frame_suffix = (
-                f"_{args.system_prompt_frame}"
-                if args.system_prompt_frame != "none"
-                else ""
+                f"_{args.system_prompt_frame}" if args.system_prompt_frame != "none" else ""
             )
-            run_name = f"{args.condition}_{args.extra_instructions_preset}{frame_suffix}_{model_slug}"
+            run_name = (
+                f"{args.condition}_{args.extra_instructions_preset}{frame_suffix}_{model_slug}"
+            )
             if args.benchmark == "agentdojo":
-                split_to_root[split] = REPO_ROOT / "results" / "toolcalling" / "agentdojo" / split / run_name
+                split_to_root[split] = (
+                    REPO_ROOT / "results" / "toolcalling" / "agentdojo" / split / run_name
+                )
             else:
-                split_to_root[split] = REPO_ROOT / "results" / "toolcalling" / "injecagent" / split / run_name
+                split_to_root[split] = (
+                    REPO_ROOT / "results" / "toolcalling" / "injecagent" / split / run_name
+                )
         else:
-            logger.warning(f"No trajectory root known for {args.benchmark}/{split} in judge-only mode.")
+            logger.warning(
+                f"No trajectory root known for {args.benchmark}/{split} in judge-only mode."
+            )
 
     # Recover original-run config per split. For stage=all/run-only we just
     # wrote run_meta.json so this round-trips to args; for stage=judge-only on
@@ -1725,8 +1854,7 @@ def main() -> None:
                     "cell_dir": str(args.output_dir),
                 }
                 logger.info(
-                    f"=== WASP ASR: {split} ← {root} "
-                    f"({args.wasp_asr_classifier_model}) ==="
+                    f"=== WASP ASR: {split} ← {root} " f"({args.wasp_asr_classifier_model}) ==="
                 )
                 wasp_asr_summary = await evaluate_wasp_cell_split(
                     cell=cell,
@@ -1758,9 +1886,7 @@ def main() -> None:
                 extra_instructions_preset=(
                     meta.get("extra_instructions_preset") or args.extra_instructions_preset
                 ),
-                system_prompt_frame=(
-                    meta.get("system_prompt_frame") or args.system_prompt_frame
-                ),
+                system_prompt_frame=(meta.get("system_prompt_frame") or args.system_prompt_frame),
                 output_dir=args.output_dir,
                 purpose_continuation_model_source=args.purpose_continuation_model_source,
                 judge_concurrency=args.judge_concurrency,
@@ -1786,9 +1912,9 @@ def main() -> None:
                 and expected_total
                 and len(trajectories) < expected_total
             ):
-                manifest["splits"][split]["status"] = (
-                    f"partial_judges_complete ({len(trajectories)}/{expected_total})"
-                )
+                manifest["splits"][split][
+                    "status"
+                ] = f"partial_judges_complete ({len(trajectories)}/{expected_total})"
                 logger.warning(
                     f"  {args.benchmark}/{split} judged only "
                     f"{len(trajectories)}/{expected_total} trajectories"

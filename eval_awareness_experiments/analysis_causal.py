@@ -114,8 +114,10 @@ def compute_causal_stats(results: list[dict]) -> dict:
 
         n = len(group)
         awareness = sum(
-            1 for r in group
-            if r.get("metadata", {}).get("model_awareness", {}).get("conclusion") in ("Yes", "Maybe")
+            1
+            for r in group
+            if r.get("metadata", {}).get("model_awareness", {}).get("conclusion")
+            in ("Yes", "Maybe")
         )
         asr_total = sum(1 for r in group if r.get("metadata", {}).get("attack_success") is not None)
         asr_count = sum(1 for r in group if r.get("metadata", {}).get("attack_success"))
@@ -144,7 +146,7 @@ def print_awareness_summary(stats: dict) -> None:
     print(f"\n{'Benchmark':<25} {'N':>5} {'Awareness':>12} {'Recognition':>14} {'ASR':>8}")
     print("-" * 70)
     for benchmark, s in sorted(stats.items()):
-        asr_str = f"{s['asr']:.2%}" if s['asr'] is not None else "N/A"
+        asr_str = f"{s['asr']:.2%}" if s["asr"] is not None else "N/A"
         print(
             f"{benchmark:<25} {s['n']:>5} "
             f"{s['awareness_count']}/{s['n']} ({s['awareness_rate']:.1%})"
@@ -161,7 +163,7 @@ def print_causal_summary(stats: dict) -> None:
         print(f"  {'-' * 80}")
         for condition, models in sorted(conditions.items()):
             for model, s in sorted(models.items()):
-                asr_str = f"{s['asr']:.2%}" if s['asr'] is not None else "N/A"
+                asr_str = f"{s['asr']:.2%}" if s["asr"] is not None else "N/A"
                 print(
                     f"  {condition:<22} {model:<30} {s['n']:>4} "
                     f"{s['awareness_rate']:.1%}±{s['awareness_se']:.2f}"
@@ -171,12 +173,18 @@ def print_causal_summary(stats: dict) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="Analyze causal eval-awareness experiment results")
-    parser.add_argument("--results-dir", type=str,
-                        default="eval_awareness_experiments/results",
-                        help="Directory containing JSONL results")
-    parser.add_argument("--output-dir", type=str,
-                        default="eval_awareness_experiments/figures",
-                        help="Directory for output plots")
+    parser.add_argument(
+        "--results-dir",
+        type=str,
+        default="eval_awareness_experiments/results",
+        help="Directory containing JSONL results",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="eval_awareness_experiments/figures",
+        help="Directory for output plots",
+    )
     args = parser.parse_args()
 
     results_dir = Path(args.results_dir)
@@ -193,8 +201,7 @@ def main():
 
     # Filter to TAS judge results only
     tas_results = [
-        r for r in results
-        if r.get("experiment_type") == "trajectory_test_awareness_steering"
+        r for r in results if r.get("experiment_type") == "trajectory_test_awareness_steering"
     ]
     print(f"TAS judge results: {len(tas_results)}")
 

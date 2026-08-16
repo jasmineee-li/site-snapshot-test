@@ -38,18 +38,19 @@ MANIFEST_PATH = Path("eval_awareness_experiments/data/manifest.json")
 def list_available_tasks(agent: str, app: str) -> list[str]:
     """List task IDs available for a given agent/app combo."""
     try:
-        entries = list(list_repo_tree(
-            REPO_ID, repo_type=REPO_TYPE,
-            path_in_repo=f"data/{agent}/{app}",
-        ))
+        entries = list(
+            list_repo_tree(
+                REPO_ID,
+                repo_type=REPO_TYPE,
+                path_in_repo=f"data/{agent}/{app}",
+            )
+        )
         return [e.path.split("/")[-1] for e in entries]
     except Exception:
         return []
 
 
-def download_trajectory(
-    agent: str, app: str, task_id: str, output_dir: Path
-) -> dict | None:
+def download_trajectory(agent: str, app: str, task_id: str, output_dir: Path) -> dict | None:
     """Download a single trajectory. Returns trajectory metadata or None on failure."""
     traj_dir = output_dir / f"{agent}_{task_id}"
     traj_dir.mkdir(parents=True, exist_ok=True)
@@ -61,8 +62,10 @@ def download_trajectory(
     for filename in ["history.json", "result.json"]:
         try:
             local_path = hf_hub_download(
-                REPO_ID, f"{remote_prefix}/{filename}",
-                repo_type=REPO_TYPE, local_dir=str(output_dir / ".hf_cache"),
+                REPO_ID,
+                f"{remote_prefix}/{filename}",
+                repo_type=REPO_TYPE,
+                local_dir=str(output_dir / ".hf_cache"),
             )
             # Copy to our structure
             dst = traj_dir / filename
@@ -74,17 +77,22 @@ def download_trajectory(
 
     # Download screenshots
     try:
-        screenshot_entries = list(list_repo_tree(
-            REPO_ID, repo_type=REPO_TYPE,
-            path_in_repo=f"{remote_prefix}/screenshots",
-        ))
+        screenshot_entries = list(
+            list_repo_tree(
+                REPO_ID,
+                repo_type=REPO_TYPE,
+                path_in_repo=f"{remote_prefix}/screenshots",
+            )
+        )
         screenshots_dir = traj_dir / "screenshots"
         screenshots_dir.mkdir(exist_ok=True)
         for entry in screenshot_entries:
             if hasattr(entry, "rfilename") and entry.rfilename.endswith(".png"):
                 local_path = hf_hub_download(
-                    REPO_ID, entry.rfilename,
-                    repo_type=REPO_TYPE, local_dir=str(output_dir / ".hf_cache"),
+                    REPO_ID,
+                    entry.rfilename,
+                    repo_type=REPO_TYPE,
+                    local_dir=str(output_dir / ".hf_cache"),
                 )
                 dst = screenshots_dir / Path(entry.rfilename).name
                 dst.write_bytes(Path(local_path).read_bytes())
@@ -178,27 +186,39 @@ def main():
         description="Import webarena-infinity agent trajectories from HuggingFace"
     )
     parser.add_argument(
-        "--apps", type=str, default=",".join(DEFAULT_APPS),
+        "--apps",
+        type=str,
+        default=",".join(DEFAULT_APPS),
         help="Comma-separated app names",
     )
     parser.add_argument(
-        "--agents", type=str, default=",".join(DEFAULT_AGENTS),
+        "--agents",
+        type=str,
+        default=",".join(DEFAULT_AGENTS),
         help="Comma-separated agent names (gemini, kimi, qwen)",
     )
     parser.add_argument(
-        "--max-per-app", type=int, default=5,
+        "--max-per-app",
+        type=int,
+        default=5,
         help="Max trajectories to import per app",
     )
     parser.add_argument(
-        "--output", type=str, default=str(DEFAULT_OUTPUT),
+        "--output",
+        type=str,
+        default=str(DEFAULT_OUTPUT),
         help="Output directory",
     )
     parser.add_argument(
-        "--manifest", type=str, default=str(MANIFEST_PATH),
+        "--manifest",
+        type=str,
+        default=str(MANIFEST_PATH),
         help="Manifest file path",
     )
     parser.add_argument(
-        "--seed", type=int, default=42,
+        "--seed",
+        type=int,
+        default=42,
         help="Random seed for sampling",
     )
     args = parser.parse_args()
@@ -208,7 +228,11 @@ def main():
     output_dir = Path(args.output)
 
     trajectories_by_app = import_trajectories(
-        apps, agents, output_dir, args.max_per_app, args.seed,
+        apps,
+        agents,
+        output_dir,
+        args.max_per_app,
+        args.seed,
     )
 
     total = sum(len(t) for t in trajectories_by_app.values())

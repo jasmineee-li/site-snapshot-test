@@ -88,12 +88,10 @@ def _pairwise_stats(items: list[dict]) -> dict:
         "total": total,
         "parseable": len(parseable),
         "position_bias": {
-            k: round(v / len(parseable), 4) if parseable else 0
-            for k, v in position_counts.items()
+            k: round(v / len(parseable), 4) if parseable else 0 for k, v in position_counts.items()
         },
         "source_preference": {
-            k: round(v / len(parseable), 4) if parseable else 0
-            for k, v in source_chosen.items()
+            k: round(v / len(parseable), 4) if parseable else 0 for k, v in source_chosen.items()
         },
     }
 
