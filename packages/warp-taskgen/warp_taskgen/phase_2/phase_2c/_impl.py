@@ -94,6 +94,7 @@ from warp_taskgen.phases.phase_2_reachability import (
 from warp_taskgen.phases.phase_2_render_check import (
     RenderOutcome,
 )
+from warp_taskgen.runtime_composition import RequiredSeedCleanupError, RuntimeComposition
 from warp_taskgen.seeding import (
     SeedCleanupHandle,
     SeedSiteRegistry,
@@ -348,6 +349,7 @@ async def verify_feasibility(
     feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
     seed_registry: SeedSiteRegistry | None = None,
     site_catalog: SiteCatalog | None = None,
+    runtime_composition: RuntimeComposition | None = None,
     checkpoint_dir: Path | str | None = None,
     state_dir: Path | str | None = None,
     run_id: str | None = None,
@@ -383,6 +385,9 @@ async def verify_feasibility(
         site_catalog: Optional immutable per-run Site capability catalog used
             to plan read-surface verification. When omitted, the production
             GitLab/Reddit catalog is assembled for each check.
+        runtime_composition: Optional immutable per-run composition. When
+            supplied, its Site, seed, and feasibility catalogs are used
+            together; the default ``None`` path preserves existing behavior.
         checkpoint_dir: Optional directory for durable per-task checkpoints.
             When omitted, direct/legacy callers retain pre-checkpoint behavior;
             an identity without a directory never writes into the process cwd.
@@ -395,6 +400,17 @@ async def verify_feasibility(
         verifier_version / policy_version / catalog_version: Explicit
             compatibility versions bound into each checkpoint.
     """
+    if runtime_composition is not None:
+        if any(
+            value is not None for value in (feasibility_policy_catalog, seed_registry, site_catalog)
+        ):
+            raise ValueError(
+                "runtime_composition cannot be combined with explicit Phase 2c catalogs"
+            )
+        feasibility_policy_catalog = runtime_composition.feasibility_policy_catalog
+        seed_registry = runtime_composition.seed_registry
+        site_catalog = runtime_composition.site_catalog
+
     raw = json.loads(tasks_path.read_text())
     if not isinstance(raw, list):
         raise ValueError(
@@ -756,6 +772,8 @@ async def verify_feasibility(
                                 verify_kwargs["seed_registry"] = seed_registry
                             if site_catalog is not None:
                                 verify_kwargs["site_catalog"] = site_catalog
+                            if runtime_composition is not None:
+                                verify_kwargs["runtime_composition"] = runtime_composition
                             result = await _verify_one(
                                 task,
                                 instance,
@@ -768,6 +786,12 @@ async def verify_feasibility(
                         # latency/p99 purposes. ``verification_crashed``
                         # below is the "replica broke the client" path.
                         worker_ok = True
+                    except RequiredSeedCleanupError:
+                        # Cleanup is part of the named composition's Atomic
+                        # Work Unit. Do not convert this into a reusable
+                        # verification checkpoint or continue against dirty
+                        # state.
+                        raise
                     except Exception as exc:
                         task_id = str(task.get("id", "unknown"))
                         logger.exception("phase 2c verification crashed for task %s", task_id)
@@ -819,12 +843,20 @@ async def verify_feasibility(
     # The feature-owned scheduler serializes claims with the pause marker and
     # drains every already-admitted unit without cancellation.
     indexed_tasks = list(enumerate(raw))
-    results = await run_verification_units(
-        indexed_tasks,
-        lambda indexed_task: worker(indexed_task[1], indexed_task[0]),
-        concurrency=concurrency,
-        state_dir=state_dir,
-    )
+    try:
+        results = await run_verification_units(
+            indexed_tasks,
+            lambda indexed_task: worker(indexed_task[1], indexed_task[0]),
+            concurrency=concurrency,
+            state_dir=state_dir,
+        )
+    except RuntimeError as exc:
+        # The scheduler preserves failed-unit identity as ``__cause__``.  A
+        # required cleanup failure is a named terminal gate, not an ordinary
+        # worker crash, so retain that identity for the caller/operator.
+        if isinstance(exc.__cause__, RequiredSeedCleanupError):
+            raise exc.__cause__ from exc
+        raise
 
     # Per-replica observability summary. One log line per replica, sorted
     # by (site, replica_name) so the output is stable across runs. Use
@@ -887,9 +919,13 @@ async def _verify_one(
     render_semaphore: asyncio.Semaphore | None = None,
     seed_registry: SeedSiteRegistry | None = None,
     site_catalog: SiteCatalog | None = None,
+    runtime_composition: RuntimeComposition | None = None,
     checkpoint_context: _checkpoints.Phase2cCheckpointContext | None = None,
     checkpoint_work_unit: dict[str, bool] | None = None,
 ) -> dict[str, Any]:
+    strict_cleanup = bool(
+        runtime_composition is not None and runtime_composition.strict_seed_cleanup
+    )
     seed = task.get("adversarial_data_seed") or {}
     editor_calls = seed.get("editor_calls") if isinstance(seed, dict) else None
 
@@ -927,6 +963,39 @@ async def _verify_one(
         result["feasibility"] = prior
         return result
 
+    # A named composition may require a reader contract before it mutates the
+    # benchmark.  Check that contract before applying the writer seed so a
+    # missing/invalid anonymous-reader declaration fails closed without
+    # leaving seeded state behind.  The render probe repeats the pure check
+    # immediately before opening its reader context and records its metadata.
+    if runtime_composition is not None and runtime_composition.reader_preflight is not None:
+        try:
+            reader_result = runtime_composition.reader_preflight(instance)
+        except Exception as exc:
+            return _infeasible_task(
+                task,
+                kind="auth_unusable",
+                detail=(f"independent reader preflight raised {exc.__class__.__name__}: {exc}"),
+                fingerprint=fingerprint,
+                http_status=None,
+                response_snippet=None,
+                attempts=[],
+                timestamp=_now_iso(),
+            )
+        if not getattr(reader_result, "ok", False):
+            reason = str(getattr(reader_result, "reason", "reader_contract_failed"))
+            detail = str(getattr(reader_result, "detail", "independent reader contract failed"))
+            return _infeasible_task(
+                task,
+                kind="auth_missing" if reason == "missing_reader_auth" else "auth_unusable",
+                detail=f"independent reader preflight failed: {reason}: {detail}",
+                fingerprint=fingerprint,
+                http_status=None,
+                response_snippet=None,
+                attempts=[],
+                timestamp=_now_iso(),
+            )
+
     if not isinstance(editor_calls, list):
         return _infeasible_task(
             task,
@@ -960,13 +1029,12 @@ async def _verify_one(
     metadata: dict[str, Any] = {}
 
     async def _apply_and_keep_metadata() -> tuple[SeedCleanupHandle | None, dict[str, Any]]:
-        if seed_registry is None:
-            return await apply_data_seed_async(seed, bound_instance)
-        return await apply_data_seed_async(
-            seed,
-            bound_instance,
-            seed_registry=seed_registry,
-        )
+        apply_kwargs: dict[str, Any] = {}
+        if seed_registry is not None:
+            apply_kwargs["seed_registry"] = seed_registry
+        if strict_cleanup:
+            apply_kwargs["strict_cleanup"] = True
+        return await apply_data_seed_async(seed, bound_instance, **apply_kwargs)
 
     try:
         handle, metadata = await retrying(
@@ -976,7 +1044,12 @@ async def _verify_one(
             attempts_log=attempts,
         )
     except EditorError as exc:
-        _safe_cleanup(handle, cleanup_warnings, task.get("id"))
+        _safe_cleanup(
+            handle,
+            cleanup_warnings,
+            task.get("id"),
+            raise_on_failure=strict_cleanup,
+        )
         return _infeasible_task(
             task,
             kind=exc.kind,
@@ -992,7 +1065,12 @@ async def _verify_one(
         # resolver's anchors don't support. Categorized separately from
         # schema_mismatch so dashboards can track the commit 4/6 fail-
         # loud contract hits distinct from shape violations.
-        _safe_cleanup(handle, cleanup_warnings, task.get("id"))
+        _safe_cleanup(
+            handle,
+            cleanup_warnings,
+            task.get("id"),
+            raise_on_failure=strict_cleanup,
+        )
         return _infeasible_task(
             task,
             kind="contract_violation",
@@ -1003,13 +1081,23 @@ async def _verify_one(
             attempts=attempts,
             timestamp=_now_iso(),
         )
+    except RequiredSeedCleanupError:
+        # Required cleanup is a named composition terminal gate. It is a
+        # RuntimeError subclass, so keep this branch ahead of the structural
+        # ValueError/RuntimeError categorization below.
+        raise
     except (ValueError, RuntimeError) as exc:
         # ValueError comes from validate_data_seed; RuntimeError comes from
         # ``_render_editor_seed_call`` when a template placeholder (e.g.
         # ``{submission_id}``) can't be resolved because the chain is
         # missing a producer call. Both are structural problems; neither is
         # a platform rejection.
-        _safe_cleanup(handle, cleanup_warnings, task.get("id"))
+        _safe_cleanup(
+            handle,
+            cleanup_warnings,
+            task.get("id"),
+            raise_on_failure=strict_cleanup,
+        )
         return _infeasible_task(
             task,
             kind="schema_mismatch",
@@ -1057,6 +1145,8 @@ async def _verify_one(
             }
             if site_catalog is not None:
                 render_kwargs["site_catalog"] = site_catalog
+            if runtime_composition is not None and runtime_composition.reader_preflight is not None:
+                render_kwargs["reader_preflight"] = runtime_composition.reader_preflight
             render_outcome = await _run_render_check(
                 **render_kwargs,
             )
@@ -1115,7 +1205,12 @@ async def _verify_one(
                 if checkpoint_work_unit is not None and reachability_outcome is not None:
                     checkpoint_work_unit["reachability_completed"] = True
     finally:
-        _safe_cleanup(handle, cleanup_warnings, task.get("id"))
+        _safe_cleanup(
+            handle,
+            cleanup_warnings,
+            task.get("id"),
+            raise_on_failure=strict_cleanup,
+        )
 
     if render_outcome is not None and not render_outcome.ok:
         return _infeasible_task(

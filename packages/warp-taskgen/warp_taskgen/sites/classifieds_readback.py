@@ -81,7 +81,7 @@ class ClassifiedsReadbackCapability:
         # The painted witness must be the reply body itself, not merely the
         # adjacent reply-action link that carries the stable resource id.
         # ``:has`` binds that body to the same rendered comment block.
-        return f'div.comment:has(a.comment-reply[data-id="{reply_id}"]) > p:not(.comment-reply-row)'
+        return f'div.comment:has(a.comment-reply[data-id="{reply_id}"]) > p:not([class])'
 
     def observe_readback_html(
         self,

@@ -193,6 +193,7 @@ def apply_data_seed(
     instance: dict[str, Any],
     *,
     seed_registry: SeedSiteRegistry | None = None,
+    strict_cleanup: bool = False,
 ) -> tuple[SeedCleanupHandle | None, dict[str, Any]]:
     """Apply a data seed to a running benchmark instance.
 
@@ -215,6 +216,9 @@ def apply_data_seed(
         ValueError: If ``seed["mechanism"]`` is unknown.
     """
     from warp_taskgen.editors._read_surface import normalize_surface_urls
+
+    if not isinstance(strict_cleanup, bool):
+        raise TypeError("strict_cleanup must be a bool")
 
     resolved_registry = _coerce_seed_registry(seed_registry) if seed_registry is not None else None
     if resolved_registry is None:
@@ -337,14 +341,37 @@ def apply_data_seed(
             session=session,
             editor_instances=editor_instances,
         )
+        cleanup_error: Exception | None = None
         try:
             cleanup.cleanup()
-        except Exception as cleanup_error:
-            # Never replace the seed failure with cleanup noise.  The note is
-            # visible to callers while the original exception remains the
-            # raised failure and all cleanup operations have still run.
+        except Exception as cleanup_exc:
+            cleanup_error = cleanup_exc
+            # Ordinary callers retain the historical primary exception with a
+            # cleanup note. Named compositions cannot safely continue after a
+            # partial mutation, however: expose a typed terminal error even
+            # though no cleanup handle could be returned to the caller.
             logger.exception("seed cleanup failed after seed execution error")
+            if strict_cleanup:
+                from warp_taskgen.runtime_composition import RequiredSeedCleanupError
+
+                raise RequiredSeedCleanupError(
+                    f"required seed cleanup failed after seed execution error: {cleanup_error}",
+                    primary_error=seed_error,
+                    cleanup_error=cleanup_error,
+                ) from seed_error
             seed_error.add_note(f"seed cleanup also failed: {cleanup_error}")
+        if (
+            strict_cleanup
+            and isinstance(seed_error, EditorError)
+            and seed_error.kind == "mutation_unreconciled"
+        ):
+            from warp_taskgen.runtime_composition import RequiredSeedCleanupError
+
+            raise RequiredSeedCleanupError(
+                "required seed cleanup could not reconcile a post-submit mutation",
+                primary_error=seed_error,
+                cleanup_error=cleanup_error,
+            ) from seed_error
         raise
 
 
@@ -353,6 +380,7 @@ async def apply_data_seed_async(
     instance: dict[str, Any],
     *,
     seed_registry: SeedSiteRegistry | None = None,
+    strict_cleanup: bool = False,
 ) -> tuple[SeedCleanupHandle | None, dict[str, Any]]:
     """Apply a data seed without blocking the event loop."""
     return await asyncio.to_thread(
@@ -360,6 +388,7 @@ async def apply_data_seed_async(
         seed,
         instance,
         seed_registry=seed_registry,
+        strict_cleanup=strict_cleanup,
     )
 
 

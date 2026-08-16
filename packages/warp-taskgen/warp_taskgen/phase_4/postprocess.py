@@ -32,6 +32,7 @@ from warp_taskgen.phase_4.strategy_variation import (
 from warp_taskgen.phase_4.strategy_variation import (
     run_strategy_variation,
 )
+from warp_taskgen.runtime_composition import RuntimeComposition
 from warp_taskgen.task_paths import safe_task_path_component
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,7 @@ async def _postprocess_one_task(
     agent_execution: dict[str, Any] | None = None,
     progress_callback: Phase4ProgressCallback | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
+    runtime_composition: RuntimeComposition | None = None,
 ) -> dict[str, Any]:
     """Post-process a single adversarial task result through the Phase 4 decision tree."""
     task_id = str(result.get("task_id", "unknown"))
@@ -132,6 +134,7 @@ async def _postprocess_one_task(
         agent_execution=agent_execution,
         progress_callback=progress_callback,
         browser_worker_semaphore=browser_worker_semaphore,
+        runtime_composition=runtime_composition,
     )
 
     # Persist processed result for resume (Stage 2 checkpoint).
@@ -167,6 +170,7 @@ async def _process_adversarial_result(
     agent_execution: dict[str, Any] | None = None,
     progress_callback: Phase4ProgressCallback | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
+    runtime_composition: RuntimeComposition | None = None,
 ) -> dict[str, Any]:
     """Apply the full Phase 4 decision tree to one task result."""
     resolved_variant_system = _normalize_phase_4_variant_system(variant_system)
@@ -209,6 +213,7 @@ async def _process_adversarial_result(
         resume=resume,
         source_fingerprint=source_fingerprint,
         browser_worker_semaphore=browser_worker_semaphore,
+        runtime_composition=runtime_composition,
     )
     if placement_fix is not None:
         annotations["placement_fix"] = placement_fix
@@ -296,6 +301,7 @@ async def _process_adversarial_result(
             agent_execution=agent_execution,
             progress_callback=progress_callback,
             browser_worker_semaphore=browser_worker_semaphore,
+            runtime_composition=runtime_composition,
         )
         variation_field = "strategy_variation"
     else:
@@ -316,6 +322,7 @@ async def _process_adversarial_result(
             agent_execution=agent_execution,
             progress_callback=progress_callback,
             browser_worker_semaphore=browser_worker_semaphore,
+            runtime_composition=runtime_composition,
         )
         variation_field = "eval_awareness_iterator"
     variation_status = variation.get("status")

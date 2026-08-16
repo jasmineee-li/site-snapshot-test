@@ -4,6 +4,7 @@ import hashlib
 from collections.abc import Mapping
 
 import pytest
+import requests
 
 from warp_taskgen.editors.base import BaseSiteEditor, EditorError
 from warp_taskgen.sites.classifieds_editor import (
@@ -189,6 +190,14 @@ def test_editor_subclasses_base_editor_and_exposes_local_listing_contract() -> N
         ),
         (
             _Response(
+                status_code=200,
+                text='<nav><a href="/index.php?page=logout">Log out</a></nav>',
+                url=f"{ORIGIN}/index.php?page=user&action=items",
+            ),
+            True,
+        ),
+        (
+            _Response(
                 status_code=302,
                 headers={"Location": "/index.php?page=login"},
                 url=f"{ORIGIN}/index.php?page=user&action=dashboard",
@@ -224,7 +233,7 @@ def test_auth_probe_requires_dashboard_logout_evidence(
     assert session.calls == [
         (
             f"{ORIGIN}/index.php?page=user&action=dashboard",
-            {"timeout": 10, "allow_redirects": False},
+            {"timeout": 10, "allow_redirects": True},
         )
     ]
 
@@ -246,7 +255,8 @@ def test_reply_id_accepts_matching_delete_identity_without_latest_fallback() -> 
     html = """
     <div class="comment">
       <h3>Title by alice</h3><p>Please read UNIQUE-SIGNATURE</p>
-      <a href="/index.php?page=delete_comment&id=88">Delete</a>
+      <a class="comment-reply" data-id="88">Reply</a>
+      <a href="/index.php?page=item&amp;action=delete_comment&amp;id=17&amp;comment=88&amp;octoken=x">Delete</a>
     </div>
     """
     assert (
@@ -255,6 +265,7 @@ def test_reply_id_accepts_matching_delete_identity_without_latest_fallback() -> 
             actor=ACTOR,
             body=BODY,
             signature="UNIQUE-SIGNATURE",
+            listing_id="17",
         )
         == "88"
     )
@@ -344,6 +355,96 @@ def test_editor_records_exact_get_post_get_and_returns_identity_tokens() -> None
     assert result["read_surface_urls"] == [LISTING_URL]
 
 
+def test_editor_cleanup_deletes_exact_writer_reply_and_proves_absence() -> None:
+    class _CleanupSession(_FakeSession):
+        def __init__(self) -> None:
+            super().__init__(
+                form_html=_form_html(),
+                rendered_html=_comment_html(),
+                post_response=_Response(
+                    status_code=302,
+                    headers={"Location": "/index.php?page=item&id=17"},
+                    url=LISTING_URL,
+                ),
+            )
+
+        def get(self, url: str, **kwargs: object) -> _Response:
+            params = kwargs.get("params")
+            if isinstance(params, dict) and params.get("action") == "delete_comment":
+                self.calls.append(("GET", url, kwargs))
+                return _Response(
+                    status_code=302,
+                    headers={"Location": "/index.php?page=item&id=17"},
+                    url=url,
+                )
+            if len(self.calls) >= 4:
+                self.calls.append(("GET", url, kwargs))
+                return _Response(status_code=200, text=_form_html(), url=LISTING_URL)
+            return super().get(url, **kwargs)
+
+    session = _CleanupSession()
+    editor = ClassifiedsEditor({"site_url": ORIGIN}, session)
+    editor.create_listing_reply(listing_id="17", body=BODY, signature="UNIQUE-SIGNATURE")
+
+    editor.cleanup()
+
+    delete = session.calls[3]
+    assert delete[1] == f"{ORIGIN}/index.php"
+    assert delete[2]["params"] == {
+        "page": "item",
+        "action": "delete_comment",
+        "id": "17",
+        "comment": "88",
+        "octoken": "csrf-17",
+    }
+    assert [call[0] for call in session.calls] == ["GET", "POST", "GET", "GET", "GET"]
+
+
+@pytest.mark.parametrize(
+    "witness_html",
+    [
+        "<main>temporary soft error</main>",
+        "<form action='/index.php?page=login' method='post'><input name='email'></form>",
+        "<form action='/index.php' method='post'><input name='id' value='17'></form>",
+    ],
+)
+def test_editor_cleanup_rejects_non_listing_success_pages(witness_html: str) -> None:
+    class _SoftErrorCleanupSession(_FakeSession):
+        def __init__(self) -> None:
+            super().__init__(
+                form_html=_form_html(),
+                rendered_html=_comment_html(),
+                post_response=_Response(
+                    status_code=302,
+                    headers={"Location": "/index.php?page=item&id=17"},
+                    url=LISTING_URL,
+                ),
+            )
+
+        def get(self, url: str, **kwargs: object) -> _Response:
+            params = kwargs.get("params")
+            if isinstance(params, dict) and params.get("action") == "delete_comment":
+                self.calls.append(("GET", url, kwargs))
+                return _Response(
+                    status_code=302,
+                    headers={"Location": "/index.php?page=item&id=17"},
+                    url=url,
+                )
+            if len(self.calls) >= 4:
+                self.calls.append(("GET", url, kwargs))
+                return _Response(status_code=200, text=witness_html, url=LISTING_URL)
+            return super().get(url, **kwargs)
+
+    session = _SoftErrorCleanupSession()
+    editor = ClassifiedsEditor({"site_url": ORIGIN}, session)
+    editor.create_listing_reply(listing_id="17", body=BODY, signature="UNIQUE-SIGNATURE")
+
+    with pytest.raises(EditorError, match="exact listing surface") as raised:
+        editor.cleanup()
+
+    assert raised.value.kind == "cleanup_failed"
+
+
 def test_editor_fails_when_form_csrf_is_missing() -> None:
     editor, session = _editor(form_html=_form_html(csrf=""))
 
@@ -382,7 +483,7 @@ def test_editor_rejects_missing_id_wrong_actor_or_ambiguous_matches(rendered_htm
     with pytest.raises(EditorError) as raised:
         editor.create_listing_reply(listing_id="17", body=BODY, signature="UNIQUE-SIGNATURE")
 
-    assert raised.value.kind == "schema_mismatch"
+    assert raised.value.kind in {"schema_mismatch", "mutation_unreconciled"}
     assert [call[0] for call in session.calls] == ["GET", "POST", "GET"]
 
 
@@ -393,4 +494,123 @@ def test_editor_rejects_unexpected_post_status() -> None:
         editor.create_listing_reply(listing_id="17", body=BODY, signature="UNIQUE-SIGNATURE")
 
     assert raised.value.kind == "request_failed"
-    assert [call[0] for call in session.calls] == ["GET", "POST"]
+    # HTTP 201 is not an accepted Classifieds form response, but it may have
+    # committed the reply. The post-write GET must therefore reconcile the
+    # exact delta before surfacing the primary request error.
+    assert [call[0] for call in session.calls] == ["GET", "POST", "GET"]
+    assert len(editor._cleanup_stack) == 1
+
+
+def test_editor_reconciles_timeout_after_post_commit_before_raising() -> None:
+    class _TimeoutAfterPostSession(_FakeSession):
+        def request(self, method: str, url: str, **kwargs: object) -> _Response:
+            self.calls.append((method, url, kwargs))
+            raise requests.Timeout("synthetic timeout after server commit")
+
+    session = _TimeoutAfterPostSession(
+        form_html=_form_html(),
+        rendered_html=_comment_html(),
+        post_response=_Response(status_code=302, url=LISTING_URL),
+    )
+    editor = ClassifiedsEditor({"site_url": ORIGIN}, session)
+
+    with pytest.raises(EditorError) as raised:
+        editor.create_listing_reply(listing_id="17", body=BODY, signature="UNIQUE-SIGNATURE")
+
+    assert raised.value.kind == "request_failed"
+    assert isinstance(raised.value.__cause__, requests.Timeout)
+    assert [call[0] for call in session.calls] == ["GET", "POST", "GET"]
+    # The recovery GET observed the one newly rendered ID, so the strict seed
+    # cleanup boundary can still delete the writer-owned reply.
+    assert len(editor._cleanup_stack) == 1
+
+
+def test_editor_registers_cleanup_for_one_new_reply_when_refetch_identity_is_ambiguous() -> None:
+    # The form GET is also the pre-write ID witness. The POST commits reply 88,
+    # but the immediate refetch contains an unrelated reply as well, so exact
+    # body/actor readback is ambiguous. The one-ID delta still identifies the
+    # writer mutation and must be cleaned up by the normal seed boundary.
+    class _AmbiguousRefetchSession(_FakeSession):
+        def __init__(self) -> None:
+            super().__init__(
+                form_html=_form_html() + _comment_html(reply_id="89"),
+                rendered_html=_comment_html() + _comment_html(reply_id="89"),
+                post_response=_Response(
+                    status_code=302,
+                    headers={"Location": "/index.php?page=item&id=17"},
+                    url=LISTING_URL,
+                ),
+            )
+
+        def get(self, url: str, **kwargs: object) -> _Response:
+            params = kwargs.get("params")
+            if isinstance(params, dict) and params.get("action") == "delete_comment":
+                self.calls.append(("GET", url, kwargs))
+                return _Response(
+                    status_code=302,
+                    headers={"Location": "/index.php?page=item&id=17"},
+                    url=LISTING_URL,
+                )
+            if len(self.calls) >= 4:
+                self.calls.append(("GET", url, kwargs))
+                return _Response(status_code=200, text=_form_html(), url=LISTING_URL)
+            return super().get(url, **kwargs)
+
+    session = _AmbiguousRefetchSession()
+    editor = ClassifiedsEditor({"site_url": ORIGIN}, session)
+
+    with pytest.raises(EditorError, match="one exact rendered reply id") as raised:
+        editor.create_listing_reply(listing_id="17", body=BODY, signature="UNIQUE-SIGNATURE")
+
+    assert raised.value.kind == "schema_mismatch"
+    editor.cleanup()
+    assert session.calls[-2][2]["params"]["comment"] == "88"
+
+
+def test_editor_fails_closed_when_post_submit_delta_is_not_reconcilable() -> None:
+    class _UnreconcilableSession(_FakeSession):
+        def __init__(self) -> None:
+            super().__init__(
+                form_html=_form_html(),
+                rendered_html=(
+                    _comment_html(reply_id="88")
+                    + _comment_html(reply_id="89", actor="alice", body=BODY)
+                ),
+                post_response=_Response(
+                    status_code=302,
+                    headers={"Location": "/index.php?page=item&id=17"},
+                    url=LISTING_URL,
+                ),
+            )
+
+    session = _UnreconcilableSession()
+    editor = ClassifiedsEditor({"site_url": ORIGIN}, session)
+
+    with pytest.raises(EditorError, match="one exact new reply ID") as raised:
+        editor.create_listing_reply(listing_id="17", body=BODY, signature="UNIQUE-SIGNATURE")
+
+    assert raised.value.kind == "mutation_unreconciled"
+    assert len(editor._cleanup_stack) == 0
+
+
+def test_classifieds_http_error_does_not_expose_form_secrets() -> None:
+    csrf_marker = "csrf-fixture-marker"
+    email_marker = "fixture-marker@example.test"
+    form = _form_html(csrf=csrf_marker).replace("alice@example.test", email_marker)
+
+    class _HttpErrorResponse(_Response):
+        def raise_for_status(self) -> None:
+            raise requests.HTTPError("synthetic HTTP error")
+
+    editor, _session = _editor(
+        form_html=form,
+        post_response=_HttpErrorResponse(status_code=500, text=form),
+    )
+
+    with pytest.raises(EditorError) as raised:
+        editor.create_listing_reply(listing_id="17", body=BODY, signature="UNIQUE-SIGNATURE")
+
+    error = raised.value
+    assert error.response_snippet is None
+    assert csrf_marker not in str(error)
+    assert email_marker not in str(error)

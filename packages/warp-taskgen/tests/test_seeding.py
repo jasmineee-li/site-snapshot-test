@@ -614,6 +614,28 @@ class _FailingCleanupEditor(_FakeEditor):
             raise RuntimeError(f"cleanup failed for {self.label}")
 
 
+class _PartialMutationFailingCleanupEditor(_FakeEditor):
+    """First call mutates, second call fails, and rollback also fails."""
+
+    def create_comment(
+        self, *, forum_name: str, submission_id: str, body: str
+    ) -> dict[str, object]:
+        raise seeding.EditorError("request_failed", "second seed call failed after the write")
+
+    def cleanup(self) -> None:
+        self.cleaned = True
+        raise RuntimeError("reply delete witness failed")
+
+
+class _UnreconciledMutationEditor(_FakeEditor):
+    def create_comment(
+        self, *, forum_name: str, submission_id: str, body: str
+    ) -> dict[str, object]:
+        raise seeding.EditorError(
+            "mutation_unreconciled", "post-submit reply identity could not be reconciled"
+        )
+
+
 class _RejectingEditor(_FakeEditor):
     def validate_args(self, method_name: str, args: dict[str, object]) -> None:
         raise seeding.EditorError("invalid_args", "bad args")
@@ -730,6 +752,100 @@ def test_apply_data_seed_supports_editor_calls_and_context_chaining(monkeypatch)
     ]
     assert editor.cleaned is False
     assert fake_session.closed is False
+
+
+def _partial_mutation_seed() -> dict[str, object]:
+    return {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "reddit",
+                "method": "create_submission",
+                "args": {"forum_name": "books", "title_template": "Thread"},
+            },
+            {
+                "benchmark": "webarena_verified",
+                "site": "reddit",
+                "method": "create_comment",
+                "args": {
+                    "forum_name": "books",
+                    "submission_id": "{submission_id}",
+                    "body": "payload",
+                },
+            },
+        ],
+    }
+
+
+def test_partial_seed_cleanup_failure_keeps_primary_error_for_default_callers(monkeypatch):
+    fake_session = _FakeSession([])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setitem(
+        seeding.EDITOR_REGISTRY,
+        ("webarena_verified", "reddit"),
+        _PartialMutationFailingCleanupEditor,
+    )
+
+    with pytest.raises(seeding.EditorError) as raised:
+        seeding.apply_data_seed(
+            _partial_mutation_seed(),
+            {"site_name": "reddit", "site_url": "http://reddit.test"},
+        )
+
+    assert raised.value.kind == "request_failed"
+    assert any("seed cleanup also failed" in note for note in raised.value.__notes__)
+    assert fake_session.closed is True
+
+
+def test_partial_seed_cleanup_failure_is_typed_for_strict_callers(monkeypatch):
+    from warp_taskgen.runtime_composition import RequiredSeedCleanupError
+
+    fake_session = _FakeSession([])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setitem(
+        seeding.EDITOR_REGISTRY,
+        ("webarena_verified", "reddit"),
+        _PartialMutationFailingCleanupEditor,
+    )
+
+    with pytest.raises(RequiredSeedCleanupError) as raised:
+        seeding.apply_data_seed(
+            _partial_mutation_seed(),
+            {"site_name": "reddit", "site_url": "http://reddit.test"},
+            strict_cleanup=True,
+        )
+
+    error = raised.value
+    assert isinstance(error.__cause__, seeding.EditorError)
+    assert error.primary_error is error.__cause__
+    assert isinstance(error.cleanup_error, RuntimeError)
+    assert "second seed call failed" in str(error.primary_error)
+    assert "reply delete witness failed" in str(error.cleanup_error)
+    assert fake_session.closed is True
+
+
+def test_unreconciled_mutation_is_typed_for_strict_callers_even_when_cleanup_runs(monkeypatch):
+    from warp_taskgen.runtime_composition import RequiredSeedCleanupError
+
+    fake_session = _FakeSession([])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setitem(
+        seeding.EDITOR_REGISTRY,
+        ("webarena_verified", "reddit"),
+        _UnreconciledMutationEditor,
+    )
+
+    with pytest.raises(RequiredSeedCleanupError) as raised:
+        seeding.apply_data_seed(
+            _partial_mutation_seed(),
+            {"site_name": "reddit", "site_url": "http://reddit.test"},
+            strict_cleanup=True,
+        )
+
+    assert raised.value.primary_error.kind == "mutation_unreconciled"
+    assert raised.value.cleanup_error is None
+    assert fake_session.closed is True
 
 
 def test_apply_data_seed_honors_editor_pre_call_delay(monkeypatch):

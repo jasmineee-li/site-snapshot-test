@@ -1,8 +1,35 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
+from pathlib import Path
 from typing import Any
 
 from ._fixtures import *  # noqa: F403,F401
+
+
+def test_phase_4_state_metadata_omits_unselected_runtime_composition() -> None:
+    base_kwargs = {
+        "task_dir_root": Path("logs/phase_4/run"),
+        "instances_path": Path("instances.json"),
+        "agent_model": "demo-model",
+        "sandbox_model": "claude-sonnet-4-6",
+        "agent_provider": None,
+        "agent_service_tier": None,
+        "max_tasks_per_site": 1,
+        "sites": "gitlab",
+        "adversarial_action_kind": None,
+        "benchmark_root": None,
+        "allow_unknown_auth": False,
+        "skip_host_bound_storage_state_auth": False,
+    }
+
+    default_metadata = phase_4_resume._phase_4_state_metadata(**base_kwargs)
+    assert "runtime_composition" not in default_metadata
+
+    named_metadata = phase_4_resume._phase_4_state_metadata(
+        **base_kwargs,
+        runtime_composition="classifieds_listing_reply_poc",
+    )
+    assert named_metadata["runtime_composition"] == "classifieds_listing_reply_poc"
 
 
 def test_phase_4_variant_fingerprint_changes_when_instance_auth_or_placeholders_change():

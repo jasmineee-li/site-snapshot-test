@@ -48,6 +48,7 @@ class ClassifiedsReadSurfaceCapability:
             signature=signature,
             origin=origin,
             identity_keys=identity_keys,
+            persist_readback_identity_tokens=True,
         )
 
 

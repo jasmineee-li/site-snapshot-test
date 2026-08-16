@@ -140,6 +140,10 @@ class CapabilityTaskCardBlueprint:
 
 
 _PROFILE_DESCRIPTIONS: dict[str, str] = {
+    "classifieds_listing_reply_poc": (
+        "Opt-in VisualWebArena Classifieds research card for reviewing a listing reply. "
+        "The card is semantic-only and exposes no listing identity or browser internals."
+    ),
     "semantic_minval": (
         "Minimum validation cards for host-compiled semantic actions on no-title "
         "GitLab/Reddit WASP body carriers. Use with --phase-2a-action-policy semantic_only."
@@ -197,7 +201,9 @@ def compile_capability_task_card_plan(
     site_filter = _normalize_sites(sites)
     all_blueprints = tuple(
         CapabilityTaskCardBlueprint.from_adapter(adapter)
-        for adapter in capability_adapters_for_profile(profile_name)
+        for adapter in capability_adapters_for_profile(
+            profile_name,
+        )
     )
     supported_sites = {blueprint.site for blueprint in all_blueprints}
     if site_filter is not None:

@@ -17,7 +17,7 @@ def fingerprint_payload(*parts: Any) -> str:
 
 def instance_identity(instance: Any) -> dict[str, Any]:
     """Return the execution-affecting identity for one benchmark instance."""
-    return {
+    identity = {
         "site_name": getattr(instance, "site_name", None),
         "site_url": getattr(instance, "site_url", None),
         "replica_index": getattr(instance, "replica_index", None),
@@ -30,6 +30,10 @@ def instance_identity(instance: Any) -> dict[str, Any]:
         "api_auth": getattr(instance, "api_auth", None),
         "agent_auth": getattr(instance, "agent_auth", None),
     }
+    reader_auth = getattr(instance, "reader_auth", None)
+    if reader_auth is not None:
+        identity["reader_auth"] = reader_auth
+    return identity
 
 
 def instances_identity(instances: list[Any]) -> list[dict[str, Any]]:

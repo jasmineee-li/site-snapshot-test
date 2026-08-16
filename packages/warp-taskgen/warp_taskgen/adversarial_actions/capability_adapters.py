@@ -571,6 +571,11 @@ _WEB_ARENA_VERIFIED_ADAPTERS: tuple[CapabilityTaskAdapter, ...] = (
 
 
 _PROFILE_ADAPTER_IDS: dict[str, tuple[str, ...]] = {
+    # Classifieds is intentionally opt-in.  Its adapter is imported lazily
+    # below because the feature module imports CapabilityTaskAdapter itself;
+    # keeping it out of the default WebArena profile prevents activation by
+    # catalog discovery alone.
+    "classifieds_listing_reply_poc": ("classifieds_listing_reply_body_semantic_status",),
     "semantic_minval": (
         "gitlab_issue_description_semantic_status",
         "reddit_submission_body_semantic_status",
@@ -591,6 +596,20 @@ _PROFILE_ADAPTER_IDS: dict[str, tuple[str, ...]] = {
     ),
     "tier3_repository_pilot": ("gitlab_issue_description_repository_maintenance",),
     "tier3_delete_resource_pilot": ("gitlab_issue_description_wasp_comment_delete_project",),
+}
+
+# Keep the benchmark family next to the profile's adapter ids.  A named
+# profile is otherwise easy to call through the public adapter API with its
+# historical default, while the task-card compiler has to know about the one
+# opt-in profile that belongs to VisualWebArena.
+_PROFILE_BENCHMARK_FAMILIES: dict[str, str] = {
+    "classifieds_listing_reply_poc": "visualwebarena",
+    "semantic_minval": "webarena_verified",
+    "tier2_mutation_pilot": "webarena_verified",
+    "tier2_gitlab_public_comment_pilot": "webarena_verified",
+    "tier2_pure_action_paper": "webarena_verified",
+    "tier3_repository_pilot": "webarena_verified",
+    "tier3_delete_resource_pilot": "webarena_verified",
 }
 
 
@@ -641,7 +660,7 @@ def available_capability_adapter_profiles() -> tuple[str, ...]:
 def capability_adapters_for_profile(
     profile: str,
     *,
-    benchmark_family: str = "webarena_verified",
+    benchmark_family: str | None = None,
     sites: Iterable[str] | None = None,
 ) -> tuple[CapabilityTaskAdapter, ...]:
     """Return validated adapter entries for a compiled task-card profile."""
@@ -651,11 +670,31 @@ def capability_adapters_for_profile(
         raise ValueError(
             f"unknown capability adapter profile {profile_name!r}; choose one of: {allowed}"
         )
-    normalized_benchmark = str(benchmark_family or "").strip()
+    normalized_benchmark = (
+        _PROFILE_BENCHMARK_FAMILIES[profile_name]
+        if benchmark_family is None
+        else str(benchmark_family or "").strip()
+    )
     site_filter = _normalize_sites(sites)
     adapters: list[CapabilityTaskAdapter] = []
     for adapter_id in _PROFILE_ADAPTER_IDS[profile_name]:
-        adapter = _ADAPTERS_BY_ID[adapter_id]
+        if profile_name == "classifieds_listing_reply_poc":
+            from warp_taskgen.adversarial_actions.classifieds_capability import (
+                classifieds_listing_reply_poc_adapters,
+            )
+
+            adapter = next(
+                (
+                    item
+                    for item in classifieds_listing_reply_poc_adapters()
+                    if item.id == adapter_id
+                ),
+                None,
+            )
+            if adapter is None:
+                raise ValueError(f"unknown Classifieds capability adapter id {adapter_id!r}")
+        else:
+            adapter = _ADAPTERS_BY_ID[adapter_id]
         if adapter.benchmark_family != normalized_benchmark:
             continue
         if site_filter is not None and adapter.site not in site_filter:

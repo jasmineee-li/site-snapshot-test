@@ -8,6 +8,12 @@ reachability, editors, exposure, and scoring remain outside this package.
 
 from warp_taskgen.sites.candidate_resolution import SourceListing, TargetCandidate
 from warp_taskgen.sites.catalog import BoundSite, SiteCatalog, default_catalog
+from warp_taskgen.sites.classifieds_reader import (
+    CLASSIFIEDS_READER_AUTH_TYPE,
+    CLASSIFIEDS_READER_CONTRACT_SCHEMA_VERSION,
+    ClassifiedsReaderPreflight,
+    preflight_classifieds_reader,
+)
 from warp_taskgen.sites.contracts import (
     CanonicalRoute,
     ResolvedTarget,
@@ -35,8 +41,11 @@ from warp_taskgen.sites.readback import (
 from warp_taskgen.sites.reddit import RedditSite
 
 __all__ = [
+    "CLASSIFIEDS_READER_AUTH_TYPE",
+    "CLASSIFIEDS_READER_CONTRACT_SCHEMA_VERSION",
     "BoundSite",
     "CanonicalRoute",
+    "ClassifiedsReaderPreflight",
     "GitLabSite",
     "ListingItemCandidate",
     "ListingSiteAdapter",
@@ -60,4 +69,5 @@ __all__ = [
     "TargetingContext",
     "TargetingFailure",
     "default_catalog",
+    "preflight_classifieds_reader",
 ]

@@ -29,6 +29,7 @@ from warp_taskgen.phase_4.resume import (
 from warp_taskgen.phase_4.variant_accounting import semantic_variant_accounting
 from warp_taskgen.phase_4.variant_contract_qa import build_variant_contract_qa
 from warp_taskgen.phase_4.variant_eval import _evaluate_variant, _merge_variant_task
+from warp_taskgen.runtime_composition import RuntimeComposition
 from warp_taskgen.task_paths import safe_task_path_component
 from warp_taskgen.text_payload_contract import build_text_payload_contract
 
@@ -979,6 +980,7 @@ async def run_eval_awareness_iterator(
     agent_execution: dict[str, Any] | None = None,
     progress_callback: Phase4ProgressCallback | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
+    runtime_composition: RuntimeComposition | None = None,
 ) -> dict[str, Any]:
     """Run the bounded sequential eval-awareness rewrite loop."""
 
@@ -1338,6 +1340,7 @@ async def run_eval_awareness_iterator(
             site_profile=site_profile,
             agent_execution=agent_execution,
             browser_worker_semaphore=browser_worker_semaphore,
+            runtime_composition=runtime_composition,
         )
         result.setdefault("iteration", iteration)
         result.setdefault("round_index", iteration)

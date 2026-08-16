@@ -190,6 +190,109 @@ async def test_run_adversarial_task_defers_seed_cleanup_until_after_reward_eval(
 
 
 @pytest.mark.asyncio
+async def test_named_classifieds_composition_fails_closed_when_seed_cleanup_fails(
+    monkeypatch, tmp_path
+):
+    from warp_taskgen.runtime_composition import classifieds_listing_reply_poc
+
+    task, instances = _prepared_adv_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+
+    class _FailingCleanup:
+        def cleanup(self) -> None:
+            raise RuntimeError("delete witness still present")
+
+    async def fake_apply_seed(seed, instance, **kwargs):
+        return _FailingCleanup(), {}
+
+    async def fake_preflight(seed, instance, **kwargs):
+        return phase_4_preflight.PreflightReport(ok=True, mismatches=())
+
+    async def fake_reset(task):
+        return None
+
+    def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
+        return False, "ok"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, *, start_urls=None):
+            return AgentResult(
+                elapsed=1.0,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_execution, "preflight_adversarial_seed", fake_preflight)
+    monkeypatch.setattr(phase_4_execution, "run_reward_function", fake_run_reward_function)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
+
+    with pytest.raises(RuntimeError, match="required seed cleanup failed"):
+        await phase_4_execution.run_adversarial_task(
+            task=task,
+            agent=FakeAgent(),
+            instance=instances[0],
+            task_dir=tmp_path,
+            runtime_composition=classifieds_listing_reply_poc(),
+        )
+    assert not (tmp_path / "result.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_named_classifieds_composition_partial_seed_failure_is_terminal(
+    monkeypatch, tmp_path
+):
+    from warp_taskgen.editors import EditorError
+    from warp_taskgen.runtime_composition import (
+        RequiredSeedCleanupError,
+        classifieds_listing_reply_poc,
+    )
+
+    task, instances = _prepared_adv_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+
+    async def fake_apply_seed(seed, instance, **kwargs):
+        assert kwargs["strict_cleanup"] is True
+        primary = EditorError("request_failed", "second call failed after a partial write")
+        raise RequiredSeedCleanupError(
+            "required seed cleanup failed after seed execution error",
+            primary_error=primary,
+            cleanup_error=RuntimeError("delete witness failed"),
+        ) from primary
+
+    async def fake_preflight(seed, instance, **kwargs):
+        return phase_4_preflight.PreflightReport(ok=True, mismatches=())
+
+    async def fake_reset(task):
+        return None
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, *, start_urls=None):
+            raise AssertionError("agent must not run after a partial seed failure")
+
+    monkeypatch.setattr(phase_4_execution, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_execution, "preflight_adversarial_seed", fake_preflight)
+    monkeypatch.setattr(phase_4_execution, "_reset_task_environment", fake_reset)
+
+    with pytest.raises(RequiredSeedCleanupError) as raised:
+        await phase_4_execution.run_adversarial_task(
+            task=task,
+            agent=FakeAgent(),
+            instance=instances[0],
+            task_dir=tmp_path,
+            runtime_composition=classifieds_listing_reply_poc(),
+        )
+
+    assert isinstance(raised.value.primary_error, EditorError)
+    assert raised.value.primary_error.kind == "request_failed"
+    assert not (tmp_path / "result.json").exists()
+
+
+@pytest.mark.asyncio
 async def test_run_adversarial_task_probes_non_scoreable_failures_before_saving_result(
     monkeypatch,
     tmp_path,

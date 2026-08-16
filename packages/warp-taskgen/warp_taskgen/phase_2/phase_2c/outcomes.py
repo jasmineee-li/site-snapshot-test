@@ -7,6 +7,7 @@ from typing import Any
 
 from warp_taskgen.editors import EditorError
 from warp_taskgen.phase_2.phase_2c.fingerprints import _first_method
+from warp_taskgen.runtime_composition import RequiredSeedCleanupError
 from warp_taskgen.seeding import SeedCleanupHandle
 
 
@@ -52,15 +53,23 @@ def _safe_cleanup(
     handle: SeedCleanupHandle | None,
     cleanup_warnings: list[str],
     task_id: Any,
+    *,
+    raise_on_failure: bool = False,
 ) -> None:
     if handle is None:
         return
     try:
         handle.cleanup()
     except EditorError as exc:
-        cleanup_warnings.append(f"task={task_id!s} cleanup_failed: {exc.detail}")
+        warning = f"task={task_id!s} cleanup_failed: {exc.detail}"
+        cleanup_warnings.append(warning)
+        if raise_on_failure:
+            raise RequiredSeedCleanupError(warning) from exc
     except Exception as exc:  # pragma: no cover - defensive
-        cleanup_warnings.append(f"task={task_id!s} cleanup_raised: {exc.__class__.__name__}: {exc}")
+        warning = f"task={task_id!s} cleanup_raised: {exc.__class__.__name__}: {exc}"
+        cleanup_warnings.append(warning)
+        if raise_on_failure:
+            raise RequiredSeedCleanupError(warning) from exc
 
 
 def _resolve_seed_site(task: dict[str, Any]) -> str:

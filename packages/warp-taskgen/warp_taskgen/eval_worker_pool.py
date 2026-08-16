@@ -28,6 +28,7 @@ from warp_taskgen.config import BenchmarkInstance
 from warp_taskgen.instance_selection import ordered_instances, stable_index_for_task
 from warp_taskgen.placeholders import normalize_site_name
 from warp_taskgen.resume_metadata import RESULT_FINGERPRINT_KEY
+from warp_taskgen.runtime_composition import RequiredSeedCleanupError
 from warp_taskgen.task_paths import safe_task_path_component
 
 logger = logging.getLogger(__name__)
@@ -327,6 +328,12 @@ async def staggered_worker(
         try:
             agent = agent_factory()
             await agent.setup(instance.site_url)
+        except RequiredSeedCleanupError:
+            # A named composition cannot safely continue after its required
+            # seed cleanup failed. Stop other workers before re-raising so no
+            # queued task can run against contaminated host state.
+            stop_event.set()
+            raise
         except Exception as e:
             logger.exception("worker %d failed during setup: %s", worker_id, e)
             stop_event.set()
@@ -355,6 +362,12 @@ async def staggered_worker(
                     async with results_lock:
                         results.append(result)
                     await _call_result_callback(result_callback, result)
+                except RequiredSeedCleanupError:
+                    # This is a terminal attempt-isolation failure, not an
+                    # ordinary per-task error result. Stop sibling workers and
+                    # preserve the exception for the Phase 4 caller.
+                    stop_event.set()
+                    raise
                 except Exception as e:
                     logger.exception("worker %d failed task %s: %s", worker_id, task_id, e)
                     result = {
@@ -552,7 +565,7 @@ async def run_eval(
     from warp_taskgen.run_control import PauseBoundaryReached, RunInterrupted
 
     for result in gather_results:
-        if isinstance(result, (PauseBoundaryReached, RunInterrupted)):
+        if isinstance(result, (PauseBoundaryReached, RunInterrupted, RequiredSeedCleanupError)):
             raise result
     for i, gr in enumerate(gather_results):
         if isinstance(gr, Exception):

@@ -498,6 +498,42 @@ async def test_evaluate_variant_rebinds_runtime_metadata(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_evaluate_variant_propagates_required_seed_cleanup_failure(monkeypatch, tmp_path):
+    from warp_taskgen.runtime_composition import (
+        RequiredSeedCleanupError,
+        classifieds_listing_reply_poc,
+    )
+
+    task, instances = _prepared_adv_task()
+    variant = json.loads(json.dumps(task))
+
+    async def fail_cleanup(*args, **kwargs):
+        raise RequiredSeedCleanupError("required seed cleanup failed")
+
+    class FakeAgent:
+        async def setup(self, server_url):
+            return None
+
+        async def teardown(self):
+            return None
+
+    monkeypatch.setattr(phase_4_execution, "run_adversarial_task", fail_cleanup)
+
+    with pytest.raises(RequiredSeedCleanupError, match="required seed cleanup failed"):
+        await phase_4_variant_eval._evaluate_variant(
+            task=task,
+            variant=variant,
+            instance=instances[0],
+            all_instances=instances,
+            strategy={"strategy": "specificity"},
+            index=0,
+            agent_factory=FakeAgent,
+            task_dir_root=tmp_path,
+            runtime_composition=classifieds_listing_reply_poc(),
+        )
+
+
+@pytest.mark.asyncio
 async def test_evaluate_variant_runs_in_parallel_on_distinct_instance_footprints(
     monkeypatch, tmp_path
 ):

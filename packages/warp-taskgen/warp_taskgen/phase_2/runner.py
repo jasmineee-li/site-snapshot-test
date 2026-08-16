@@ -38,6 +38,7 @@ from warp_taskgen.phase_2.text_fill.constants import (
 )
 from warp_taskgen.phase_2.text_fill.service import fill_texts_for_tasks
 from warp_taskgen.run_definition import define_run
+from warp_taskgen.runtime_composition import runtime_composition_for_name
 from warp_taskgen.state import get_state_dir, load_state, save_state
 
 logger = logging.getLogger(__name__)
@@ -142,6 +143,15 @@ async def run(args: argparse.Namespace) -> int:
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     task_origin = getattr(args, "task_origin", None) or "all"
     sites_filter_raw = getattr(args, "sites", None)
+    prior_state = load_state() or {}
+    runtime_composition_name = getattr(args, "runtime_composition", None)
+    if not runtime_composition_name and getattr(args, "feasibility_only", False):
+        runtime_composition_name = prior_state.get("runtime_composition")
+    try:
+        runtime_composition = runtime_composition_for_name(runtime_composition_name)
+    except ValueError as exc:
+        logger.error("Phase 2 runtime composition gate failed: %s", exc)
+        return 1
     state_metadata: dict[str, Any] = {
         "sandbox_model": sandbox_model,
         "max_tasks_per_site": max_tasks_per_site,
@@ -154,6 +164,8 @@ async def run(args: argparse.Namespace) -> int:
         "phase_2a_action_policy": phase_2a_action_policy,
         "exposure_contract_signature": exposure_contract_signature(),
     }
+    if runtime_composition_name:
+        state_metadata["runtime_composition"] = runtime_composition_name
     output_dir.mkdir(parents=True, exist_ok=True)
     plans_path = output_dir / "adversarial_plans.json"
     diagnostics_path = output_dir / "text_fill_diagnostics.json"
@@ -169,7 +181,6 @@ async def run(args: argparse.Namespace) -> int:
                 output_path,
             )
             return 1
-        prior_state = load_state() or {}
         return await _phase_2c_stage._run_feasibility_stage(
             args=args,
             output_path=output_path,
@@ -179,6 +190,7 @@ async def run(args: argparse.Namespace) -> int:
                 "feasibility_only": True,
             },
             prior_phase_2_status=prior_state.get("status"),
+            runtime_composition=runtime_composition,
         )
 
     # Load benign tasks from Phase 1
@@ -643,6 +655,7 @@ async def run(args: argparse.Namespace) -> int:
         output_dir=output_dir,
         state_metadata=state_metadata,
         prior_phase_2_status=status,
+        runtime_composition=runtime_composition,
     )
     if feasibility_rc != 0:
         return feasibility_rc

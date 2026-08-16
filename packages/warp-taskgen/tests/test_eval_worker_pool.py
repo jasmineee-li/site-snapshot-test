@@ -16,6 +16,7 @@ from warp_taskgen.eval_worker_pool import (
 )
 from warp_taskgen.resume_metadata import RESULT_FINGERPRINT_KEY
 from warp_taskgen.run_control import PauseBoundaryReached, RunInterrupted
+from warp_taskgen.runtime_composition import RequiredSeedCleanupError
 from warp_taskgen.task_paths import safe_task_path_component
 
 
@@ -88,6 +89,60 @@ async def test_site_router_propagates_handled_process_interruption(monkeypatch, 
             task_runner=task_runner,
             task_dir_root=tmp_path,
         )
+
+
+@pytest.mark.asyncio
+async def test_site_router_propagates_required_seed_cleanup_and_stops_queued_tasks(
+    monkeypatch, tmp_path
+):
+    """Named cleanup failures abort the public Phase 4 worker path."""
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
+    started: list[str] = []
+
+    async def task_runner(task, agent, instance, task_dir):
+        started.append(task["id"])
+        raise RequiredSeedCleanupError("required seed cleanup failed")
+
+    with pytest.raises(RequiredSeedCleanupError, match="required seed cleanup failed"):
+        await run_tasks_by_site(
+            tasks=[
+                {"id": "task-a", "site": "shopping"},
+                {"id": "task-b", "site": "shopping"},
+            ],
+            instances=[BenchmarkInstance(site_name="shopping", site_url="http://shopping.test")],
+            agent_factory=lambda: _NoopAgent(),
+            task_runner=task_runner,
+            task_dir_root=tmp_path,
+        )
+
+    assert started == ["task-a"]
+
+
+@pytest.mark.asyncio
+async def test_run_eval_keeps_ordinary_task_errors_as_results(monkeypatch, tmp_path):
+    """Only the named cleanup failure changes the worker's error handling."""
+    monkeypatch.setattr("warp_taskgen.eval_worker_pool.STAGGER_DELAY", 0)
+    started: list[str] = []
+
+    async def task_runner(task, agent, instance, task_dir):
+        started.append(task["id"])
+        if task["id"] == "task-a":
+            raise ValueError("ordinary task failure")
+        return {"task_id": task["id"], "passed": True}
+
+    results = await run_eval(
+        tasks=[{"id": "task-a"}, {"id": "task-b"}],
+        instances=[BenchmarkInstance(site_name="shopping", site_url="http://shopping.test")],
+        agent_factory=lambda: _NoopAgent(),
+        task_runner=task_runner,
+        task_dir_root=tmp_path,
+    )
+
+    assert started == ["task-a", "task-b"]
+    by_id = {result["task_id"]: result for result in results}
+    assert by_id["task-a"]["outcome"] == "error"
+    assert "ordinary task failure" in by_id["task-a"]["error"]
+    assert by_id["task-b"]["passed"] is True
 
 
 def test_worker_stagger_delay_accepts_env_override(monkeypatch):

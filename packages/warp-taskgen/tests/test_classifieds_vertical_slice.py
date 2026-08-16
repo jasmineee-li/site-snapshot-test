@@ -146,6 +146,7 @@ def test_fake_classifieds_tracer_closes_seed_readback_and_reset(
     assert isinstance(plan, ReadSurfaceVerificationPlan)
     assert plan.urls == (LISTING_URL,)
     assert plan.identity_tokens == seed_result.write_tokens
+    assert plan.persist_readback_identity_tokens is True
 
     # The executor owns this second browser session. Its observation is built
     # only after the independent ordinary-reader page yields the exact same ID.
@@ -240,6 +241,7 @@ def test_generic_seed_preflight_and_apply_resolve_listing_anchor(
     )
 
     posted: dict[str, object] = {}
+    deleted: list[tuple[str, str]] = []
     monkeypatch.setattr(
         ClassifiedsEditor,
         "_fetch_form_state",
@@ -267,6 +269,11 @@ def test_generic_seed_preflight_and_apply_resolve_listing_anchor(
             url=LISTING_URL,
         ),
     )
+    monkeypatch.setattr(
+        ClassifiedsEditor,
+        "_delete_listing_reply",
+        lambda _self, *, listing_id, reply_id, csrf_token: deleted.append((listing_id, reply_id)),
+    )
     monkeypatch.setattr(seeding.requests, "Session", lambda: SimpleNamespace(close=lambda: None))
 
     handle, metadata = seeding.apply_data_seed(
@@ -285,3 +292,4 @@ def test_generic_seed_preflight_and_apply_resolve_listing_anchor(
     )
     assert handle is not None
     handle.cleanup()
+    assert deleted == [("17", "88")]

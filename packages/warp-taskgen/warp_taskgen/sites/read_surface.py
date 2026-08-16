@@ -32,6 +32,10 @@ class ReadSurfaceVerificationPlan:
     verification_mode: VerificationMode
     identity_tokens: Mapping[str, Any]
     provenance_source: str | None = None
+    # Identity persistence is an opt-in artifact contract.  Legacy render
+    # checks intentionally keep their historical diagnostics shape; a named
+    # feature may opt in when its readback witness is part of the artifact.
+    persist_readback_identity_tokens: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.site, str) or not self.site.strip():
@@ -50,6 +54,8 @@ class ReadSurfaceVerificationPlan:
         object.__setattr__(self, "surfaces", surfaces)
         object.__setattr__(self, "signature", self.signature.strip())
         object.__setattr__(self, "identity_tokens", MappingProxyType(dict(self.identity_tokens)))
+        if not isinstance(self.persist_readback_identity_tokens, bool):
+            raise ValueError("persist_readback_identity_tokens must be a boolean")
 
     @property
     def urls(self) -> tuple[str, ...]:
@@ -76,6 +82,7 @@ def build_read_surface_plan(
     signature: str,
     origin: str,
     identity_keys: tuple[str, ...],
+    persist_readback_identity_tokens: bool = False,
 ) -> ReadSurfaceVerificationPlan | ReadSurfacePlanFailure:
     """Build a safe plan from typed editor evidence without browser behavior."""
 
@@ -135,6 +142,7 @@ def build_read_surface_plan(
             verification_mode=mode,
             identity_tokens=tokens,
             provenance_source=seed_result.read_surface_provenance_source,
+            persist_readback_identity_tokens=persist_readback_identity_tokens,
         )
     except (TypeError, ValueError) as exc:
         return ReadSurfacePlanFailure(site, "invalid_read_surface_plan", str(exc))

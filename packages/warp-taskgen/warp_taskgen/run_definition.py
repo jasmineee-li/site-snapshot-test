@@ -54,7 +54,7 @@ _CONTRIBUTOR_FIELDS: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "phase_2b_texts_per_plan phase_2_text_model phase_2a_action_policy "
             "phase_2a_resolution_signature exposure_contract_signature skip_feasibility "
             "feasibility_only feasibility_instances feasibility_retry_count "
-            "feasibility_ttl_hours force_reverify no_l3_l4"
+            "feasibility_ttl_hours force_reverify no_l3_l4 runtime_composition"
         ),
         "phase_4": _fields(
             "agent_model agent_runner agent_provider agent_service_tier agent_llm_timeout "
@@ -62,7 +62,7 @@ _CONTRIBUTOR_FIELDS: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "phase_4_variant_system phase_4_eval_awareness_max_iterations "
             "adversarial_action_kind phase_4_task_id skip_intermediate_asr "
             "intermediate_asr_max_steps_per_task allow_unknown_auth "
-            "skip_host_bound_storage_state_auth"
+            "skip_host_bound_storage_state_auth runtime_composition"
         ),
     }
 )

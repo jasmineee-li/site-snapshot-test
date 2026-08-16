@@ -38,6 +38,7 @@ from warp_taskgen.phase_4.resume import (
 from warp_taskgen.phase_4.strategy_catalog import ALLOWED_STRATEGIES as _ALLOWED_STRATEGIES
 from warp_taskgen.phase_4.variant_eval import _evaluate_variant
 from warp_taskgen.resume_metadata import instances_identity
+from warp_taskgen.runtime_composition import RuntimeComposition
 from warp_taskgen.task_reset_cache import callable_accepts_keyword
 
 logger = logging.getLogger(__name__)
@@ -161,6 +162,7 @@ async def run_strategy_variation(
     agent_execution: dict[str, Any] | None = None,
     progress_callback: Phase4ProgressCallback | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
+    runtime_composition: RuntimeComposition | None = None,
 ) -> dict[str, Any]:
     """Adaptive strategy variation: judge -> generate variants -> evaluate.
 
@@ -610,6 +612,7 @@ async def run_strategy_variation(
                         site_profile=site_profile,
                         agent_execution=agent_execution,
                         browser_worker_semaphore=browser_worker_semaphore,
+                        runtime_composition=runtime_composition,
                     )
                     for i, (variant, strategy, record) in enumerate(batch)
                 ]

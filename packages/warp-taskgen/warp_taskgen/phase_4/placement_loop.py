@@ -52,6 +52,7 @@ from warp_taskgen.phase_4.verbalized_eval_awareness_api import (
 from warp_taskgen.phase_4.verbalized_eval_awareness_api import (
     run_verbalized_eval_awareness_api,
 )
+from warp_taskgen.runtime_composition import RuntimeComposition
 from warp_taskgen.site_lock import task_lock
 from warp_taskgen.task_paths import safe_task_path_component
 
@@ -349,6 +350,7 @@ async def _run_placement_fix_loop(
     resume: bool = False,
     source_fingerprint: str | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
+    runtime_composition: RuntimeComposition | None = None,
 ) -> dict[str, Any] | None:
     """Retry non-encountered attacks with placement-only seed fixes.
 
@@ -451,6 +453,7 @@ async def _run_placement_fix_loop(
                     sandbox_model=sandbox_model,
                     site_profile=site_profile,
                     browser_worker_semaphore=browser_worker_semaphore,
+                    runtime_composition=runtime_composition,
                 )
             attempts.append(current_result)
             pending_iteration = None
@@ -548,6 +551,7 @@ async def _run_placement_fix_loop(
                 resume=resume,
                 resume_fingerprint=iteration_fingerprint,
                 browser_worker_semaphore=browser_worker_semaphore,
+                runtime_composition=runtime_composition,
             )
 
         attempts.append(current_result)

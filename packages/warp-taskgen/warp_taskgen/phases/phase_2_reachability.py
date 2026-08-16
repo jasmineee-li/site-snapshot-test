@@ -69,7 +69,20 @@ _SITE_SELECTORS: dict[str, str] = {
     "reddit_submission": ".comment-list, .comments",
     "reddit_forum": ".submission",
     "reddit_dashboard_list": ".submission, .comment",
+    # Listing replies are server-rendered below the page shell. Wait for that
+    # surface before polling for the exact seed witnesses.
+    "listing": "div.comment",
 }
+
+_DYNAMIC_WITNESS_KINDS: frozenset[str] = frozenset(
+    {
+        "gitlab_issue",
+        "gitlab_mr",
+        "gitlab_search_result",
+        "gitlab_dashboard_list",
+        "listing",
+    }
+)
 
 _WITNESS_MIN_LEN = 12
 _DEFAULT_NAV_TIMEOUT_MS = 30000
@@ -833,12 +846,7 @@ async def verify_reachable(
         # batch. Non-fatal if the wait times out — the signature grep
         # below still runs and will record witnesses_absent with a
         # clear detail.
-        if kind in {
-            "gitlab_issue",
-            "gitlab_mr",
-            "gitlab_search_result",
-            "gitlab_dashboard_list",
-        }:
+        if kind in _DYNAMIC_WITNESS_KINDS:
             await _wait_for_body_text(page, witnesses, selector_timeout_ms)
         matched, missing = await _body_witness_match(page, witnesses)
         if not missing:
@@ -897,12 +905,7 @@ async def verify_reachable(
                         target_selector,
                         target_url,
                     )
-            if kind in {
-                "gitlab_issue",
-                "gitlab_mr",
-                "gitlab_search_result",
-                "gitlab_dashboard_list",
-            }:
+            if kind in _DYNAMIC_WITNESS_KINDS:
                 await _wait_for_body_text(page, witnesses, selector_timeout_ms)
             target_matched, target_missing = await _body_witness_match(page, witnesses)
             if not target_missing:

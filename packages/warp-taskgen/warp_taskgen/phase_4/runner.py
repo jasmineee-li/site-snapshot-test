@@ -51,6 +51,7 @@ from warp_taskgen.phase_4.resume import (
 )
 from warp_taskgen.placeholders import normalize_site_name
 from warp_taskgen.run_control import pause_aware_map, pause_requested
+from warp_taskgen.runtime_composition import runtime_composition_for_name
 from warp_taskgen.seeding import collect_seed_runtime_errors
 from warp_taskgen.state import get_state_dir, save_state
 from warp_taskgen.storage_state_preflight import (
@@ -109,6 +110,14 @@ async def run(args: argparse.Namespace) -> int:
     )
     skip_intermediate_asr = bool(getattr(args, "skip_intermediate_asr", False))
     intermediate_asr_max_steps_per_task = getattr(args, "intermediate_asr_max_steps_per_task", None)
+    runtime_composition_name = getattr(args, "runtime_composition", None)
+    if not runtime_composition_name and prior_state:
+        runtime_composition_name = prior_state.get("runtime_composition")
+    try:
+        runtime_composition = runtime_composition_for_name(runtime_composition_name)
+    except ValueError as exc:
+        logger.error("Phase 4 runtime composition gate failed: %s", exc)
+        return 1
 
     _sweep_orphan_inflight_sentinels(task_dir_root)
 
@@ -136,6 +145,7 @@ async def run(args: argparse.Namespace) -> int:
         phase_4_eval_awareness_max_iterations=phase_4_eval_awareness_max_iterations,
         skip_intermediate_asr=skip_intermediate_asr,
         intermediate_asr_max_steps_per_task=intermediate_asr_max_steps_per_task,
+        runtime_composition=runtime_composition_name or None,
     )
 
     admission = _load_admitted_phase_4_tasks(
@@ -454,10 +464,13 @@ async def run(args: argparse.Namespace) -> int:
         len(tasks),
         len(active_instances),
     )
+    infrastructure_probe_kwargs: dict[str, Any] = {"cache": seed_probe_cache}
+    if runtime_composition is not None:
+        infrastructure_probe_kwargs["seed_registry"] = runtime_composition.seed_registry
     infrastructure_errors = _probe_seed_base_state_for_task_targets(
         tasks,
         active_instances,
-        cache=seed_probe_cache,
+        **infrastructure_probe_kwargs,
     )
     if infrastructure_errors:
         logger.error(
@@ -586,6 +599,8 @@ async def run(args: argparse.Namespace) -> int:
             run_kwargs["reset_cache"] = reset_cache
         if callable_accepts_keyword(_execution.run_adversarial_task, "seed_probe_cache"):
             run_kwargs["seed_probe_cache"] = seed_probe_cache
+        if callable_accepts_keyword(_execution.run_adversarial_task, "runtime_composition"):
+            run_kwargs["runtime_composition"] = runtime_composition
         try:
             return await _execution.run_adversarial_task(
                 task,
@@ -703,6 +718,7 @@ async def run(args: argparse.Namespace) -> int:
                 agent_execution=agent_execution_fingerprint,
                 progress_callback=_record_progress,
                 browser_worker_semaphore=browser_worker_semaphore,
+                runtime_composition=runtime_composition,
             )
         except Exception:
             try:
