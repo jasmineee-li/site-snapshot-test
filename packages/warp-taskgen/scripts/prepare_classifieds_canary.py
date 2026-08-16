@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Prepare the one-task Classifieds canary input and compose overlay.
+"""Prepare one Classifieds canary task and its compose overlay.
 
-This is deliberately a small host-owned adapter.  The task card and semantic
-reward are compiled by the existing WARP Taskgen compilers; no Phase 1 model
-generation or new runtime registry is introduced here.
+The command compiles the existing task-card and reward contracts and writes
+the host-owned preparation artifacts. It does not generate Phase 1 tasks,
+start containers, or add a runtime registry.
 """
 
 from __future__ import annotations
@@ -359,20 +359,56 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--site-url", required=True)
-    parser.add_argument("--listing-id", required=True)
-    parser.add_argument("--run-dir", required=True)
-    parser.add_argument("--overlay-path", required=True)
-    parser.add_argument("--project-name", required=True)
-    parser.add_argument("--network", required=True)
-    parser.add_argument("--web-port", required=True, type=int)
-    parser.add_argument("--web-image-ref", required=True)
-    parser.add_argument("--db-image-ref", required=True)
-    parser.add_argument("--app-env-file", required=True)
-    parser.add_argument("--instances-path", required=True)
-    parser.add_argument("--writer-storage-state", required=True)
-    parser.add_argument("--source-commit", required=True)
+    parser = argparse.ArgumentParser(
+        description="Prepare one Classifieds canary task and its compose overlay.",
+        epilog=(
+            "Inputs: the loopback site, seeded listing, external environment/storage-state "
+            "paths, pinned image references, source commit, and host-local output paths. "
+            "Output: prepare.json plus task/profile/overlay artifacts under --run-dir. "
+            "Safety: this command compiles and writes artifacts only; it does not start containers or mutate the Site."
+        ),
+    )
+    parser.add_argument("--site-url", required=True, help="Configured loopback Classifieds origin.")
+    parser.add_argument(
+        "--listing-id", required=True, help="Exact seeded listing ID used in the task card."
+    )
+    parser.add_argument(
+        "--run-dir",
+        required=True,
+        help="Fresh Classifieds canary Run root for generated artifacts.",
+    )
+    parser.add_argument(
+        "--overlay-path", required=True, help="Output path for the compose overlay."
+    )
+    parser.add_argument("--project-name", required=True, help="Dedicated compose project name.")
+    parser.add_argument("--network", required=True, help="Dedicated compose network name.")
+    parser.add_argument(
+        "--web-port", required=True, type=int, help="Loopback web port for the generated topology."
+    )
+    parser.add_argument(
+        "--web-image-ref", required=True, help="Pinned Classifieds web image reference."
+    )
+    parser.add_argument(
+        "--db-image-ref", required=True, help="Pinned Classifieds database image reference."
+    )
+    parser.add_argument(
+        "--app-env-file",
+        required=True,
+        help="External Classifieds application environment file reference.",
+    )
+    parser.add_argument(
+        "--instances-path", required=True, help="Output path for the host-local instances document."
+    )
+    parser.add_argument(
+        "--writer-storage-state",
+        required=True,
+        help="External regular-participant storage-state path.",
+    )
+    parser.add_argument(
+        "--source-commit",
+        required=True,
+        help="Pinned Classifieds source commit recorded in prepare.json.",
+    )
     args = parser.parse_args()
     prepare(args)
     return 0

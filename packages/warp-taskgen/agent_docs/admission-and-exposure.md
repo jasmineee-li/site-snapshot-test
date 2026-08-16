@@ -4,6 +4,10 @@ Use this before changing Phase 1 generation, Phase 2 seeding/text fill,
 exposure contracts, carrier selection, Phase 2c feasibility, or Phase 3
 admission inputs.
 
+For the experimental Classifieds canary, writer/reader/reset proof, or
+`classifieds_listing_reply_poc`, read
+[the canary procedure](./classifieds-canary.md) before acting.
+
 ## Source, scope, and admission
 
 `docs/warp-taskgen-technical-spec.md` is authoritative. Phase 2c feasibility is
@@ -13,20 +17,22 @@ matching. `feasibility.status` is pipeline output; regenerate the phase rather
 than editing it. The development break-glass
 `WORLDSIM_STRICT_FEASIBILITY={true,false}` must be explicit in run evidence.
 
-The current WASP scope is GitLab issues/comments and Reddit/Postmill
-posts/comments. Magento, Wikipedia, OpenStreetMap, shopping, and classifieds
-remain historical unless the spec changes. Counts belong to run manifests, not
+The default WASP scope is GitLab issues/comments and Reddit/Postmill
+posts/comments. The only Classifieds path is the issue #149 experimental
+composition `classifieds_listing_reply_poc`. It is an explicit per-run
+dependency bundle, not a default registration. It admits only VisualWebArena
+`classifieds` / `listing_reply.body` and keeps the GitLab/Reddit policies
+unchanged. Other full-benchmark surfaces remain historical unless the
+technical spec explicitly changes scope. Counts belong to Run manifests, not
 this document.
 
-The only Classifieds exception is the issue #149 experimental composition
-`classifieds_listing_reply_poc`. It is an explicit per-run dependency bundle,
-not a default registration. It admits only VisualWebArena
-`classifieds` / `listing_reply.body`, requires a regular-user write followed by
-fresh anonymous-reader exact-ID/body/actor/painted-visibility proof, and requires
-external golden-state reset before and after the bounded run. Missing reader,
-image-provenance, reset, or exact-resource evidence fails closed; it never falls
-back to the writer session, root/index pages, newest-item selection, or the
-GitLab/Reddit policies.
+The Classifieds canary must write through a regular user, then read through a
+fresh anonymous session. The reader must prove the exact listing, reply ID,
+actor, normalized body, same-origin route, and painted visibility. An external
+golden-state reset must prove the reply absent before and after the bounded
+Run. Missing reader, image-provenance, reset, or exact-resource evidence fails
+closed. The path never falls back to a writer session, root/index page,
+newest-item selection, SQL/admin readback, or a weaker carrier.
 
 ## Phase 2 ownership
 

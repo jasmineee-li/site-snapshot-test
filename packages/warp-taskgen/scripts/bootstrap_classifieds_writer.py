@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Mint the regular-participant Playwright state for the Classifieds canary.
+"""Create regular-participant browser state for the Classifieds canary.
 
-This is intentionally a site-specific host setup helper.  It follows the
-pinned VisualWebArena Classifieds login form and keeps credentials in the
-operator's environment rather than in an instance document or command line.
+The command logs in through the pinned VisualWebArena Classifieds form and
+writes a Playwright storage-state JSON file. Credentials come from the two
+named environment variables, never from command-line arguments. The output
+must stay outside the source checkout.
 """
 
 from __future__ import annotations
@@ -233,9 +234,26 @@ def mint_classifieds_writer_storage_state(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--site-url", required=True)
-    parser.add_argument("--output-path", required=True)
+    parser = argparse.ArgumentParser(
+        description="Create regular-participant Playwright state for the loopback Classifieds canary.",
+        epilog=(
+            "Inputs: --site-url and the environment variables "
+            f"{CLASSIFIEDS_USERNAME_ENV} and {CLASSIFIEDS_PASSWORD_ENV}. "
+            "Output: the authenticated storage-state JSON at --output-path. "
+            "Safety: the URL must be the configured loopback origin; credentials "
+            "are not accepted on the command line and the output stays outside the checkout."
+        ),
+    )
+    parser.add_argument(
+        "--site-url",
+        required=True,
+        help="Configured loopback Classifieds origin used for login and dashboard checks.",
+    )
+    parser.add_argument(
+        "--output-path",
+        required=True,
+        help="External path for the 0600 Playwright storage-state JSON file.",
+    )
     args = parser.parse_args(argv)
     output_path = str(Path(args.output_path).expanduser().resolve())
     try:

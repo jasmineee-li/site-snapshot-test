@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Run the bounded Classifieds canary with local host lifecycle ownership.
+"""Run one bounded Classifieds canary with local host lifecycle ownership.
 
-The remote job receives only the sanitized argv produced by
-``build_remote_job_start_args``.  The local operator owns EC2 lifecycle and
-therefore always removes the sweep marker and attempts to park the host when
-the run exits.
+The command validates the configured host, starts one sanitized Remote Job,
+reports its status, and cleans up the exact host it owns. It always removes
+the sweep marker and attempts to park that host when the run exits.
 """
 
 from __future__ import annotations
@@ -689,12 +688,37 @@ def _run_canary_owned(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--host-config", required=True, type=Path)
-    parser.add_argument("--run-dir")
-    parser.add_argument("--timeout-seconds", type=float, default=DEFAULT_TIMEOUT_SECONDS)
+    parser = argparse.ArgumentParser(
+        description="Run one bounded Classifieds canary on the configured sandbox host.",
+        epilog=(
+            "Inputs: the ignored operator host configuration and, optionally, a fresh Run root. "
+            "Action: claim the stopped host, start one sanitized Remote Job, and poll it. "
+            "Output: the Run artifacts, including completion.json, under the Run root. "
+            "Safety: this is the only listed command that changes host/container state; it "
+            "uses the exclusive lifecycle guard and always attempts job cleanup and host parking."
+        ),
+    )
     parser.add_argument(
-        "--poll-interval-seconds", type=float, default=DEFAULT_POLL_INTERVAL_SECONDS
+        "--host-config",
+        required=True,
+        type=Path,
+        help="Ignored operator host YAML for the selected sandbox host.",
+    )
+    parser.add_argument(
+        "--run-dir",
+        help="Fresh Classifieds Run root; defaults to a generated path under the configured run root.",
+    )
+    parser.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=DEFAULT_TIMEOUT_SECONDS,
+        help=f"Whole-canary timeout in seconds (default: {DEFAULT_TIMEOUT_SECONDS:g}).",
+    )
+    parser.add_argument(
+        "--poll-interval-seconds",
+        type=float,
+        default=DEFAULT_POLL_INTERVAL_SECONDS,
+        help=f"Remote status polling interval in seconds (default: {DEFAULT_POLL_INTERVAL_SECONDS:g}).",
     )
     return parser
 

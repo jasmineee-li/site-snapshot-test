@@ -918,34 +918,141 @@ def validate_preflight(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run-dir", required=True, type=Path)
-    parser.add_argument("--instances", required=True, type=Path)
-    parser.add_argument("--prepare", type=Path)
-    parser.add_argument("--images", type=Path)
-    parser.add_argument("--probe-evidence", type=Path)
-    parser.add_argument("--output", type=Path)
-    parser.add_argument("--site-url", required=True)
-    parser.add_argument("--writer-storage-state", required=True)
-    parser.add_argument("--overlay", required=True, type=Path)
-    parser.add_argument("--project-name", required=True)
-    parser.add_argument("--network", required=True)
-    parser.add_argument("--web-port", required=True, type=int)
-    parser.add_argument("--app-env-file", required=True)
-    parser.add_argument("--listing-id", required=True)
-    parser.add_argument("--expected-task-id", required=True)
-    parser.add_argument("--expected-benign-task-id", required=True)
-    parser.add_argument("--web-image-ref", required=True)
-    parser.add_argument("--db-image-ref", required=True)
-    parser.add_argument("--source-commit", required=True)
-    parser.add_argument("--task-count", type=int, default=1)
-    parser.add_argument("--worker-count", type=int, default=1)
-    parser.add_argument("--max-iterations", type=int, default=1)
-    parser.add_argument("--variant-system", default=EXPECTED_VARIANT_SYSTEM)
-    parser.add_argument("--runner", default=EXPECTED_RUNNER)
-    parser.add_argument("--agent-provider", default=EXPECTED_AGENT_PROVIDER)
-    parser.add_argument("--agent-model", default=EXPECTED_AGENT_MODEL)
-    parser.add_argument("--sandbox-model", default=EXPECTED_AGENT_MODEL)
+    parser = argparse.ArgumentParser(
+        description="Validate the prepared one-task Classifieds canary before Phase 4.",
+        epilog=(
+            "Inputs: prepared artifacts, the exact loopback topology, immutable image/source "
+            "references, and the expected Run/task values. Output: secret-free preflight.json "
+            "(or --output). Safety: this command only reads and validates artifacts; it does "
+            "not start containers, mutate the listing, or call a reset endpoint."
+        ),
+    )
+    parser.add_argument(
+        "--run-dir",
+        required=True,
+        type=Path,
+        help="Classifieds canary Run root containing the evidence files.",
+    )
+    parser.add_argument(
+        "--instances",
+        required=True,
+        type=Path,
+        help="Host-local instances document used by Phase 2c and Phase 4.",
+    )
+    parser.add_argument(
+        "--prepare",
+        type=Path,
+        help="Preparation manifest; defaults to <run-dir>/prepare.json.",
+    )
+    parser.add_argument(
+        "--images",
+        type=Path,
+        help="Image evidence; defaults to <run-dir>/images.json.",
+    )
+    parser.add_argument(
+        "--probe-evidence",
+        type=Path,
+        help="Writer/reader/reset probe evidence; defaults to <run-dir>/classifieds_probe.json.",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="Preflight output path; defaults to <run-dir>/preflight.json.",
+    )
+    parser.add_argument("--site-url", required=True, help="Configured loopback Classifieds origin.")
+    parser.add_argument(
+        "--writer-storage-state",
+        required=True,
+        help="External regular-participant storage-state path.",
+    )
+    parser.add_argument(
+        "--overlay",
+        required=True,
+        type=Path,
+        help="Compose overlay produced by preparation.",
+    )
+    parser.add_argument(
+        "--project-name",
+        required=True,
+        help="Dedicated compose project name; must match the canary contract.",
+    )
+    parser.add_argument("--network", required=True, help="Dedicated compose network name.")
+    parser.add_argument(
+        "--web-port",
+        required=True,
+        type=int,
+        help="Loopback web port in the selected topology.",
+    )
+    parser.add_argument(
+        "--app-env-file",
+        required=True,
+        help="External Classifieds application environment file reference.",
+    )
+    parser.add_argument("--listing-id", required=True, help="Exact seeded listing ID.")
+    parser.add_argument("--expected-task-id", required=True, help="Expected adversarial task ID.")
+    parser.add_argument(
+        "--expected-benign-task-id",
+        required=True,
+        help="Expected benign task ID.",
+    )
+    parser.add_argument(
+        "--web-image-ref",
+        required=True,
+        help="Pinned Classifieds web image reference.",
+    )
+    parser.add_argument(
+        "--db-image-ref",
+        required=True,
+        help="Pinned Classifieds database image reference.",
+    )
+    parser.add_argument(
+        "--source-commit",
+        required=True,
+        help="Pinned Classifieds source commit.",
+    )
+    parser.add_argument(
+        "--task-count",
+        type=int,
+        default=1,
+        help="Expected admitted task count (default: 1).",
+    )
+    parser.add_argument(
+        "--worker-count",
+        type=int,
+        default=1,
+        help="Expected worker count (default: 1).",
+    )
+    parser.add_argument(
+        "--max-iterations",
+        type=int,
+        default=1,
+        help="Maximum evaluation-awareness iterations (default: 1).",
+    )
+    parser.add_argument(
+        "--variant-system",
+        default=EXPECTED_VARIANT_SYSTEM,
+        help=f"Expected Phase 4 variant system (default: {EXPECTED_VARIANT_SYSTEM}).",
+    )
+    parser.add_argument(
+        "--runner",
+        default=EXPECTED_RUNNER,
+        help=f"Expected runner (default: {EXPECTED_RUNNER}).",
+    )
+    parser.add_argument(
+        "--agent-provider",
+        default=EXPECTED_AGENT_PROVIDER,
+        help=f"Expected agent provider (default: {EXPECTED_AGENT_PROVIDER}).",
+    )
+    parser.add_argument(
+        "--agent-model",
+        default=EXPECTED_AGENT_MODEL,
+        help=f"Expected agent model (default: {EXPECTED_AGENT_MODEL}).",
+    )
+    parser.add_argument(
+        "--sandbox-model",
+        default=EXPECTED_AGENT_MODEL,
+        help=f"Expected sandbox model (default: {EXPECTED_AGENT_MODEL}).",
+    )
     return parser
 
 

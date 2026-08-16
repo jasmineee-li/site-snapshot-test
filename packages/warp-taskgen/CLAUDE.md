@@ -14,8 +14,13 @@ implementation with the spec before changing adjacent behavior.
 Read the one branch document that matches the work; the index files are maps,
 not invitations to preload every reference.
 
-- **Phase 1/2 generation, feasibility, exposure, carriers, or admission:**
+- **GitLab/Reddit Phase 1/2 generation, feasibility, exposure, carriers, or
+  admission:**
   read `agent_docs/admission-and-exposure.md`.
+- **Experimental Classifieds canary, writer/reader/reset proof, or
+  `classifieds_listing_reply_poc`:** read `agent_docs/classifieds-canary.md`
+  before acting; read `agent_docs/admission-and-exposure.md` too when changing
+  a shared admission contract.
 - **Adversarial actions, Tier 2/3 pilots, reward compilation, readback, or
   action variants:** read `agent_docs/action-contracts.md`.
 - **Phase 4, PVPO, Transcript Purpose, VEA, iterator, judges, or ASR:** read
