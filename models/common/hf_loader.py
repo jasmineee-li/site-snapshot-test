@@ -10,7 +10,6 @@ and `probes.steering.steering_hook`.
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 import torch
 
@@ -28,8 +27,8 @@ def load_hf_model(
     Accepts either a registry short id (`opencua-32b`) or a raw HF repo
     path (`xlangai/OpenCUA-32B`).
     """
-    from probes.model_loader import load_model
     from models.common.registry import LOCAL_MODELS
+    from probes.model_loader import load_model
 
     if short_id_or_repo in LOCAL_MODELS:
         hf_repo = LOCAL_MODELS[short_id_or_repo].hf_repo

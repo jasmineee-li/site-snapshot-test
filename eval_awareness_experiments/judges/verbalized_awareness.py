@@ -8,13 +8,13 @@ import os
 import re
 from pathlib import Path
 
-from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.judges.base import BaseJudge
-from eval_awareness_experiments.judges.prompts import VERBALIZED_AWARENESS_PROMPT
-from eval_awareness_experiments.judges.transcript_utils import transcript_to_needham_xml
-from eval_awareness_experiments.judges.registry import register_judge
-from eval_awareness_experiments.types import JudgeResult, ReasoningCategory, Transcript
 from eval_awareness_experiments.judges.json_parsing import parse_json_safe
+from eval_awareness_experiments.judges.prompts import VERBALIZED_AWARENESS_PROMPT
+from eval_awareness_experiments.judges.registry import register_judge
+from eval_awareness_experiments.judges.transcript_utils import transcript_to_needham_xml
+from eval_awareness_experiments.llm import LLM
+from eval_awareness_experiments.types import JudgeResult, ReasoningCategory, Transcript
 
 logger = logging.getLogger(__name__)
 

@@ -218,7 +218,6 @@ async def run_experiment(config_path: Path):
     modality = config.get("modality", "html")
     concurrency = config.get("concurrency", 10)
     semaphore = asyncio.Semaphore(concurrency)
-    seed = config.get("sampling", config.get("pairwise", {})).get("seed", 42)
 
     # Load manifest
     manifest = load_manifest(manifest_path)

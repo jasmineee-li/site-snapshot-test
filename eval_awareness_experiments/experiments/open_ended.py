@@ -5,16 +5,13 @@ Two prompt types:
 - Truesight (blind): "Describe any patterns that might indicate if this is real or simulated."
 """
 
-import asyncio
 import logging
-from pathlib import Path
 
 from eval_awareness_experiments.experiments.base import BaseExperiment
 from eval_awareness_experiments.experiments.prompts import (
     WEBSITE_OPEN_ENDED_INFORMED_PROMPT,
     WEBSITE_OPEN_ENDED_TRUESIGHT_PROMPT,
 )
-from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.types import WebsiteExperimentResult, WebsiteSample
 
 logger = logging.getLogger(__name__)

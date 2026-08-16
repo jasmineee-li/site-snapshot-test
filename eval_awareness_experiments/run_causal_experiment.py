@@ -167,7 +167,7 @@ def run_causal_experiment(
             f"{wasp_asr_classifier_model or 'pipeline default'}"
         )
     if skip_existing:
-        print(f"  Skip-existing: ON (cells already complete will be skipped)")
+        print("  Skip-existing: ON (cells already complete will be skipped)")
     print()
 
     # If skip_existing, scan the output base to find already-complete cells

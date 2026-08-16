@@ -128,4 +128,4 @@ def make_pairs(
     sampled_a = rng.sample(pool_a, n_pairs)
     sampled_b = rng.sample(pool_b, n_pairs)
 
-    return list(zip(sampled_a, sampled_b))
+    return list(zip(sampled_a, sampled_b, strict=True))

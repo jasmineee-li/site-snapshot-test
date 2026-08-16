@@ -364,15 +364,14 @@ async def login_flow(site: str, config: dict) -> None:
             ],
             ignore_default_args=["--enable-automation"],
         )
-        browser = context.browser  # may be None for persistent contexts
         page = context.pages[0] if context.pages else await context.new_page()
         await page.goto(login_url, wait_until="load", timeout=60000)
 
         print("\n" + "=" * 60)
         print(f"  Log in to {site} in the browser window.")
-        print(f"  When done, signal completion by running:")
+        print("  When done, signal completion by running:")
         print(f"    touch {sentinel}")
-        print(f"  (or close the browser window)")
+        print("  (or close the browser window)")
         print("=" * 60, flush=True)
 
         # Poll for sentinel file (browser close handling is flakier on persistent contexts)

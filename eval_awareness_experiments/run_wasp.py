@@ -36,7 +36,10 @@ from pathlib import Path
 
 os.environ.setdefault("DOOMARENA_WEBARENA_BASE_URL", "http://localhost")
 
-import bgym
+# Imported for its side effects: importing bgym registers the BrowserGym
+# task sets, and it must happen after DOOMARENA_WEBARENA_BASE_URL is set
+# above. Not referenced directly in this module.
+import bgym  # noqa: F401
 from browsergym.experiments.benchmark import Benchmark
 from browsergym.experiments.benchmark.configs import DEFAULT_HIGHLEVEL_ACTION_SET_ARGS
 from browsergym.experiments.benchmark.metadata.utils import task_metadata
@@ -49,12 +52,12 @@ from doomarena.browsergym.scripts.run_bgym_experiment import (
 
 from eval_awareness_experiments.agent_factory import build_agent
 from eval_awareness_experiments.extra_instructions import PRESETS as EXTRA_INSTRUCTION_PRESETS
-from eval_awareness_experiments.system_prompt_frame import ALL_FRAMES
 from eval_awareness_experiments.injection_modifier import (
     ALL_CONDITIONS,
     InjectionCondition,
     wrap_injection,
 )
+from eval_awareness_experiments.system_prompt_frame import ALL_FRAMES
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +71,8 @@ WASP_INJECTION_FIELDS = (
 
 def _patch_browsergym_reachability(online_sites: set[str]) -> None:
     """Only ping sites we actually have running locally. Mirror of the DoomArena patch."""
-    import requests
     import browsergym.webarena.instance as webarena_instance
+    import requests
 
     def _check_is_reachable(self, timeout):
         for site, url in self.urls.items():
@@ -187,7 +190,7 @@ def _build_wasp_benchmark(
     import pandas as pd
     base_md = task_metadata("webarena")
     extra_rows = []
-    for cfg_path, data, tid in filtered:
+    for _cfg_path, data, tid in filtered:
         sites_str = ",".join(data.get("sites") or [site or ""])
         eval_types_list = data.get("eval", {}).get("eval_types", []) or []
         extra_rows.append({

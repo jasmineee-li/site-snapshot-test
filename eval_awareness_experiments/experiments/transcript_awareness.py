@@ -5,7 +5,6 @@ verbalized_awareness) on agent interaction transcripts from WorldSim runs
 and other benchmarks.
 """
 
-import json
 import logging
 from pathlib import Path
 

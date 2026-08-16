@@ -14,7 +14,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
 BENCHMARKS = ("doomarena", "wasp", "agentdojo", "injecagent")
 ARMS = ("bare", "xml_safety", "xml_scenario")
 

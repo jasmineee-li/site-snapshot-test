@@ -16,7 +16,7 @@ def load_results(results_dir: Path) -> list[dict]:
     """Load all JSONL result files from a directory tree."""
     results = []
     for jsonl_file in results_dir.rglob("*.jsonl"):
-        with open(jsonl_file, "r", encoding="utf-8") as f:
+        with open(jsonl_file, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line:
@@ -136,13 +136,13 @@ def plot_p_eval_bars(summary: dict, output_path: Path) -> None:
     source_format_scores = defaultdict(lambda: defaultdict(list))
     for source, formats in summary.items():
         for fmt, wtypes in formats.items():
-            for wtype, stats in wtypes.items():
+            for _wtype, stats in wtypes.items():
                 source_format_scores[source][fmt].extend(stats["scores"])
 
     sources = sorted(source_format_scores.keys())
     all_formats = sorted(set(f for s in source_format_scores.values() for f in s.keys()))
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    _fig, ax = plt.subplots(figsize=(10, 6))
     x = np.arange(len(sources))
     width = 0.25
 

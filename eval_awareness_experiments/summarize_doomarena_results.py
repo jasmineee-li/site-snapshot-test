@@ -17,7 +17,6 @@ from typing import Any
 
 from eval_awareness_experiments.run_manifest import scan
 
-
 DEFAULT_SPLITS = ["reddit", "shopping", "shopping_admin", "gitlab"]
 
 COLUMNS = [

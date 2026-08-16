@@ -3,20 +3,22 @@
 Copied from eval-awareness-testbed with adapted imports (no inspect_ai dependency).
 """
 
+# Imported for their side effects: each module's @register_judge call
+# populates the registry. Meta-eval judges (needham-style "is this an eval?"):
+# binary_third_person, probability_third_person, purpose, purpose_continue_5q.
+# Live-eval judge (spontaneous awareness during an eval): verbalized_awareness.
+# Test Awareness Steering judge (awareness, recognition, performance):
+# test_awareness_steering.
+from eval_awareness_experiments.judges import (
+    binary_third_person,  # noqa: F401
+    probability_third_person,  # noqa: F401
+    purpose,  # noqa: F401
+    purpose_continue_5q,  # noqa: F401
+    test_awareness_steering,  # noqa: F401
+    verbalized_awareness,  # noqa: F401
+)
 from eval_awareness_experiments.judges.base import BaseJudge
 from eval_awareness_experiments.judges.registry import get_judge, list_judges, register_judge
-
-# Meta-eval judges (for needham-style "is this an eval?" classification)
-from eval_awareness_experiments.judges import binary_third_person  # noqa: F401
-from eval_awareness_experiments.judges import probability_third_person  # noqa: F401
-from eval_awareness_experiments.judges import purpose  # noqa: F401
-from eval_awareness_experiments.judges import purpose_continue_5q  # noqa: F401
-
-# Live-eval judges (for checking spontaneous awareness during actual evals)
-from eval_awareness_experiments.judges import verbalized_awareness  # noqa: F401
-
-# Test Awareness Steering judge (3-dimension: awareness, recognition, performance)
-from eval_awareness_experiments.judges import test_awareness_steering  # noqa: F401
 
 __all__ = [
     "BaseJudge",

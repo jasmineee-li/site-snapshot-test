@@ -84,6 +84,7 @@ dev = [
     "pytest-playwright>=0.5",
     "flaky>=3.8",
     "black[jupyter]>=24.0",
+    "ruff>=0.15.12",
     "pre-commit>=3.6",
     "mypy>=1.8",
     "ipython>=8.20",
@@ -111,6 +112,7 @@ dev = [
     "pytest-playwright>=0.5",
     "flaky>=3.8",
     "black[jupyter]>=24.0",
+    "ruff>=0.15.12",
     "pre-commit>=3.6",
     "mypy>=1.8",
     "ipython>=8.20",
@@ -136,3 +138,93 @@ exclude = '''
   | webarena
 )/
 '''
+
+# Root lint gate for the evaluation-awareness study tree (`eval_awareness/`,
+# `eval_awareness_experiments/`, `models/`, `probes/`, and the root-level
+# runner scripts). Black above stays authoritative for formatting; Ruff is
+# lint-only here, so there is deliberately no [tool.ruff.format] section.
+#
+# Ruff resolves configuration hierarchically and does not merge a child config
+# into its parent, so `packages/warp-taskgen/pyproject.toml` keeps its own
+# stricter settings (py312, its own excludes) without any `extend =` here.
+[tool.ruff]
+line-length = 100        # match [tool.black]
+target-version = "py310" # match requires-python = ">3.10"
+
+# `extend-exclude` adds to Ruff's built-in default excludes; a bare `exclude`
+# would replace them and start linting `.venv/`, `dist/`, `node_modules/`, ...
+extend-exclude = [
+    "AgentLab/",          # vendored upstream tree, read-only reference
+    "vendors/",           # vendored upstream sources, read-only reference
+    "packages/",          # warp-taskgen owns its own [tool.ruff] config
+    "worldsim/",          # retired namespace, stale local build artifacts only
+    "dist/",              # built wheels/sdists (also a Ruff default)
+    "notebooks/",         # exploratory notebooks; black[jupyter] owns them
+    ".claude/worktrees/", # agent topic worktrees
+    ".codex-worktrees/",  # agent topic worktrees
+]
+
+# Apply the exclusions above even when a path is passed explicitly, so
+# pre-commit hooks and CI that hand Ruff a file list behave like `ruff check .`.
+force-exclude = true
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes — undefined names, unused imports
+    "W",   # pycodestyle warnings
+    "B",   # flake8-bugbear — mutable defaults, bare except, etc.
+    "UP",  # pyupgrade — modernize syntax for the target version
+    "I",   # isort — import sorting
+    "ISC", # implicit string concat — catches accidental bugs
+    "RUF", # ruff-native rules — additional opinionated checks
+]
+ignore = [
+    "E501",   # line length (the formatter handles this)
+    "ISC001", # conflicts with the formatter
+    # `l` is used throughout probes/ as the layer index, matching the notation
+    # in the surrounding comments and the papers this code reproduces.
+    # Renaming 22 sites in analysis code is a behavior-adjacent change that
+    # does not belong in a lint-config change; revisit as separate follow-up.
+    "E741",
+]
+
+# Match warp-taskgen: keep F401 reported but never auto-deleted. An agent that
+# adds an import in one edit and its usage in the next would otherwise lose the
+# import to `--fix` in the gap and land a NameError.
+unfixable = ["F401"]
+
+# Non-ASCII characters that are intentional notation in this tree, not typos.
+# Without these, RUF001/RUF002/RUF003 fire 44 times on real math and prose.
+allowed-confusables = [
+    "×", # U+00D7 MULTIPLICATION SIGN — grid/tensor shapes, e.g. "6×4 grid"
+    "−", # U+2212 MINUS SIGN — negative indices and vector arithmetic in prose
+    "α", # U+03B1 GREEK SMALL LETTER ALPHA — steering coefficient
+    "–", # U+2013 EN DASH — range in a judge prompt string; editing that string
+         #                  would change the prompt the judge model receives
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Runner and probe entry points bootstrap `sys.path` (and, for the DoomArena
+# and WASP runners, `os.environ`) before importing first-party or benchmark
+# modules, so their imports cannot all sit at the top of the file.
+"eval_awareness_experiments/run_*.py" = ["E402"]
+"eval_awareness_experiments/wasp_post_hoc_evaluator.py" = ["E402"]
+"probes/score_probe.py" = ["E402"]
+"probes/train_probe.py" = ["E402"]
+"probes/validate_probes_cross.py" = ["E402"]
+# Defers its first-party imports below module-level debug helpers. Hoisting
+# them is a code move rather than a lint fix; tracked as follow-up.
+"eval_awareness_experiments/experiments/comparative.py" = ["E402"]
+
+[tool.ruff.lint.isort]
+# Keep `from x import (a, b as c)` on one statement instead of splitting each
+# aliased member into its own `from x import ...`, which is how this tree
+# already writes them.
+combine-as-imports = true
+known-first-party = [
+    "eval_awareness",
+    "eval_awareness_experiments",
+    "models",
+    "probes",
+]

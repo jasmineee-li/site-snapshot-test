@@ -24,6 +24,22 @@ Keep provider keys in the root `.env` or the approved process environment.
 Never paste a key, token, authenticated browser state, or private host value
 into a command, config committed to git, result, or handoff.
 
+## Lint
+
+The root `[tool.ruff]` config lints this tree — `eval_awareness/`,
+`eval_awareness_experiments/`, `models/`, `probes/`, and the root-level runner
+scripts. Run it from the repository root before handing off a change:
+
+```bash
+uv run ruff check <changed-python-files>
+uv run ruff check .
+```
+
+Ruff is lint-only here; `[tool.black]` still owns formatting. `packages/` is
+excluded because `warp-taskgen` carries its own `[tool.ruff]` config and its
+own acceptance gate. Do not silence a finding with a blanket `ignore` when a
+targeted `per-file-ignores` entry or a `# noqa` with a reason will do.
+
 ## Route by setup type
 
 - Website extraction, manifests, or trajectory import: read

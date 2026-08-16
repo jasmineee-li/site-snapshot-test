@@ -14,7 +14,6 @@ import json
 import shutil
 from pathlib import Path
 
-
 DEFAULT_OUTPUT = Path("eval_awareness_experiments/data/worldsim")
 MANIFEST_PATH = Path("eval_awareness_experiments/data/manifest.json")
 

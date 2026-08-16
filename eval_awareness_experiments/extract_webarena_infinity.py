@@ -241,7 +241,7 @@ async def extract_app(
                     # Let the view render
                     await asyncio.sleep(0.5)
 
-                    info = await capture_page(page, app_output, page_name)
+                    await capture_page(page, app_output, page_name)
                     captured_pages.append(page_name)
                     print(f"  {app_name}/{page_name} ✓")
                 except Exception as e:

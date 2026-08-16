@@ -478,7 +478,7 @@ def _write_run_meta(run_dir: Path, args, benchmark: str, split: str) -> None:
         logger.warning(f"  Failed to write run_meta.json to {run_dir}: {e}")
 
 
-_KNOWN_CONDITIONS = ("baseline",) + tuple(c for c in ALL_CONDITIONS if c != "baseline")
+_KNOWN_CONDITIONS = ("baseline", *(c for c in ALL_CONDITIONS if c != "baseline"))
 
 
 def _load_run_meta(run_dir: Path) -> dict | None:
@@ -1321,8 +1321,10 @@ async def _judge_split(
     judge_retries: int,
     purpose_continuation_retries: int,
 ) -> None:
+    from eval_awareness_experiments.experiments.trajectory_awareness import (
+        TrajectoryAwarenessExperiment,
+    )
     from eval_awareness_experiments.llm import LLM
-    from eval_awareness_experiments.experiments.trajectory_awareness import TrajectoryAwarenessExperiment
     from eval_awareness_experiments.types import WebsiteSample
 
     if not trajectories:
