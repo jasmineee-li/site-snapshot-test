@@ -173,6 +173,26 @@ build_and_smoke_package() {
         site composition check classifieds --benchmark visualwebarena \
         --use-case public_reply --carrier listing_reply.body \
         --action-kind answer_opposite_binary_label --json
+    (
+        cd "$temporary_root"
+        PYTHON_DOTENV_DISABLED=1 "$sdist_env/bin/python" -c \
+            "import importlib.resources; from warp_taskgen.site_composition import default_site_compositions; assert {item.site for item in default_site_compositions()} == {'classifieds', 'gitlab', 'reddit'}; root = importlib.resources.files('warp_taskgen'); required = ('site_composition.py', 'site_composition_contracts.py', 'site_compositions/gitlab.py', 'site_compositions/reddit.py', 'site_compositions/classifieds.py'); missing = [path for path in required if not root.joinpath(*path.split('/')).is_file()]; assert not missing, f'missing sdist Site Composition resources: {missing}'"
+    )
+    classifieds_resource="$("$sdist_env/bin/python" -c "import importlib.resources; print(importlib.resources.files('warp_taskgen').joinpath('site_compositions', 'classifieds.py'))")"
+    mv "$classifieds_resource" "$classifieds_resource.omitted"
+    omitted_report="$temporary_root/omitted-site-composition.json"
+    if PYTHON_DOTENV_DISABLED=1 "$sdist_env/bin/warp-taskgen" \
+        site composition check classifieds --benchmark visualwebarena \
+        --use-case public_reply --carrier listing_reply.body \
+        --action-kind answer_opposite_binary_label --json >"$omitted_report"; then
+        printf 'error: omitted sdist Site Composition resource was accepted\n' >&2
+        exit 1
+    fi
+    "$sdist_env/bin/python" -c \
+        "import json; report = json.load(open('$omitted_report', encoding='utf-8')); assert report['static_status'] == 'invalid'; assert report['readiness_status'] == 'blocked'; assert report['error'] == 'ModuleNotFoundError', report"
+    mv "$classifieds_resource.omitted" "$classifieds_resource"
+    PYTHON_DOTENV_DISABLED=1 "$sdist_env/bin/python" -c \
+        "from dataclasses import replace; from warp_taskgen.site_composition import SiteCompositionCheckRequest, check_site_composition; from warp_taskgen.site_compositions.classifieds import classifieds_site_composition; stale = replace(classifieds_site_composition(), source_package_version='0.0.0'); request = SiteCompositionCheckRequest(site='classifieds', benchmark='visualwebarena', use_case='public_reply', carrier='listing_reply.body', action_kind='answer_opposite_binary_label'); report = check_site_composition((stale,), request); assert report.static_status == 'invalid'; assert report.site_composition_digest is None; assert report.finding('registration').detail == 'Site Composition source package version is incompatible'"
 
     sidecar_build_dir="$temporary_root/sidecar-dist"
     mkdir -p "$sidecar_build_dir"

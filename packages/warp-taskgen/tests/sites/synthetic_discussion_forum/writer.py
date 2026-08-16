@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+import hashlib
 from types import MappingProxyType
+from typing import Any
 
-from tests.sites.synthetic_discussion_forum.site import ORIGIN
+from tests.sites.synthetic_discussion_forum.site import BENCHMARK, ORIGIN, SITE
+from warp_taskgen.editors._method_spec import FreeText, Token
 from warp_taskgen.editors._registry import EditorMethodSpec
-from warp_taskgen.seeding.site_contracts import CreatedResourceFact, EditorSeedResult
+from warp_taskgen.seeding.site_contracts import (
+    CreatedResourceFact,
+    EditorSeedResult,
+    SeedSiteRegistration,
+    SeedSiteRegistry,
+)
 
 
 class SyntheticDiscussionForumEditor:
@@ -15,10 +23,17 @@ class SyntheticDiscussionForumEditor:
         self.fail_cleanup = fail_cleanup
 
     def create_comment(self, *, thread_id: str, actor: str, body: str) -> EditorSeedResult:
-        del body
+        if actor != "participant":
+            raise ValueError("synthetic writer requires a regular participant actor")
+        body_sha256 = hashlib.sha256(body.encode("utf-8")).hexdigest()
         return EditorSeedResult(
             write_tokens=MappingProxyType(
-                {"thread_id": thread_id, "comment_id": "42", "actor": actor}
+                {
+                    "thread_id": thread_id,
+                    "comment_id": "42",
+                    "actor": actor,
+                    "body_sha256": body_sha256,
+                }
             ),
             created_resources=(
                 CreatedResourceFact(
@@ -40,16 +55,31 @@ class SyntheticDiscussionForumEditor:
         self.cleaned = True
 
 
-editor = SyntheticDiscussionForumEditor()
 failing_editor = SyntheticDiscussionForumEditor(fail_cleanup=True)
 
+
+def _editor_factory(
+    instance: dict[str, Any],
+    session: Any,
+) -> SyntheticDiscussionForumEditor:
+    del instance, session
+    return SyntheticDiscussionForumEditor()
+
+
+seed_registration = SeedSiteRegistration(BENCHMARK, SITE, _editor_factory)
+seed_registry = SeedSiteRegistry.from_registrations((seed_registration,))
+
 editor_spec = EditorMethodSpec(
-    benchmark="webarena_verified",
-    site="synthetic_discussion_forum",
+    benchmark=BENCHMARK,
+    site=SITE,
     method="create_comment",
     kinds=frozenset({"thread"}),
     http=("POST", "/threads/{thread_id}/replies"),
-    bindings={},
+    bindings={
+        "thread_id": Token("{benign_thread_id}"),
+        "actor": Token("{benign_user_handle}"),
+        "body": FreeText(),
+    },
     surface_id_per_kind={"thread": "comment.body"},
-    required_editor_args=(),
+    required_editor_args=("thread_id", "actor", "body"),
 )

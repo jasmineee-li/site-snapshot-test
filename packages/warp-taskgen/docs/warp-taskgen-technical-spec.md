@@ -43,7 +43,11 @@ legitimately perform. Direct SQL writes are excluded from methodology.
 `SiteComposition` is an immutable, data-only declaration of the existing owner
 roles for one Site and its Benchmark bindings. Each `SiteOwnerDeclaration`
 records a static capability state, stable semantic owner identity, contract
-version, and non-secret provenance. It does not contain or dispatch an editor,
+version, and non-secret provenance. Unsupported owner-contract versions fail
+at declaration construction. Each Site declaration also records its source
+package and package version; those identities and the provenance projection are
+included in the declaration digest and surfaced in the check report. It does
+not contain or dispatch an editor,
 reader, feasibility policy, evaluator, browser, reset, cleanup, or scoring
 implementation.
 
@@ -62,6 +66,12 @@ means that the required declarations close. It does not grant active policy or
 prove Benchmark Instance reachability, admission, mutation, Fresh Anonymous
 Reader evidence, Painted Visibility, a PVPO Encounter, Golden-State Reset,
 execution, or scoring.
+
+Every static report therefore records operational readiness as `blocked`, with
+active policy and live evidence identified as `not_checked`. A zero CLI exit
+status means only that static composition closed; it is not a readiness exit
+code. A later readiness owner may consume explicit policy and live evidence,
+but the static checker cannot accept or promote either ledger.
 
 `warp-taskgen site composition check` is the canonical CLI for this static
 check. `site doctor` is a temporary parser-level CLI compatibility alias, not

@@ -12,9 +12,11 @@ import hashlib
 import json
 from collections.abc import Iterable
 
+from warp_taskgen import __version__ as WARP_TASKGEN_VERSION
 from warp_taskgen.benchmark_capabilities import DEFAULT_BENCHMARK_CATALOG
 from warp_taskgen.site_composition_contracts import (
     SITE_COMPOSITION_CONTRACT_VERSION,
+    SITE_COMPOSITION_SOURCE_PACKAGE,
     SITE_OWNER_ROLE_ORDER,
     SiteBenchmarkComposition,
     SiteComposition,
@@ -120,6 +122,8 @@ def _composition_payload(
         "schema": "warp-site-composition-digest-v1",
         "contract_version": SITE_COMPOSITION_CONTRACT_VERSION,
         "site": composition.site,
+        "source_package": composition.source_package,
+        "source_package_version": composition.source_package_version,
         "benchmarks": benchmarks,
         "provenance": list(composition.provenance),
         "use_cases": [
@@ -277,6 +281,9 @@ def _check_one(
         use_case=request.use_case,
         carrier=request.carrier,
         action_kind=request.action_kind,
+        source_package=composition.source_package,
+        source_package_version=composition.source_package_version,
+        source_provenance=composition.provenance,
         static_status=status,
         site_composition_digest=site_composition_digest(
             composition,
@@ -314,6 +321,18 @@ def check_site_composition(
         return _invalid_report(request, "compositions must contain typed SiteComposition values")
     by_site: dict[str, SiteComposition] = {}
     for item in items:
+        if item.source_package != SITE_COMPOSITION_SOURCE_PACKAGE:
+            return _invalid_report(
+                request,
+                "Site Composition source package is unsupported",
+                provenance=item.provenance,
+            )
+        if item.source_package_version != WARP_TASKGEN_VERSION:
+            return _invalid_report(
+                request,
+                "Site Composition source package version is incompatible",
+                provenance=item.provenance,
+            )
         if item.site in by_site:
             return _invalid_report(
                 request,

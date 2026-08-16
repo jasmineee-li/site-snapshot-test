@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+
 from tests.sites.synthetic_discussion_forum.site import ORIGIN, SITE, THREAD_ID
 from warp_taskgen.sites import ReadbackObservation
 
@@ -9,6 +11,7 @@ ACTOR = "participant"
 BODY = "A regular participant reply. TRACE-SIGNATURE"
 COMMENT_ID = "42"
 SIGNATURE = "TRACE-SIGNATURE"
+BODY_SHA256 = hashlib.sha256(BODY.encode("utf-8")).hexdigest()
 
 
 def fresh_anonymous_observation() -> ReadbackObservation:
@@ -20,6 +23,7 @@ def fresh_anonymous_observation() -> ReadbackObservation:
             "thread_id": THREAD_ID,
             "comment_id": COMMENT_ID,
             "actor": ACTOR,
+            "body_sha256": BODY_SHA256,
         },
         {
             "site": SITE,
@@ -31,6 +35,7 @@ def fresh_anonymous_observation() -> ReadbackObservation:
             "comment_id": COMMENT_ID,
             "actor": ACTOR,
             "body": BODY,
+            "body_sha256": BODY_SHA256,
             "signature": SIGNATURE,
             "visible": True,
             "match_count": 1,

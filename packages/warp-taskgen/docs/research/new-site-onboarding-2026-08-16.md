@@ -494,8 +494,10 @@ these:
    fixture leaves GitLab, Reddit, and the explicit Classifieds diagnostic/runtime
    POC unchanged; no fallback silently selects a default Site or composition.
 5. Importing or registering a definition does not grant active policy.
-   Complete static closure with deny-all policy and missing configured-host,
-   admission, execution, and scoring evidence remains overall `blocked`.
+   The static check accepts no policy or operational-evidence input, labels both
+   ledgers `not_checked`, and reports operational readiness as `blocked` even
+   when static closure is complete. A later readiness owner may evaluate those
+   ledgers explicitly; the static checker cannot promote them.
 6. Comparison-only Benchmarks pass only comparison ingestion. They remain
    non-generative, non-executable, non-evaluable, and non-scorable even if a Site
    or action card is present.
@@ -715,12 +717,22 @@ failed findings, and a supported `static_closure`; invalid reports redact
 untrusted request identities and carry no digest. Comparison-only Benchmarks
 still fail closed before any WARP use case is checked.
 
+The accepted owner-contract version is explicit and incompatible versions fail
+at construction. The canonical digest payload and report bind the source
+package, package version, and symbolic source provenance. Static completion
+still records operational readiness as `blocked` because active policy and live
+evidence are not checked by this seam.
+
 Executable fake behavior remains modular by owner under
 `tests/sites/behavior_contract/`. The feature-local
 `tests/sites/synthetic_discussion_forum/` slice crosses Site Targeting, Regular
-Participant Writer and idempotent cleanup, feasibility, a separately built
+Participant Writer through an immutable per-run seed registry and idempotent
+cleanup, feasibility derived from the exact parent route, a separately built
 anonymous-reader observation, Exact Resource Evidence, final-state evaluation,
-and action-card route closure. These tests do not claim browser-context
+and action-card route closure. The exact request is feature-local, editor
+metadata declares all required arguments, and a body digest binds writer,
+read-surface, readback, and final-state negative evidence. These tests do not
+claim browser-context
 identity, Painted Visibility, a PVPO Encounter, Golden-State Reset, configured
 host evidence, admission, execution, or scoring.
 

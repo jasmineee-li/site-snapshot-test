@@ -27,6 +27,11 @@ class _FakeReport:
             "site_composition_digest": None
             if self.static_status == "invalid"
             else "sha256:" + "0" * 64,
+            "readiness_status": "blocked",
+            "readiness_blockers": [
+                "active_policy_not_checked",
+                "live_evidence_not_checked",
+            ],
             "active_policy_checked": False,
             "live_evidence_checked": False,
             "findings": [
@@ -140,6 +145,7 @@ def test_dispatch_exit_code_uses_static_status_only(
     output = capsys.readouterr().out
     assert f"Static Site Composition status: {static_status}" in output
     assert "active policy and live evidence not checked" in output
+    assert "Operational readiness: blocked" in output
 
 
 def test_doctor_alias_dispatches_the_same_canonical_compiler(
@@ -161,6 +167,34 @@ def test_doctor_alias_dispatches_the_same_canonical_compiler(
     )
 
     assert result == 0
+
+
+def test_missing_packaged_composition_returns_structured_invalid_report(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def missing_resource(**_: object) -> _FakeReport:
+        raise ModuleNotFoundError("required Site Composition resource is absent")
+
+    monkeypatch.setattr(site_composition_check, "_compile_default", missing_resource)
+    result = site_composition_check.dispatch_site_composition(
+        SimpleNamespace(
+            site_command="composition",
+            composition_command="check",
+            site="classifieds",
+            benchmark="visualwebarena",
+            use_case="public_reply",
+            carrier="listing_reply.body",
+            action_kind="answer_opposite_binary_label",
+            json=True,
+        )
+    )
+
+    assert result == 2
+    report = json.loads(capsys.readouterr().out)
+    assert report["static_status"] == "invalid"
+    assert report["readiness_status"] == "blocked"
+    assert report["error"] == "ModuleNotFoundError"
 
 
 def test_json_output_is_the_report_projection(
@@ -208,6 +242,7 @@ def test_canonical_cli_dispatches_default_static_diagnostic(
     report = json.loads(capsys.readouterr().out)
     assert report["static_status"] == "complete"
     assert report["scope"] == "static_site_composition_only"
+    assert report["readiness_status"] == "blocked"
     assert report["active_policy_checked"] is False
     assert report["live_evidence_checked"] is False
 

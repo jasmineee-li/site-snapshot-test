@@ -147,6 +147,7 @@ def render_human(report: Any) -> str:
         f"use_case={data.get('use_case', 'unknown')}",
         f"Static Site Composition status: {data.get('static_status', 'invalid')}",
         "Scope: static Site Composition only; active policy and live evidence not checked.",
+        f"Operational readiness: {data.get('readiness_status', 'blocked')}",
     ]
     if data.get("carrier"):
         lines.append(f"Carrier: {data['carrier']}")
@@ -184,7 +185,7 @@ def dispatch_site_composition(args: argparse.Namespace) -> int:
             carrier=getattr(args, "carrier", None),
             action_kind=getattr(args, "action_kind", None),
         )
-    except (TypeError, ValueError) as exc:
+    except (ImportError, TypeError, ValueError) as exc:
         if getattr(args, "json", False):
             print(
                 json.dumps(
@@ -193,6 +194,14 @@ def dispatch_site_composition(args: argparse.Namespace) -> int:
                         "scope": "static_site_composition_only",
                         "static_status": "invalid",
                         "site_composition_digest": None,
+                        "source_package": None,
+                        "source_package_version": None,
+                        "source_provenance": [],
+                        "readiness_status": "blocked",
+                        "readiness_blockers": [
+                            "active_policy_not_checked",
+                            "live_evidence_not_checked",
+                        ],
                         "active_policy_checked": False,
                         "live_evidence_checked": False,
                         "error": exc.__class__.__name__,

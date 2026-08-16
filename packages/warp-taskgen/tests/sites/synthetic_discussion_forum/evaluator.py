@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+
 from tests.sites.synthetic_discussion_forum.site import ORIGIN, SITE
 from warp_taskgen.rewards.final_state_catalog import (
     FinalStateEvaluationRequest,
@@ -31,7 +33,8 @@ class SyntheticDiscussionForumEvaluator:
             and state.get("thread_id") == "17"
             and state.get("comment_id") == "42"
             and state.get("actor") == "participant"
-            and request.witness in str(state.get("body") or "")
+            and hashlib.sha256(str(state.get("body") or "").encode("utf-8")).hexdigest()
+            == request.witness
         )
         return (
             exact,

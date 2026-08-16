@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import replace
 
 from tests.sites.behavior_contract.exact_resource_evidence import ExactResourceEvidenceCase
@@ -34,6 +35,10 @@ def assert_final_state_evaluation_behavior(
     stale_state["comment_id"] = "stale-foreign-id"
     assert evaluator_catalog.evaluate(replace(request, state_probe=stale_state))[0] is False
 
+    wrong_body = dict(request.state_probe or {})
+    wrong_body["body"] = f"different prefix {case.signature}"
+    assert evaluator_catalog.evaluate(replace(request, state_probe=wrong_body))[0] is False
+
 
 def _request(case: ExactResourceEvidenceCase) -> FinalStateEvaluationRequest:
     path = case.action_path
@@ -51,7 +56,7 @@ def _request(case: ExactResourceEvidenceCase) -> FinalStateEvaluationRequest:
         benchmark=case.benchmark,
         site=case.site,
         action_kind=case.action_kind,
-        witness=case.signature,
+        witness=hashlib.sha256(case.body.encode("utf-8")).hexdigest(),
         network_expected={"method": "POST", "path": path},
         state_probe=state_probe,
         evidence_policy=EvidencePolicy(

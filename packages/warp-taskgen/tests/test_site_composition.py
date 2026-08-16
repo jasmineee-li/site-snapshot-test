@@ -7,6 +7,7 @@ from dataclasses import replace
 
 import pytest
 
+from warp_taskgen import __version__ as WARP_TASKGEN_VERSION
 from warp_taskgen.site_composition import (
     SITE_OWNER_ROLE_ORDER,
     SiteBenchmarkComposition,
@@ -107,6 +108,16 @@ def test_supported_declaration_requires_owner_id() -> None:
         SiteOwnerDeclaration(state="supported")
 
 
+def test_site_owner_declaration_rejects_incompatible_contract_version() -> None:
+    with pytest.raises(ValueError, match="unsupported Site owner contract version"):
+        SiteOwnerDeclaration(
+            state="supported",
+            owner_id="test.owner",
+            contract_version="v2",
+            provenance=("test.owner",),
+        )
+
+
 def test_not_applicable_is_compiler_derived_and_forbidden_in_declarations() -> None:
     with pytest.raises(ValueError, match="compiler-derived"):
         SiteOwnerDeclaration(state="not_applicable")  # type: ignore[arg-type]
@@ -150,6 +161,30 @@ def test_site_owner_role_order_is_canonical() -> None:
         "readback",
         "final_state_evaluation",
         "action_cards",
+    )
+
+
+def test_benchmark_composition_rejects_unregistered_benchmark() -> None:
+    with pytest.raises(ValueError, match="unknown benchmark"):
+        _composition(benchmark="unregistered_benchmark")
+
+
+def test_site_composition_digest_binds_source_package_version() -> None:
+    composition = _composition()
+    updated = replace(composition, source_package_version="0.1.2")
+
+    assert site_composition_digest(composition) != site_composition_digest(updated)
+
+
+def test_stale_site_composition_source_package_version_fails_closed() -> None:
+    stale = replace(_composition(), source_package_version="0.0.0")
+
+    report = check_site_composition((stale,), _request())
+
+    assert report.static_status == "invalid"
+    assert report.site_composition_digest is None
+    assert report.finding("registration").detail == (
+        "Site Composition source package version is incompatible"
     )
 
 
@@ -373,6 +408,14 @@ def test_digest_payload_contains_contract_and_catalog_requirements() -> None:
     assert payload["schema"] == "warp-site-composition-check-v1"
     assert payload["scope"] == "static_site_composition_only"
     assert payload["site_composition_digest"].startswith("sha256:")
+    assert payload["source_package"] == "warp-taskgen"
+    assert payload["source_package_version"] == WARP_TASKGEN_VERSION
+    assert payload["source_provenance"] == ["test.synthetic_discussion_forum"]
+    assert payload["readiness_status"] == "blocked"
+    assert payload["readiness_blockers"] == [
+        "active_policy_not_checked",
+        "live_evidence_not_checked",
+    ]
     assert payload["active_policy_checked"] is False
     assert payload["live_evidence_checked"] is False
 

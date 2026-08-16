@@ -13,6 +13,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Literal
 
+from warp_taskgen import __version__ as WARP_TASKGEN_VERSION
 from warp_taskgen.benchmark_capabilities import DEFAULT_BENCHMARK_CATALOG
 
 type StaticCapabilityState = Literal["supported", "not_applicable", "unsupported", "missing"]
@@ -46,6 +47,8 @@ SITE_OWNER_ROLE_ORDER: tuple[SiteOwnerRole, ...] = (
     "action_cards",
 )
 SITE_COMPOSITION_CONTRACT_VERSION = "warp-site-composition-v1"
+SITE_COMPOSITION_SOURCE_PACKAGE = "warp-taskgen"
+SITE_OWNER_CONTRACT_VERSION = "v1"
 
 _CAPABILITY_STATES = frozenset({"supported", "not_applicable", "unsupported", "missing"})
 _DECLARATION_STATES = frozenset({"supported", "unsupported", "missing"})
@@ -117,6 +120,11 @@ class SiteOwnerDeclaration:
         if self.state != "supported" and owner_id is not None:
             raise ValueError("non-supported owner declarations forbid owner_id")
         version = _normalize_symbol(self.contract_version, field="contract_version")
+        if version != SITE_OWNER_CONTRACT_VERSION:
+            raise ValueError(
+                "unsupported Site owner contract version: "
+                f"{version!r}; expected {SITE_OWNER_CONTRACT_VERSION!r}"
+            )
         object.__setattr__(self, "owner_id", owner_id)
         object.__setattr__(self, "contract_version", version)
         object.__setattr__(self, "provenance", _freeze_provenance(self.provenance))
@@ -141,9 +149,7 @@ class SiteBenchmarkComposition:
     provenance: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        benchmark = DEFAULT_BENCHMARK_CATALOG.normalize(self.benchmark)
-        if not benchmark or _normalize_label(benchmark) != benchmark:
-            raise ValueError("Benchmark composition requires a registered Benchmark")
+        benchmark = DEFAULT_BENCHMARK_CATALOG.resolve(self.benchmark).canonical_name
         object.__setattr__(self, "benchmark", benchmark)
         for role in SITE_OWNER_ROLE_ORDER:
             declaration = getattr(self, role)
@@ -174,6 +180,8 @@ class SiteComposition:
     site: str
     benchmark_compositions: tuple[SiteBenchmarkComposition, ...]
     provenance: tuple[str, ...] = ()
+    source_package: str = SITE_COMPOSITION_SOURCE_PACKAGE
+    source_package_version: str = WARP_TASKGEN_VERSION
 
     def __post_init__(self) -> None:
         site = _normalize_label(self.site)
@@ -194,6 +202,16 @@ class SiteComposition:
             tuple(sorted(compositions, key=lambda item: item.benchmark)),
         )
         object.__setattr__(self, "provenance", _freeze_provenance(self.provenance))
+        object.__setattr__(
+            self,
+            "source_package",
+            _normalize_symbol(self.source_package, field="source_package"),
+        )
+        object.__setattr__(
+            self,
+            "source_package_version",
+            _normalize_symbol(self.source_package_version, field="source_package_version"),
+        )
 
     def benchmark(self, name: str) -> SiteBenchmarkComposition | None:
         canonical = DEFAULT_BENCHMARK_CATALOG.normalize(name)
@@ -412,6 +430,9 @@ class SiteCompositionCheckReport:
     findings: tuple[SiteCompositionFinding, ...]
     carrier: str | None = None
     action_kind: str | None = None
+    source_package: str | None = None
+    source_package_version: str | None = None
+    source_provenance: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         site = _normalize_label(self.site)
@@ -435,6 +456,11 @@ class SiteCompositionCheckReport:
             value = getattr(self, name)
             if value is not None:
                 object.__setattr__(self, name, _normalize_symbol(value, field=name))
+        for name in ("source_package", "source_package_version"):
+            value = getattr(self, name)
+            if value is not None:
+                object.__setattr__(self, name, _normalize_symbol(value, field=name))
+        object.__setattr__(self, "source_provenance", _freeze_provenance(self.source_provenance))
         if self.static_status not in _STATUSES:
             raise ValueError("Site Composition report has an invalid status")
         if self.static_status == "invalid":
@@ -491,8 +517,13 @@ class SiteCompositionCheckReport:
             "use_case": self.use_case,
             "carrier": self.carrier,
             "action_kind": self.action_kind,
+            "source_package": self.source_package,
+            "source_package_version": self.source_package_version,
+            "source_provenance": list(self.source_provenance),
             "static_status": self.static_status,
             "site_composition_digest": self.site_composition_digest,
+            "readiness_status": "blocked",
+            "readiness_blockers": ["active_policy_not_checked", "live_evidence_not_checked"],
             "active_policy_checked": False,
             "live_evidence_checked": False,
             "findings": [item.to_dict() for item in self.findings],
@@ -504,6 +535,8 @@ class SiteCompositionCheckReport:
 
 __all__ = [
     "SITE_COMPOSITION_CONTRACT_VERSION",
+    "SITE_COMPOSITION_SOURCE_PACKAGE",
+    "SITE_OWNER_CONTRACT_VERSION",
     "SITE_OWNER_ROLE_ORDER",
     "SiteBenchmarkComposition",
     "SiteComposition",

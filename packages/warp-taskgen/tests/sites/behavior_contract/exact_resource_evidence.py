@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, replace
-from types import MappingProxyType
 
-from warp_taskgen.seeding.site_contracts import CreatedResourceFact, EditorSeedResult
+from warp_taskgen.seeding.site_contracts import EditorSeedResult
 from warp_taskgen.sites import BoundSite, ReadbackDecision, ReadbackObservation
 from warp_taskgen.sites.read_surface import ReadSurfacePlanFailure
 
@@ -32,38 +32,34 @@ class ExactResourceEvidenceCase:
 def assert_exact_resource_evidence(
     bound_site: BoundSite,
     case: ExactResourceEvidenceCase,
+    seed_result: EditorSeedResult,
     *,
     foreign_read_surface_url: str,
 ) -> None:
     """Check mutation/readback/visibility identity and reject near misses."""
 
-    seed_result = EditorSeedResult(
-        write_tokens=MappingProxyType(
-            {
-                "thread_id": case.parent_id,
-                "comment_id": case.resource_id,
-                "actor": case.actor,
-            }
-        ),
-        created_resources=(
-            CreatedResourceFact(
-                url=f"{case.origin}{case.parent_path}#comment-{case.resource_id}",
-                kind=case.resource_kind,
-                id=case.resource_id,
-                parent_url=case.parent_path,
-                editor_method="create_comment",
-            ),
-        ),
-        read_surface_urls=(case.parent_path,),
-        read_surface_provenance_source="regular_participant_writer",
-        editor_method="create_comment",
+    body_sha256 = hashlib.sha256(case.body.encode("utf-8")).hexdigest()
+    assert dict(seed_result.write_tokens) == {
+        "actor": case.actor,
+        "body_sha256": body_sha256,
+        "comment_id": case.resource_id,
+        "thread_id": case.parent_id,
+    }
+    assert len(seed_result.created_resources) == 1
+    created = seed_result.created_resources[0]
+    assert (created.kind, created.id, created.parent_url) == (
+        case.resource_kind,
+        case.resource_id,
+        case.parent_path,
     )
+    assert seed_result.read_surface_urls == (case.parent_path,)
     plan = bound_site.read_surface_plan(seed_result=seed_result, signature=case.signature)
     assert getattr(plan, "site", None) == case.site
     assert getattr(plan, "persist_readback_identity_tokens", False) is True
     assert tuple(getattr(plan, "urls", ())) == (f"{case.origin}{case.parent_path}",)
     assert dict(getattr(plan, "identity_tokens", {})) == {
         "actor": case.actor,
+        "body_sha256": body_sha256,
         "comment_id": case.resource_id,
         "thread_id": case.parent_id,
     }
@@ -85,6 +81,7 @@ def assert_exact_resource_evidence(
         "comment_id": case.resource_id,
         "actor": case.actor,
         "body": case.body,
+        "body_sha256": body_sha256,
         "signature": case.signature,
         "visible": True,
         "match_count": 1,
@@ -110,6 +107,8 @@ def assert_exact_resource_evidence(
         ("actor", "different-actor"),
         ("comment_id", "stale-foreign-id"),
         ("body", "different body"),
+        ("body", f"different prefix {case.signature}"),
+        ("body_sha256", "0" * 64),
         ("match_count", 2),
         ("reader_context", "regular_participant_writer"),
         ("writer_cookie_names", ("session",)),

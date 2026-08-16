@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 import pytest
 
 from warp_taskgen.editors._registry import EditorMethodSpec
-from warp_taskgen.seeding.site_contracts import EditorSeedResult
+from warp_taskgen.seeding.site_contracts import EditorSeedResult, SeedSiteRegistry
 
 
 def assert_regular_participant_writer_behavior(
-    editor: Any,
+    seed_registry: SeedSiteRegistry,
     *,
+    benchmark: str,
+    site: str,
     thread_id: str,
     actor: str,
     body: str,
@@ -31,14 +34,21 @@ def assert_regular_participant_writer_behavior(
     assert editor_spec.kinds == frozenset({"thread"})
     assert editor_spec.surface_id_per_kind == {"thread": expected_surface_id}
     assert editor_spec.http == ("POST", "/threads/{thread_id}/replies")
+    assert tuple(editor_spec.bindings) == ("thread_id", "actor", "body")
+    assert editor_spec.bindings["thread_id"].tokens == frozenset({"{benign_thread_id}"})
+    assert editor_spec.bindings["actor"].tokens == frozenset({"{benign_user_handle}"})
+    assert editor_spec.bindings["body"].kind == "free_text"
+    assert editor_spec.required_editor_args == ("thread_id", "actor", "body")
 
+    registration = seed_registry.get(benchmark, site)
+    assert registration is not None
+    editor = registration.create({}, object())
     result = editor.create_comment(thread_id=thread_id, actor=actor, body=body)
     assert isinstance(result, EditorSeedResult)
-    assert dict(result.write_tokens) == {
-        "actor": actor,
-        "comment_id": expected_comment_id,
-        "thread_id": thread_id,
-    }
+    assert result.write_tokens["actor"] == actor
+    assert result.write_tokens["comment_id"] == expected_comment_id
+    assert result.write_tokens["thread_id"] == thread_id
+    assert result.write_tokens["body_sha256"] == hashlib.sha256(body.encode("utf-8")).hexdigest()
     assert result.editor_method == expected_editor_method
     assert len(result.created_resources) == 1
     created = result.created_resources[0]
@@ -48,6 +58,8 @@ def assert_regular_participant_writer_behavior(
     assert result.read_surface_urls == (expected_parent_path,)
     assert result.read_surface_provenance_source == expected_read_surface_provenance
     assert actor != "admin"
+    with pytest.raises(ValueError, match="regular participant"):
+        editor.create_comment(thread_id=thread_id, actor="admin", body=body)
 
     editor.cleanup()
     editor.cleanup()

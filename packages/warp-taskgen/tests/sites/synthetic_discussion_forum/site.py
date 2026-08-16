@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Mapping
 from urllib.parse import urlsplit
 
@@ -116,7 +117,8 @@ class SyntheticDiscussionForumSite:
         method: str | None = None,
         editor_surface_id: str | None = None,
     ) -> SurfaceResolution | None:
-        del kind, method
+        if kind not in (None, "thread") or method not in (None, "create_comment"):
+            return None
         canonical = self.canonicalize_surface_id(
             benchmark=benchmark,
             raw_surface_id=target_surface_id,
@@ -177,7 +179,7 @@ class SyntheticDiscussionForumSite:
             seed_result=seed_result,
             signature=signature,
             origin=origin,
-            identity_keys=("thread_id", "comment_id", "actor"),
+            identity_keys=("thread_id", "comment_id", "actor", "body_sha256"),
             persist_readback_identity_tokens=True,
         )
 
@@ -207,6 +209,11 @@ class SyntheticDiscussionForumSite:
         body = str(payload.get("body") or "")
         if not signature or signature not in body or payload.get("signature") != signature:
             return ReadbackDecision(False, "resource_signature_mismatch")
+        body_sha256 = hashlib.sha256(body.encode("utf-8")).hexdigest()
+        if payload.get("body_sha256") != expected.get("body_sha256") or body_sha256 != expected.get(
+            "body_sha256"
+        ):
+            return ReadbackDecision(False, "resource_body_mismatch")
         return ReadbackDecision(
             True,
             "exact_comment_visible",

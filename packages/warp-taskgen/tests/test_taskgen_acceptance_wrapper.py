@@ -149,3 +149,9 @@ def test_package_proof_smokes_site_composition_check_from_wheel_and_sdist() -> N
     assert 'sdists=("$build_dir"/*.tar.gz)' in source
     assert "from warp_taskgen.site_composition import default_site_compositions" in source
     assert "joinpath('site_compositions', 'classifieds.py').is_file()" in source
+    assert "missing sdist Site Composition resources" in source
+    assert "omitted sdist Site Composition resource was accepted" in source
+    assert "report['error'] == 'ModuleNotFoundError'" in source
+    assert "source_package_version='0.0.0'" in source
+    assert "source package version is incompatible" in source
+    assert 'cd "$temporary_root"' in source

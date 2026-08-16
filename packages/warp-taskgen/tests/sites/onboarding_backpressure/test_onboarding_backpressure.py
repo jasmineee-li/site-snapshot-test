@@ -378,6 +378,11 @@ def test_canonical_cli_requires_exact_carrier_and_action_and_says_static_only(
     assert report["static_status"] == "complete"
     assert report["site_composition_digest"]
     assert report["scope"] == "static_site_composition_only"
+    assert report["readiness_status"] == "blocked"
+    assert report["readiness_blockers"] == [
+        "active_policy_not_checked",
+        "live_evidence_not_checked",
+    ]
     assert report["active_policy_checked"] is False
     assert report["live_evidence_checked"] is False
 

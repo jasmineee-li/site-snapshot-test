@@ -42,6 +42,24 @@ def assert_site_targeting_behavior(
     assert profile is not None
     assert profile.canonical_surface_id == expected_canonical_surface
     assert bound_site.resolve_profile_surface("unknown_surface") is None
+    assert (
+        bound_site.resolve_profile_surface(
+            expected_profile_surface,
+            kind="wrong_kind",
+            method=expected_editor_method,
+            editor_surface_id=expected_canonical_surface,
+        )
+        is None
+    )
+    assert (
+        bound_site.resolve_profile_surface(
+            expected_profile_surface,
+            kind=expected_kind,
+            method="wrong_method",
+            editor_surface_id=expected_canonical_surface,
+        )
+        is None
+    )
 
     wrong_site = dict(valid_task)
     foreign_site = f"not_{expected_site}"
