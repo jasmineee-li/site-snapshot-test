@@ -8,6 +8,7 @@ import json
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
+from typing import Any
 
 
 def load_jsonl(path: Path) -> list[dict]:
@@ -53,7 +54,7 @@ def _pairwise_stats(items: list[dict]) -> dict:
     position_counts = Counter(r["parsed_answer"] for r in parseable)
 
     # Source preference: how often each source was chosen as "more real"
-    source_chosen = Counter()
+    source_chosen: Counter[str] = Counter()
     for r in parseable:
         chosen_id = r.get("chosen_id")
         if not chosen_id:
@@ -107,7 +108,9 @@ def analyze(results_dir: Path):
     open_ended = [r for r in responses if r.get("type") == "open_ended"]
     errors = [r for r in responses if "error" in r]
 
-    summary = {
+    # Annotated because the two seed entries are ints, which would otherwise fix
+    # the value type as `int` and reject every nested section added below.
+    summary: dict[str, Any] = {
         "total_responses": len(responses),
         "errors": len(errors),
     }
@@ -146,8 +149,9 @@ def analyze(results_dir: Path):
     if compare:
         summary["pairwise"] = _pairwise_stats(compare)
 
-        # Pairwise by model
-        by_model: dict[str, list] = defaultdict(list)
+        # Pairwise by model (re-binds the name from the classify block above,
+        # so it carries no second annotation).
+        by_model = defaultdict(list)
         for r in compare:
             by_model[r["model"]].append(r)
         summary["pairwise"]["by_model"] = {

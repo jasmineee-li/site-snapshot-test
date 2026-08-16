@@ -1346,7 +1346,14 @@ async def _judge_split(
     samples = [
         WebsiteSample(
             id=f"{benchmark}_{split}_{t['task_id']}",
-            source=benchmark,
+            # `benchmark` reaches here from `--benchmark`, which argparse
+            # restricts to ALL_BENCHMARKS; every member of that tuple is one of
+            # WebsiteSample.source's literals, so this is valid at runtime and
+            # mypy simply cannot see the argparse constraint. Note for
+            # maintainers: adding a benchmark to ALL_BENCHMARKS without adding
+            # it to that Literal would make this suppression hide a real
+            # provenance mismatch.
+            source=benchmark,  # type: ignore[arg-type]
             website_type=split,
             metadata={
                 "trajectory_dir": t["task_dir"],

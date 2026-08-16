@@ -16,6 +16,7 @@ import gzip
 import json
 import logging
 import pickle
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -851,7 +852,9 @@ def trajectory_to_judge_fields(
 # Dispatcher
 # ---------------------------------------------------------------------------
 
-PARSERS = {
+# Annotated because the values have differing signatures; without it mypy joins
+# them to a non-callable supertype and rejects the `parser(...)` dispatch below.
+PARSERS: dict[str, Callable[..., StandardizedTrajectory | None]] = {
     "webarena-infinity": parse_webarena_infinity_trajectory,
     "agentlab": parse_agentlab_trajectory,
     "doomarena": parse_doomarena_trajectory,

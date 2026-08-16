@@ -135,7 +135,16 @@ async def _repair_target(
         )
         sample = WebsiteSample(
             id=target.row["sample_id"],
-            source=target.benchmark,
+            # UNVALIDATED PROVENANCE, deliberately left as-is: unlike the
+            # pipeline's argparse-constrained path, `target.benchmark` is a
+            # directory-name component parsed off the results tree
+            # (`arm, model_slug, benchmark, split = rel[:4]` above), so it is an
+            # arbitrary string. WebsiteSample is a plain dataclass with no
+            # runtime validation, so a results directory named outside
+            # WebsiteSample.source's literals is recorded as-is. Adding
+            # validation here would change which rows this repair tool accepts,
+            # so it needs a decision from the experiment owner.
+            source=target.benchmark,  # type: ignore[arg-type]
             website_type=target.split,
             metadata={
                 "trajectory_dir": str(target.trajectory_dir),

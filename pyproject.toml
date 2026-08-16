@@ -86,7 +86,14 @@ dev = [
     "black[jupyter]>=24.0",
     "ruff>=0.15.12",
     "pre-commit>=3.6",
-    "mypy>=1.8",
+    # Upper bound is load-bearing: [tool.mypy] enables `warn_unused_ignores`, so
+    # the targeted `# type: ignore[...]` suppressions in this tree must match the
+    # checker that emitted them. mypy 2.x reports a different error set on this
+    # commit and would break the gate in both directions.
+    "mypy>=1.19.1,<2",
+    # Typeshed stubs for PyYAML, which ships no inline `py.typed`. Without them
+    # `import yaml` is an `import-untyped` error in five first-party modules.
+    "types-PyYAML>=6.0",
     "ipython>=8.20",
     "ipykernel>=6.29",
     "jupyter-client>=8.6",
@@ -114,7 +121,10 @@ dev = [
     "black[jupyter]>=24.0",
     "ruff>=0.15.12",
     "pre-commit>=3.6",
-    "mypy>=1.8",
+    # Kept in step with [project.optional-dependencies].dev above; see the
+    # rationale for the upper bound and the stub package there.
+    "mypy>=1.19.1,<2",
+    "types-PyYAML>=6.0",
     "ipython>=8.20",
     "ipykernel>=6.29",
 ]
@@ -255,3 +265,108 @@ known-first-party = [
     "models",
     "probes",
 ]
+
+# Root type gate for the evaluation-awareness study tree. The scope below
+# resolves to exactly the same 96 first-party Python files that [tool.black]
+# `force-exclude` and [tool.ruff] `extend-exclude` select, so all three tools
+# agree on what "the first-party tree" means.
+#
+# Scope is stated positively with `files` rather than negatively with `exclude`
+# because mypy — unlike Ruff and Black — does not read `.gitignore`. An
+# exclude-based scope would quietly start type-checking generated result trees
+# (`results/`, `read_logs/`, `probes/trained/`) the moment one gained a `.py`
+# file. Naming the roots keeps `mypy` with no arguments equivalent in scope to
+# `ruff check .` and `black --check .`.
+[tool.mypy]
+files = [
+    "eval_awareness",
+    "eval_awareness_experiments",
+    "models",
+    "probes",
+    "scripts",
+    "inspect_comparative.py",
+    "rerun_experiments.py",
+]
+
+# Matches [tool.ruff] `target-version = "py310"` and `requires-python = ">3.10"`
+# so the gate enforces the declared floor rather than whichever interpreter a
+# developer happens to run. (The working environment is 3.12/3.13; 3.13 is the
+# newest that can resolve this project, because `ray` publishes no cp314
+# wheels.)
+python_version = "3.10"
+
+# First tier of mypy's documented adoption ratchet for an existing codebase.
+# `check_untyped_defs` and the `disallow_*` family are deliberately still off —
+# see the note below the overrides.
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+# Every suppression in this tree is written as `# type: ignore[<code>]` with a
+# reason. `warn_unused_ignores` above makes those suppressions version-
+# sensitive: a mypy release that stops emitting one of the suppressed errors
+# turns the now-stale ignore into a fresh failure. That is why the dev
+# dependency pins `mypy>=1.19.1,<2` instead of the previous unbounded `>=1.8` —
+# an unbounded floor let the gate's meaning drift with each mypy release.
+
+# --------------------------------------------------------------------------
+# Per-module import overrides.
+#
+# There is deliberately NO global `ignore_missing_imports`. mypy's docs call it
+# equivalent to a blanket `# type: ignore` on every unresolved import, and here
+# it would also silence numpy, torch, playwright, pydantic, transformers,
+# matplotlib, openai, anthropic and litellm — all of which ship an inline
+# `py.typed` marker and are genuinely type-checked by this gate. Each override
+# below names only libraries that cannot be resolved, with the reason.
+# --------------------------------------------------------------------------
+
+# Neither ships a `py.typed` marker and neither has a typeshed stub package.
+# scikit-learn additionally lives in the optional `cua` extra, so it is absent
+# from a plain `--extra dev` environment.
+[[tool.mypy.overrides]]
+module = ["sklearn.*", "scipy.*"]
+ignore_missing_imports = true
+
+# pandas ships no `py.typed`; its stubs are the separate `pandas-stubs`
+# distribution. It is imported in exactly one module here
+# (`eval_awareness_experiments/run_wasp.py`), whose other imports are
+# unresolvable benchmark runtimes in any case, so adding `pandas-stubs` to the
+# dev dependencies would buy no real coverage today. Revisit if pandas use
+# spreads beyond that runner.
+[[tool.mypy.overrides]]
+module = ["pandas.*"]
+ignore_missing_imports = true
+
+# Benchmark runtimes that are installed only on configured benchmark hosts, not
+# in a developer or CI `--extra dev` environment. They are imported by the
+# `run_*.py` entry points, which already bootstrap `sys.path` before importing
+# them (see the E402 per-file-ignores above).
+[[tool.mypy.overrides]]
+module = [
+    "agentdojo.*",
+    "bgym.*",
+    "browsergym.*",
+    "doomarena.*",
+    "webarena.*",
+    "webarena_prompt_injections.*",
+]
+ignore_missing_imports = true
+
+# AgentLab is the vendored upstream tree CLAUDE.md marks read-only, and it is
+# installed as an editable `.pth` path that mypy does not follow. `follow_imports`
+# is pinned to "skip" as well as ignoring the missing import so that the gate
+# never starts type-checking the vendored sources if that install becomes
+# resolvable — excluding it from `files` alone would not prevent that, because
+# `exclude` does not apply to modules reached through an import.
+[[tool.mypy.overrides]]
+module = ["agentlab.*"]
+follow_imports = "skip"
+ignore_missing_imports = true
+
+# Next ratchet step, measured on this commit and deliberately left for a
+# separate change: enabling `check_untyped_defs` (which mypy's docs recommend
+# adopting as soon as practical) adds 14 errors across four files —
+# `judges/test_purpose_continue_5q.py` (3), `llm.py` (2),
+# `run_doomarena_pipeline.py` (7) and `tool_calling_runner.py` (2). Several of
+# those need a semantic decision about benchmark runner behaviour rather than an
+# annotation, so they do not belong in the change that introduces the gate.

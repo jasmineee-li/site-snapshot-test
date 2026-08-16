@@ -19,12 +19,14 @@ import asyncio
 import json
 from pathlib import Path
 
-from playwright.async_api import async_playwright
+from playwright.async_api import ViewportSize, async_playwright
 
 DEFAULT_OUTPUT = Path("eval_awareness_experiments/data/tac")
 MANIFEST_PATH = Path("eval_awareness_experiments/data/manifest.json")
 
-VIEWPORT = {"width": 1280, "height": 720}
+# Annotated with Playwright's TypedDict so the constant satisfies the
+# `viewport=` parameter; a bare dict literal infers as `dict[str, int]`.
+VIEWPORT: ViewportSize = {"width": 1280, "height": 720}
 
 HOST = "the-agent-company.com"
 

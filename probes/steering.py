@@ -84,7 +84,10 @@ def steering_hook(
             layers = list(meta_top)
 
     multi_layer = layers is not None
-    if multi_layer:
+    # Tested directly rather than through `multi_layer` so that `layers` is
+    # narrowed to non-None for `list(layers)` below. The two conditions are
+    # identical -- `layers` is not rebound between here and the assignment above.
+    if layers is not None:
         if alpha_per_layer is None:
             raise ValueError("`alpha_per_layer` is required when `layers` is set.")
         target_layers = list(layers)
@@ -126,7 +129,13 @@ def steering_hook(
                 f"Installed multi-layer steering on {len(installed)} layers "
                 f"(layers={[l for l, _, _ in installed]}, "
                 f"alpha_per_layer={alpha_per_layer}, "
-                f"effective_alpha={alpha_per_layer * len(installed):.3f})"
+                # `alpha_per_layer` cannot be None here: `multi_layer` is True
+                # only when `layers` was set, and that branch above raises
+                # ValueError when `alpha_per_layer` is None. mypy cannot carry
+                # that narrowing across the two separate `if` blocks, and
+                # restructuring the control flow of a steering-install path to
+                # suit the checker is not worth the behaviour risk.
+                f"effective_alpha={alpha_per_layer * len(installed):.3f})"  # type: ignore[operator]
             )
         else:
             l, a, n = installed[0]

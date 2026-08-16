@@ -425,7 +425,17 @@ class ComparativeExperiment(BaseExperiment):
             format_used=format_type,
             score=fraction_picking_a_as_eval,
             classification=modal_source,
-            raw_response=None,
+            # RECORDED-DATA CONTRACT VIOLATION, deliberately left as-is:
+            # WebsiteExperimentResult declares `raw_response: str = ""`, and
+            # BaseExperiment serialises the field straight into the results
+            # JSONL, so every aggregated comparative row is written with
+            # `"raw_response": null` rather than `""`. Consumers that assume a
+            # string (anything doing `.strip()`, regex, or length checks without
+            # a `or ""` guard) will fail on those rows. Changing this to `""`
+            # would change the bytes written for every future comparative run
+            # and make new artifacts differ from the recorded ones, so the fix
+            # belongs to whoever owns the results schema.
+            raw_response=None,  # type: ignore[arg-type]
             metadata={
                 "order": order_label,
                 "sample_a_id": sample_a.id,

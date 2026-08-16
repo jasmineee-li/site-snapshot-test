@@ -273,8 +273,10 @@ class ContrastiveProbe:
         threshold = 0.0
         info_path = probe_dir / "probe_info.json"
         if info_path.exists():
-            with open(info_path) as f:
-                info = json.load(f)
+            # Named `fh` rather than `f`, which is already bound to a Path by the
+            # `vectors_dir.glob(...)` loop above and so fixes that name's type.
+            with open(info_path) as fh:
+                info = json.load(fh)
             best_layer = info.get("best_layer")
             threshold = info.get("threshold", 0.0)
             metadata = {k: v for k, v in info.items() if k not in ("best_layer", "threshold")}

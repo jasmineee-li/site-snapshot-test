@@ -373,12 +373,12 @@ class HFToolCallingRunner:
         else:
             gen_kwargs["do_sample"] = False
 
-        from contextlib import nullcontext
+        from contextlib import AbstractContextManager, nullcontext
 
         if self.steering_alpha != 0.0 and self.probe is not None:
             from probes.steering import steering_hook
 
-            ctx = steering_hook(
+            ctx: AbstractContextManager[Any] = steering_hook(
                 self.shim,
                 self.probe,
                 layer=self.steering_layer,

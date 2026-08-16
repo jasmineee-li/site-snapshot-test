@@ -6,6 +6,7 @@ instead of inspect_ai.model.
 
 import logging
 import re
+from typing import Any
 
 from eval_awareness_experiments.judges.base import BaseJudge
 from eval_awareness_experiments.judges.prompts import (
@@ -80,7 +81,9 @@ def _parse_xml_category_response(response: str, *, allow_refused: bool = True) -
     if category is None:
         raise ValueError(f"Invalid category '{category_str}'")
 
-    result = {"category": category}
+    # Annotated because the seed value is a ReasoningCategory, which would
+    # otherwise fix the value type and reject the "reasoning" string below.
+    result: dict[str, Any] = {"category": category}
 
     expl_match = re.search(r"<explanation>(.*?)</explanation>", response, re.DOTALL)
     result["reasoning"] = expl_match.group(1).strip() if expl_match else ""
@@ -90,7 +93,9 @@ def _parse_xml_category_response(response: str, *, allow_refused: bool = True) -
 
 def transcript_to_messages(transcript: Transcript) -> list:
     """Convert a transcript to chat message objects for model API."""
-    messages = []
+    # Holds a mix of ChatMessageSystem/User/Assistant; without the annotation the
+    # first append fixes the element type to whichever class happens to go first.
+    messages: list[Any] = []
 
     if transcript.system_instructions:
         messages.append(ChatMessageSystem(content=transcript.system_instructions))

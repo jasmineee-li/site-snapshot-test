@@ -8,6 +8,7 @@ Usage: run from project root:
 import json
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 from scipy.stats import spearmanr
 
@@ -29,7 +30,7 @@ def collect(benchmark: str):
             jpath = split_dir / "trajectory_awareness_results.jsonl"
             if not jpath.exists():
                 continue
-            per_sample = defaultdict(dict)
+            per_sample: dict[str, dict[str, Any]] = defaultdict(dict)
             with open(jpath) as f:
                 for line in f:
                     d = json.loads(line)

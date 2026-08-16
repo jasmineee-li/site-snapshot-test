@@ -41,12 +41,14 @@ class ChatCompletionRequest(BaseModel):
 
 class ServerState:
     def __init__(self) -> None:
-        self.model = None
-        self.processor = None
+        # Populated by the startup path below; annotated so the `None` seed does
+        # not fix these attributes' types as `None`.
+        self.model: Any = None
+        self.processor: Any = None
         self.served_model_name = ""
         self.max_new_tokens_cap = 2048
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.steering_probe = None
+        self.steering_probe: ContrastiveProbe | None = None
         self.steering_layers: list[int] = []
         self.steering_alpha_per_layer = 0.0
 
