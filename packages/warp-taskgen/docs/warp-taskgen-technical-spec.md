@@ -22,9 +22,13 @@ Issue #149 adds one explicitly named experimental POC,
 `classifieds_listing_reply_poc`, for the VisualWebArena Classifieds
 `listing_reply.body` surface. It is not part of the default Site, editor,
 feasibility, task-card, or Phase 4 catalogs. Operators must request its immutable
-runtime composition explicitly, and configured-host admission still requires the
-one-task writer/readback/reset canary. This exception does not reopen Classifieds
-as a mainline carrier or broaden the current GitLab/Reddit cohort.
+Runtime Composition explicitly. Admission on the Benchmark Host still requires
+the one-task canary with a Regular Participant Writer, Fresh Anonymous Reader,
+and Golden-State Reset. The operator procedure is
+[`agent_docs/classifieds-canary.md`](../agent_docs/classifieds-canary.md); this
+spec remains the contract and does not duplicate that procedure. This exception
+does not reopen Classifieds as a mainline carrier or broaden the current
+GitLab/Reddit cohort.
 
 The threat model is a regular authenticated non-admin user. Adversarial content
 enters through editor methods that issue authenticated HTTP a normal user can

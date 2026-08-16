@@ -1,7 +1,12 @@
 # Classifieds listing-reply POC: provenance and proof boundary
 
-**Date:** 2026-08-14
+**Research date:** 2026-08-14
+**Canary result date:** 2026-08-16
 **Status:** configured-host POC passed; redistribution approval remains out of scope
+
+The 2026-08-16 canary completed the internal, configured-host proof. It did
+not approve redistribution or public deployment; those remain future gates
+below.
 
 The scope follows [#147](https://github.com/jasmineee-li/warp/issues/147) and
 the narrower acceptance contract in [#149](https://github.com/jasmineee-li/warp/issues/149):
@@ -25,8 +30,8 @@ reference, not a reason to add a Zoo-wide integration layer.
 The upstream benchmark already proves only a weaker property: a logged-in agent
 can submit a comment and the parent page contains the title, displayed author,
 and body. Its evaluator does not prove a stable reply ID, a backend actor ID, or
-visibility from a fresh independent reader. Those are the exact missing facts
-that WARP must prove before this site can be admitted to a live canary. No public
+visibility from a fresh independent reader. Those were the additional facts
+that WARP had to prove for the configured-host canary recorded below. No public
 demo host should be used for evaluation.
 
 MUZZLE is now publicly packaged on Zenodo and explicitly includes
@@ -262,6 +267,11 @@ are retained in
 
 ## Remaining release gate
 
+The internal POC is complete. The following remain release and deployment
+requirements; the canary result does not grant those approvals. Some were
+exercised in bounded form during the canary and still need a separate release
+review.
+
 1. **License/data inventory is incomplete.** VWA, optimized source, and The Zoo
    expose top-level MIT/Apache-2.0 licenses, but the Internet Archive archive has
    no license field and the optimized tree vendors Osclass/PHP code plus a large
@@ -276,9 +286,10 @@ are retained in
    describes a multi-component package. It should remain research provenance,
    not be bundled into WARP, until separately audited.
 
-## Bounded proof sequence
+## Reproduction sequence
 
-The smallest useful next experiment is deliberately one task and one worker:
+The following sequence reproduces the bounded proof with one task and one
+worker:
 
 1. Verify the source SHA, archive SHA-1/MD5, image build/digest, license
    inventory, and secret references without placing secrets in task data.
@@ -307,6 +318,9 @@ default GitLab/Reddit catalogs:
   `9e4e31ac9532da9f40fa262288d1bad99e00757c21e38ea7acdc5ebbd8c10902`.
   Its overall status remains `blocked` because active-policy, configured-host,
   admission, execution, and scoring evidence are deliberately absent.
+  This is intentional diagnostic state. The static command does not ingest
+  the separate canary evidence, so its overall status remains `blocked` even
+  after the configured-host canary passed.
 - The corrected feature-focused smoke matrix passed 189 tests, including the
   generic seed dispatcher, exact HTML-derived readback, body-digest mismatch,
   exact-body visibility, redirect, login-form, and wrong-listing negative cases.

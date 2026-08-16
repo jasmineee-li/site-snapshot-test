@@ -12,6 +12,39 @@ set -Eeuo pipefail
 # and overriding that bounded route after the file has been consumed.
 export PYTHON_DOTENV_DISABLED=1
 
+usage() {
+    cat <<'USAGE'
+run_classifieds_canary_remote.sh
+
+Run the bounded Classifieds canary inside the prepared sandbox Remote Job.
+
+Required options:
+  --run-dir --site-url --listing-id --overlay-path --project-name --network
+  --web-port --instances --writer-storage-state --app-env-file
+  --web-image-ref --db-image-ref --source-commit
+
+Output:
+  Writes preparation, probe, preflight, Phase 4, and final evidence under
+  --run-dir, including <run-dir>/completion.json on success.
+
+Safety:
+  Values are sanitized paths and immutable refs supplied by the local launcher.
+  The operator host YAML and host credentials are not accepted in remote argv.
+  The one-shot provider file is consumed and deleted before mutation. Compose
+  containers and volumes are removed on exit; direct invocation still requires
+  the operator to clear the host tag and park the host afterward.
+USAGE
+}
+
+# Help is side-effect free. In particular, it must not consume the one-shot
+# provider file or require the host's uv installation.
+for argument in "$@"; do
+    if [[ "$argument" == "-h" || "$argument" == "--help" ]]; then
+        usage
+        exit 0
+    fi
+done
+
 PROVIDER_ENV_FILE="/home/ubuntu/warp-taskgen-private/classifieds-provider.env"
 cleanup_provider_env() {
     rm -f -- "$PROVIDER_ENV_FILE"
@@ -37,15 +70,6 @@ WEB_IMAGE_REF=""
 DB_IMAGE_REF=""
 SOURCE_COMMIT=""
 
-usage() {
-    cat >&2 <<'USAGE'
-run_classifieds_canary_remote.sh
-
-Required values are sanitized paths/refs supplied by classifieds_canary.py.
-The operator host YAML is intentionally not accepted on the remote host.
-USAGE
-}
-
 while (($#)); do
     case "$1" in
         --run-dir) RUN_DIR="$2"; shift 2 ;;
@@ -62,7 +86,7 @@ while (($#)); do
         --db-image-ref) DB_IMAGE_REF="$2"; shift 2 ;;
         --source-commit) SOURCE_COMMIT="$2"; shift 2 ;;
         -h|--help) usage; exit 0 ;;
-        *) usage; echo "unknown argument: $1" >&2; exit 2 ;;
+        *) usage >&2; echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
 

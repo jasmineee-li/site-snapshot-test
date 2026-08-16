@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Verify one completed Classifieds canary and bind its final evidence."""
+"""Verify one completed Classifieds canary and write ``completion.json``.
+
+The command reads the Run Definition, preflight, Phase 4 result, iterator
+Checkpoint, and reset evidence. It writes the final evidence only when all
+identities and completion conditions agree. It does not resume a Run or change
+the Site.
+"""
 
 from __future__ import annotations
 
@@ -316,9 +322,23 @@ def validate_completion(run_dir: str | Path, *, expected_task_id: str) -> dict[s
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run-dir", required=True)
-    parser.add_argument("--expected-task-id", required=True)
+    parser = argparse.ArgumentParser(
+        description="Verify one completed Classifieds canary and write completion.json.",
+        epilog=(
+            "Inputs: a completed Classifieds Run root and its exact expected task ID. "
+            "Output: <run-dir>/completion.json plus a JSON status line. "
+            "Safety: this command is read-only until the final evidence write; it refuses "
+            "missing, ambiguous, or identity-drifted evidence and never resumes a Run."
+        ),
+    )
+    parser.add_argument(
+        "--run-dir", required=True, help="Completed Classifieds canary Run root to validate."
+    )
+    parser.add_argument(
+        "--expected-task-id",
+        required=True,
+        help="Exact one-task canary ID expected in every result and Checkpoint.",
+    )
     args = parser.parse_args()
     try:
         payload = validate_completion(args.run_dir, expected_task_id=args.expected_task_id)

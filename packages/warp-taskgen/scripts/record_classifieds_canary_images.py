@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Record the resolved IDs and RepoDigests for the two canary images."""
+"""Record immutable runtime identity for the two Classifieds canary images.
+
+The command runs read-only Docker inspection and writes image IDs, platform
+metadata, tags, and RepoDigests to a JSON evidence file. It does not pull,
+start, stop, or modify containers.
+"""
 
 from __future__ import annotations
 
@@ -31,10 +36,27 @@ def _inspect(image_ref: str) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--web-image-ref", required=True)
-    parser.add_argument("--db-image-ref", required=True)
-    parser.add_argument("--output", required=True, type=Path)
+    parser = argparse.ArgumentParser(
+        description="Record immutable runtime identity for the Classifieds canary images.",
+        epilog=(
+            "Inputs: local Docker image references for the web and database images. "
+            "Output: image IDs, platform metadata, tags, and RepoDigests at --output. "
+            "Safety: Docker inspection is read-only; this command does not pull or run images."
+        ),
+    )
+    parser.add_argument(
+        "--web-image-ref",
+        required=True,
+        help="Resolved Classifieds web image reference to inspect.",
+    )
+    parser.add_argument(
+        "--db-image-ref",
+        required=True,
+        help="Resolved Classifieds database image reference to inspect.",
+    )
+    parser.add_argument(
+        "--output", required=True, type=Path, help="JSON image evidence output path."
+    )
     args = parser.parse_args()
     payload = {
         "web": _inspect(args.web_image_ref),

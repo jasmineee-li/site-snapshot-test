@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Run the tiny Classifieds writer/reader/reset-observation probe.
+"""Check the Classifieds listing before, during, and after the canary.
 
-Mutation and identity extraction are delegated to the existing Classifieds
-editor/readback modules.  This script supplies only independent requests
-sessions and a redacted JSON evidence file; it never calls an admin or reset
-endpoint and never queries the database.
+The three modes use independent HTTP sessions and write redacted JSON
+evidence. The probe writes through the regular participant editor in
+``write-read`` mode, reads as an anonymous user, and observes the golden-state
+reset in ``absence`` mode. It never calls an admin or reset endpoint and never
+queries the database.
 """
 
 from __future__ import annotations
@@ -138,15 +139,68 @@ def _absence(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description="Check the Classifieds listing before, during, or after the canary.",
+        epilog=(
+            "Inputs: a loopback site URL, exact listing ID, canary body, and evidence path. "
+            "Output: redacted JSON evidence at --evidence. "
+            "Safety: write-read uses the supplied regular-participant storage state and a "
+            "separate anonymous reader session; the probe does not use admin, reset, or database access."
+        ),
+    )
     sub = parser.add_subparsers(dest="mode", required=True)
+    mode_help = {
+        "precondition": "Confirm the exact listing exists and the canary body is absent.",
+        "write-read": "Create one reply through the regular participant form and read it anonymously.",
+        "absence": "Confirm the exact reply is absent after the golden-state reset.",
+    }
+    mode_epilog = {
+        "precondition": (
+            "Output: evidence JSON records the exact listing and an absent canary body. "
+            "Safety: this mode uses an anonymous read and performs no mutation."
+        ),
+        "write-read": (
+            "Output: evidence JSON records the exact reply ID, actor, and body digest. "
+            "Safety: the write uses the regular participant session; readback uses a fresh anonymous session."
+        ),
+        "absence": (
+            "Output: evidence JSON records the exact reply as absent after reset. "
+            "Safety: this mode uses an anonymous read and performs no mutation."
+        ),
+    }
     for mode in ("precondition", "write-read", "absence"):
-        command = sub.add_parser(mode)
-        command.add_argument("--site-url", required=True)
-        command.add_argument("--listing-id", required=True)
-        command.add_argument("--writer-storage-state", required=True)
-        command.add_argument("--evidence", required=True, type=Path)
-        command.add_argument("--body", required=True)
+        command = sub.add_parser(
+            mode,
+            help=mode_help[mode],
+            description=mode_help[mode],
+            epilog=mode_epilog[mode],
+        )
+        command.add_argument(
+            "--site-url",
+            required=True,
+            help="Configured loopback Classifieds origin used for the request.",
+        )
+        command.add_argument(
+            "--listing-id",
+            required=True,
+            help="Exact seeded listing ID to inspect and, for write-read, update.",
+        )
+        command.add_argument(
+            "--writer-storage-state",
+            required=True,
+            help="External participant storage-state file; used by write-read and required by this interface for every mode.",
+        )
+        command.add_argument(
+            "--evidence",
+            required=True,
+            type=Path,
+            help="JSON evidence path; write-read and precondition create it, absence reads and extends it.",
+        )
+        command.add_argument(
+            "--body",
+            required=True,
+            help="Canary reply body used for the precondition check and exact readback.",
+        )
     args = parser.parse_args(argv)
     if args.mode == "precondition":
         html = _get_public(requests.Session(), _listing_url(args.site_url, args.listing_id))
