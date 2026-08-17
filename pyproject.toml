@@ -137,9 +137,16 @@ dev = [
     "pre-commit>=3.6",
     # Upper bound is load-bearing: [tool.mypy] enables `warn_unused_ignores`, so
     # the targeted `# type: ignore[...]` suppressions in this tree must match the
-    # checker that emitted them. mypy 2.x reports a different error set on this
-    # commit and would break the gate in both directions.
-    "mypy>=1.19.1,<2",
+    # checker that emitted them. A major release that stops emitting one of the
+    # suppressed errors turns a stale ignore into a fresh failure.
+    #
+    # `<3` differs in kind from the `<2` it replaces. mypy 2.0 shipped in May
+    # 2026 and 2.3 is current, so `<2` was excluding real releases and holding
+    # the gate a major version behind; 3.0 does not exist, so `<3` excludes
+    # none. The floor moves by mechanism rather than by memory: Dependabot
+    # opens the bump as a PR against a green gate, which is precisely what
+    # `<2` lacked.
+    "mypy>=2.3,<3",
     # Typeshed stubs for PyYAML, which ships no inline `py.typed`. Without them
     # `import yaml` is an `import-untyped` error in five first-party modules.
     "types-PyYAML>=6.0",
@@ -344,8 +351,9 @@ warn_unused_ignores = true
 # reason. `warn_unused_ignores` above makes those suppressions version-
 # sensitive: a mypy release that stops emitting one of the suppressed errors
 # turns the now-stale ignore into a fresh failure. That is why the dev
-# dependency pins `mypy>=1.19.1,<2` instead of the previous unbounded `>=1.8` —
-# an unbounded floor let the gate's meaning drift with each mypy release.
+# dependency pins `mypy>=2.3,<3` rather than an unbounded floor, which would let
+# the gate's meaning drift with each release. See the comment beside that pin
+# for why the bound moves by Dependabot rather than by memory.
 
 # --------------------------------------------------------------------------
 # Per-module import overrides.

@@ -10,10 +10,12 @@ import asyncio
 import json
 import logging
 import random
+from collections.abc import Callable
 from pathlib import Path
 
 import yaml
 
+from eval_awareness_experiments.experiments.base import BaseExperiment
 from eval_awareness_experiments.experiments.comparative import ComparativeExperiment
 from eval_awareness_experiments.experiments.open_ended import OpenEndedExperiment
 from eval_awareness_experiments.experiments.p_eval import PEvalExperiment
@@ -29,7 +31,11 @@ from eval_awareness_experiments.types import WebsiteSample
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-EXPERIMENT_CLASSES = {
+# Typed as a callable returning `BaseExperiment` rather than `type[BaseExperiment]`.
+# Every value here is a concrete subclass, but the inferred `type[BaseExperiment]`
+# is abstract, so calling it below reads as instantiating an abstract class. The
+# constructors also take differing keyword arguments, which `...` admits.
+EXPERIMENT_CLASSES: dict[str, Callable[..., BaseExperiment]] = {
     "p_eval": PEvalExperiment,
     "comparative": ComparativeExperiment,
     "transcript_awareness": TranscriptAwarenessExperiment,
@@ -175,7 +181,11 @@ async def run_experiment(config: dict) -> None:
             exp_kwargs["judge_names"] = config["judges"]
         experiment = exp_cls(model=model, output_dir=exp_output, **exp_kwargs)
 
-        if experiment_name == "comparative":
+        # Narrowed by type rather than by name: `run_pairs` is defined only on
+        # `ComparativeExperiment`. Every experiment class inherits directly from
+        # `BaseExperiment` and none subclasses `ComparativeExperiment`, so this
+        # selects exactly the entry `experiment_name == "comparative"` selected.
+        if isinstance(experiment, ComparativeExperiment):
             max_per_side = config.get("max_per_side")
             seed = config.get("seed", 42)
             cross_type = config.get("cross_type", False)
