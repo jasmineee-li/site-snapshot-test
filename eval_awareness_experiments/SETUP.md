@@ -37,7 +37,7 @@ Keep provider keys in the root `.env` or the approved process environment.
 Never paste a key, token, authenticated browser state, or private host value
 into a command, config committed to git, result, or handoff.
 
-## Lint
+## Lint, format, and types
 
 The root `[tool.ruff]` config lints this tree — `eval_awareness/`,
 `eval_awareness_experiments/`, `models/`, `probes/`, and the root-level runner
@@ -52,6 +52,20 @@ Ruff is lint-only here; `[tool.black]` still owns formatting. `packages/` is
 excluded because `warp-taskgen` carries its own `[tool.ruff]` config and its
 own acceptance gate. Do not silence a finding with a blanket `ignore` when a
 targeted `per-file-ignores` entry or a `# noqa` with a reason will do.
+
+`[tool.mypy]` type-checks the same tree plus `scripts/` and the two root runner
+modules; `[tool.mypy] files` is the authoritative list. Run the remaining two
+gates from the repository root as well:
+
+```bash
+uv run black --check .
+uv run mypy
+```
+
+mypy takes no path argument here — it reads its own roots, so a bare
+`uv run mypy` is the whole gate. Write a suppression as `# type: ignore[<code>]`
+with a reason rather than a bare `# type: ignore`, so the gate reports it once
+it stops being needed.
 
 ## Route by setup type
 
