@@ -53,7 +53,10 @@ if str(REPO_ROOT) not in sys.path:
 # Import WASP's classifier prompt.
 _WASP_PROMPTS = REPO_ROOT / "external_benchmarks" / "wasp" / "webarena_prompt_injections"
 sys.path.insert(0, str(_WASP_PROMPTS))
-from evaluator_step_by_step_utils import (  # type: ignore
+# Resolvable only on a host with the WASP checkout at the path above; the
+# `sys.path` insert is what makes the import work at runtime. Coded rather than
+# bare so `warn_unused_ignores` still reports the day it resolves.
+from evaluator_step_by_step_utils import (  # type: ignore[import-not-found]
     SYSTEM_PROMPT_ACTION_ONLY,
     USER_MESSAGE_FORMAT_ACTION_ONLY,
 )

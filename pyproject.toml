@@ -341,11 +341,29 @@ files = [
 python_version = "3.10"
 
 # First tier of mypy's documented adoption ratchet for an existing codebase.
-# `check_untyped_defs` and the `disallow_*` family are deliberately still off —
-# see the note below the overrides.
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+
+# Second tier. mypy's "Introduce stricter options" ladder lists `strict_equality`
+# next to the `warn_*` tier and `check_untyped_defs` on the rung after it, both
+# before the `disallow_*` family; the `disallow_*` family is still off.
+#
+# `check_untyped_defs` is the one the docs mark "strongly recommend enabling
+# this one as soon as you can", and it is the single largest coverage change
+# available here: without it mypy skips the *body* of every function that has
+# no annotations, which in this tree is most of them. It needs no new
+# annotations — unannotated parameters stay `Any`, only the statements inside
+# get checked.
+#
+# `strict_equality` rides along because adopting it costs nothing extra now, not
+# because the docs pair the two. Measured on this commit: it reports zero on its
+# own, and four more once `check_untyped_defs` exposes the untyped bodies (all
+# `[comparison-overlap]`, all in `judges/test_purpose_continue_5q.py`, all from
+# one stubbed model object). Taking the adjacent rung in the same change spends
+# one review rather than two.
+check_untyped_defs = true
+strict_equality = true
 
 # Every suppression in this tree is written as `# type: ignore[<code>]` with a
 # reason. `warn_unused_ignores` above makes those suppressions version-
@@ -409,10 +427,13 @@ module = ["agentlab.*"]
 follow_imports = "skip"
 ignore_missing_imports = true
 
-# Next ratchet step, measured on this commit and deliberately left for a
-# separate change: enabling `check_untyped_defs` (which mypy's docs recommend
-# adopting as soon as practical) adds 14 errors across four files —
+# There is deliberately no per-module opt-out for `check_untyped_defs`. Measured
+# under mypy 2.3.1: 14 errors across four files —
 # `judges/test_purpose_continue_5q.py` (3), `llm.py` (2),
-# `run_doomarena_pipeline.py` (7) and `tool_calling_runner.py` (2). Several of
-# those need a semantic decision about benchmark runner behaviour rather than an
-# annotation, so they do not belong in the change that introduces the gate.
+# `run_doomarena_pipeline.py` (7) and `tool_calling_runner.py` (2) — plus 4 more
+# from `strict_equality`, all in the first of those. All 18 were resolved in the
+# source rather than silenced here.
+#
+# Where the ratchet stops, and the rule for the `disallow_*` family that comes
+# next, are recorded in
+# `docs/adr/0005-stop-the-type-checking-ratchet-at-a-stated-line.md`.

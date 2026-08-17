@@ -24,6 +24,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -234,8 +235,14 @@ def main():
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Pipeline manifest: tracks what we ran
-    pipeline_manifest = {
+    # Pipeline manifest: tracks what we ran.
+    #
+    # Annotated because the inferred value type is the join of `str`,
+    # `dict[str, Any]` and `dict[..., ...]` — `Collection[str]` — under which
+    # every `pipeline_manifest["sites"][site] = ...` below is an error. The
+    # manifest is heterogeneous by design and is serialized straight to JSON,
+    # so `Any` is the honest value type here.
+    pipeline_manifest: dict[str, Any] = {
         "started": datetime.utcnow().isoformat(),
         "config": vars(args),
         "sites": {},
@@ -279,15 +286,20 @@ def main():
         else:
             # Find most recent study dirs by scanning attack CSVs
             results_dir = REPO_ROOT / "results" / "browsergym"
-            for study_dir in sorted(
+            # Named `candidate_dir`, not `study_dir`: the `else` branch below
+            # binds `study_dir` to the optional result of `run_doomarena_site`.
+            # The two branches are mutually exclusive, so the shared name was
+            # never a runtime bug, but one name meaning both a definite `Path`
+            # here and a `Path | None` there is what the checker objected to.
+            for candidate_dir in sorted(
                 results_dir.glob("study_*"), key=lambda p: p.stat().st_mtime, reverse=True
             ):
                 for site in args.sites:
                     if site not in study_dirs_by_site:
-                        csv_path = study_dir / "attack_results_v2.csv"
+                        csv_path = candidate_dir / "attack_results_v2.csv"
                         if csv_path.exists() and site in csv_path.read_text():
-                            study_dirs_by_site[site] = study_dir
-                            logger.info(f"  Auto-detected site '{site}' from {study_dir.name}")
+                            study_dirs_by_site[site] = candidate_dir
+                            logger.info(f"  Auto-detected site '{site}' from {candidate_dir.name}")
     else:
         # Step 1: Run DoomArena for each site
         for site in args.sites:

@@ -18,9 +18,10 @@ import os
 from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionMessageParam
 
 from eval_awareness_experiments.injection_modifier import InjectionCondition
 from eval_awareness_experiments.retry import call_with_retry
@@ -245,12 +246,26 @@ class ToolCallingRunner:
 
         for turn_idx in range(self.max_turns):
 
+            # Two deliberate departures from the SDK's parameter types below:
+            #
+            #  * `messages` stays a plain `list[dict]` because it is the running
+            #    history this loop appends to and then hands to
+            #    `attack_evaluator`, whose `AttackEvaluator` alias takes
+            #    `list[dict]`. The dicts appended below are already the wire
+            #    shape the SDK serializes, so the cast renames the type without
+            #    touching the value.
+            #  * `tools=None` is what this runner has always sent for a task
+            #    with no tools, so the request body carries `"tools": null`.
+            #    The SDK signature admits only an iterable or its `Omit`
+            #    sentinel; omitting the argument instead would change the
+            #    request body for every no-tool task, so the behavior is kept
+            #    and the suppression records it.
             async def _do_turn():
                 async with self._semaphore:
                     return await self._client.chat.completions.create(
                         model=self.model_name,
-                        messages=messages,
-                        tools=safe_tools if safe_tools else None,
+                        messages=cast("list[ChatCompletionMessageParam]", messages),
+                        tools=safe_tools if safe_tools else None,  # type: ignore[arg-type]
                         max_tokens=self.max_tokens,
                         temperature=self.temperature,
                         **self._extra_kwargs(),
