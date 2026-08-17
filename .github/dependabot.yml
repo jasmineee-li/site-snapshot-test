@@ -1,0 +1,17 @@
+# The mypy pin in `[dependency-groups] dev` carries an upper bound because
+# `[tool.mypy] warn_unused_ignores` makes the gate version-sensitive. A bound
+# that depends on someone remembering to raise it goes stale — the previous
+# `<2` held the gate a major version behind. This file is the mechanism that
+# replaces that memory: the floor bump arrives as a PR against a green gate.
+version: 2
+
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
