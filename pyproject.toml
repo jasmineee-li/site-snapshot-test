@@ -2,16 +2,18 @@
 name = "browser-sim"
 version = "0.1.0"
 description = "Monorepo for evaluating AI agent behaviors in controlled web environments"
-# This range is wider than what the lockfile can actually build: only 3.12
-# resolves. 3.13 fails because `playwright` 1.44.0 (via `libwebarena`) pins
-# `greenlet` 3.0.3, which publishes no cp313 wheel and whose source build
-# fails; 3.14 fails because `ray` publishes no cp314 wheel. `.python-version`
-# pins the working interpreter. Tightening this line to `>=3.12,<3.13` is the
-# honest fix, but it invalidates the lock: re-resolving rewrites 5400 lines of
-# `uv.lock` (5297 of them deletions, as per-version forks collapse) and moves
-# `torch` 2.9.1 -> 2.11.0 and `vllm` 0.16.0 -> 0.23.0. That is a dependency
-# upgrade, not a metadata fix, so it belongs in a change whose diff is the lock.
-requires-python = ">3.10"
+# Both bounds are load-bearing. 3.12 is the only version this tree is known to
+# build on, and the range declares exactly that rather than a wider claim
+# nothing verifies. The ceiling excludes 3.13, where `playwright` 1.44.0 (via
+# `libwebarena`) pins `greenlet` 3.0.3, which publishes no cp313 wheel and whose
+# source build fails; 3.14 fails separately because `ray` publishes no cp314
+# wheel. Widening the floor below 3.12 is untested, not known-broken.
+#
+# This is the single source of the Python floor. `.python-version` selects the
+# same interpreter, `[tool.ruff]` infers `target-version` from this line rather
+# than repeating it, and `[tool.mypy] python_version` tracks it by hand because
+# mypy infers nothing.
+requires-python = ">=3.12,<3.13"
 readme = "README.md"
 
 dependencies = [
@@ -220,16 +222,10 @@ force-exclude = '''
 # stricter settings (py312, its own excludes) without any `extend =` here.
 [tool.ruff]
 line-length = 100        # match [tool.black]
-# Kept at py310, below the 3.12 that `.python-version` actually runs. Raising
-# it adds findings rather than removing them: measured at py312 on this commit,
-# Ruff reports 14 more — UP017 x10 (`datetime.UTC`), UP042 x3
-# (`enum.StrEnum`), UP047 x1 (PEP 695 type parameters).
-#
-# Ruff's docs prefer inferring this from `project.requires-python` over setting
-# it here. Deleting this line today is a measured no-op, because `>3.10` infers
-# py310; it becomes a real change only when that range is tightened, and then
-# inference and an explicit `py312` produce the same 14 findings.
-target-version = "py310"
+# `target-version` is deliberately absent. Ruff's docs prefer inferring it from
+# `project.requires-python` -- "it's based on Python packaging standards, and
+# will be respected by other tools" -- and an inferred value cannot drift from
+# the floor the way a hand-maintained copy did. `>=3.12,<3.13` infers py312.
 
 # `extend-exclude` adds to Ruff's built-in default excludes; a bare `exclude`
 # would replace them and start linting `.venv/`, `dist/`, `node_modules/`, ...
@@ -331,14 +327,11 @@ files = [
     "rerun_experiments.py",
 ]
 
-# Matches [tool.ruff] `target-version = "py310"`. Deliberately split from the
-# environment: `.python-version` pins the interpreter that runs the code to
-# 3.12, while this says which language version the gate checks against.
-# Unlike Ruff, mypy infers nothing from `requires-python`, so this value is the
-# only thing setting the target. Raising it to 3.12 was measured on this commit
-# and reports no new errors, which makes it a safe follow-up rather than a
-# blocker.
-python_version = "3.10"
+# Tracks `requires-python` by hand. Unlike Ruff, mypy infers nothing from it,
+# so this is the one copy of the floor that can drift -- if `requires-python`
+# moves, move this with it. Measured on this commit with `check_untyped_defs`
+# and `strict_equality` on: raising 3.10 -> 3.12 reports no new errors.
+python_version = "3.12"
 
 # First tier of mypy's documented adoption ratchet for an existing codebase.
 warn_unused_configs = true

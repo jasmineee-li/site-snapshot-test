@@ -34,7 +34,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -365,7 +365,7 @@ def _scan_cell(
                 pass
 
     if last_mtime:
-        cell["last_modified"] = datetime.fromtimestamp(last_mtime, tz=timezone.utc).isoformat()
+        cell["last_modified"] = datetime.fromtimestamp(last_mtime, tz=UTC).isoformat()
 
     # Strict completeness: every expected split must be present and, when
     # `--tasks-per-split` is known, must have at least that many unique judged
@@ -450,7 +450,7 @@ def scan(
                     )
                     cells.append(cell)
     return {
-        "scanned_at": datetime.now(timezone.utc).isoformat(),
+        "scanned_at": datetime.now(UTC).isoformat(),
         "results_dir": str(results_dir),
         "cells": cells,
     }

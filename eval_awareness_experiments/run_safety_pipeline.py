@@ -34,7 +34,7 @@ import subprocess
 import sys
 import time
 from collections import deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -445,7 +445,7 @@ def _write_run_meta(run_dir: Path, args, benchmark: str, split: str) -> None:
         "browser_stage1_timeout": getattr(args, "browser_stage1_timeout", None),
         "browser_stage1_overhead": getattr(args, "browser_stage1_overhead", None),
         "browser_stage1_idle_timeout": getattr(args, "browser_stage1_idle_timeout", None),
-        "written_at": datetime.now(timezone.utc).isoformat(),
+        "written_at": datetime.now(UTC).isoformat(),
     }
     try:
         (run_dir / "run_meta.json").write_text(json.dumps(meta, indent=2))
@@ -813,7 +813,7 @@ def _stage1_browser_parallel_splits(
                     / "results"
                     / "browsergym"
                     / "_split_logs"
-                    / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"))
+                    / (datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ"))
                 )
             log_dir.mkdir(parents=True, exist_ok=True)
             log_prefix = "subprocess" if attempt == 1 else f"subprocess.attempt{attempt}"
@@ -1692,7 +1692,7 @@ def main() -> None:
     logger.info(f"Pipeline: benchmark={args.benchmark} splits={splits} stage={args.stage}")
 
     manifest: dict = {
-        "started": datetime.now(timezone.utc).isoformat(),
+        "started": datetime.now(UTC).isoformat(),
         "config": {**vars(args), "output_dir": str(args.output_dir)},
         "splits": {},
     }
@@ -1934,7 +1934,7 @@ def main() -> None:
 
 
 def _write_manifest(manifest: dict, output_dir: Path) -> None:
-    manifest["finished"] = datetime.now(timezone.utc).isoformat()
+    manifest["finished"] = datetime.now(UTC).isoformat()
     path = output_dir / f"pipeline_manifest_{manifest['config'].get('benchmark')}.json"
     path.write_text(json.dumps(manifest, indent=2, default=str))
     logger.info(f"Pipeline manifest → {path}")

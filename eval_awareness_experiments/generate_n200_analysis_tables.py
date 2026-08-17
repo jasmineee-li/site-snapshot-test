@@ -11,7 +11,7 @@ import json
 from collections import Counter, defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -658,7 +658,7 @@ def _vea_task_distribution(rows: list[JudgeRow]) -> str:
 
 def build_report(results_dir: Path) -> str:
     rows = load_rows(results_dir)
-    generated = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    generated = datetime.now(UTC).isoformat(timespec="seconds")
 
     vea_avg, vea_model = _bare_vea_tables(rows)
     xml_avg, xml_model = _xml_asr_tables(rows)
