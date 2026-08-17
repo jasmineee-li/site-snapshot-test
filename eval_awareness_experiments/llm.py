@@ -13,7 +13,11 @@ from pathlib import Path
 from typing import cast
 
 from openai import AsyncOpenAI
-from openai.types.chat import ChatCompletionContentPartParam, ChatCompletionMessageParam
+from openai.types.chat import (
+    ChatCompletion,
+    ChatCompletionContentPartParam,
+    ChatCompletionMessageParam,
+)
 
 from eval_awareness_experiments.retry import call_with_retry
 
@@ -128,7 +132,7 @@ class LLM:
         # Semaphore lives inside _do so the slot is released during retry
         # backoff sleeps — otherwise N concurrent retries would starve every
         # other in-flight call.
-        async def _do():
+        async def _do() -> ChatCompletion:
             async with self._semaphore:
                 return await self._client.chat.completions.create(
                     model=self.api_model,
@@ -181,7 +185,7 @@ class LLM:
 
         messages: list[ChatCompletionMessageParam] = [{"role": "user", "content": content}]
 
-        async def _do():
+        async def _do() -> ChatCompletion:
             async with self._semaphore:
                 return await self._client.chat.completions.create(
                     model=self.api_model,

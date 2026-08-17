@@ -427,6 +427,58 @@ ignore_missing_imports = true
 # from `strict_equality`, all in the first of those. All 18 were resolved in the
 # source rather than silenced here.
 #
-# Where the ratchet stops, and the rule for the `disallow_*` family that comes
-# next, are recorded in
+# Where the ratchet stops, and the rule governing the per-module `disallow_*`
+# overrides below, are recorded in
 # `docs/adr/0005-stop-the-type-checking-ratchet-at-a-stated-line.md`.
+
+# --------------------------------------------------------------------------
+# Per-module `disallow_untyped_defs` — the last rung of the ratchet.
+#
+# ADR 0005 holds the policy and the reason the climb stops here. Its rule: a
+# module imported by ten or more other first-party modules earns
+# `disallow_untyped_defs`, because annotating a widely imported module improves
+# checking in every module that imports it, which a rarely imported one cannot.
+#
+# Membership is measured rather than argued. Counting first-party importers on
+# 1adf7f56:
+#
+#     grep -rhn "^from eval_awareness_experiments\.\|^from eval_awareness\." \
+#       --include="*.py" eval_awareness eval_awareness_experiments probes \
+#       models scripts \
+#       | sed -E 's/.*from (eval_awareness[a-z_]*\.[a-zA-Z_.]+) import.*/\1/' \
+#       | sort | uniq -c | sort -rn
+#
+#   types 20 · llm 16 · system_prompt_frame 10 · injection_modifier 10 ·
+#   judges.base 8
+#
+# Every module at or above the threshold is listed below; `judges.base` at 8 is
+# the nearest one outside it. ADR 0005 records `llm` at 15, measured on the
+# commit that accepted it; #160 and #172 have since added an importer each. The
+# current count lives here rather than being corrected there, because a number
+# that moves whenever an import lands is a measurement, not an accepted
+# decision — the same reason the ADR keeps the mypy pin out of itself.
+#
+# Annotation cost, measured with
+# `uv run mypy --disallow-untyped-defs <files>`: `types.py`,
+# `system_prompt_frame.py` and `injection_modifier.py` were already clean, so
+# they join at zero cost. `llm.py` needed two return annotations, on the
+# retried request closures in `generate` and `generate_with_images`; both were
+# annotated in the source (`-> ChatCompletion`), which also binds the generic
+# `call_with_retry` so `resp.choices[0].message.content` is checked instead of
+# `Any`. Nothing is silenced here.
+#
+# These overrides are scoped to the modules they name and do not follow
+# imports. The global `--disallow-untyped-defs` flag used for the measurement
+# above also reports `models/common/vllm_client.py:46`
+# (`make_agentlab_chat_model_args`), reached as a followed import from
+# `llm.py`; the overrides below do not, and that module is deliberately not in
+# the durable set.
+# --------------------------------------------------------------------------
+[[tool.mypy.overrides]]
+module = [
+    "eval_awareness_experiments.types",
+    "eval_awareness_experiments.llm",
+    "eval_awareness_experiments.system_prompt_frame",
+    "eval_awareness_experiments.injection_modifier",
+]
+disallow_untyped_defs = true
