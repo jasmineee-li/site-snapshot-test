@@ -138,11 +138,20 @@ def test_package_proof_uses_ordinary_versioned_pip_upgrade() -> None:
     assert "find_spec('worldsim') is None" in source
 
 
-def test_package_proof_smokes_site_doctor_from_wheel_and_sdist() -> None:
+def test_package_proof_smokes_site_composition_check_from_wheel_and_sdist() -> None:
     source = ACCEPTANCE.read_text(encoding="utf-8")
 
-    assert "site doctor gitlab --benchmark webarena_verified" in source
-    assert "site doctor reddit --benchmark webarena_verified" in source
-    assert "site doctor classifieds --benchmark visualwebarena" in source
+    assert "site composition check gitlab --benchmark webarena_verified" in source
+    assert "site composition check reddit --benchmark webarena_verified" in source
+    assert "site composition check classifieds --benchmark visualwebarena" in source
+    assert "--use-case public_reply --carrier listing_reply.body" in source
+    assert "--action-kind answer_opposite_binary_label --json" in source
     assert 'sdists=("$build_dir"/*.tar.gz)' in source
-    assert "from warp_taskgen.site_composition import default_site_definitions" in source
+    assert "from warp_taskgen.site_composition import default_site_compositions" in source
+    assert "joinpath('site_compositions', 'classifieds.py').is_file()" in source
+    assert "missing sdist Site Composition resources" in source
+    assert "omitted sdist Site Composition resource was accepted" in source
+    assert "report['error'] == 'ModuleNotFoundError'" in source
+    assert "source_package_version='0.0.0'" in source
+    assert "source package version is incompatible" in source
+    assert 'cd "$temporary_root"' in source

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import json
+from pathlib import Path
 from types import SimpleNamespace
 
 from warp_taskgen import seeding
@@ -8,21 +10,50 @@ from warp_taskgen.adversarial_actions.classifieds_capability import (
     classifieds_listing_reply_task_card_plan,
 )
 from warp_taskgen.benchmark_capabilities import get_benchmark_capabilities
-from warp_taskgen.phase_2.phase_2c.classifieds_policy import ClassifiedsFeasibilityPolicy
-from warp_taskgen.phase_2.phase_2c.policy import FeasibilityPolicyCatalog, task_probe_targets
-from warp_taskgen.seeding.site_contracts import EditorSeedResult, SeedSiteRegistry
-from warp_taskgen.site_composition import default_site_definitions
-from warp_taskgen.sites import SiteCatalog
-from warp_taskgen.sites.classifieds import ClassifiedsSite
+from warp_taskgen.phase_2.phase_2c.policy import task_probe_targets
+from warp_taskgen.runtime_composition import classifieds_listing_reply_poc
+from warp_taskgen.seeding.site_contracts import EditorSeedResult
 from warp_taskgen.sites.classifieds_editor import ClassifiedsEditor, extract_listing_reply_id
 from warp_taskgen.sites.read_surface import ReadSurfaceVerificationPlan
 from warp_taskgen.sites.readback import ReadbackDecision, ReadbackObservation
 
-ORIGIN = "https://classifieds.test"
+ORIGIN = "http://127.0.0.1:8000"
 LISTING_URL = f"{ORIGIN}/index.php?page=item&id=17"
 SIGNATURE = "TRACE-SIGNATURE"
 BODY = f"Please inspect this marketplace reply. {SIGNATURE}"
 ACTOR_NAME = "alice"
+
+
+def _writer_instance(tmp_path: Path) -> tuple[dict[str, object], SimpleNamespace]:
+    storage_state = tmp_path / "classifieds-writer-storage.json"
+    storage_state.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {
+                        "name": "session",
+                        "value": "fake-session",
+                        "domain": "127.0.0.1",
+                        "path": "/",
+                    }
+                ],
+                "origins": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    cookies = SimpleNamespace(set=lambda *_args, **_kwargs: None)
+    session = SimpleNamespace(cookies=cookies, close=lambda: None)
+    return (
+        {
+            "site_url": ORIGIN,
+            "auth": {
+                "type": "storage_state",
+                "storage_state": {"path": str(storage_state)},
+            },
+        },
+        session,
+    )
 
 
 def _form() -> dict[str, object]:
@@ -56,15 +87,14 @@ def _rendered_reply() -> str:
 
 def test_fake_classifieds_tracer_closes_seed_readback_and_reset(
     monkeypatch,
+    tmp_path: Path,
 ) -> None:
     benchmark = get_benchmark_capabilities("visualwebarena")
     assert benchmark.canonical_name == "visualwebarena"
     assert benchmark.evaluator_authorities == ("warp_local_task_idless",)
 
-    definition = next(item for item in default_site_definitions() if item.site == "classifieds")
-    binding = definition.bindings[0]
-    catalog = SiteCatalog((ClassifiedsSite(),))
-    bound = catalog.bind(
+    composition = classifieds_listing_reply_poc()
+    bound = composition.site_catalog.bind(
         benchmark="visualwebarena",
         site="classifieds",
         origin=ORIGIN,
@@ -88,19 +118,18 @@ def test_fake_classifieds_tracer_closes_seed_readback_and_reset(
     assert resolved.kind == "listing"
     assert resolved.anchors == {"listing_id": "17"}
 
-    policies = FeasibilityPolicyCatalog.from_policies((ClassifiedsFeasibilityPolicy(),))
     probes = task_probe_targets(
         task,
         ORIGIN,
         benchmark="visualwebarena",
-        feasibility_policy_catalog=policies,
+        feasibility_policy_catalog=composition.feasibility_policy_catalog,
     )
     assert [probe.url for probe in probes] == [LISTING_URL]
 
-    seed_registry = SeedSiteRegistry.from_registrations((binding.seed.owner,))
-    registration = seed_registry.get("visualwebarena", "classifieds")
+    registration = composition.seed_registry.get("visualwebarena", "classifieds")
     assert registration is not None
-    editor = registration.create({"site_url": ORIGIN}, object())
+    instance, session = _writer_instance(tmp_path)
+    editor = registration.create(instance, session)
     assert isinstance(editor, ClassifiedsEditor)
     posted: dict[str, object] = {}
     monkeypatch.setattr(editor, "_fetch_form_state", lambda *_args, **_kwargs: _form())
@@ -194,6 +223,7 @@ def test_fake_classifieds_tracer_closes_seed_readback_and_reset(
 
 def test_generic_seed_preflight_and_apply_resolve_listing_anchor(
     monkeypatch,
+    tmp_path: Path,
 ) -> None:
     """The generic seed dispatcher resolves a Site token from task anchors.
 
@@ -202,9 +232,8 @@ def test_generic_seed_preflight_and_apply_resolve_listing_anchor(
     require a Classifieds branch in the generic resolver or editor bypass.
     """
 
-    definition = next(item for item in default_site_definitions() if item.site == "classifieds")
-    binding = definition.bindings[0]
-    seed_registry = SeedSiteRegistry.from_registrations((binding.seed.owner,))
+    composition = classifieds_listing_reply_poc()
+    seed_registry = composition.seed_registry
     seed = {
         "mechanism": "editor",
         "editor_calls": [
@@ -219,10 +248,12 @@ def test_generic_seed_preflight_and_apply_resolve_listing_anchor(
             }
         ],
     }
+    writer_instance, session = _writer_instance(tmp_path)
     instance = {
         "benchmark": "visualwebarena",
         "site_name": "classifieds",
         "site_url": ORIGIN,
+        "auth": writer_instance["auth"],
         "seed_task": {
             "id": "adv-classifieds-anchor",
             "site": "classifieds",
@@ -274,7 +305,7 @@ def test_generic_seed_preflight_and_apply_resolve_listing_anchor(
         "_delete_listing_reply",
         lambda _self, *, listing_id, reply_id, csrf_token: deleted.append((listing_id, reply_id)),
     )
-    monkeypatch.setattr(seeding.requests, "Session", lambda: SimpleNamespace(close=lambda: None))
+    monkeypatch.setattr(seeding.requests, "Session", lambda: session)
 
     handle, metadata = seeding.apply_data_seed(
         seed,

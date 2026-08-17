@@ -229,10 +229,10 @@ def build_parser() -> argparse.ArgumentParser:
         description="WARP Taskgen task-generation and admission pipeline",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
-    from warp_taskgen.cli.site_doctor import add_site_doctor_parser
+    from warp_taskgen.cli.site_composition_check import add_site_composition_parser
     from warp_taskgen.phase_4.trace_inspection_cli import add_trace_parser
 
-    add_site_doctor_parser(subparsers)
+    add_site_composition_parser(subparsers)
     add_trace_parser(subparsers)
 
     phase_cmd = subparsers.add_parser(
@@ -1385,9 +1385,9 @@ def main(argv: list[str] | None = None) -> int:
         return _dispatch_inspect(args)
 
     if args.command == "site":
-        from warp_taskgen.cli.site_doctor import dispatch_site_doctor
+        from warp_taskgen.cli.site_composition_check import dispatch_site_composition
 
-        return dispatch_site_doctor(args)
+        return dispatch_site_composition(args)
 
     if args.command == "trace":
         return args.func(args)

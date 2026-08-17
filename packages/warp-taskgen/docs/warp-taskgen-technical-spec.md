@@ -38,6 +38,48 @@ legitimately perform. Direct SQL writes are excluded from methodology.
 
 ## Architecture Overview
 
+### Static Site Composition
+
+`SiteComposition` is an immutable, data-only declaration of the existing owner
+roles for one Site and its Benchmark bindings. Each `SiteOwnerDeclaration`
+records a static capability state, stable semantic owner identity, contract
+version, and non-secret provenance. Unsupported owner-contract versions fail
+at declaration construction. Each Site declaration also records its source
+package and package version; those identities and the provenance projection are
+included in the declaration digest and surfaced in the check report. It does
+not contain or dispatch an editor,
+reader, feasibility policy, evaluator, browser, reset, cleanup, or scoring
+implementation.
+
+Each built-in declaration is local to one module under
+`warp_taskgen.site_compositions`; `site_composition_defaults.py` only aggregates
+those declarations. `not_applicable` is never declared by a Site. The
+Host-Owned use-case catalog derives it when an owner role is irrelevant to the
+exact requested use case.
+
+`check_site_composition` checks one exact `SiteCompositionCheckRequest` against
+the Host-Owned `SiteCompositionUseCaseCatalog`. The request identifies the
+Site, Benchmark, use case, and any required carrier and action kind. The result
+is a static-only `SiteCompositionCheckReport` with a `static_status`, typed
+findings, and algorithm-qualified `SiteCompositionDigest`. Static completion
+means that the required declarations close. It does not grant active policy or
+prove Benchmark Instance reachability, admission, mutation, Fresh Anonymous
+Reader evidence, Painted Visibility, a PVPO Encounter, Golden-State Reset,
+execution, or scoring.
+
+Every static report therefore records operational readiness as `blocked`, with
+active policy and live evidence identified as `not_checked`. A zero CLI exit
+status means only that static composition closed; it is not a readiness exit
+code. A later readiness owner may consume explicit policy and live evidence,
+but the static checker cannot accept or promote either ledger.
+
+`warp-taskgen site composition check` is the canonical CLI for this static
+check. `site doctor` is a temporary parser-level CLI compatibility alias, not
+a Python compatibility module or API. Executable Site
+behavior is verified separately through behavior-owned tests with fake adapters;
+live safety evidence remains with its existing Run, Benchmark Host, and
+Benchmark owners.
+
 ### Execution Model
 
 The pipeline is driven by a Python orchestrator that coordinates four types of execution:
