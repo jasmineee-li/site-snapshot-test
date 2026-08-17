@@ -25,11 +25,8 @@ import json
 import logging
 import random
 from collections.abc import Awaitable, Callable
-from typing import TypeVar
 
 from openai import APIConnectionError, APIStatusError, APITimeoutError
-
-T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +62,7 @@ def classify_api_exception(exc: BaseException) -> str:
     return "unknown_error"
 
 
-async def call_with_retry(
+async def call_with_retry[T](
     fn: Callable[[], Awaitable[T]],
     *,
     retries: int = 3,

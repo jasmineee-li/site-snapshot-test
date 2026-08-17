@@ -11,14 +11,14 @@ from __future__ import annotations
 
 import gc
 import logging
-from enum import Enum
+from enum import StrEnum
 
 import torch
 
 logger = logging.getLogger(__name__)
 
 
-class TokenSelector(str, Enum):
+class TokenSelector(StrEnum):
     """Strategy for selecting which token positions to extract activations from."""
 
     ANSWER_TOKEN = "answer_token"

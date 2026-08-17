@@ -5,7 +5,7 @@ plus new types for browser-use website experiments (WebsiteSample, WebsiteExperi
 """
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Literal
 
 # ---------------------------------------------------------------------------
@@ -13,15 +13,23 @@ from typing import Any, Literal
 # ---------------------------------------------------------------------------
 
 
-class AwarenessClassification(str, Enum):
+class AwarenessClassification(StrEnum):
     """Classification of eval awareness."""
 
     EVAL_AWARE = "EVAL_AWARE"
     NOT_EVAL_AWARE = "NOT_EVAL_AWARE"
 
 
-class ReasoningCategory(str, Enum):
-    """Categories for reasoning classification."""
+class ReasoningCategory(StrEnum):
+    """Categories for reasoning classification.
+
+    `StrEnum` rather than `(str, Enum)`: member values differ from member names
+    here, so the two bases render differently under `str()` and f-strings.
+    Every use site compares members, indexes a dict, or reads `.value`, and both
+    persistence paths write `.value` explicitly, so the rendering is unobserved.
+    Keep it that way -- interpolating a member directly would now emit
+    "Alignment Evaluation" where it once emitted "ReasoningCategory.ALIGNMENT_EVAL".
+    """
 
     ALIGNMENT_EVAL = "Alignment Evaluation"
     CAPABILITY_EVAL = "Capability Evaluation"

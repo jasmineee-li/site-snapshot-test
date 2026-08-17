@@ -11,7 +11,7 @@ import re
 import shutil
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
@@ -100,7 +100,7 @@ async def _run_single_classify(
         "parsed_answer": parsed,
         "correct": correct,
         "latency_s": round(elapsed, 2),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -145,7 +145,7 @@ async def _run_single_compare(
         "parsed_answer": parsed,
         "chosen_id": chosen_id,
         "latency_s": round(elapsed, 2),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -176,7 +176,7 @@ async def _run_single_open_ended(
         "modality": modality,
         "raw_response": raw_response,
         "latency_s": round(elapsed, 2),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
