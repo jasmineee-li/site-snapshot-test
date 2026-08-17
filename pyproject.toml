@@ -76,7 +76,47 @@ dependencies = [
     "libvisualwebarena>=0.0.15",
 ]
 
+# This table holds only genuinely optional *runtime* functionality. Developer
+# tooling lives in [dependency-groups] `dev` below, not here — see the note on
+# that table for why. There is deliberately no `dev` extra: an extra and a group
+# of the same name are two independent lists that uv resolves differently, and
+# keeping both is what let them drift apart previously.
 [project.optional-dependencies]
+# Local CUA model serving + DoM probe extraction.
+# Install with `uv pip install -e '.[cua]'` on hosts that will run
+# probe training, steering, or vLLM serving for OpenCUA / GUI-Owl.
+cua = [
+    "vllm>=0.6",
+    "qwen-vl-utils>=0.0.8",
+    "accelerate>=0.30",
+    "scikit-learn>=1.4",
+]
+
+# PEP 735 dependency groups (spec Final since 2024-10-10). This is the single
+# source of truth for developer tooling.
+#
+# Groups rather than an extra, for three reasons:
+#
+#  * An extra is *published* dependency metadata — it describes what a consumer
+#    of the distribution may opt into. Nothing here is for a consumer; pytest,
+#    Black, Ruff, mypy and the notebook stack are local-only. uv states the
+#    distinction directly: development dependencies "are local-only and will
+#    not be included in the project requirements when published".
+#  * An extra can only be requested through the project's own package name, so
+#    it cannot exist without a package to hang it on. A group is independent of
+#    packaging, which matters here because the root project has no
+#    [build-system] and is never built or published.
+#  * uv treats `dev` as a *default* group, so it is synced without any flag.
+#    Previously `uv sync --locked` and `uv sync --locked --extra dev` produced
+#    two different environments (246 vs 250 packages) because the extra's list
+#    had grown four notebook entries the group's had not. One list cannot drift
+#    from itself.
+#
+# Documented invocation is `uv sync --locked --group dev` — see
+# eval_awareness_experiments/SETUP.md. `--group dev` is named explicitly rather
+# than relying on the bare default so the command keeps installing this tooling
+# even if a future `[tool.uv] default-groups` entry narrows the defaults.
+[dependency-groups]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
@@ -96,37 +136,15 @@ dev = [
     "types-PyYAML>=6.0",
     "ipython>=8.20",
     "ipykernel>=6.29",
+    # Notebook execution stack, driven by the nbmake pytest plugin. Only nbmake
+    # is strictly needed — it pulls nbclient and nbformat, and nbclient pulls
+    # jupyter-client — but all four carry declared version floors here, as they
+    # did in the extra this group replaces. Keeping them explicit means a floor
+    # is enforced even if a future nbmake loosens or drops one of these edges.
     "jupyter-client>=8.6",
     "nbclient>=0.10",
     "nbformat>=5.10",
     "nbmake>=1.5",
-]
-# Local CUA model serving + DoM probe extraction.
-# Install with `uv pip install -e '.[cua]'` on hosts that will run
-# probe training, steering, or vLLM serving for OpenCUA / GUI-Owl.
-cua = [
-    "vllm>=0.6",
-    "qwen-vl-utils>=0.0.8",
-    "accelerate>=0.30",
-    "scikit-learn>=1.4",
-]
-
-[dependency-groups]
-dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.23",
-    "pytest-xdist>=3.5",
-    "pytest-playwright>=0.5",
-    "flaky>=3.8",
-    "black[jupyter]>=24.0",
-    "ruff>=0.15.12",
-    "pre-commit>=3.6",
-    # Kept in step with [project.optional-dependencies].dev above; see the
-    # rationale for the upper bound and the stub package there.
-    "mypy>=1.19.1,<2",
-    "types-PyYAML>=6.0",
-    "ipython>=8.20",
-    "ipykernel>=6.29",
 ]
 
 [tool.setuptools]

@@ -11,14 +11,27 @@ environment or install editable benchmark packages with an unscoped `pip`.
 From the repository root:
 
 ```bash
-uv sync --locked --extra dev
+uv sync --locked --group dev
 uv run playwright install chromium
 uv run python -m eval_awareness_experiments.run --help
 ```
 
+Developer tooling is the PEP 735 `[dependency-groups]` `dev` group in the root
+`pyproject.toml`; there is no `dev` extra, and `uv sync --extra dev` now fails.
+`dev` is one of uv's default groups, so a bare `uv sync` installs it too, but
+name `--group dev` explicitly: it survives a later `[tool.uv] default-groups`
+entry that narrows the defaults. Add new developer tooling to that one group.
+`[project.optional-dependencies]` is reserved for optional *runtime* extras —
+today only `cua`, installed separately on model-serving hosts.
+
 Use `uv run` for Python entrypoints so commands resolve against the locked root
 environment. Inspect `pyproject.toml`, `uv.lock`, and the selected command's
 `--help` before adding dependencies or copying a historical invocation.
+
+`packages/warp-taskgen` is a separate uv project with its own `pyproject.toml`,
+its own lockfile, and its own `dev` **extra**. Its documented
+`uv sync --extra dev` is unaffected by anything above; run it from that
+directory, not from the repository root.
 
 Keep provider keys in the root `.env` or the approved process environment.
 Never paste a key, token, authenticated browser state, or private host value
