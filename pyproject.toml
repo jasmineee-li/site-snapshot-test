@@ -96,8 +96,46 @@ dependencies = [
 # Local CUA model serving + DoM probe extraction.
 # Install with `uv pip install -e '.[cua]'` on hosts that will run
 # probe training, steering, or vLLM serving for OpenCUA / GUI-Owl.
+#
+# `vllm` previously declared `>=0.6`, which bounds nothing, and that is how an
+# unreviewed 0.16.0 -> 0.23.0 move rode in on the lockfile fork collapse in
+# #172. The bound below is what the unbounded spec actually resolves to, and it
+# resolves *backwards*. Measured on 8804de42, `uv lock --upgrade` with
+# `vllm>=0.6`:
+#
+#   vllm 0.20.2 · transformers 4.57.6 · torch 2.11.0
+#
+# 0.20.2 sits inside the Qwen3-VL deepstack regression window. vLLM introduced
+# it at 0.20.0 (#40145) and fixed it at 0.23.0 (#43617); 0.20.0-0.22.1 serve
+# GUI-Owl with roughly 30% relative accuracy loss on visual grounding. So the
+# floor holds the resolver out of a known-bad range rather than holding back an
+# upgrade.
+#
+# The ceiling records why it cannot move forward instead, from package metadata
+# on 2026-08-17 (`pypi.org/pypi/vllm/<version>/json`, `requires_dist`):
+#
+#   vllm 0.23.0   transformers!=5.0.*,...,!=5.5.0,>=4.56.0   torch==2.11.0
+#   vllm 0.24.0   transformers>=5.5.3                        torch==2.11.0
+#   vllm 0.27.1   transformers>=5.5.3                        torch==2.13.0
+#
+# 0.24.0 requires Transformers v5 outright -- its release notes file this under
+# "Deprecated", but the metadata makes it a hard floor -- and the lock pins
+# transformers 4.57.5. 0.27.1 additionally pins a torch this tree does not
+# carry. 0.23.0 is the single release satisfying both the deepstack fix and
+# Transformers v4.
+#
+# `transformers<5` guards a state the resolver can reach but does not choose
+# today: vllm 0.23.0 dropped the `<5` ceiling that 0.16.0 carried and admits
+# >=5.5.1, so a later resolve may raise transformers under the pinned vLLM.
+# Transformers v5 stops OpenCUA at startup with `'OpenCUAProcessor' object has
+# no attribute 'image_processor'`; the upstream fix, vllm-project/vllm#47438,
+# has been a draft since 2026-07-02. Both bounds lift together once that lands.
+#
+# Full review, including the numerics findings:
+# docs/research/vllm-0-16-to-0-23-numerics-2026-08-17.md
 cua = [
-    "vllm>=0.6",
+    "vllm>=0.23,<0.24",
+    "transformers<5",
     "qwen-vl-utils>=0.0.8",
     "accelerate>=0.30",
     "scikit-learn>=1.4",
