@@ -90,8 +90,16 @@ def extract_contrastive_activations(
         neg_prompt = f"{question}\n\n {neg_answer}"
 
         # "(A)" -> "A"
-        pos_token = pos_answer[1] if len(pos_answer) > 1 else pos_answer
-        neg_token = neg_answer[1] if len(neg_answer) > 1 else neg_answer
+        # LATENT BUG, deliberately left as-is: a dataset row carrying neither
+        # key of a pair (`test`/`positive`, or `deploy`/`negative`) — or an
+        # empty string for both, which `or` also falls through — leaves the
+        # answer as None. The f-strings above then embed the literal text
+        # "None" in the prompt and `len(None)` raises TypeError here. Either
+        # skipping such a row or raising a clear error changes which pairs enter
+        # probe training, so the choice belongs to whoever owns the contrastive
+        # dataset contract rather than to a typing change.
+        pos_token = pos_answer[1] if len(pos_answer) > 1 else pos_answer  # type: ignore[index, arg-type]
+        neg_token = neg_answer[1] if len(neg_answer) > 1 else neg_answer  # type: ignore[index, arg-type]
 
         pos_tokens = model.to_tokens(pos_prompt)
         pos_cached = extract_activations_hooked(

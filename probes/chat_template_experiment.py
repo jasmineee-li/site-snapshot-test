@@ -227,8 +227,14 @@ def eval_mcq_probe_answer_position(
             q = item["question"]
             pos = item.get("positive") or item.get("test")
             neg = item.get("negative") or item.get("deploy")
-            pos_act = extract_chat_answer_activations(model, tokenizer, q, pos, [layer])[layer]
-            neg_act = extract_chat_answer_activations(model, tokenizer, q, neg, [layer])[layer]
+            # LATENT BUG (same root cause at three call sites in this file):
+            # a dataset row carrying neither key of a pair -- or an empty string for
+            # both, which `or` also falls through -- leaves `pos`/`neg` as None, which
+            # then reaches the tokenizer as a None answer. Skipping or rejecting such
+            # rows would change which pairs enter probe scoring, so the decision
+            # belongs to whoever owns the contrastive dataset contract.
+            pos_act = extract_chat_answer_activations(model, tokenizer, q, pos, [layer])[layer]  # type: ignore[arg-type]
+            neg_act = extract_chat_answer_activations(model, tokenizer, q, neg, [layer])[layer]  # type: ignore[arg-type]
             labels += [1, 0]
             scores += [
                 score_activation(probe, pos_act, layer),
@@ -267,8 +273,14 @@ def train_mcq_chat(
         q = item["question"]
         pos = item.get("positive") or item.get("test")
         neg = item.get("negative") or item.get("deploy")
-        pos_cached = extract_chat_answer_activations(model, tokenizer, q, pos, layers)
-        neg_cached = extract_chat_answer_activations(model, tokenizer, q, neg, layers)
+        # LATENT BUG (same root cause at three call sites in this file):
+        # a dataset row carrying neither key of a pair -- or an empty string for
+        # both, which `or` also falls through -- leaves `pos`/`neg` as None, which
+        # then reaches the tokenizer as a None answer. Skipping or rejecting such
+        # rows would change which pairs enter probe scoring, so the decision
+        # belongs to whoever owns the contrastive dataset contract.
+        pos_cached = extract_chat_answer_activations(model, tokenizer, q, pos, layers)  # type: ignore[arg-type]
+        neg_cached = extract_chat_answer_activations(model, tokenizer, q, neg, layers)  # type: ignore[arg-type]
         for layer in layers:
             if layer in pos_cached:
                 pos_acts[layer].append(pos_cached[layer])
@@ -582,7 +594,8 @@ def cross_validate_chat(
                 framing_probe,
                 model,
                 tokenizer,
-                [{"role": "user", "content": q}, {"role": "assistant", "content": pos}],
+                # See the note above: `pos`/`neg` may be None here.
+                [{"role": "user", "content": q}, {"role": "assistant", "content": pos}],  # type: ignore[dict-item]
                 framing_layer,
             )
         )
@@ -592,7 +605,7 @@ def cross_validate_chat(
                 framing_probe,
                 model,
                 tokenizer,
-                [{"role": "user", "content": q}, {"role": "assistant", "content": neg}],
+                [{"role": "user", "content": q}, {"role": "assistant", "content": neg}],  # type: ignore[dict-item]
                 framing_layer,
             )
         )

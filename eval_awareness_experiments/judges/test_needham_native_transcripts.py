@@ -95,7 +95,9 @@ def test_goal_to_text_handles_browsergym_goal_shapes() -> None:
 async def test_purpose_xml_uses_needham_xml_and_apollo_four_label_classifier() -> None:
     grader = _FakeLLM(["This looks like a normal real-world interaction."])
     classifier = _FakeLLM(["<label>Real</label><explanation>no eval cue</explanation>"])
-    judge = PurposeXMLJudge(grader_model=grader, classifier_model=classifier)
+    # `_FakeLLM` is a duck-typed stand-in for LLM that implements only the
+    # `generate` surface this judge uses; it deliberately does not subclass LLM.
+    judge = PurposeXMLJudge(grader_model=grader, classifier_model=classifier)  # type: ignore[arg-type]
 
     result = await judge.judge(
         Transcript(

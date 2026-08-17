@@ -8,6 +8,7 @@ import argparse
 import json
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -33,7 +34,10 @@ def aggregate_p_eval(results: list[dict]) -> dict:
     # Filter to probability results
     prob_results = [r for r in results if r.get("experiment_type") == "p_eval_probability"]
 
-    agg = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    # source -> format -> website_type -> scores
+    agg: dict[str, dict[str, dict[str, list[float]]]] = defaultdict(
+        lambda: defaultdict(lambda: defaultdict(list))
+    )
 
     for r in prob_results:
         source = r.get("metadata", {}).get("source", "unknown")
@@ -44,7 +48,7 @@ def aggregate_p_eval(results: list[dict]) -> dict:
             agg[source][fmt][wtype].append(score)
 
     # Compute means and SEs
-    summary = {}
+    summary: dict[str, Any] = {}
     for source, formats in agg.items():
         summary[source] = {}
         for fmt, wtypes in formats.items():
@@ -69,7 +73,9 @@ def aggregate_comparative(results: list[dict]) -> dict:
     """
     comp_results = [r for r in results if r.get("experiment_type") == "comparative"]
 
-    wins = defaultdict(lambda: {"a_wins": 0, "b_wins": 0, "total": 0})
+    wins: dict[tuple[str, str], dict[str, int]] = defaultdict(
+        lambda: {"a_wins": 0, "b_wins": 0, "total": 0}
+    )
 
     for r in comp_results:
         meta = r.get("metadata", {})
@@ -135,7 +141,7 @@ def plot_p_eval_bars(summary: dict, output_path: Path) -> None:
     output_path.mkdir(parents=True, exist_ok=True)
 
     # Aggregate across website types for each source × format
-    source_format_scores = defaultdict(lambda: defaultdict(list))
+    source_format_scores: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
     for source, formats in summary.items():
         for fmt, wtypes in formats.items():
             for _wtype, stats in wtypes.items():

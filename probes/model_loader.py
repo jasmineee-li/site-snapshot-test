@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
 from contextlib import contextmanager
 from types import SimpleNamespace
 from typing import Any
@@ -48,7 +49,7 @@ class HookedTransformerShim:
         self.tokenizer = tokenizer
         self.device = torch.device(device)
         self.cfg = cfg
-        self._hooks: dict[str, callable] = {}
+        self._hooks: dict[str, Callable] = {}
         self._hook_handles: list = []
 
     @classmethod
@@ -97,7 +98,12 @@ class HookedTransformerShim:
             model_hf = _load_vl(model_path, load_kwargs, model_type)
 
         if device == "cpu":
-            model_hf.to("cpu")
+            # Third-party typing defect, not a bug here: transformers declares
+            # `PreTrainedModel.to` as `@wraps(torch.nn.Module.to) def to(...)`,
+            # and typeshed models `functools.wraps` as returning a `_Wrapped`
+            # object that implements no descriptor protocol. mypy therefore sees
+            # the unbound wrapper and reads `"cpu"` as the `self` argument.
+            model_hf.to("cpu")  # type: ignore[arg-type]
 
         n_layers = _get_config_value(
             cfg_hf,
@@ -140,7 +146,7 @@ class HookedTransformerShim:
         self._hooks = {}
 
     @contextmanager
-    def hooks(self, fwd_hooks: list[tuple[str, callable]] | None = None, **kwargs):
+    def hooks(self, fwd_hooks: list[tuple[str, Callable]] | None = None, **kwargs):
         """Temporarily install forward hooks (TransformerLens-style names)."""
         if fwd_hooks is None:
             fwd_hooks = []
@@ -164,6 +170,7 @@ class HookedTransformerShim:
         return torch.tensor([ids]).to(self.device)
 
     def __call__(self, tokens: torch.Tensor, **kwargs) -> Any:
+        inputs: dict[str, Any]
         if isinstance(tokens, dict):
             inputs = {
                 k: v.to(self.device) if isinstance(v, torch.Tensor) else v
@@ -265,17 +272,17 @@ def _load_vl(model_path: str, load_kwargs: dict, model_type: str = "") -> Any:
     Falls back to `AutoModelForVision2Seq` / `AutoModel` for unknown types.
     """
     if model_type == "qwen3_vl":
-        from transformers import Qwen3VLForConditionalGeneration  # type: ignore
+        from transformers import Qwen3VLForConditionalGeneration
 
         return Qwen3VLForConditionalGeneration.from_pretrained(model_path, **load_kwargs)
 
     if model_type == "qwen2_5_vl":
-        from transformers import Qwen2_5_VLForConditionalGeneration  # type: ignore
+        from transformers import Qwen2_5_VLForConditionalGeneration
 
         return Qwen2_5_VLForConditionalGeneration.from_pretrained(model_path, **load_kwargs)
 
     try:
-        from transformers import AutoModelForVision2Seq  # type: ignore
+        from transformers import AutoModelForVision2Seq
 
         return AutoModelForVision2Seq.from_pretrained(model_path, **load_kwargs)
     except (ImportError, ValueError):

@@ -6,6 +6,7 @@ import mimetypes
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import anthropic
 import openai
@@ -23,7 +24,7 @@ class LLMClient:
     def __init__(self, config: LLMConfig):
         self.config = config
         if config.provider in ("openai", "openrouter"):
-            kwargs = {}
+            kwargs: dict[str, Any] = {}
             if config.provider == "openrouter":
                 kwargs["base_url"] = "https://openrouter.ai/api/v1"
                 kwargs["api_key"] = os.environ["OPENROUTER_API_KEY"]
@@ -74,15 +75,25 @@ class LLMClient:
         formatted = _format_openai_messages(messages, images)
         resp = await self._openai.chat.completions.create(
             model=self.config.model,
-            messages=formatted,
+            # `_format_openai_messages` builds plain dicts in the shape the API
+            # expects; the SDK types the parameter as a union of TypedDicts,
+            # which a `list[dict]` cannot satisfy structurally.
+            messages=formatted,  # type: ignore[arg-type]
             temperature=self.config.temperature,
             max_tokens=self.config.max_tokens,
         )
-        return resp.choices[0].message.content
+        # LATENT BUG, deliberately left as-is: `message.content` is `str | None`.
+        # The OpenAI API returns None when a completion carries no text (a
+        # length-capped or content-filtered response), so this can return None
+        # from a `-> str` function and hand a None to callers that do string
+        # work on it. Coercing it here (e.g. `or ""`) would silently turn a
+        # missing completion into an empty judgement in recorded results, so the
+        # fix needs a decision from someone who owns the experiment contract.
+        return resp.choices[0].message.content  # type: ignore[return-value]
 
     async def _call_anthropic(self, messages: list[dict], images: list[Path] | None) -> str:
         system_text, formatted = _format_anthropic_messages(messages, images)
-        kwargs = dict(
+        kwargs: dict[str, Any] = dict(
             model=self.config.model,
             messages=formatted,
             temperature=self.config.temperature,

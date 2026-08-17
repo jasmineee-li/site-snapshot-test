@@ -17,6 +17,7 @@ import argparse
 import json
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -105,7 +106,8 @@ def compute_causal_stats(results: list[dict]) -> dict:
         model = r.get("model", "unknown")
         groups[(benchmark, condition, model)].append(r)
 
-    stats = {}
+    # benchmark -> condition -> model -> per-group metrics
+    stats: dict[str, Any] = {}
     for (benchmark, condition, model), group in groups.items():
         if benchmark not in stats:
             stats[benchmark] = {}

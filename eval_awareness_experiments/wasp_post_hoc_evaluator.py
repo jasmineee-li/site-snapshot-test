@@ -44,6 +44,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -77,8 +78,10 @@ class StepRecord:
     classifier_response: str = ""
 
 
-def _parse_axtree(obs: dict) -> str:
+def _parse_axtree(obs: Any) -> str:
     """Extract a text representation of the accessibility tree from a step's obs."""
+    # Callers pass `getattr(step, "obs", None)`, so the parameter is genuinely
+    # not always a dict; the isinstance guard below is the real contract.
     if not isinstance(obs, dict):
         return ""
     # BrowserGym obs format: 'axtree_txt' is the text-form accessibility tree.
@@ -184,7 +187,7 @@ async def classify_step(llm: LLM, step: StepRecord) -> StepRecord:
 
 def _scan_cells(output_base: Path) -> list[dict]:
     """Find every WASP cell under <output_base>/wasp/<arm>/<model_slug>/."""
-    cells = []
+    cells: list[dict] = []
     wasp_root = output_base / "wasp"
     if not wasp_root.exists():
         return cells

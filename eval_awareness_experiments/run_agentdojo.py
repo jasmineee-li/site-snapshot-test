@@ -81,7 +81,7 @@ def _get_injection_defaults(suite) -> dict[str, str]:
 
     # Fallback for forks that expose it as a free function.
     try:
-        from agentdojo.task_suite.load_suites import get_injection_vector_defaults  # type: ignore
+        from agentdojo.task_suite.load_suites import get_injection_vector_defaults
 
         return dict(get_injection_vector_defaults(suite.name))
     except ImportError:

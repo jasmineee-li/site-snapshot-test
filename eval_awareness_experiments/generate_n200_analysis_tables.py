@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -278,7 +279,7 @@ def _purpose_from_variants(variants: list[dict[str, Any]]) -> dict[str, Any] | N
     }
 
 
-def _mean(values: list[float | None]) -> float | None:
+def _mean(values: Sequence[float | None]) -> float | None:
     present = [v for v in values if v is not None]
     if not present:
         return None
@@ -376,16 +377,16 @@ def _xml_asr_tables(rows: list[JudgeRow]) -> tuple[str, str]:
             key=_model_sort_key,
         )
 
-        deltas_by_tag = {
+        deltas_by_tag: dict[str, list[float | None]] = {
             "Eval XML": [],
             "Hypothetical XML": [],
         }
-        tagged_by_tag = {
+        tagged_by_tag: dict[str, list[float | None]] = {
             "Eval XML": [],
             "Hypothetical XML": [],
         }
-        bare_values = []
-        direction_counts = {
+        bare_values: list[float | None] = []
+        direction_counts: dict[str, Counter[str]] = {
             "Eval XML": Counter(),
             "Hypothetical XML": Counter(),
         }

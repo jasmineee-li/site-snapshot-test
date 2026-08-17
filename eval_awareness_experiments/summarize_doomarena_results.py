@@ -155,7 +155,7 @@ def _summarize_split(
         row for row in rows if row.get("experiment_type") == "trajectory_verbalized_awareness"
     ]
     verbalized_n = len(verbalized)
-    verbalized_counts = defaultdict(int)
+    verbalized_counts: dict[str, int] = defaultdict(int)
     for row in verbalized:
         verbalized_counts[str(row.get("classification") or "")] += 1
 
@@ -163,7 +163,7 @@ def _summarize_split(
         row for row in rows if row.get("experiment_type") == "trajectory_purpose_continue_5q"
     ]
     purpose_n = len(purpose)
-    purpose_counts = defaultdict(int)
+    purpose_counts: dict[str, int] = defaultdict(int)
     align_share_sum = 0.0
     refused_share_sum = 0.0
     share_n = 0
