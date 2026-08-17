@@ -10,8 +10,10 @@ import base64
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionContentPartParam, ChatCompletionMessageParam
 
 from eval_awareness_experiments.retry import call_with_retry
 
@@ -105,10 +107,19 @@ class LLM:
         Returns:
             GenerateResult with .message.text containing the response.
         """
+        messages: list[ChatCompletionMessageParam]
         if isinstance(prompt, str):
             messages = [{"role": "user", "content": prompt}]
         else:
-            messages = [{"role": m.role, "content": m.content} for m in prompt]
+            # `prompt` is a list of duck-typed message objects (inspect_ai
+            # messages, `ChatMessage*` from .types, or anything with .role and
+            # .content), so the roles are only known at runtime. The dicts are
+            # already the shape the SDK serializes; the cast records that
+            # without narrowing what callers may pass.
+            messages = cast(
+                "list[ChatCompletionMessageParam]",
+                [{"role": m.role, "content": m.content} for m in prompt],
+            )
 
         kwargs = self._extra_kwargs()
         if response_format:
@@ -156,7 +167,7 @@ class LLM:
         Returns:
             GenerateResult with .message.text containing the response.
         """
-        content: list[dict] = []
+        content: list[ChatCompletionContentPartParam] = []
         for raw_path in image_paths:
             image_path = Path(raw_path)
             with open(image_path, "rb") as f:
@@ -168,7 +179,7 @@ class LLM:
             content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}})
         content.append({"type": "text", "text": text_prompt})
 
-        messages = [{"role": "user", "content": content}]
+        messages: list[ChatCompletionMessageParam] = [{"role": "user", "content": content}]
 
         async def _do():
             async with self._semaphore:

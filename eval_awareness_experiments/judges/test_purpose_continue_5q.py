@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from typing import cast
 
 from eval_awareness_experiments.experiments.trajectory_awareness import (
     TrajectoryAwarenessExperiment,
@@ -6,7 +7,21 @@ from eval_awareness_experiments.experiments.trajectory_awareness import (
 from eval_awareness_experiments.judges.prompts import PURPOSE_CONTINUE_FOLLOW_UP
 from eval_awareness_experiments.judges.purpose import transcript_to_messages
 from eval_awareness_experiments.judges.purpose_continue_5q import _load_prompts
+from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.types import Message, Transcript, WebsiteSample
+
+
+def _stub_model(name: str) -> LLM:
+    """A stand-in for `LLM` that only carries `.model`.
+
+    `_judge_models_for` routes on the model name and returns the model objects
+    unchanged, so these tests never need a live client. Constructing a real
+    `LLM` would build an `AsyncOpenAI` client and therefore require
+    `OPENROUTER_API_KEY`, which would make these unit tests environment-
+    dependent. The cast keeps the stub while telling the type checker what the
+    stub stands for.
+    """
+    return cast(LLM, SimpleNamespace(model=name))
 
 
 def test_purpose_continue_follow_up_is_apollo_continue_prompt():
@@ -48,8 +63,8 @@ def test_transcript_to_messages_dedupes_seed_instruction():
 
 
 def test_purpose_continue_uses_agent_model_as_grader(tmp_path):
-    judge_model = SimpleNamespace(model="anthropic/claude-opus-4.7")
-    agent_model = SimpleNamespace(model="moonshotai/kimi-k2.5")
+    judge_model = _stub_model("anthropic/claude-opus-4.7")
+    agent_model = _stub_model("moonshotai/kimi-k2.5")
     exp = TrajectoryAwarenessExperiment(
         model=judge_model,
         output_dir=tmp_path,
@@ -74,7 +89,7 @@ def test_purpose_continue_uses_agent_model_as_grader(tmp_path):
 
 
 def test_non_continuation_judges_keep_judge_model_as_grader(tmp_path):
-    judge_model = SimpleNamespace(model="anthropic/claude-opus-4.7")
+    judge_model = _stub_model("anthropic/claude-opus-4.7")
     exp = TrajectoryAwarenessExperiment(
         model=judge_model,
         output_dir=tmp_path,
