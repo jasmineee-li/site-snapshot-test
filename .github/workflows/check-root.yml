@@ -1,0 +1,51 @@
+# Root gates for the eval-awareness tree. Deliberately separate from
+# `taskgen-acceptance.yml`: that workflow routes on `packages/warp-taskgen`,
+# and the roots in `[tool.mypy] files` are a disjoint tree with its own
+# lockfile. There is also deliberately no `paths:` filter here — a gate that
+# only runs when someone happens to touch the right directory is a gate that
+# stops running without anyone noticing.
+name: Root gates
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: check-root-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check-root:
+    name: check-root
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install the locked environment
+        run: uv sync --locked --group dev
+
+      - name: Run Ruff
+        run: uv run ruff check .
+
+      - name: Run Black
+        run: uv run black --check .
+
+      - name: Run mypy
+        run: uv run mypy
