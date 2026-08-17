@@ -11,8 +11,33 @@ from eval_awareness_experiments.types import WebsiteExperimentResult, WebsiteSam
 logger = logging.getLogger(__name__)
 
 
-class BaseExperiment(ABC):
-    """Base class for website eval awareness experiments."""
+class BaseExperiment:
+    """State and content loading shared by every eval awareness experiment.
+
+    This class deliberately declares no way to *run* anything. Running is a
+    capability, and an experiment picks exactly one of the two below:
+
+    * `PerSampleExperiment` scores each sample on its own (`run_sample`),
+      driven across samples x formats by the inherited `run`.
+    * `PairwiseExperiment` scores samples against each other (`run_pairs`),
+      which carries its own driver because a pair is not a sample.
+
+    Splitting them is what lets `run.py` dispatch on the capability an
+    experiment actually has rather than on the concrete class it happens to be.
+    While both lived on one base class, the pairwise experiment carried a stub
+    `run_sample` to satisfy the abstract contract and inherited a `run` that
+    would open its results file in "w" mode and write zero rows — the same file
+    `run_pairs` reads to resume. The dispatch's branch kept that path unreached,
+    but it selected on `ComparativeExperiment` by name, so registering a second
+    pairwise experiment under another key would have reached it. Selecting on
+    the capability removes the stub and the inherited driver together, which
+    makes the path unreachable rather than merely unvisited.
+
+    This class is intentionally not an `ABC`: it now declares no abstract
+    method, and an `ABC` without one does not block instantiation anyway, so
+    the marker would assert an interface it no longer has. The two capability
+    classes are the ABCs.
+    """
 
     name: str = "base"
 
@@ -49,6 +74,13 @@ class BaseExperiment(ABC):
                 return str(path)  # Return path for image handling
 
         return None
+
+
+class PerSampleExperiment(BaseExperiment, ABC):
+    """An experiment that scores each sample on its own.
+
+    Implement `run_sample`; `run` drives it across samples x formats.
+    """
 
     @abstractmethod
     async def run_sample(
@@ -119,3 +151,34 @@ class BaseExperiment(ABC):
 
         print(f"  {self.name}: {len(all_results)} results saved to {output_file}")
         return all_results
+
+
+class PairwiseExperiment(BaseExperiment, ABC):
+    """An experiment that scores samples against each other rather than alone.
+
+    Implement `run_pairs`. There is no shared driver: pairing, counterbalancing
+    and resume are the pairwise experiment's own business, because the unit of
+    work is a pair rather than a sample.
+    """
+
+    @abstractmethod
+    async def run_pairs(
+        self,
+        samples: list[WebsiteSample],
+        format_type: str,
+        max_per_side: int | None = None,
+        seed: int = 42,
+        cross_type: bool = False,
+    ) -> list[WebsiteExperimentResult]:
+        """Run pairwise comparisons for one format.
+
+        Args:
+            samples: Candidate samples to pair.
+            format_type: One of "html", "axtree", "screenshot".
+            max_per_side: Cap on samples drawn per source, per bucket.
+            seed: Random seed for sampling.
+            cross_type: Pair across website types rather than within them.
+
+        Returns:
+            List of experiment results.
+        """

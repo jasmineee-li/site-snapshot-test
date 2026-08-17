@@ -10,12 +10,14 @@ import asyncio
 import json
 import logging
 import random
-from collections.abc import Callable
 from pathlib import Path
 
 import yaml
 
-from eval_awareness_experiments.experiments.base import BaseExperiment
+from eval_awareness_experiments.experiments.base import (
+    PairwiseExperiment,
+    PerSampleExperiment,
+)
 from eval_awareness_experiments.experiments.comparative import ComparativeExperiment
 from eval_awareness_experiments.experiments.open_ended import OpenEndedExperiment
 from eval_awareness_experiments.experiments.p_eval import PEvalExperiment
@@ -31,11 +33,20 @@ from eval_awareness_experiments.types import WebsiteSample
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-# Typed as a callable returning `BaseExperiment` rather than `type[BaseExperiment]`.
-# Every value here is a concrete subclass, but the inferred `type[BaseExperiment]`
-# is abstract, so calling it below reads as instantiating an abstract class. The
-# constructors also take differing keyword arguments, which `...` admits.
-EXPERIMENT_CLASSES: dict[str, Callable[..., BaseExperiment]] = {
+# The value type states the frontier this dispatch actually has: a registered
+# experiment scores samples one at a time or against each other, and the branch
+# below reads the same two cases. The union is written out rather than widened to
+# `type[BaseExperiment]` so that a class with neither capability cannot be
+# registered, and so the `else` branch narrows without an unreachable fallback.
+#
+# It is spelled as an explicit annotation rather than left to inference for a
+# non-obvious reason: mypy reports `Cannot instantiate abstract class` when it
+# *infers* an abstract class object as a dict value type, but accepts calling a
+# value whose type was *declared* as `type[SomeAbstractClass]` -- the declaration
+# says a concrete subclass may be stored there. Removing the annotation brings
+# that error back; widening it to `Callable[..., BaseExperiment]` also silences
+# it, but at the cost of every constructor check, including arity.
+EXPERIMENT_CLASSES: dict[str, type[PerSampleExperiment] | type[PairwiseExperiment]] = {
     "p_eval": PEvalExperiment,
     "comparative": ComparativeExperiment,
     "transcript_awareness": TranscriptAwarenessExperiment,
@@ -181,11 +192,13 @@ async def run_experiment(config: dict) -> None:
             exp_kwargs["judge_names"] = config["judges"]
         experiment = exp_cls(model=model, output_dir=exp_output, **exp_kwargs)
 
-        # Narrowed by type rather than by name: `run_pairs` is defined only on
-        # `ComparativeExperiment`. Every experiment class inherits directly from
-        # `BaseExperiment` and none subclasses `ComparativeExperiment`, so this
-        # selects exactly the entry `experiment_name == "comparative"` selected.
-        if isinstance(experiment, ComparativeExperiment):
+        # Narrowed by capability rather than by identity. Selecting on
+        # `PairwiseExperiment` rather than on `ComparativeExperiment` (or on the
+        # "comparative" key) means a second pairwise experiment is routed here by
+        # registering it, with no edit to this branch. The `else` is exhaustive
+        # against the dict's declared value type, so mypy checks that both cases
+        # are handled rather than trusting a comment that they are.
+        if isinstance(experiment, PairwiseExperiment):
             max_per_side = config.get("max_per_side")
             seed = config.get("seed", 42)
             cross_type = config.get("cross_type", False)

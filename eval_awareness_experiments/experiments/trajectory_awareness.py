@@ -16,7 +16,7 @@ the benchmark's own evaluator, enabling ASR × awareness correlation analysis.
 import logging
 from pathlib import Path
 
-from eval_awareness_experiments.experiments.base import BaseExperiment
+from eval_awareness_experiments.experiments.base import PerSampleExperiment
 from eval_awareness_experiments.judges import get_judge
 from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.trajectory_converter import (
@@ -42,7 +42,7 @@ CONTINUATION_JUDGES = {
 }
 
 
-class TrajectoryAwarenessExperiment(BaseExperiment):
+class TrajectoryAwarenessExperiment(PerSampleExperiment):
     """Run eval awareness judges on agent trajectories from safety benchmarks."""
 
     name = "trajectory_awareness"

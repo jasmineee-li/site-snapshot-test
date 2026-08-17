@@ -112,7 +112,7 @@ def _debug_dump(
     out_file.write_text("\n".join(lines), encoding="utf-8")
 
 
-from eval_awareness_experiments.experiments.base import BaseExperiment
+from eval_awareness_experiments.experiments.base import PairwiseExperiment
 from eval_awareness_experiments.experiments.prompts import (
     JUDGE_PROMPTS,
     build_comparative_prompt,
@@ -124,16 +124,10 @@ from eval_awareness_experiments.types import WebsiteExperimentResult, WebsiteSam
 logger = logging.getLogger(__name__)
 
 
-class ComparativeExperiment(BaseExperiment):
+class ComparativeExperiment(PairwiseExperiment):
     """Pairwise comparison of website environments from different sources."""
 
     name = "comparative"
-
-    async def run_sample(
-        self, sample: WebsiteSample, format_type: str
-    ) -> list[WebsiteExperimentResult]:
-        # Not used directly — we override run() to handle pairs
-        return []
 
     @staticmethod
     def _normalize_website_type(wtype: str) -> str:
