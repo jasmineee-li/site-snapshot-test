@@ -189,13 +189,21 @@ python -m probes.validate_probes_cross \
    on `cfg_hf.model_type`.
 
 3. **CUDA driver vs torch wheel mismatch.**
-   The `[cua]` extras pull `vllm 0.20.1`, which pulls `torch 2.11.0+cu130`.
    This pod's driver was 565.57.01 (max CUDA 12.7), so
    `torch.cuda.is_available()` returned `False` and the model silently
    loaded on CPU. Workaround: reinstall torch with cu126 wheels (step 2
    in the recipe above). This breaks vLLM serving but probe extraction
-   doesn't need vLLM. If you also need vLLM, provision a pod with a
-   ≥570.x driver instead.
+   doesn't need vLLM.
+
+   Two corrections since this was written. The trigger is no longer the
+   `[cua]` extras alone: `torch` 2.11 is now in the default dependencies, so
+   any host on an older driver hits this, not just vLLM users. And a ≥570.x
+   driver is not sufficient — CUDA 13.0 requires **≥580.65.06** on Linux, so
+   provision against that number.
+
+   The architecture drop in CUDA 13 (Maxwell, Pascal and Volta, i.e. below
+   Turing sm_75) does not apply here: this project's hosts are A100 (sm_80)
+   and H100 (sm_90). The driver floor is the constraint, not the GPU.
 
 4. **`runpod_setup.sh` does `git checkout claude/general-session-rsdA2`.**
    Running it auto-switches the working tree off whatever branch you
