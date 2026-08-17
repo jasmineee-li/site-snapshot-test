@@ -21,6 +21,8 @@ not invitations to preload every reference.
   `classifieds_listing_reply_poc`:** read `agent_docs/classifieds-canary.md`
   before acting; read `agent_docs/admission-and-exposure.md` too when changing
   a shared admission contract.
+- **Adding or removing a Site, Site Composition, onboarding diagnostic, or
+  Site Behavior Contract:** read `agent_docs/site-onboarding.md` before editing.
 - **Adversarial actions, Tier 2/3 pilots, reward compilation, readback, or
   action variants:** read `agent_docs/action-contracts.md`.
 - **Phase 4, PVPO, Transcript Purpose, VEA, iterator, judges, or ASR:** read
