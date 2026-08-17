@@ -68,6 +68,27 @@ Expanded comparison (see `COST_ESTIMATE.md`) includes:
 - `anthropic/claude-3.7-sonnet`
 - `openai/o4-mini`
 
+## Experiment run capabilities
+
+An experiment declares how it consumes samples by choosing one base class in
+`experiments/base.py`. `BaseExperiment` supplies `model`, `output_dir` and
+`load_website_content` to both.
+
+| Base | Implement | Driver | Registered under |
+|------|-----------|--------|------------------|
+| `PerSampleExperiment` | `run_sample(sample, format_type)` | inherited `run(samples, format_types)`, which fans out over samples x formats and writes `{name}_results.jsonl` | `p_eval`, `open_ended`, `transcript_awareness`, `trajectory_awareness` |
+| `PairwiseExperiment` | `run_pairs(samples, format_type, ...)` | `run_pairs` itself, which owns pairing, counterbalancing and resume because a pair spans two samples | `comparative` |
+
+`run.py` picks the driver with `isinstance(experiment, PairwiseExperiment)`, so
+a new experiment reaches the right one by choosing its base and adding a key to
+`EXPERIMENT_CLASSES`. That dict is typed
+`dict[str, type[PerSampleExperiment] | type[PairwiseExperiment]]`, which keeps
+the constructor call type-checked and requires each registered class to declare
+one of the two capabilities.
+
+`docs/adr/0006-model-pairwise-runs-as-a-capability.md` records the decision to
+model pairing as a capability and what it buys.
+
 ## Key Files
 
 ```

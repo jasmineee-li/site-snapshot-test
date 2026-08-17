@@ -8,7 +8,7 @@ and other benchmarks.
 import logging
 from pathlib import Path
 
-from eval_awareness_experiments.experiments.base import BaseExperiment
+from eval_awareness_experiments.experiments.base import PerSampleExperiment
 from eval_awareness_experiments.judges import get_judge
 from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.types import (
@@ -48,7 +48,7 @@ def load_transcript_from_log(log_path: Path) -> Transcript | None:
     )
 
 
-class TranscriptAwarenessExperiment(BaseExperiment):
+class TranscriptAwarenessExperiment(PerSampleExperiment):
     """Run transcript-based eval awareness judges on agent interaction logs."""
 
     name = "transcript_awareness"

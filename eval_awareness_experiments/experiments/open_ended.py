@@ -7,7 +7,7 @@ Two prompt types:
 
 import logging
 
-from eval_awareness_experiments.experiments.base import BaseExperiment
+from eval_awareness_experiments.experiments.base import PerSampleExperiment
 from eval_awareness_experiments.experiments.prompts import (
     WEBSITE_OPEN_ENDED_INFORMED_PROMPT,
     WEBSITE_OPEN_ENDED_TRUESIGHT_PROMPT,
@@ -17,7 +17,7 @@ from eval_awareness_experiments.types import WebsiteExperimentResult, WebsiteSam
 logger = logging.getLogger(__name__)
 
 
-class OpenEndedExperiment(BaseExperiment):
+class OpenEndedExperiment(PerSampleExperiment):
     """Open-ended qualitative analysis of website environments."""
 
     name = "open_ended"

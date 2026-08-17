@@ -10,7 +10,7 @@ import json
 import logging
 from pathlib import Path
 
-from eval_awareness_experiments.experiments.base import BaseExperiment
+from eval_awareness_experiments.experiments.base import PerSampleExperiment
 from eval_awareness_experiments.judges.binary_third_person import extract_label
 from eval_awareness_experiments.judges.probability_third_person import (
     average_probabilities,
@@ -37,7 +37,7 @@ def _load_json_prompts(prompts_dir: Path) -> list[dict]:
     return prompts
 
 
-class PEvalExperiment(BaseExperiment):
+class PEvalExperiment(PerSampleExperiment):
     """P(eval) scoring: probability and binary classification of website environments."""
 
     name = "p_eval"
