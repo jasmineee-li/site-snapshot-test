@@ -49,23 +49,24 @@ def make_agentlab_chat_model_args(
 ):
     """Return AgentLab `BaseModelArgs` instance for a local vLLM server.
 
-    AgentLab's `SelfHostedModelArgs(backend="vllm")` (in
-    `agentlab/llm/chat_api.py`) is exactly what we want — it builds an
-    OpenAI client pointed at the configured URL.
+    Returns `LocalVLLMModelArgs`, which sends requests to the spec's URL.
+    AgentLab's own `SelfHostedModelArgs(backend="vllm")` cannot: it hardcodes
+    port 8000. See models/common/agentlab_args.py for the detail.
     """
     try:
-        from agentlab.llm.chat_api import SelfHostedModelArgs
+        from models.common.agentlab_args import LocalVLLMModelArgs
     except ImportError as e:
         raise RuntimeError(
             "agentlab not installed — install via `uv pip install -e AgentLab/`"
         ) from e
 
     base_url = spec.resolve_url()
-    # AgentLab's VLLMChatModel reads its endpoint from VLLM_API_URL rather
-    # than the SelfHostedModelArgs.model_url field, so keep the env in sync
-    # for local OpenAI-compatible servers.
-    os.environ["VLLM_API_URL"] = base_url
-    return SelfHostedModelArgs(
+    # `LocalVLLMModelArgs` rather than AgentLab's `SelfHostedModelArgs`:
+    # AgentLab's `VLLMChatModel` hardcodes http://0.0.0.0:8000/v1 and drops
+    # `model_url`, so it cannot reach this tree's ports 8001-8003. See
+    # models/common/agentlab_args.py.
+    logger.info(f"AgentLab local model args for {spec.short_id} -> {base_url}")
+    return LocalVLLMModelArgs(
         model_name=spec.resolve_served_name(),
         model_url=base_url,
         max_total_tokens=spec.max_total_tokens,
