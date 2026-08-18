@@ -12,6 +12,161 @@ Slug conventions:
 
 ---
 
+## 2026-08-18 — gui-owl-vision-path-decision
+
+**Type:** decision (no run)
+**Groups:** causal-eval-awareness, cua-models, vllm-numerics
+**What:** Settle issues #180 ("Measure vLLM 0.23 output drift on GUI-Owl, on
+GPU") and #181 ("Audit historical runs for the vLLM 0.20.0–0.22.1 deepstack
+regression window") from source at `812c9ba1`, with no GPU. #181: no published
+number is exposed to the regression. #180: the vision path is not reached
+today, but the barrier is one config line on one of the two tracks, not
+architecture.
+**Why:** Both issues were left open by
+`docs/research/vllm-0-16-to-0-23-numerics-2026-08-17.md` (open item 9, and the
+Recommendation's "pin it, then measure once on GPU"). The evidence for both
+answers is in the tree; the answers were not, so the next person would redo the
+archaeology. This entry is the answer plus the trigger that would re-open it.
+**Parent:** #vllm-0-16-to-0-23-numerics
+**Key change:** none. No code, config, or dependency touched. The regression is
+already fenced out going forward by the `vllm>=0.23,<0.24` bound from #177
+(`pyproject.toml:156`).
+
+### #181 — no published number is exposed
+
+Every GUI-Owl result in this tree came from HuggingFace-mode loading, never
+from vLLM serving. The fault lives in vLLM's own
+`Qwen3VLForConditionalGeneration` (`_get_deepstack_input_embeds`), so a model
+loaded through Transformers never reaches it.
+`docs/HANDOFF_GUI_OWL_PROBE_RESULTS.md:195-196` says so outright: "This breaks
+vLLM serving but probe extraction doesn't need vLLM."
+
+- No GUI-Owl *benchmark* artifact exists anywhere in the tree. `probes/trained/`
+  holds `.gitkeep` and `opencua-72b-chat-template-span/` and nothing else; the
+  GUI-Owl probe dirs named in that handoff are gitignored.
+- The one local-model benchmark run, OpenCUA-72B on WASP
+  (`results/opencua72_wasp_attacked_full_20260505_052527/`), was served by
+  `models/common/hf_openai_server.py` — its `logs/hf_openai_server.log` is a
+  Transformers/uvicorn banner, no vLLM. OpenCUA is out of scope twice over: it
+  inherits the *Qwen2.5*-VL vision tower, not Qwen3-VL (research note :370-372).
+- Nothing anywhere records a serving version. A case-insensitive search for
+  `vllm` across all 2189 files under `results/`,
+  `eval_awareness_experiments/results/`, `read_logs/`, `probes/trained/`, and
+  `AgentLab/reproducibility_journal.csv` returns zero hits, binary files
+  included. So even if a run had used vLLM, the version could not be recovered
+  from the artifacts.
+
+There is nothing to retract and nothing to re-run. #181's audit is complete.
+
+### #180 — the vision path is unreached, but by one config line
+
+Only one barrier is load-bearing: no config names a local model.
+`grep -rn "local/" eval_awareness_experiments/configs/` returns nothing across
+all 16 configs. Two other barriers cited in an earlier handoff do **not** hold,
+and the record should not carry them:
+
+- The handoff cited `AgentLab/.../generic_agent/agent_configs.py:28-32` for
+  `FLAGS_GPT_4o`. Those lines are `FLAGS_CUSTOM` (block starts :16);
+  `FLAGS_GPT_4o` starts at :216 with the same three fields at :228, :229, :232.
+  Byte-identical values at the same offset inside each block, which is how the
+  mistake happened. The values do read `use_screenshot=False` /
+  `use_som=False` / `extract_coords="False"` — but that is a default, not an
+  architecture. `FLAGS_GPT_4o_VISION` at :329-331 is the same object with
+  `use_screenshot` and `use_som` flipped to `True`.
+- The handoff cited `models/common/hf_openai_server.py:83-84` (returns
+  `"[image omitted]"` for any image part) as covering GUI-Owl. It does not.
+  That server is the OpenCUA-72B fallback for checkpoints vLLM's registry
+  rejects, launched only from
+  `launch_opencua72_wasp_full_attacked_with_probes.sh:128`. GUI-Owl is served
+  by real vLLM (`scripts/serve_gui_owl_32b.sh` → `models/gui_owl/serve_32b.sh`,
+  which execs `vllm serve`) and never touches that file.
+
+**There are two independent gates, one per track, and they cost different
+things to open.**
+
+1. **Browser track (AgentLab) — needs a code edit.** `FLAGS_GPT_4o_VISION`
+   exists but nothing outside AgentLab references it (12 hits, all in
+   `agent_configs.py`). `agent_factory.py`'s `build_local_agent` (:57-82) and
+   `build_openrouter_agent` (:85-136) both `deepcopy(AGENT_CLAUDE_SONNET_35)`
+   — which carries `flags=FLAGS_GPT_4o` (`agent_configs.py:302-305`) — and then
+   assign only `chat_model_args`, `agent_name`, and `flags.extra_instructions`.
+   Never `flags.obs`. Note `make_agentlab_chat_model_args`
+   (`models/common/vllm_client.py:77`) *does* pass `vision_support=spec.vision`,
+   i.e. `True`; it is inert, because the attach site is
+   `dynamic_prompting.py:447` gated on `flags.obs.use_screenshot`, and
+   `generic_agent.py:189-196` only ever downgrades that flag. Reopening this
+   track requires editing `agent_factory.py`, not flipping a config.
+2. **Website track (p_eval, comparative, open_ended, realism_critique) — one
+   config line, zero code.** This bypasses AgentLab entirely.
+   `experiments/p_eval.py:78-79` and `:126-127` call
+   `self.model.generate_with_images(...)` whenever `format_type ==
+   "screenshot"` (same call at `comparative.py:340`, `open_ended.py:61,92`,
+   `realism_critique.py:176`). `llm.py:158-193` base64-encodes the file into an
+   `image_url` content part with no stripping, and `llm.py:81-88` routes any
+   `local/` model to a plain `AsyncOpenAI` via
+   `vllm_client.py:31-43` pointed straight at the vLLM server.
+   `models/common/registry.py:68-74` registers `gui-owl-32b-think`, with
+   `vision=True` inherited from the `LocalModelSpec` default at `:36`. So a
+   config naming `local/gui-owl-32b-think` with `formats: [screenshot]` reaches
+   the deepstack-affected path **today**, with no code change at all.
+
+The measurement #180 originally scoped — GPU time to quantify drift on a path
+nothing exercises — is not worth funding at this commit. The bound already
+prevents the resolver from landing in the affected range, and the re-open
+trigger is now precise and cheap to check.
+
+**Files:** (read-only evidence — nothing was modified)
+- `eval_awareness_experiments/configs/` — 16 configs, no `local/` reference
+- `eval_awareness_experiments/{llm.py,agent_factory.py}`,
+  `eval_awareness_experiments/experiments/{p_eval,comparative,open_ended,realism_critique}.py`
+- `models/common/{registry.py,vllm_client.py,hf_openai_server.py}`,
+  `models/gui_owl/serve_32b.sh`, `scripts/serve_gui_owl_32b.sh`
+- `AgentLab/src/agentlab/agents/generic_agent/{agent_configs.py,generic_agent.py}`,
+  `AgentLab/src/agentlab/agents/dynamic_prompting.py`
+- `docs/HANDOFF_GUI_OWL_PROBE_RESULTS.md`,
+  `docs/research/vllm-0-16-to-0-23-numerics-2026-08-17.md`, `pyproject.toml:100-157`
+
+**Settings:** provenance for a source audit, per the seven items this tree
+requires:
+- *Commit:* `812c9ba1`, branch `docs/record-vision-path-decision`.
+- *Inputs:* the working tree at that commit — first-party source, configs,
+  serve scripts, the vendored AgentLab, and all committed run artifacts.
+- *Model and provider settings:* n/a — no model was invoked. The settings under
+  audit are the declared ones: `gui-owl-32b-think` →
+  `mPLUG/GUI-Owl-1.5-32B-Think`, `vision=True`, `http://localhost:8003/v1`,
+  served by `vllm serve` with `--dtype bfloat16 --tensor-parallel-size 1
+  --max-model-len 32768`.
+- *Conditions:* two, one per track — AgentLab browser runners, and the
+  website-track experiment runners.
+- *Filters:* the artifact sweep covered every file under `results/`,
+  `eval_awareness_experiments/results/`, `read_logs/`, `probes/trained/`, plus
+  `AgentLab/reproducibility_journal.csv`; nothing excluded, binaries included.
+- *Output paths:* n/a — this entry is the only output. No result dir written.
+- *Failures:* none in the audit. The failures it records are two wrong
+  citations in a prior handoff, corrected above.
+
+**Results:** n/a — decision entry, no run. The measurement it defers is
+specified under the trigger below.
+
+**Notes:**
+- **Re-open trigger for #180.** Re-open the moment `grep -rn "local/"
+  eval_awareness_experiments/configs/` returns a `gui-owl-32b-think` line in a
+  config that also lists `screenshot` under `formats:`, or the moment
+  `agent_factory.py` learns to set `flags.obs`. Either one puts an image on the
+  wire to a Qwen3-VL vLLM server, and only then does the drift question have a
+  subject.
+- **Do not repeat the "~30% visual grounding" framing.** Upstream measured
+  Geo3K, a visual-math set, at temperature 0 on 601 samples: 29.71% relative on
+  Qwen3-VL-2B and 4.85% on Qwen3-VL-8B, same contrast. The larger model shows
+  the smaller effect, GUI-Owl-1.5-32B-Think is larger again, and upstream never
+  measured it. Read those two numbers as the observed range, not a prediction.
+  The full figures live in `pyproject.toml:117-127`.
+- This entry supersedes the "architecturally unreachable" reading of the vision
+  path. The correct reading is "unreached by configuration, on both tracks, at
+  this commit."
+
+---
+
 ## 2026-08-14 — classifieds-listing-reply-live-canary
 
 **Type:** bounded configured-host canary
