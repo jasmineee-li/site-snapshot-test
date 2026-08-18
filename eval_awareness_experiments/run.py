@@ -15,6 +15,7 @@ from pathlib import Path
 import yaml
 
 from eval_awareness_experiments.experiments.base import (
+    ExperimentConfig,
     PairwiseExperiment,
     PerSampleExperiment,
 )
@@ -145,7 +146,7 @@ def filter_samples(
     return filtered
 
 
-async def run_experiment(config: dict) -> None:
+async def run_experiment(config: ExperimentConfig) -> None:
     """Run an experiment based on configuration."""
     experiment_name = config["experiment"]
     models = config.get("models", ["anthropic/claude-sonnet-4"])
@@ -186,11 +187,15 @@ async def run_experiment(config: dict) -> None:
         model = LLM(model_name)
         exp_output = output_dir / config.get("name", experiment_name) / model_name.replace("/", "_")
 
+        # Constructed through the capability class's own `from_config`, so the
+        # runner passes the same three arguments to all five registered
+        # experiments and names none of them. An experiment's extra settings
+        # are read by the experiment, in a constructor call mypy checks; the
+        # spread `**dict[str, Any]` this replaces was checked by nothing, at
+        # any strictness tier, so a misnamed or wrong-typed extra passed every
+        # gate. ADR 0007 records the rule.
         exp_cls = EXPERIMENT_CLASSES[experiment_name]
-        exp_kwargs = {}
-        if experiment_name == "trajectory_awareness" and config.get("judges"):
-            exp_kwargs["judge_names"] = config["judges"]
-        experiment = exp_cls(model=model, output_dir=exp_output, **exp_kwargs)
+        experiment = exp_cls.from_config(model=model, output_dir=exp_output, config=config)
 
         # Narrowed by capability rather than by identity. Selecting on
         # `PairwiseExperiment` rather than on `ComparativeExperiment` (or on the
@@ -276,6 +281,12 @@ def main():
     )
     args = parser.parse_args()
 
+    # The annotation checks the literal below against `ExperimentConfig`: a key
+    # this branch misspells is an error here rather than a setting silently
+    # dropped at the far end. It asserts nothing about the YAML branch, where
+    # `yaml.safe_load` returns `Any` and validates nothing -- the key a config
+    # file must get right is validated where it is read, not here.
+    config: ExperimentConfig
     if args.config:
         with open(args.config) as f:
             config = yaml.safe_load(f)

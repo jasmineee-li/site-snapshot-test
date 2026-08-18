@@ -4,11 +4,60 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Required, Self, TypedDict
 
 from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.types import WebsiteExperimentResult, WebsiteSample
 
 logger = logging.getLogger(__name__)
+
+
+class ExperimentConfig(TypedDict, total=False):
+    """One run's configuration, as `run.py` loads it from YAML or CLI flags.
+
+    Every key the runner reads is named here, plus the per-experiment settings
+    an experiment reads for itself in `from_config`. Naming them is what lets
+    mypy check the runner's own accesses -- `config.get("max_per_side")` is an
+    `int | None` against `run_pairs`, not an `Any` that fits anything.
+
+    A TypedDict is a *static* description of a mapping. `yaml.safe_load`
+    validates nothing, so the claims below hold for a config this tree
+    constructs and are merely asserted for a config a person writes by hand.
+    That is the split `require_str_list` exists for: a checked caller stays
+    checked, and the one unchecked caller is validated where its value crosses
+    into a constructor argument.
+    """
+
+    experiment: Required[str]
+    name: str
+    models: list[str]
+    formats: list[str]
+    manifest: str
+    output_dir: str
+    sources: list[str] | None
+    website_types: list[str] | None
+    ids: list[str] | None
+    max_samples: int | None
+    seed: int
+    max_per_side: int | None
+    cross_type: bool
+    judges: list[str] | None
+
+
+def require_str_list(value: object, key: str) -> list[str] | None:
+    """Validate a config value declared as `list[str] | None`, or raise.
+
+    Declared as taking `object` rather than the key's declared type on purpose:
+    the check is against what a YAML file can actually deliver, not against
+    what `ExperimentConfig` promises. Narrowing the parameter would make every
+    branch below statically dead and buy nothing at runtime, which is the exact
+    mistake this guards against.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, list) or not all(isinstance(name, str) for name in value):
+        raise TypeError(f"config key {key!r} must be a list of strings, got {value!r}")
+    return value
 
 
 class BaseExperiment:
@@ -45,6 +94,28 @@ class BaseExperiment:
         self.model = model
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    @classmethod
+    def from_config(cls, model: LLM, output_dir: Path, config: ExperimentConfig) -> Self:
+        """Build this experiment from a run configuration.
+
+        This is the single seam through which the CLI constructs a registered
+        experiment, and the reason it exists is that the runner cannot type the
+        alternative. The registry's declared value type is a capability class,
+        whose `__init__` takes the model and the output directory and nothing
+        else, so an experiment-specific keyword cannot be passed through it at
+        all -- which is why the runner previously spread a `dict[str, Any]` and
+        why mypy checked no part of that call, at any strictness tier.
+
+        An experiment with settings of its own overrides this and reads them
+        here, where `cls(...)` is an ordinary checked constructor call. The
+        runner therefore never names an experiment to give it a setting, and
+        adding a setting to one experiment does not touch `run.py`.
+
+        The default reads nothing, which is correct for an experiment whose
+        constructor takes only what every experiment takes.
+        """
+        return cls(model=model, output_dir=output_dir)
 
     def load_website_content(self, sample: WebsiteSample, format_type: str) -> str | None:
         """Load website content in the specified format.

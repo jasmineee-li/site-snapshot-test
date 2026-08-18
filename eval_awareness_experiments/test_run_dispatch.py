@@ -1,10 +1,12 @@
 """Invariants the experiment dispatch in `run.py` relies on.
 
-`_run_model` builds an experiment from `EXPERIMENT_CLASSES` and then selects a
-driver with `isinstance(experiment, PairwiseExperiment)`. mypy checks that the
-registry's declared value type admits both capabilities and that the `else`
-branch is exhaustive, but three properties it cannot check are the ones a future
-change is most likely to break:
+`_run_model` builds an experiment from `EXPERIMENT_CLASSES` through
+`from_config` and then selects a driver with
+`isinstance(experiment, PairwiseExperiment)`. mypy checks that the registry's
+declared value type admits both capabilities, that the `else` branch is
+exhaustive, and -- since ADR 0007 -- that each `from_config` constructs its own
+experiment with arguments the constructor accepts. Four properties it cannot
+check are the ones a future change is most likely to break:
 
 * a registered class declares exactly one capability, so the branch has a case
   for it;
@@ -13,11 +15,17 @@ change is most likely to break:
 * a *second* pairwise experiment is routed by registering it, with no edit to
   the branch. This is the case the previous `isinstance(..., ComparativeExperiment)`
   selection got wrong, and it is what ADR 0006 records as the reason for the split.
+* every registered experiment is reachable through the same three-argument
+  seam, so the runner needs no per-experiment branch to build one -- and a
+  config value that a type checker cannot vouch for is rejected where it is
+  read rather than iterated as if it were well formed.
 
-These assert on classes wherever possible; the routing test constructs, because
-`isinstance` is what the dispatch actually evaluates.
+These assert on classes wherever possible; the routing and configuration tests
+construct, because `isinstance` and `from_config` are what the dispatch
+actually evaluates.
 """
 
+import inspect
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -26,10 +34,15 @@ import pytest
 
 from eval_awareness_experiments.experiments.base import (
     BaseExperiment,
+    ExperimentConfig,
     PairwiseExperiment,
     PerSampleExperiment,
 )
 from eval_awareness_experiments.experiments.comparative import ComparativeExperiment
+from eval_awareness_experiments.experiments.trajectory_awareness import (
+    DEFAULT_JUDGES,
+    TrajectoryAwarenessExperiment,
+)
 from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.run import EXPERIMENT_CLASSES
 from eval_awareness_experiments.types import WebsiteExperimentResult, WebsiteSample
@@ -108,6 +121,70 @@ def test_a_second_pairwise_experiment_is_routed_by_capability(tmp_path: Path):
     # The selection this replaces would have missed it and fallen to the driver.
     assert not isinstance(experiment, ComparativeExperiment)
     assert not isinstance(experiment, PerSampleExperiment)
+
+
+def test_every_registered_experiment_is_built_through_the_same_seam(tmp_path: Path):
+    """The runner supplies three arguments and names no experiment.
+
+    An experiment that took a fourth would have to be recognized by the runner
+    to be constructed, which is the string comparison ADR 0007 removes.
+    """
+    for name, cls in EXPERIMENT_CLASSES.items():
+        assert list(inspect.signature(cls.from_config).parameters) == [
+            "model",
+            "output_dir",
+            "config",
+        ], f"{name} -> {cls.__name__}.from_config takes arguments the runner does not supply"
+
+        experiment = cls.from_config(
+            model=_stub_model(),
+            output_dir=tmp_path / name,
+            config={"experiment": name},
+        )
+        assert isinstance(experiment, cls)
+
+
+def test_trajectory_awareness_reads_its_own_judges_setting(tmp_path: Path):
+    configured: ExperimentConfig = {
+        "experiment": "trajectory_awareness",
+        "judges": ["verbalized_awareness"],
+    }
+    experiment = TrajectoryAwarenessExperiment.from_config(
+        model=_stub_model(), output_dir=tmp_path / "configured", config=configured
+    )
+    assert experiment.judge_names == ["verbalized_awareness"]
+
+    # An absent key leaves the experiment's own default, which is the behavior
+    # the runner's `and config.get("judges")` guard used to produce.
+    default = TrajectoryAwarenessExperiment.from_config(
+        model=_stub_model(),
+        output_dir=tmp_path / "default",
+        config={"experiment": "trajectory_awareness"},
+    )
+    assert default.judge_names == DEFAULT_JUDGES
+
+
+def test_a_judges_value_that_is_not_a_list_of_strings_is_rejected(tmp_path: Path):
+    """The failure this seam exists to convert into a clean one.
+
+    `judge_names` is consumed by iterating it, so `judges: verbalized_awareness`
+    -- a bare string -- is truthy, survives `judge_names or DEFAULT_JUDGES`, and
+    is then iterated character by character. Measured on the code this replaces:
+    20 judge lookups for a 20-character string, each failing, each swallowed by
+    `run_sample`'s `except Exception` into an "error" result row, and the run
+    completing with results written. No caller sees an exception.
+
+    The cast is what `yaml.safe_load` does: it hands the runner a mapping that
+    nothing has checked. Every other caller of this constructor passes
+    `judge_names` as a keyword mypy checks, which is why the check lives here,
+    at the one boundary a type checker cannot reach, rather than in `__init__`.
+    """
+    for judges in ("verbalized_awareness", ["verbalized_awareness", 3], {"a": 1}):
+        config = cast(ExperimentConfig, {"experiment": "trajectory_awareness", "judges": judges})
+        with pytest.raises(TypeError, match="'judges' must be a list of strings"):
+            TrajectoryAwarenessExperiment.from_config(
+                model=_stub_model(), output_dir=tmp_path / "rejected", config=config
+            )
 
 
 def test_capability_classes_do_not_satisfy_their_own_contract(tmp_path: Path):

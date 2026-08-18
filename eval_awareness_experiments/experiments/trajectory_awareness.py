@@ -15,8 +15,13 @@ the benchmark's own evaluator, enabling ASR × awareness correlation analysis.
 
 import logging
 from pathlib import Path
+from typing import Self
 
-from eval_awareness_experiments.experiments.base import PerSampleExperiment
+from eval_awareness_experiments.experiments.base import (
+    ExperimentConfig,
+    PerSampleExperiment,
+    require_str_list,
+)
 from eval_awareness_experiments.judges import get_judge
 from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.trajectory_converter import (
@@ -64,6 +69,27 @@ class TrajectoryAwarenessExperiment(PerSampleExperiment):
         self.purpose_continuation_concurrency = purpose_continuation_concurrency
         self.purpose_continuation_retries = purpose_continuation_retries
         self._continuation_models: dict[str, LLM] = {}
+
+    @classmethod
+    def from_config(cls, model: LLM, output_dir: Path, config: ExperimentConfig) -> Self:
+        """Read the `judges` key, which is this experiment's own setting.
+
+        `require_str_list` is what stands between a hand-written config and a
+        quietly wrong run. `judge_names` is consumed by iterating it, so a
+        config written `judges: verbalized_awareness` -- a bare string rather
+        than a one-item list -- survives `judge_names or DEFAULT_JUDGES`, and
+        the per-judge loop below then iterates the string's *characters* as
+        judge names. Every lookup fails, `run_sample`'s `except Exception`
+        turns each failure into an "error" result row, and the run completes:
+        20 error rows for a 20-character string, no exception, results written.
+        The type is checked for the pipelines that pass `judge_names` directly;
+        this raises for the one caller a type checker cannot reach.
+        """
+        return cls(
+            model=model,
+            output_dir=output_dir,
+            judge_names=require_str_list(config.get("judges"), "judges"),
+        )
 
     def _get_continuation_model(self, model_name: str) -> LLM:
         model = self._continuation_models.get(model_name)

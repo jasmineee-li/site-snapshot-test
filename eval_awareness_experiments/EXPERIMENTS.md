@@ -86,8 +86,19 @@ a new experiment reaches the right one by choosing its base and adding a key to
 the constructor call type-checked and requires each registered class to declare
 one of the two capabilities.
 
+Settings beyond those two are read by the experiment, not by the runner.
+`run.py` calls `exp_cls.from_config(model=..., output_dir=..., config=...)` for
+every registered key and names none of them; an experiment that has a setting
+of its own overrides `from_config` and passes it as an ordinary keyword, which
+is a constructor call mypy checks. `trajectory_awareness` reads `judges` that
+way. A config value a type checker cannot vouch for is validated there too,
+because `yaml.safe_load` validates nothing.
+
 `docs/adr/0006-model-pairwise-runs-as-a-capability.md` records the decision to
-model pairing as a capability and what it buys.
+model pairing as a capability and what it buys;
+`docs/adr/0007-let-an-experiment-read-its-own-run-configuration.md` records why
+the settings seam is a method on the experiment rather than a keyword mapping
+in the runner.
 
 ## Key Files
 
