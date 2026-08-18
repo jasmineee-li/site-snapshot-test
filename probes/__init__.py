@@ -1,8 +1,9 @@
 """Difference-of-means (DoM) eval-awareness probes for CUA models.
 
 Ported from `jasmineee-li/eval-awareness` (eval-awareness-testbed/src/
-eval_awareness_probes/) and adapted for the multimodal Qwen2.5-VL-based
-models we run via browser-sim (OpenCUA-32B/72B, GUI-Owl-1.5-32B-Think).
+eval_awareness_probes/) and adapted for the multimodal Qwen-VL models we
+run via browser-sim: OpenCUA-32B/72B are Qwen2.5-VL, GUI-Owl-1.5-32B-Think
+is Qwen3-VL.
 
 For training and steering we use HuggingFace `transformers` with forward
 hooks on the LM decoder's residual stream. For benchmark generation
@@ -10,7 +11,7 @@ hooks on the LM decoder's residual stream. For benchmark generation
 `models/<model>/serve.sh`.
 
 Modules:
-    model_loader        — HookedTransformerShim for HF + Qwen2.5-VL handling
+    model_loader        — HookedTransformerShim for HF + Qwen2.5-VL / Qwen3-VL handling
     activation_extraction — Token-position selectors and contrastive extraction
     contrastive_probe   — DoM probe (train/save/load/score)
     scoring             — ProbeScore / AUROC helpers
