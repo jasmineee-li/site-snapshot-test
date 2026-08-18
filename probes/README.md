@@ -4,14 +4,16 @@ Difference-of-means (DoM) probe extraction and residual-stream steering
 for CUA models served via WARP. Ported from
 [`jasmineee-li/eval-awareness`](https://github.com/jasmineee-li/eval-awareness)
 (`eval-awareness-testbed/src/eval_awareness_probes/`) and adapted for
-multimodal Qwen2.5-VL-based models (OpenCUA-32B/72B, GUI-Owl-1.5-32B-Think).
+multimodal Qwen-VL models. OpenCUA-32B/72B are Qwen2.5-VL.
+GUI-Owl-1.5-32B-Think is Qwen3-VL. `model_loader._load_vl()` dispatches on
+the `model_type` field of the HF config, so both load the same way.
 
 ## Layout
 
 ```
 probes/
 ├── __init__.py
-├── model_loader.py            HookedTransformerShim + Qwen2.5-VL handling
+├── model_loader.py            HookedTransformerShim + Qwen2.5-VL / Qwen3-VL handling
 ├── activation_extraction.py   Residual-stream extraction at answer-token positions
 ├── contrastive_probe.py       DoM probe: train / save / load / score
 ├── scoring.py                 ProbeScore, AUROC helpers

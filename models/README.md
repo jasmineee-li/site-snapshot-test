@@ -40,6 +40,13 @@ python -m eval_awareness_experiments.run_safety_pipeline \
 2. Drop a `models/<family>/serve_*.sh` that runs `vllm serve <repo> --port <port>`.
 3. Confirm a `local/<short-id>` invocation lands on the new server.
 
-If the model is Qwen2.5-VL based, the existing `probes/model_loader.py`
-fallback path should load it via `Qwen2_5_VLForConditionalGeneration`.
-For other architectures, extend `_load_qwen2_5_vl()` accordingly.
+`probes/model_loader._load_vl()` selects the loader class. It reads
+`model_type` from the HF config and handles two values today:
+
+| `model_type` | loader class | models |
+|---|---|---|
+| `qwen2_5_vl` | `Qwen2_5_VLForConditionalGeneration` | OpenCUA-32B/72B |
+| `qwen3_vl` | `Qwen3VLForConditionalGeneration` | GUI-Owl-1.5-32B-Think |
+
+Unknown values fall back to `AutoModelForVision2Seq`, then to `AutoModel`.
+To add a third architecture, add a branch to `_load_vl()`.
