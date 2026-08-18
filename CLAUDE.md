@@ -19,6 +19,7 @@ commands, and domain detail.
   owning path guide or specification.
 - **Editing the agent guidance itself:** read
   `docs/agents/guidance-hygiene.md`.
+- **Handing work to a subagent:** read `docs/agents/delegation.md`.
 
 ## Delivery boundary
 
