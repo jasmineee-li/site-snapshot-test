@@ -106,10 +106,29 @@ dependencies = [
 #   vllm 0.20.2 · transformers 4.57.6 · torch 2.11.0
 #
 # 0.20.2 sits inside the Qwen3-VL deepstack regression window. vLLM introduced
-# it at 0.20.0 (#40145) and fixed it at 0.23.0 (#43617); 0.20.0-0.22.1 serve
-# GUI-Owl with roughly 30% relative accuracy loss on visual grounding. So the
-# floor holds the resolver out of a known-bad range rather than holding back an
-# upgrade.
+# the fault at 0.20.0 and corrected it at 0.23.0. The floor keeps the resolver
+# out of that range.
+#
+#   introduced  https://github.com/vllm-project/vllm/pull/40145
+#   corrected   https://github.com/vllm-project/vllm/pull/43617
+#
+# The fault affects 0.20.0, 0.20.1, 0.20.2, 0.21.0, 0.22.0 and 0.22.1.
+#
+# Upstream measured the fault on Geo3K, 601 samples, at temperature 0. The
+# tested models are Qwen3-VL-2B and Qwen3-VL-8B. The table below gives the
+# accuracy before the correction, with the compiled graph on and off:
+#
+#   Qwen3-VL-2B   0.20466 compiled / 0.29118 eager   29.71% relative
+#   Qwen3-VL-8B   0.52246 compiled / 0.54908 eager    4.85% relative
+#
+# The larger model shows the smaller effect. GUI-Owl-1.5-32B-Think is larger
+# again, and upstream did not measure it. Read the two numbers above as the
+# range that upstream observed. Do not read them as a prediction for this
+# model.
+#
+# This tree does not reach the faulty path today, because no first-party code
+# sends this model an image. The bound stays because that can change in one
+# line. See docs/research/vllm-0-16-to-0-23-numerics-2026-08-17.md.
 #
 # The ceiling records why it cannot move forward instead, from package metadata
 # on 2026-08-17 (`pypi.org/pypi/vllm/<version>/json`, `requires_dist`):
