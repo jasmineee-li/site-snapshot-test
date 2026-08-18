@@ -507,6 +507,7 @@ cua = [
     { name = "accelerate" },
     { name = "qwen-vl-utils" },
     { name = "scikit-learn" },
+    { name = "transformers" },
     { name = "vllm" },
 ]
 
@@ -580,7 +581,8 @@ requires-dist = [
     { name = "torch", specifier = ">=2.2" },
     { name = "tqdm", specifier = ">=4.66" },
     { name = "transformers", specifier = ">=4.38" },
-    { name = "vllm", marker = "extra == 'cua'", specifier = ">=0.6" },
+    { name = "transformers", marker = "extra == 'cua'", specifier = "<5" },
+    { name = "vllm", marker = "extra == 'cua'", specifier = ">=0.23,<0.24" },
 ]
 provides-extras = ["cua"]
 
