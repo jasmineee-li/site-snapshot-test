@@ -94,8 +94,11 @@ dependencies = [
 # keeping both is what let them drift apart previously.
 [project.optional-dependencies]
 # Local CUA model serving + DoM probe extraction.
-# Install with `uv pip install -e '.[cua]'` on hosts that will run
-# probe training, steering, or vLLM serving for OpenCUA / GUI-Owl.
+# Install with `uv sync --locked --extra cua --no-default-groups` on hosts that
+# will run probe training, steering, or vLLM serving for OpenCUA / GUI-Owl;
+# that is what `scripts/runpod_setup.sh` runs. `uv pip install -e '.[cua]'`
+# resolves freshly and never reads `uv.lock` -- uv's pip interface does not --
+# so it is not the provisioning path.
 #
 # `vllm` previously declared `>=0.6`, which bounds nothing, and that is how an
 # unreviewed 0.16.0 -> 0.23.0 move rode in on the lockfile fork collapse in
@@ -224,6 +227,46 @@ dev = [
 
 [tool.setuptools]
 packages = ["probes", "models", "eval_awareness", "eval_awareness_experiments"]
+
+# `xgrammar` is constrained here rather than in the `cua` extra above because
+# nothing in this tree imports it. It is vLLM's guided-decoding engine, reached
+# only through vllm 0.23.0's own `xgrammar<1.0.0,>=0.2.0` (`requires_dist` on
+# `pypi.org/pypi/vllm/0.23.0/json`), and a line in the extra would declare a
+# direct optional dependency this project does not have. A constraint narrows a
+# version only when something else already pulls the package in, so if a future
+# vLLM drops the requirement this entry goes inert instead of installing an
+# orphan.
+#
+# The ceiling is a wheel inventory, not a version judgement. `requires-python`
+# above admits cp312 only, and the GPU hosts are Linux x86_64, so the resolved
+# release has to publish a cp312 manylinux x86_64 wheel or an sdist. Measured
+# 2026-08-18 with `curl -s https://pypi.org/pypi/xgrammar/<version>/json`,
+# reading the filenames under `urls`:
+#
+#   0.2.3   35 files   sdist + cp312 manylinux_2_27_x86_64 wheel
+#   0.2.4   13 files   no sdist; its only cp312 Linux wheel is aarch64
+#   0.2.5    5 files   no sdist; cp310 wheels only
+#
+# 0.2.3 is therefore the newest release installable on a cp312 Linux x86_64
+# host, and `<0.2.4` states exactly that. Without the bound the lock pins 0.2.4
+# and
+#
+#   uv sync --locked --extra cua --dry-run \
+#       --python-platform x86_64-unknown-linux-gnu
+#
+# fails with "doesn't have a source distribution or wheel for the current
+# platform" -- which is the command `scripts/runpod_setup.sh` now runs on the
+# GPU host. Lift the ceiling once a later release publishes that wheel.
+#
+# `required-environments` is the alternative uv's own error message suggests,
+# and it was measured and rejected: adding
+# `sys_platform == 'linux' and platform_machine == 'x86_64'` there forks the
+# lock, resolving 361 packages with xgrammar 0.2.3 on Linux x86_64 and 0.2.4
+# on every other platform. A forked lock is the state #172 collapsed -- on
+# `python_full_version` there, on `platform_machine` here -- and it would mean
+# the GPU host and a reviewer's machine no longer share one resolution.
+[tool.uv]
+constraint-dependencies = ["xgrammar<0.2.4"]
 
 [tool.uv.sources]
 agentlab = { path = "AgentLab", editable = true }
