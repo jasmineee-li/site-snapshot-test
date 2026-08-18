@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Spin up vLLM's OpenAI-compatible server for xlangai/GUI-Owl-1.5-32B-Think.
+# Spin up vLLM's OpenAI-compatible server for mPLUG/GUI-Owl-1.5-32B-Think.
 #
 # Listens on :8003 by default; runners reach it as `local/gui-owl-32b-think`.
 # Single H100 in bf16 with TP=1 fits comfortably.
 
 set -euo pipefail
 
-MODEL=${MODEL:-xlangai/GUI-Owl-1.5-32B-Think}
+MODEL=${MODEL:-mPLUG/GUI-Owl-1.5-32B-Think}
 PORT=${PORT:-8003}
 TENSOR_PARALLEL_SIZE=${TENSOR_PARALLEL_SIZE:-1}
 GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.92}

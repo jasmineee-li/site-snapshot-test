@@ -9,7 +9,7 @@ cd "$REPO_ROOT"
 
 export HF_HOME=${HF_HOME:-/workspace/hf_cache}
 
-MODEL=${MODEL:-xlangai/GUI-Owl-1.5-32B-Think}
+MODEL=${MODEL:-mPLUG/GUI-Owl-1.5-32B-Think}
 DATA=${DATA:-probes/data/framing_pairs.json}
 OUTPUT=${OUTPUT:-probes/trained/gui-owl-32b-framing/}
 LAYERS=${LAYERS:-all}

@@ -14,7 +14,7 @@ models/
 │   ├── serve_32b.sh     vLLM server for xlangai/OpenCUA-32B (port 8001)
 │   └── serve_72b.sh     vLLM server for xlangai/OpenCUA-72B (port 8002, TP>=2)
 └── gui_owl/
-    └── serve_32b.sh     vLLM server for xlangai/GUI-Owl-1.5-32B-Think (port 8003)
+    └── serve_32b.sh     vLLM server for mPLUG/GUI-Owl-1.5-32B-Think (port 8003)
 ```
 
 ## Registered short ids
@@ -23,7 +23,7 @@ models/
 |-----------------------|-------------------------------|------|------------|---------|
 | `opencua-32b`         | xlangai/OpenCUA-32B           | 8001 | yes        | yes     |
 | `opencua-72b`         | xlangai/OpenCUA-72B           | 8002 | yes        | no (1st pass) |
-| `gui-owl-32b-think`   | xlangai/GUI-Owl-1.5-32B-Think | 8003 | yes        | yes     |
+| `gui-owl-32b-think`   | mPLUG/GUI-Owl-1.5-32B-Think | 8003 | yes        | yes     |
 
 Reach a model from a runner via `local/<short-id>`:
 
