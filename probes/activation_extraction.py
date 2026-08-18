@@ -2,9 +2,9 @@
 
 Ported from eval-awareness/eval-awareness-testbed/src/eval_awareness_probes/
 activation_extraction.py. Original supports text-only causal LMs; for
-multimodal (Qwen2.5-VL) models we feed text-only contrastive prompts
+multimodal (Qwen-VL) models we feed text-only contrastive prompts
 (the dataset is text), so the same code path works — `tokenizer.encode`
-on Qwen2.5-VL's processor.tokenizer returns plain text token ids.
+on a Qwen-VL processor.tokenizer returns plain text token ids.
 """
 
 from __future__ import annotations

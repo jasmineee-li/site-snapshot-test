@@ -1,17 +1,20 @@
 """Model loading utilities for DoM-probe extraction on CUA models.
 
-Wraps any HuggingFace causal-LM (or Qwen2.5-VL conditional-generation
+Wraps any HuggingFace causal-LM (or Qwen-VL conditional-generation
 model) in a `HookedTransformerShim` providing a TransformerLens-style
 hook API for residual-stream activation extraction.
 
 Adapted from eval-awareness/eval-awareness-testbed/src/eval_awareness_probes/
 model_loader.py — original supported text-only causal LMs (OLMo, Qwen,
-Llama, etc.); this version additionally handles Qwen2.5-VL based models
-(OpenCUA-32B/72B, GUI-Owl-1.5-32B-Think) by:
-  1. Trying `AutoModelForCausalLM` first (works for many Qwen2.5-VL
-     checkpoints because the LM head is registered).
-  2. Falling back to `AutoModel` / `Qwen2_5_VLForConditionalGeneration`
-     when CausalLM loading fails, then exposing the underlying text
+Llama, etc.); this version additionally handles the Qwen-VL based models we
+run — OpenCUA-32B/72B (`qwen2_5_vl`) and GUI-Owl-1.5-32B-Think (`qwen3_vl`)
+— by:
+  1. Trying `AutoModelForCausalLM` first (works for many VL checkpoints
+     because the LM head is registered).
+  2. Falling back to `_load_vl()` when CausalLM loading fails, which
+     dispatches on the config's `model_type` to
+     `Qwen2_5_VLForConditionalGeneration` or
+     `Qwen3VLForConditionalGeneration`, then exposing the underlying text
      decoder via `model.model.layers` (skipping the vision tower) for
      hook attachment.
 
@@ -240,7 +243,7 @@ class HookedTransformerShim:
 
         Used by `steering.steering_hook` to register a forward-pre-hook on
         the residual stream input to a specific layer. Handles both plain
-        causal-LM (`model.model.layers`) and Qwen2.5-VL conditional-
+        causal-LM (`model.model.layers`) and Qwen-VL conditional-
         generation (`model.model.layers` after stripping the vision tower
         wrapper).
         """
