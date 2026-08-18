@@ -67,7 +67,7 @@ LOCAL_MODELS: dict[str, LocalModelSpec] = {
     ),
     "gui-owl-32b-think": LocalModelSpec(
         short_id="gui-owl-32b-think",
-        hf_repo="xlangai/GUI-Owl-1.5-32B-Think",
+        hf_repo="mPLUG/GUI-Owl-1.5-32B-Think",
         default_url="http://localhost:8003/v1",
         max_total_tokens=131072,
         notes="Think variant emits reasoning traces — use for thought-trace probes.",

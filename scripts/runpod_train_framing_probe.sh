@@ -21,7 +21,7 @@ case "$MODEL_SHORT" in
         TRAIN_SCRIPT=scripts/train_probe_framing_opencua_32b.sh
         ;;
     gui-owl-32b|gui-owl-32b-think)
-        MODEL_HF=xlangai/GUI-Owl-1.5-32B-Think
+        MODEL_HF=mPLUG/GUI-Owl-1.5-32B-Think
         TRAIN_SCRIPT=scripts/train_probe_framing_gui_owl_32b.sh
         ;;
     *)

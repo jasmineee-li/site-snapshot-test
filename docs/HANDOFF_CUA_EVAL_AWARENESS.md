@@ -36,7 +36,7 @@ harmful action** as a fallback if capability is too low for ASR.
 |-----------------------|-------------------------------|------|-----------------|
 | `opencua-32b`         | xlangai/OpenCUA-32B           | 32B  | benchmarks + probing + steering |
 | `opencua-72b`         | xlangai/OpenCUA-72B           | 72B  | benchmarks only (no probing this pass) |
-| `gui-owl-32b-think`   | xlangai/GUI-Owl-1.5-32B-Think | 32B  | benchmarks + probing + steering, plus reasoning traces |
+| `gui-owl-32b-think`   | mPLUG/GUI-Owl-1.5-32B-Think | 32B  | benchmarks + probing + steering, plus reasoning traces |
 
 ## Benchmarks
 

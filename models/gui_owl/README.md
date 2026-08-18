@@ -1,10 +1,10 @@
 # GUI-Owl
 
-Adapter for `xlangai/GUI-Owl-1.5-32B-Think`.
+Adapter for `mPLUG/GUI-Owl-1.5-32B-Think`.
 
 | short id              | HF repo                       | port | hardware (bf16) |
 |-----------------------|-------------------------------|------|-----------------|
-| `gui-owl-32b-think`   | xlangai/GUI-Owl-1.5-32B-Think | 8003 | 1× H100 (TP=1)  |
+| `gui-owl-32b-think`   | mPLUG/GUI-Owl-1.5-32B-Think | 8003 | 1× H100 (TP=1)  |
 
 The Think variant emits explicit reasoning traces, which makes it
 particularly useful for eval-awareness experiments — we can probe at
@@ -31,6 +31,6 @@ python -m eval_awareness_experiments.run_safety_pipeline \
 
 ```bash
 HF_HOME=/workspace/hf_cache python -m probes.train_probe \
-    --model xlangai/GUI-Owl-1.5-32B-Think \
+    --model mPLUG/GUI-Owl-1.5-32B-Think \
     --output probes/trained/gui-owl-32b-think/
 ```
