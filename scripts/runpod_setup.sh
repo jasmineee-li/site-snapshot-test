@@ -80,7 +80,13 @@ if [ ! -f .env ]; then
     } > .env
 fi
 
-# 6. Sanity report.
+# 6. GPU pre-flight. This blocks: a driver below the floor makes the model load
+# on CPU without raising, and the run then completes on the wrong device.
+echo
+echo "[runpod_setup] GPU pre-flight..."
+bash "$(dirname "${BASH_SOURCE[0]}")/preflight_gpu.sh"
+
+# 7. Sanity report.
 echo
 echo "[runpod_setup] DONE."
 echo "  python: $(python --version)"
