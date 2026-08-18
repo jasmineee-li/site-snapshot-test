@@ -198,8 +198,17 @@ python -m probes.validate_probes_cross \
    Two corrections since this was written. The trigger is no longer the
    `[cua]` extras alone: `torch` 2.11 is now in the default dependencies, so
    any host on an older driver hits this, not just vLLM users. And a ≥570.x
-   driver is not sufficient — CUDA 13.0 requires **≥580.65.06** on Linux, so
-   provision against that number.
+   driver is not sufficient — CUDA 13.0 GA requires **≥580.65.06** on Linux.
+
+   A third correction, 2026-08-18: **provision against ≥580.95.05**, not
+   580.65.06. `torch` 2.11.0 pins `cuda-toolkit==13.0.2`, and CUDA 13.0
+   Update 2 raises the floor. Both figures come from NVIDIA's toolkit-driver
+   table:
+   <https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html>
+
+   `scripts/preflight_gpu.sh` now checks this and exits non-zero. Run it before
+   training or serving. The silent CPU fallback described above is why it
+   blocks rather than reports.
 
    The architecture drop in CUDA 13 (Maxwell, Pascal and Volta, i.e. below
    Turing sm_75) does not apply here: this project's hosts are A100 (sm_80)
