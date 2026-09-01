@@ -375,6 +375,7 @@ class RocketChatMessageIdentity:
     thread_id: str | None
     author: str
     body: str
+    recipient: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "benchmark", validate_rocket_chat_benchmark(self.benchmark))
@@ -390,6 +391,12 @@ class RocketChatMessageIdentity:
         if self.thread_id is not None:
             object.__setattr__(self, "thread_id", _identity(self.thread_id, field="message thread"))
         object.__setattr__(self, "body", _text(self.body, field="message body", max_length=2000))
+        if self.recipient is not None:
+            object.__setattr__(
+                self,
+                "recipient",
+                _text(self.recipient, field="message recipient", max_length=128),
+            )
 
 
 @dataclass(frozen=True)
