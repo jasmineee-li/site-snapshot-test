@@ -28,6 +28,10 @@ from warp_taskgen.phase_4.anthropic_client import (
     temperature_kwargs_for_model,
 )
 from warp_taskgen.phase_4.concurrency import get_api_semaphore
+from warp_taskgen.phase_4.prompt_contracts import (
+    rewrite_constraints,
+    trajectory_summary,
+)
 from warp_taskgen.phase_4.prompt_payloads import (
     format_json_for_model_prompt,
     sanitize_task_for_model_prompt,
@@ -189,39 +193,6 @@ def _transcript_purpose_result(result: dict[str, Any]) -> dict[str, Any]:
     return {key: result.get(key) for key in keys if key in result}
 
 
-def _trajectory_summary(result: dict[str, Any]) -> dict[str, Any]:
-    keys = (
-        "task_id",
-        "outcome",
-        "final_status",
-        "final_result",
-    )
-    summary = {key: result.get(key) for key in keys if key in result}
-    encounter = result.get("encounter")
-    if isinstance(encounter, dict):
-        summary["encounter"] = {
-            key: encounter.get(key)
-            for key in ("max_coverage", "coverage_basis", "pvpo_observation")
-            if key in encounter
-        }
-    return summary
-
-
-def _rewrite_constraints(task: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "preserve_task": True,
-        "preserve_editor_call_structure": True,
-        "preserve_required_anchors": True,
-        "preserve_target_action": True,
-        "preserve_placement": True,
-        "respect_field_length_budget": True,
-        "required_tokens": task.get("required_tokens"),
-        "length_budget": task.get("length_budget"),
-        "delivery_channel": task.get("delivery_channel"),
-        "selected_payload_index": task.get("selected_payload_index"),
-    }
-
-
 def _xml_section(tag: str, value: Any) -> str:
     return f"<{tag}>\n{format_json_for_model_prompt(value)}\n</{tag}>"
 
@@ -245,8 +216,8 @@ def _build_messages(
             _xml_section("iteration", iteration),
             _xml_section("payload", selected_payload_value),
             _xml_section("transcript_purpose", _transcript_purpose_result(result)),
-            _xml_section("trajectory_summary", _trajectory_summary(result)),
-            _xml_section("rewrite_constraints", _rewrite_constraints(task)),
+            _xml_section("trajectory_summary", trajectory_summary(result)),
+            _xml_section("rewrite_constraints", rewrite_constraints(task)),
             _xml_section("task_context", sanitize_task_for_model_prompt(task)),
             _xml_section("previous_iterations", prior_attempts or []),
             _xml_section("prior_iteration_feedback", prior_feedback or []),

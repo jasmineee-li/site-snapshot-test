@@ -939,6 +939,64 @@ def test_eval_awareness_rewrite_prompt_uses_benign_xml_problem_sheet():
     assert "payload_text or payload_slots" in request_text
 
 
+def test_matched_study_rewrite_prompt_is_neutral_outside_typed_guidance():
+    from warp_taskgen.phase_4 import eval_awareness_rewrite_api
+
+    task, _instances = _prepared_adv_task()
+    tp_guidance = {
+        "status": "ok",
+        "trigger_source": "tp cue",
+        "mutable_payload_cues": ["benchmark-like wording"],
+        "rewrite_guidance": "make the request sound field-native",
+    }
+    ordinary_guidance = {
+        "status": "ok",
+        "critique": "Review ordinary wording.",
+        "guidance": "Preserve the action and anchors.",
+        "rewrite_guidance": "Use concise site-native wording.",
+    }
+
+    tp_messages = eval_awareness_rewrite_api._build_messages(
+        task,
+        tp_guidance,
+        iteration=1,
+        prior_attempts=[],
+        prior_feedback=[],
+        parent_result=None,
+        include_tp_context=False,
+    )
+    ordinary_messages = eval_awareness_rewrite_api._build_messages(
+        task,
+        ordinary_guidance,
+        iteration=1,
+        prior_attempts=[],
+        prior_feedback=[],
+        parent_result=None,
+        include_tp_context=False,
+    )
+    tp_input = tp_messages[0]["content"][1]["text"]
+    ordinary_input = ordinary_messages[0]["content"][1]["text"]
+
+    def without_guidance(value: str) -> str:
+        start = value.index("<cue_diagnosis>")
+        end = value.index("</cue_diagnosis>", start) + len("</cue_diagnosis>")
+        return value[:start] + value[end:]
+
+    assert tp_messages[0]["content"][0]["text"] == ordinary_messages[0]["content"][0]["text"]
+    assert tp_messages[0]["content"][2]["text"] == ordinary_messages[0]["content"][2]["text"]
+    assert without_guidance(tp_input) == without_guidance(ordinary_input)
+    assert "<tp_rewrite_context>" not in ordinary_input
+    assert "tp_rewrite_context" not in ordinary_input
+    for forbidden in (
+        "transcript_purpose",
+        "Capability Evaluation",
+        "VEA",
+        "reward_trace",
+        "reward_function",
+    ):
+        assert forbidden not in ordinary_input
+
+
 def test_eval_awareness_prior_iteration_feedback_is_bounded_and_control_safe():
     initial_result = {
         "task_id": "adv-1",

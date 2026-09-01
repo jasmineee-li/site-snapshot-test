@@ -29,6 +29,40 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "warp_taskgen.phase_4.options",
         "phase_4_variant_budget_choices",
     ),
+    # Study-only matched rewrite seam.  Keep these lazy so importing the
+    # lightweight Phase 4 package never pulls in browser/model SDKs.
+    "AdmittedBaseline": (
+        "warp_taskgen.phase_4.matched_rewrite_contracts",
+        "AdmittedBaseline",
+    ),
+    "ExistingPhase4AttemptAdapter": (
+        "warp_taskgen.phase_4.matched_rewrite_provider",
+        "ExistingPhase4AttemptAdapter",
+    ),
+    "DeterministicAttemptProvider": (
+        "warp_taskgen.phase_4.matched_rewrite_provider",
+        "DeterministicAttemptProvider",
+    ),
+    "IncompatibleMatchedRewriteResume": (
+        "warp_taskgen.phase_4.matched_rewrite_study",
+        "IncompatibleMatchedRewriteResume",
+    ),
+    "MatchedAttemptRequest": (
+        "warp_taskgen.phase_4.matched_rewrite_contracts",
+        "MatchedAttemptRequest",
+    ),
+    "MatchedRewriteStudyConfig": (
+        "warp_taskgen.phase_4.matched_rewrite_study",
+        "MatchedRewriteStudyConfig",
+    ),
+    "admit_matched_rewrite_baseline": (
+        "warp_taskgen.phase_4.matched_rewrite_study",
+        "admit_matched_rewrite_baseline",
+    ),
+    "run_matched_rewrite_study": (
+        "warp_taskgen.phase_4.matched_rewrite_study",
+        "run_matched_rewrite_study",
+    ),
 }
 
 
