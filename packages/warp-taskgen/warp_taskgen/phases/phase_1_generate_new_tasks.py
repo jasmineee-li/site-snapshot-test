@@ -6,7 +6,7 @@ import asyncio
 import json
 import logging
 import os
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
@@ -17,6 +17,9 @@ from warp_taskgen.modal_sandbox import (
     preflight_sandbox_environment,
     run_claude_in_sandbox,
     upload_to_volume,
+)
+from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
+    compile_phase1_gitlab_compare_decide_task,
 )
 from warp_taskgen.phase_1.novel_task_validation import (
     GeneratedTaskValidationError,
@@ -395,6 +398,27 @@ async def generate_new_tasks_for_site(
                 [],
                 [error.render() for error in detailed_errors],
             )
+        try:
+            compiled_tasks = _compile_phase1_feature_tasks(
+                validated_tasks,
+                task_card_plan=task_card_plan,
+            )
+        except ValueError as exc:
+            return SiteGenerateNewTasksResult(site.site_name, [], [str(exc)])
+        validated_tasks, detailed_errors = validate_generated_novel_tasks_detailed(
+            compiled_tasks,
+            site_name=site.site_name,
+            profile=site.profile,
+            expected_task_count=expected_task_count,
+            route_contracts=route_contracts,
+            task_card_plan=task_card_plan,
+        )
+        if detailed_errors:
+            return SiteGenerateNewTasksResult(
+                site.site_name,
+                [],
+                [error.render() for error in detailed_errors],
+            )
         sorted_tasks = sort_novel_tasks(
             _attach_agent_context_to_tasks(validated_tasks, agent_context)
         )
@@ -475,6 +499,29 @@ async def generate_new_tasks_for_site(
             task_card_plan=task_card_plan,
         )
         if not detailed_errors:
+            try:
+                compiled_tasks = _compile_phase1_feature_tasks(
+                    validated_tasks,
+                    task_card_plan=task_card_plan,
+                )
+            except ValueError as exc:
+                detailed_errors = [
+                    GeneratedTaskValidationError(
+                        code="FEATURE_GENERATION_CONTRACT_INVALID",
+                        path="$",
+                        message=str(exc),
+                    )
+                ]
+            else:
+                validated_tasks, detailed_errors = validate_generated_novel_tasks_detailed(
+                    compiled_tasks,
+                    site_name=site.site_name,
+                    profile=site.profile,
+                    expected_task_count=expected_task_count,
+                    route_contracts=route_contracts,
+                    task_card_plan=task_card_plan,
+                )
+        if not detailed_errors:
             sorted_tasks = sort_novel_tasks(
                 _attach_agent_context_to_tasks(validated_tasks, agent_context)
             )
@@ -516,6 +563,33 @@ def _stamp_new_task_origin(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
             item["origin"] = "new_task"
         stamped.append(item)
     return stamped
+
+
+def _compile_phase1_feature_tasks(
+    tasks: list[dict[str, Any]],
+    *,
+    task_card_plan: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Apply explicitly authored feature generation before per-site caching."""
+    if not isinstance(task_card_plan, Mapping):
+        return tasks
+    compiled: list[dict[str, Any]] = []
+    cards = {
+        str(card.get("id")): card
+        for card in task_card_plan.get("task_cards", [])
+        if isinstance(card, Mapping) and isinstance(card.get("id"), str)
+    }
+    for task in tasks:
+        if not isinstance(task, dict):
+            compiled.append(task)
+            continue
+        card = cards.get(str(task.get("task_card_id") or ""))
+        compiled.append(
+            compile_phase1_gitlab_compare_decide_task(task, task_card=card)
+            if isinstance(card, Mapping)
+            else task
+        )
+    return compiled
 
 
 def load_cached_novel_tasks(

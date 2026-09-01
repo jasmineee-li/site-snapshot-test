@@ -37,6 +37,7 @@ from warp_taskgen.instance_selection import (
     replica_key,
     select_task_site_instance_dict_p2c,
 )
+from warp_taskgen.phase_1.gitlab_compare_decide import GitLabBindingError
 from warp_taskgen.phase_2.phase_2c import auth_preflight as _auth_preflight
 from warp_taskgen.phase_2.phase_2c import checkpoints as _checkpoints
 from warp_taskgen.phase_2.phase_2c import fingerprints as _fingerprints
@@ -66,6 +67,7 @@ from warp_taskgen.phase_2.phase_2c.fingerprints import (
     _instances_digest,
     _task_content_hash,
 )
+from warp_taskgen.phase_2.phase_2c.gitlab_compare_join import join_gitlab_compare_decide_seed
 from warp_taskgen.phase_2.phase_2c.outcomes import (
     _now_iso,
     _resolve_seed_site,
@@ -1027,6 +1029,7 @@ async def _verify_one(
     attempts: list[dict[str, Any]] = []
     handle: SeedCleanupHandle | None = None
     metadata: dict[str, Any] = {}
+    gitlab_compare_binding: Any = None
 
     async def _apply_and_keep_metadata() -> tuple[SeedCleanupHandle | None, dict[str, Any]]:
         apply_kwargs: dict[str, Any] = {}
@@ -1043,6 +1046,7 @@ async def _verify_one(
             sleep=phase_2c_retry_sleep,
             attempts_log=attempts,
         )
+        gitlab_compare_binding = join_gitlab_compare_decide_seed(task, metadata)
     except EditorError as exc:
         _safe_cleanup(
             handle,
@@ -1075,6 +1079,26 @@ async def _verify_one(
             task,
             kind="contract_violation",
             detail=str(exc),
+            fingerprint=fingerprint,
+            http_status=None,
+            response_snippet=None,
+            attempts=attempts,
+            timestamp=_now_iso(),
+        )
+    except GitLabBindingError as exc:
+        # A generated comparison task may only be admitted with a complete
+        # current-attempt map. Keep this distinct from ordinary seed schema
+        # failures so the feasibility report explains the backpressure cause.
+        _safe_cleanup(
+            handle,
+            cleanup_warnings,
+            task.get("id"),
+            raise_on_failure=strict_cleanup,
+        )
+        return _infeasible_task(
+            task,
+            kind="gitlab_binding_failed",
+            detail=f"{exc.code}: {exc}",
             fingerprint=fingerprint,
             http_status=None,
             response_snippet=None,
@@ -1256,6 +1280,8 @@ async def _verify_one(
         "host_fingerprint": fingerprint,
         "attempts": attempts,
     }
+    if gitlab_compare_binding is not None:
+        feasibility["gitlab_compare_decide"] = gitlab_compare_binding.diagnostics
     if render_outcome is not None:
         feasibility["render_verified"] = True
         feasibility["render_evidence"] = render_outcome.evidence()

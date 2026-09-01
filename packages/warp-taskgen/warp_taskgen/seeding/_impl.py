@@ -1002,6 +1002,7 @@ def _apply_editor_seed_call(
         time.sleep(delay_s)
 
     rendered = _render_editor_seed_call(call, seed_context)
+    benchmark = _infer_editor_call_benchmark(rendered, instance)
     editor_kwargs = {
         "session": session,
         "editor_instances": editor_instances,
@@ -1050,6 +1051,8 @@ def _apply_editor_seed_call(
                     call_index=call_index,
                     editor_site_name=editor_site_name,
                     method_name=method_name,
+                    benchmark=benchmark,
+                    logical_record_key=rendered.get("logical_record_key"),
                 )
             )
         if created_resource_accumulator is not None:
@@ -1186,6 +1189,8 @@ def _editor_call_result_record(
     call_index: int,
     editor_site_name: str,
     method_name: str,
+    benchmark: str | None = None,
+    logical_record_key: object = None,
 ) -> dict[str, Any]:
     """Return per-call write/read metadata for call-aware verification.
 
@@ -1201,6 +1206,10 @@ def _editor_call_result_record(
         "method": method_name,
         "editor_method": f"{editor_site_name}.{method_name}",
     }
+    if benchmark is not None and benchmark.strip():
+        record["benchmark"] = benchmark.strip()
+    if isinstance(logical_record_key, str) and logical_record_key.strip():
+        record["logical_record_key"] = logical_record_key.strip()
     normalized = EditorSeedResult.from_mapping(
         result,
         editor_method=f"{editor_site_name}.{method_name}",

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from warp_taskgen.benchmark_capabilities import normalize_benchmark_name
 from warp_taskgen.editors import EDITOR_REGISTRY
 from warp_taskgen.seeding.site_contracts import SeedSiteRegistry
+
+_LOGICAL_RECORD_KEY_PATTERN = r"^[a-z][a-z0-9_-]{0,63}$"
 
 
 def validate_data_seed(
@@ -77,6 +80,16 @@ def _validate_editor_calls(
         benchmark = call.get("benchmark")
         if benchmark is not None and (not isinstance(benchmark, str) or not benchmark.strip()):
             raise ValueError("editor_calls benchmark must be a non-empty string when provided")
+        logical_record_key = call.get("logical_record_key")
+        if logical_record_key is not None:
+            if (
+                not isinstance(logical_record_key, str)
+                or logical_record_key != logical_record_key.strip()
+                or re.fullmatch(_LOGICAL_RECORD_KEY_PATTERN, logical_record_key.strip()) is None
+            ):
+                raise ValueError(
+                    "editor_calls logical_record_key must be a lowercase safe identifier when provided"
+                )
         site = call.get("site")
         method = call.get("method")
         args = call.get("args")

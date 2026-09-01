@@ -5,11 +5,16 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 from warp_taskgen.benchmark_capabilities import get_benchmark_capabilities, infer_benchmark_name
 from warp_taskgen.cost_tracker import tracker as cost_tracker
+from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
+    compile_phase1_gitlab_compare_decide_task,
+    gitlab_compare_decide_generation_contract,
+)
 from warp_taskgen.phase_1.novel_task_validation import (
     merge_benign_tasks as _merge_benign_tasks,
 )
@@ -228,7 +233,11 @@ async def run(args: argparse.Namespace) -> int:
         )
         if novel_tasks is None:
             return 1
-        novel_tasks = _stamp_benchmark_metadata(novel_tasks, benchmark_name)
+        novel_tasks = _stamp_benchmark_metadata(
+            novel_tasks,
+            benchmark_name,
+            task_card_plan=task_card_plan,
+        )
 
     benign_tasks = _merge_benign_tasks(existing_task_wraps, novel_tasks)
     output_path.write_text(json.dumps(benign_tasks, indent=2))
@@ -364,13 +373,36 @@ def _manifest_benchmark_name(manifest: dict[str, Any]) -> str:
 def _stamp_benchmark_metadata(
     tasks: list[dict[str, Any]],
     benchmark_name: str,
+    *,
+    task_card_plan: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     stamped: list[dict[str, Any]] = []
     for task in tasks:
         item = json.loads(json.dumps(task))
+        item = _compile_feature_owned_task(item, task_card_plan=task_card_plan)
         item["benchmark"] = benchmark_name
         stamped.append(item)
     return stamped
+
+
+def _compile_feature_owned_task(
+    task: dict[str, Any],
+    *,
+    task_card_plan: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Compile only rows selected by an authored GitLab generation contract."""
+    if not isinstance(task_card_plan, Mapping):
+        return task
+    task_card_id = task.get("task_card_id")
+    if not isinstance(task_card_id, str):
+        return task
+    for card in task_card_plan.get("task_cards", []):
+        if not isinstance(card, Mapping) or card.get("id") != task_card_id:
+            continue
+        if gitlab_compare_decide_generation_contract(card) is None:
+            return task
+        return compile_phase1_gitlab_compare_decide_task(task, task_card=card)
+    return task
 
 
 def _save_phase_1_running_state(

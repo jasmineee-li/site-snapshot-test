@@ -213,7 +213,16 @@ def _validate_adversarial_task_contract(
     site_profile: dict[str, Any],
 ) -> str | None:
     """Return a violation string when an adversarial task drifts from its benign parent."""
-    immutable_fields = ("site", "sites", "instruction", "start_urls", "data_seed", "agent_context")
+    immutable_fields = (
+        "site",
+        "sites",
+        "instruction",
+        "start_urls",
+        "data_seed",
+        "agent_context",
+        "world",
+        "comparison_contract",
+    )
     # agent_context and data_seed pass through the output sanitizer in
     # _merge_immutable_fields (credentials redacted); compare benign with
     # the same sanitizer applied so the contract doesn't false-reject on
