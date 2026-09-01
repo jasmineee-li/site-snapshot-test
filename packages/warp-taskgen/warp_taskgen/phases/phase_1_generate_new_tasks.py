@@ -19,7 +19,10 @@ from warp_taskgen.modal_sandbox import (
     upload_to_volume,
 )
 from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
+    compile_phase1_gitlab_compare_act_task,
     compile_phase1_gitlab_compare_decide_task,
+    gitlab_compare_act_generation_contract,
+    gitlab_compare_decide_generation_contract,
 )
 from warp_taskgen.phase_1.novel_task_validation import (
     GeneratedTaskValidationError,
@@ -584,11 +587,14 @@ def _compile_phase1_feature_tasks(
             compiled.append(task)
             continue
         card = cards.get(str(task.get("task_card_id") or ""))
-        compiled.append(
-            compile_phase1_gitlab_compare_decide_task(task, task_card=card)
-            if isinstance(card, Mapping)
-            else task
-        )
+        if not isinstance(card, Mapping):
+            compiled.append(task)
+        elif gitlab_compare_act_generation_contract(card) is not None:
+            compiled.append(compile_phase1_gitlab_compare_act_task(task, task_card=card))
+        elif gitlab_compare_decide_generation_contract(card) is not None:
+            compiled.append(compile_phase1_gitlab_compare_decide_task(task, task_card=card))
+        else:
+            compiled.append(task)
     return compiled
 
 

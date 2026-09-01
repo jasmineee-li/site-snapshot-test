@@ -11,12 +11,14 @@ from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any
 
+from warp_taskgen.phase_1.gitlab_compare_act import compile_gitlab_compare_act_task
 from warp_taskgen.phase_1.gitlab_compare_decide import (
     compile_gitlab_compare_decide_task,
     generate_gitlab_compare_decide_world,
 )
 
 GITLAB_COMPARE_DECIDE_GENERATION_FAMILY = "gitlab_compare_decide"
+GITLAB_COMPARE_ACT_GENERATION_FAMILY = "gitlab_compare_act"
 _GENERATION_CONTRACT_KEY = "generation_contract"
 _GENERATION_CONTRACT_VERSION = 1
 _SELECTOR_KEYS = frozenset(
@@ -60,6 +62,21 @@ def gitlab_compare_decide_generation_contract(
     return raw
 
 
+def gitlab_compare_act_generation_contract(
+    card: Mapping[str, Any] | None,
+) -> Mapping[str, Any] | None:
+    """Return the explicit authored compare-and-act contract, if selected."""
+
+    if not isinstance(card, Mapping):
+        return None
+    raw = card.get(_GENERATION_CONTRACT_KEY)
+    if not isinstance(raw, Mapping):
+        return None
+    if raw.get("family") != GITLAB_COMPARE_ACT_GENERATION_FAMILY:
+        return None
+    return raw
+
+
 def compile_phase1_gitlab_compare_decide_task(
     task: Mapping[str, Any],
     *,
@@ -76,7 +93,29 @@ def compile_phase1_gitlab_compare_decide_task(
     contract = gitlab_compare_decide_generation_contract(task_card)
     if contract is None:
         return deepcopy(dict(task))
-    if str(task_card.get("site") or task.get("site") or "").strip().lower() != "gitlab":
+    return _compile_phase1_gitlab_comparison_task(task, contract=contract, act=False)
+
+
+def compile_phase1_gitlab_compare_act_task(
+    task: Mapping[str, Any],
+    *,
+    task_card: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Compile the state-changing sibling from the same generated world."""
+
+    contract = gitlab_compare_act_generation_contract(task_card)
+    if contract is None:
+        return deepcopy(dict(task))
+    return _compile_phase1_gitlab_comparison_task(task, contract=contract, act=True)
+
+
+def _compile_phase1_gitlab_comparison_task(
+    task: Mapping[str, Any],
+    *,
+    contract: Mapping[str, Any],
+    act: bool,
+) -> dict[str, Any]:
+    if str(task.get("site") or "").strip().lower() != "gitlab":
         raise ValueError("GitLab comparison generation contract requires a GitLab task card")
     version = contract.get("version", _GENERATION_CONTRACT_VERSION)
     if version != _GENERATION_CONTRACT_VERSION:
@@ -100,6 +139,8 @@ def compile_phase1_gitlab_compare_decide_task(
     for field in _PRESERVED_TASK_FIELDS:
         if field in task:
             compiled[field] = deepcopy(task[field])
+    if act:
+        compiled = compile_gitlab_compare_act_task(compiled)
     compiled["data_seed"] = _phase1_seed_for_task(compiled["data_seed"], task, method=method)
     compiled["adversarial_data_seed"] = deepcopy(compiled["data_seed"])
     return compiled
@@ -194,7 +235,10 @@ def _phase1_seed_for_task(
 
 
 __all__ = [
+    "GITLAB_COMPARE_ACT_GENERATION_FAMILY",
     "GITLAB_COMPARE_DECIDE_GENERATION_FAMILY",
+    "compile_phase1_gitlab_compare_act_task",
     "compile_phase1_gitlab_compare_decide_task",
+    "gitlab_compare_act_generation_contract",
     "gitlab_compare_decide_generation_contract",
 ]
