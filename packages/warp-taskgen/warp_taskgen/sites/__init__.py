@@ -39,6 +39,7 @@ from warp_taskgen.sites.readback import (
     ReadbackObservationCapability,
 )
 from warp_taskgen.sites.reddit import RedditSite
+from warp_taskgen.sites.rocketchat import RocketChatSite
 
 __all__ = [
     "CLASSIFIEDS_READER_AUTH_TYPE",
@@ -57,6 +58,7 @@ __all__ = [
     "ReadbackObservationCapability",
     "RedditSite",
     "ResolvedTarget",
+    "RocketChatSite",
     "SiteAdapter",
     "SiteCatalog",
     "SiteProfileRouteCapability",
