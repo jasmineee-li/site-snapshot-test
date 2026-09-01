@@ -71,6 +71,61 @@ def test_define_run_digest_changes_only_for_allowlisted_semantic_inputs(tmp_path
     assert "secret" not in serialized
 
 
+def test_matched_rewrite_baseline_contracts_are_allowlisted_and_projected(tmp_path: Path):
+    task = {
+        "id": "matched-task",
+        "instruction": "perform the task",
+        "reward_function": {"adversarial_reward": {"type": "host"}},
+        "exposure_contract": {"surface": "gitlab.issue"},
+    }
+    result = {
+        "task_id": "matched-task",
+        "final_status": "refused_or_ignored",
+        "encounter": {"max_coverage": 0.5},
+        "score": {"adversarial": 0},
+    }
+    base = _state(
+        tmp_path,
+        phase_4_matched_rewrite_study_condition="tp_guided_vs_ordinary",
+        phase_4_matched_rewrite_study_schedule="one_opportunity",
+        phase_4_matched_rewrite_study_baseline_task=task,
+        phase_4_matched_rewrite_study_baseline_result=result,
+        phase_4_matched_rewrite_study_selected_payload={"rendered_payload": "same payload"},
+        phase_4_matched_rewrite_study_witness=[{"value": "anchor"}],
+        phase_4_matched_rewrite_study_constraints={"preserve_required_anchors": True},
+    )
+    definition = define_run(base)
+    projection = definition.input_projection()
+    assert projection["phase_4_matched_rewrite_study_baseline_task"] == task
+    assert projection["phase_4_matched_rewrite_study_baseline_result"] == result
+    assert projection["phase_4_matched_rewrite_study_selected_payload"] == {
+        "rendered_payload": "same payload"
+    }
+    assert projection["phase_4_matched_rewrite_study_witness"] == [{"value": "anchor"}]
+    assert projection["phase_4_matched_rewrite_study_constraints"] == {
+        "preserve_required_anchors": True
+    }
+
+    changed = define_run(
+        {
+            **base,
+            "phase_4_matched_rewrite_study_baseline_result": {
+                **result,
+                "final_status": "complied",
+            },
+        }
+    )
+    assert changed.definition_digest != definition.definition_digest
+
+    non_study_change = define_run(
+        {
+            **base,
+            "unrelated_matched_rewrite_baseline_result": {"final_status": "complied"},
+        }
+    )
+    assert non_study_change.definition_digest == definition.definition_digest
+
+
 def test_define_run_redacts_nested_secrets_but_tracks_their_identity(tmp_path: Path):
     first = define_run(
         _state(

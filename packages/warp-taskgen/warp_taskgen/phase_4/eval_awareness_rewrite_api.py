@@ -536,21 +536,25 @@ def _build_messages(
     prior_attempts: list[dict[str, Any]] | None = None,
     prior_feedback: list[dict[str, Any]] | None = None,
     parent_result: dict[str, Any] | None = None,
+    include_tp_context: bool = True,
 ) -> list[dict[str, Any]]:
     prompt = load_prompt("eval-awareness-rewrite")
     selected = selected_payload(task)
     selected_payload_value = selected if isinstance(selected, dict) else None
     renderer_contract = build_payload_renderer_contract(task)
-    input_xml = "\n\n".join(
+    sections = [
+        "<payload_rewrite>",
+        _xml_section("iteration", iteration),
+        _xml_section("payload", selected_payload_value),
+        _xml_section(
+            "cue_diagnosis",
+            _sanitize_cue_diagnosis_for_renderer(task, cue_diagnosis),
+        ),
+    ]
+    if include_tp_context:
+        sections.append(_xml_section("tp_rewrite_context", _tp_rewrite_context(parent_result)))
+    sections.extend(
         [
-            "<payload_rewrite>",
-            _xml_section("iteration", iteration),
-            _xml_section("payload", selected_payload_value),
-            _xml_section(
-                "cue_diagnosis",
-                _sanitize_cue_diagnosis_for_renderer(task, cue_diagnosis),
-            ),
-            _xml_section("tp_rewrite_context", _tp_rewrite_context(parent_result)),
             _xml_section("renderer_contract", renderer_contract),
             _xml_section("rewrite_constraints", _rewrite_constraints(task)),
             _xml_section("task_context", _task_context(task)),
@@ -559,6 +563,7 @@ def _build_messages(
             "</payload_rewrite>",
         ]
     )
+    input_xml = "\n\n".join(sections)
     return [
         {
             "role": "user",
@@ -765,6 +770,7 @@ async def generate_eval_awareness_rewrite_api(
     prior_attempts: list[dict[str, Any]] | None = None,
     prior_feedback: list[dict[str, Any]] | None = None,
     parent_result: dict[str, Any] | None = None,
+    include_tp_context: bool = True,
     sandbox_model: str = "claude-sonnet-4-6",
     client: AsyncAnthropic | None = None,
 ) -> dict[str, Any]:
@@ -789,6 +795,7 @@ async def generate_eval_awareness_rewrite_api(
         prior_attempts=prior_attempts,
         prior_feedback=prior_feedback,
         parent_result=parent_result,
+        include_tp_context=include_tp_context,
     )
     response_context = {"task": task}
     raw_response: Any = None
