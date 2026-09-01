@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 
@@ -90,6 +91,11 @@ def _attach_gitlab_issue_note_state_probe_anchors(
     *,
     overwrite: bool = False,
 ) -> None:
+    # Comparison tasks have an exact selected-record binding supplied by the
+    # feature owner. The legacy aggregate issue-note helper must never mutate
+    # or substitute those fresh Phase 4 anchors.
+    if isinstance(task.get("comparison_contract"), Mapping):
+        return
     if not _task_has_gitlab_create_issue_note_reward(task):
         return
     anchors = _gitlab_issue_note_anchors_from_seed_metadata(

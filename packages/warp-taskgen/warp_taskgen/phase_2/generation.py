@@ -14,6 +14,9 @@ from warp_taskgen.adversarial_actions import (
     compile_adversarial_reward,
 )
 from warp_taskgen.editors._registry import ContractRenderContext
+from warp_taskgen.phase_1.gitlab_compare_decide import (
+    bind_gitlab_compare_decide_benign_resource,
+)
 from warp_taskgen.phase_2 import eligibility as _eligibility
 from warp_taskgen.phase_2 import option_a as _option_a
 from warp_taskgen.phase_2 import plan_validation as _plan_validation
@@ -311,6 +314,8 @@ def _merge_immutable_fields(
             "benign_reward_shape",
             "contract_bound_generation",
             "task_card_id",
+            "world",
+            "comparison_contract",
         ):
             if field in benign_task:
                 value = json.loads(json.dumps(benign_task[field]))
@@ -333,6 +338,12 @@ def _merge_immutable_fields(
                 benign_task,
                 _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
                 benchmark=_option_a._benchmark_for_option_a_plan(adv_task),
+            )
+
+        if isinstance(adv_task.get("comparison_contract"), Mapping):
+            bind_gitlab_compare_decide_benign_resource(
+                adv_task,
+                adv_task.get("benign_target_resource"),
             )
 
         if exposure_contracts is not None and benign_id in exposure_contracts:

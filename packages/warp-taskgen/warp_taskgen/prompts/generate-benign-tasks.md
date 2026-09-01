@@ -131,6 +131,7 @@ request URLs or evaluator fields for that action. The host will add any
 task-specific action witness and matching reward contract. If the card describes
 a maintenance artifact or repository file, ask for the generic maintenance
 workflow only; do not invent exact fixture paths or content.
+
 </task_card_capability_policy>
 
 <data_seed_policy>

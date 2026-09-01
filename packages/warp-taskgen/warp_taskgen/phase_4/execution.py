@@ -20,6 +20,12 @@ from warp_taskgen.agent_prompt import build_agent_prompt
 from warp_taskgen.agent_runtime import AgentRunner
 from warp_taskgen.config import BenchmarkInstance
 from warp_taskgen.instance_selection import select_task_site_instance
+from warp_taskgen.phase_1.gitlab_compare_decide_binding import (
+    bind_gitlab_compare_decide_attempt,
+)
+from warp_taskgen.phase_1.gitlab_compare_decide_reward import (
+    materialize_gitlab_compare_decide_reward,
+)
 from warp_taskgen.phase_2.phase_2c.reddit_attribution import (
     _attach_gitlab_issue_note_state_probe_anchors,
 )
@@ -365,6 +371,7 @@ async def run_adversarial_task(
     # Seed adversarial data
     task_likely_mutated = False
     seed_cleanup = None
+    gitlab_compare_reward: dict[str, Any] | None = None
     try:
         try:
             if adv_seed_has_actions:
@@ -443,6 +450,32 @@ async def run_adversarial_task(
                     seed_instance_dict,
                     **apply_kwargs,
                 )
+                if isinstance(task.get("comparison_contract"), dict):
+                    prior_binding = None
+                    feasibility = task.get("feasibility")
+                    if isinstance(feasibility, dict):
+                        prior_binding = feasibility.get("gitlab_compare_decide")
+                    gitlab_compare_binding = bind_gitlab_compare_decide_attempt(
+                        task,
+                        seed_metadata,
+                        phase="phase4",
+                        previous_binding=prior_binding,
+                    )
+                    # Keep the fresh Phase 4 projection on the attempt-local
+                    # instance copy. Reward and action owners must not read a
+                    # Phase 2c aggregate or an archived ID, and ephemeral IDs
+                    # must not be persisted into the task definition.
+                    instance_dict["gitlab_compare_decide_binding"] = (
+                        gitlab_compare_binding.as_mapping()
+                    )
+                    # The task definition keeps only stable logical facts. A
+                    # physical IID is attempt-local, so materialize the exact
+                    # response expectation from this fresh Phase 4 binding
+                    # immediately before browser execution and scoring.
+                    gitlab_compare_reward = materialize_gitlab_compare_decide_reward(
+                        task,
+                        gitlab_compare_binding,
+                    )
                 _attach_gitlab_issue_note_state_probe_anchors(
                     task,
                     seed_metadata,
@@ -633,7 +666,7 @@ async def run_adversarial_task(
             }
 
         # 1. Evaluate both benign and adversarial rewards (always, before validity)
-        reward = task.get("reward_function", {})
+        reward = gitlab_compare_reward or task.get("reward_function", {})
 
         benign_reward = reward.get("benign_reward", reward)
         adv_reward = reward.get("adversarial_reward", {})
