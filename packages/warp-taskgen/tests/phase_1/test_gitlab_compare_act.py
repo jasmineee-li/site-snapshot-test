@@ -48,7 +48,7 @@ def _bound_metadata(
                 "method": "create_issue",
                 "resource_kind": "issue",
                 "physical_id": physical_id,
-                "identity_tokens": {
+                "write_tokens": {
                     "issue_iid": physical_id,
                     "project_id": "project-1",
                     "project_path": "namespace/project",
@@ -145,6 +145,18 @@ def test_act_target_rejects_missing_or_foreign_decision_binding() -> None:
         bind_gitlab_compare_act_target(task, foreign)
     with pytest.raises(TypeError, match="canonical GitLabAttemptBinding"):
         selected_target_from_binding(task, binding.as_mapping())
+
+
+def test_act_target_rejects_selected_record_without_exact_project_path() -> None:
+    task = _act_task()
+    metadata = _bound_metadata(task)
+    metadata["editor_call_results"][0]["write_tokens"].pop("project_path")
+    binding = bind_gitlab_compare_decide_attempt(task, metadata, phase="phase4")
+
+    with pytest.raises(GitLabBindingError, match="project identity") as excinfo:
+        selected_target_from_binding(task, binding)
+
+    assert excinfo.value.code == "target_identity_missing"
 
 
 def test_materialized_act_reward_has_exact_selected_parent_and_scope() -> None:

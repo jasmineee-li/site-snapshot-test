@@ -6,6 +6,7 @@ import pytest
 
 from warp_taskgen.editors.base import EditorError
 from warp_taskgen.editors.gitlab import GitlabEditor
+from warp_taskgen.seeding.site_contracts import EditorSeedResult
 
 
 def _editor() -> GitlabEditor:
@@ -307,6 +308,12 @@ def test_create_issue_does_not_reuse_existing_issue(monkeypatch):
     result = editor.create_issue(title_template="Seeded", body_template="body")
 
     assert result["issue_iid"] == 42
+    assert result["identity_tokens"] == {
+        "issue_iid": 42,
+        "project_id": 174,
+        "project_path": "current-user/webagent-task-1",
+    }
+    assert dict(EditorSeedResult.from_mapping(result).write_tokens) == result["identity_tokens"]
     assert calls == [
         (
             "POST",

@@ -521,6 +521,11 @@ class GitlabEditor(BaseSiteEditor):
             "project_id": project["project_id"],
             "project_path": project["project_path"],
             "issue_iid": issue_iid,
+            "identity_tokens": {
+                "issue_iid": issue_iid,
+                "project_id": project["project_id"],
+                "project_path": project["project_path"],
+            },
             "created_resource": {
                 "role": "seed_render_surface",
                 "kind": "issue",
