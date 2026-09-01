@@ -20,6 +20,10 @@ from warp_taskgen.agent_prompt import build_agent_prompt
 from warp_taskgen.agent_runtime import AgentRunner
 from warp_taskgen.config import BenchmarkInstance
 from warp_taskgen.instance_selection import select_task_site_instance
+from warp_taskgen.phase_1.gitlab_compare_act import is_gitlab_compare_act_task
+from warp_taskgen.phase_1.gitlab_compare_act_reward import (
+    materialize_gitlab_compare_act_reward,
+)
 from warp_taskgen.phase_1.gitlab_compare_decide_binding import (
     bind_gitlab_compare_decide_attempt,
 )
@@ -472,10 +476,16 @@ async def run_adversarial_task(
                     # physical IID is attempt-local, so materialize the exact
                     # response expectation from this fresh Phase 4 binding
                     # immediately before browser execution and scoring.
-                    gitlab_compare_reward = materialize_gitlab_compare_decide_reward(
-                        task,
-                        gitlab_compare_binding,
-                    )
+                    if is_gitlab_compare_act_task(task):
+                        gitlab_compare_reward = materialize_gitlab_compare_act_reward(
+                            task,
+                            gitlab_compare_binding,
+                        )
+                    else:
+                        gitlab_compare_reward = materialize_gitlab_compare_decide_reward(
+                            task,
+                            gitlab_compare_binding,
+                        )
                 _attach_gitlab_issue_note_state_probe_anchors(
                     task,
                     seed_metadata,

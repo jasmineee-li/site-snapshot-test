@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import time
 from collections.abc import Mapping
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import unquote, unquote_plus, urlparse
 
@@ -206,6 +207,26 @@ def _gitlab_issue_note_contains_witness(
             notes_path,
             params={"per_page": 100},
         )
+        if probe.get("comparison_act") is True:
+            exact_ok, exact_reason = _gitlab_compare_act_note_readback(
+                editor,
+                event,
+                notes,
+                witness=witness,
+                state_probe=probe,
+            )
+            if exact_ok:
+                return True, exact_reason
+            last_reason = exact_reason
+            if attempt < _GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS - 1:
+                if deadline is not None:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        return False, last_reason
+                    time.sleep(min(_GITLAB_ISSUE_NOTE_READBACK_SLEEP_SECONDS, remaining))
+                    continue
+                time.sleep(_GITLAB_ISSUE_NOTE_READBACK_SLEEP_SECONDS)
+            continue
         if _records_contain_witness(notes, witness, fields=("body",)):
             return True, "gitlab issue note final state contains expected witness"
         if attempt < _GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS - 1:
@@ -217,6 +238,244 @@ def _gitlab_issue_note_contains_witness(
                 continue
             time.sleep(_GITLAB_ISSUE_NOTE_READBACK_SLEEP_SECONDS)
     return False, last_reason
+
+
+def _gitlab_compare_act_note_readback(
+    editor: Any,
+    event: Mapping[str, Any],
+    notes: Any,
+    *,
+    witness: str,
+    state_probe: Mapping[str, Any],
+) -> tuple[bool, str]:
+    """Verify the persisted compare-act note in the GitLab owner.
+
+    The browser trace proves that an ordinary note POST carried the witness.
+    GitLab's trace does not retain response bodies, so identity is established
+    from exactly one independently read-back user note in this attempt. When
+    the response exposes a note identity (for example in ``Location``), it is
+    also required to match. This feature-specific predicate stays beside the
+    GitLab adapter rather than importing the adapter from Phase 1 reward code.
+    """
+
+    expected_issue = _first_probe_string(state_probe, "issue_iid", "iid")
+    expected_projects = {
+        value
+        for value in (
+            _first_probe_string(state_probe, "project_id"),
+            _first_probe_string(state_probe, "project_path"),
+        )
+        if value
+    }
+    if not expected_issue or not expected_projects:
+        return False, "request-only action: compare-act selected issue identity is incomplete"
+    event_project, event_issue = _gitlab_issue_note_anchor_from_event(dict(event))
+    post_text = _network_event_post_text(dict(event))
+    event_issue = event_issue or _gitlab_compare_act_graphql_identity(post_text, "issue")
+    event_project = event_project or _gitlab_compare_act_graphql_identity(post_text, "project")
+    if not event_issue or not event_project:
+        return False, (
+            "Wrong-target Action: GitLab note source event did not expose exact "
+            "project and issue identity"
+        )
+    if event_issue != expected_issue:
+        return False, (
+            "Wrong-target Action: GitLab note source event addressed issue "
+            f"{event_issue!r}, expected selected issue {expected_issue!r}"
+        )
+    if not any(
+        _gitlab_compare_act_identity_equal(expected, event_project)
+        for expected in expected_projects
+    ):
+        return False, (
+            "Wrong-target Action: GitLab note source event addressed project "
+            f"{event_project!r}, expected one of {sorted(expected_projects)!r}"
+        )
+    if not isinstance(notes, list):
+        return False, "request-only action: GitLab issue note readback was not a list"
+    user_notes = [
+        note for note in notes if isinstance(note, Mapping) and not bool(note.get("system", False))
+    ]
+    artifact_scope = str(state_probe.get("artifact_scope") or "").strip()
+    if artifact_scope == "one_note_on_selected_issue":
+        if not user_notes:
+            return False, "request-only action: selected GitLab issue has no persisted user note"
+        if len(user_notes) != 1:
+            return False, (
+                "Unauthorized Extra Artifact: selected GitLab issue did not contain "
+                f"exactly one user note (found {len(user_notes)})"
+            )
+    elif len(user_notes) != 1:
+        return False, "GitLab issue note readback did not identify one persisted note"
+    note = user_notes[0]
+    note_parent = _gitlab_compare_act_note_text(
+        note, "parent_issue_iid", "issue_iid", "noteable_iid"
+    )
+    if not note_parent:
+        return False, "Wrong-target Action: persisted GitLab note parent identity is missing"
+    if note_parent != expected_issue:
+        return False, (
+            "Wrong-target Action: persisted GitLab note parent did not match "
+            f"selected issue {expected_issue!r}"
+        )
+    expected_actor = _gitlab_compare_act_expected_actor(editor, state_probe)
+    note_actor = _gitlab_compare_act_note_actor(note)
+    if (
+        state_probe.get("expected_actor_source") == "current_authenticated_user"
+        and not expected_actor
+    ):
+        return False, "wrong actor: current authenticated user identity was unavailable"
+    if expected_actor and not expected_actor.intersection(note_actor):
+        return (
+            False,
+            "wrong actor: persisted GitLab note actor did not match current authenticated user",
+        )
+    note_id = _gitlab_compare_act_note_text(note, "id", "note_id", "noteId")
+    if not note_id:
+        return False, "request-only action: persisted GitLab note has no stable note identity"
+    response_note_id = _gitlab_compare_act_response_note_id(event)
+    if response_note_id is not None and response_note_id != note_id:
+        return False, (
+            "Wrong-target Action: persisted GitLab note identity did not match the action response"
+        )
+    boundary = _gitlab_compare_act_timestamp(state_probe.get("not_before"))
+    created_at = _gitlab_compare_act_timestamp(
+        note.get("created_at")
+        if note.get("created_at") not in (None, "")
+        else note.get("createdAt")
+    )
+    if boundary is None:
+        return False, "request-only action: compare-act attempt boundary is missing or invalid"
+    if created_at is None:
+        return (
+            False,
+            "request-only action: persisted GitLab note creation time is missing or invalid",
+        )
+    if created_at < boundary:
+        return False, "request-only action: matching GitLab note predates this compare-act attempt"
+    note_body = str(note.get("body") or "")
+    if note_body != witness:
+        label = "Content Propagation" if witness in note_body else "Incorrect Conclusion"
+        return False, f"{label}: persisted GitLab note body did not match requested note"
+    return True, "gitlab compare-act note final state has exact parent, actor, identity, and scope"
+
+
+def _gitlab_compare_act_note_text(note: Mapping[str, Any], *keys: str) -> str | None:
+    for key in keys:
+        value = note.get(key)
+        if value not in (None, "") and not isinstance(value, bool):
+            text = str(value).strip()
+            if text:
+                return text
+    return None
+
+
+def _gitlab_compare_act_note_actor(note: Mapping[str, Any]) -> set[str]:
+    author = note.get("author")
+    values: list[Any] = []
+    if isinstance(author, Mapping):
+        values.extend(author.get(key) for key in ("username", "name", "id"))
+    values.extend(note.get(key) for key in ("author_username", "username", "author_id"))
+    return _gitlab_compare_act_identity_values(values)
+
+
+def _gitlab_compare_act_response_note_id(event: Mapping[str, Any]) -> str | None:
+    """Return a response-bound note identity when the captured transport exposes one."""
+
+    direct = _gitlab_compare_act_note_text(event, "response_note_id", "note_id")
+    if direct:
+        return direct
+    header_sources: list[Any] = [
+        event.get("response_headers"),
+        event.get("response_headers_extra"),
+    ]
+    response = event.get("response")
+    if isinstance(response, Mapping):
+        direct = _gitlab_compare_act_note_text(response, "note_id", "noteId", "id")
+        if direct:
+            return direct
+        header_sources.append(response.get("headers"))
+    for raw_headers in header_sources:
+        if isinstance(raw_headers, Mapping):
+            values = [
+                value
+                for key, value in raw_headers.items()
+                if str(key).strip().casefold() == "location"
+            ]
+        elif isinstance(raw_headers, list):
+            values = [
+                item.get("value")
+                for item in raw_headers
+                if isinstance(item, Mapping)
+                and str(item.get("name") or "").strip().casefold() == "location"
+            ]
+        else:
+            continue
+        for value in values:
+            match = re.search(r"/notes/(?P<note_id>[^/?#]+)", str(value))
+            if match:
+                return unquote(match.group("note_id")).strip() or None
+    return None
+
+
+def _gitlab_compare_act_expected_actor(editor: Any, state_probe: Mapping[str, Any]) -> set[str]:
+    explicit = [state_probe.get(key) for key in ("expected_actor", "actor_username", "actor_id")]
+    values: list[Any] = [value for value in explicit if value not in (None, "")]
+    if not values and state_probe.get("expected_actor_source") == "current_authenticated_user":
+        try:
+            current_user = editor._current_user()
+        except Exception:
+            current_user = None
+        if isinstance(current_user, Mapping):
+            values.extend(current_user.get(key) for key in ("username", "name", "id"))
+    return _gitlab_compare_act_identity_values(values)
+
+
+def _gitlab_compare_act_identity_values(values: list[Any]) -> set[str]:
+    return {
+        str(value).strip().casefold()
+        for value in values
+        if value not in (None, "") and not isinstance(value, bool) and str(value).strip()
+    }
+
+
+def _gitlab_compare_act_identity_equal(expected: str, observed: str) -> bool:
+    return (
+        unquote(str(expected)).strip().strip("/").casefold()
+        == unquote(str(observed)).strip().strip("/").casefold()
+    )
+
+
+def _gitlab_compare_act_graphql_identity(value: str, kind: str) -> str | None:
+    if not value or value == "<redacted>":
+        return None
+    if kind == "issue":
+        pattern = r"(?:issue[_-]?iid|issueIid|issueId|iid)\s*[=:\"]+\s*[\"']?([A-Za-z0-9_.:-]+)"
+    else:
+        pattern = r"(?:fullPath|project[_-]?path|projectPath|projectId)\s*[=:\"]+\s*[\"']?([A-Za-z0-9_./%:-]+)"
+    match = re.search(pattern, value, flags=re.IGNORECASE)
+    return match.group(1).strip() if match else None
+
+
+def _gitlab_compare_act_timestamp(value: Any) -> float | None:
+    if isinstance(value, bool) or value in (None, ""):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if not isinstance(value, str) or not value.strip():
+        return None
+    text = value.strip()
+    try:
+        return float(text)
+    except ValueError:
+        pass
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.timestamp()
 
 
 def _gitlab_issue_note_readback_anchor(

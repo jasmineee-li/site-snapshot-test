@@ -316,6 +316,7 @@ def _merge_immutable_fields(
             "task_card_id",
             "world",
             "comparison_contract",
+            "comparison_act_contract",
         ):
             if field in benign_task:
                 value = json.loads(json.dumps(benign_task[field]))
