@@ -1671,6 +1671,7 @@ async def verify_seed_renders(
     selector_timeout_ms: int = 10000,
     storage_state_path: str | None = None,
     browser_context_kwargs: dict[str, Any] | None = None,
+    redirect_origin_aliases: tuple[str, ...] = (),
     write_tokens: dict[str, Any] | None = None,
     diagnostics: dict[str, Any] | None = None,
     readback_site: Any | None = None,
@@ -1685,7 +1686,9 @@ async def verify_seed_renders(
 
     ``browser_context_kwargs`` threads the configured benign user's auth into
     Playwright so private/authed-only pages are checked with the same identity
-    Phase 4 uses. ``storage_state_path`` is retained for older callers.
+    Phase 4 uses. ``redirect_origin_aliases`` names exact origins whose
+    redirect Locations may be rebound to ``site_url`` before the browser
+    follows them. ``storage_state_path`` is retained for older callers.
     """
     if not urls:
         return RenderOutcome.failed(
@@ -1751,6 +1754,7 @@ async def verify_seed_renders(
             page,
             scoped_extra_http_headers=scoped_extra_http_headers,
             header_scope_url=site_url,
+            redirect_origin_aliases=redirect_origin_aliases,
         )
         for raw_url in urls:
             target = _with_cache_buster(_resolve_url(raw_url, site_url))

@@ -21,12 +21,14 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import ipaddress
 import json
 import os
 import uuid
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, urlsplit, urlunsplit
 
 import pytest
 import requests
@@ -101,7 +103,95 @@ def _selected_call_row(metadata: dict[str, Any], logical_key: str) -> dict[str, 
     return matches[0]
 
 
+def _project_browser_verification(
+    live_config,
+    *,
+    site_url: str,
+    browser_context_kwargs: dict[str, Any],
+) -> tuple[str, dict[str, Any], tuple[str, ...]]:
+    """Route the live browser read through the configured verification proxy."""
+
+    source = urlsplit(site_url)
+    source_hostname = source.hostname or ""
+    try:
+        source_is_loopback = ipaddress.ip_address(source_hostname).is_loopback
+    except ValueError:
+        source_is_loopback = source_hostname.lower() == "localhost"
+    proxy = live_config.verification_proxy
+    if proxy is None or not proxy.token.strip() or source_is_loopback:
+        return site_url, browser_context_kwargs, ()
+
+    token = proxy.token.strip()
+    assert source.hostname and source.port is not None, (
+        "live browser proxy projection requires an explicit site host and port"
+    )
+    hostname = source.hostname
+    if ":" in hostname:
+        hostname = f"[{hostname}]"
+    source_origin = urlunsplit((source.scheme, source.netloc, "", "", ""))
+    default_origin = urlunsplit((source.scheme, hostname, "", "", ""))
+    default_port = 443 if source.scheme.lower() == "https" else 80
+    explicit_default_origin = urlunsplit((source.scheme, f"{hostname}:{default_port}", "", "", ""))
+    projected_site_url = urlunsplit(
+        (
+            proxy.scheme,
+            f"{hostname}:{source.port + proxy.port_offset}",
+            source.path,
+            source.query,
+            source.fragment,
+        )
+    )
+    projected_parts = urlsplit(projected_site_url)
+    projected_origin = urlunsplit((projected_parts.scheme, projected_parts.netloc, "", "", ""))
+
+    context_kwargs = copy.deepcopy(browser_context_kwargs)
+    raw_headers = context_kwargs.get("extra_http_headers") or {}
+    assert isinstance(raw_headers, dict), "browser extra_http_headers must be a mapping"
+    headers = dict(raw_headers)
+    matching_keys = [key for key in headers if key.lower() == "x-worldsim-token"]
+    assert not matching_keys, (
+        "agent authentication must not preconfigure the verification proxy header"
+    )
+    headers["X-Worldsim-Token"] = token
+    context_kwargs["extra_http_headers"] = headers
+
+    http_credentials = context_kwargs.get("http_credentials")
+    if isinstance(http_credentials, dict):
+        context_kwargs["http_credentials"] = {
+            **http_credentials,
+            "origin": projected_origin,
+        }
+
+    storage_state = context_kwargs.get("storage_state")
+    if isinstance(storage_state, dict):
+        cookies = storage_state.get("cookies")
+        if proxy.scheme != "https" and isinstance(cookies, list):
+            assert not any(
+                isinstance(cookie, dict) and cookie.get("secure") is True for cookie in cookies
+            ), "HTTP verification proxy cannot carry Secure storage-state cookies"
+        origins = storage_state.get("origins")
+        if isinstance(origins, list):
+            for origin in origins:
+                if not isinstance(origin, dict):
+                    continue
+                raw_origin = origin.get("origin")
+                if not isinstance(raw_origin, str):
+                    continue
+                parsed_origin = urlsplit(raw_origin)
+                if (
+                    parsed_origin.scheme.lower(),
+                    parsed_origin.netloc.lower(),
+                ) == (source.scheme.lower(), source.netloc.lower()):
+                    origin["origin"] = projected_origin
+
+    redirect_origin_aliases = tuple(
+        dict.fromkeys((source_origin, default_origin, explicit_default_origin))
+    )
+    return projected_site_url, context_kwargs, redirect_origin_aliases
+
+
 async def _assert_selected_issue_visible(
+    live_config,
     instance: dict[str, Any],
     *,
     selected_row: dict[str, Any],
@@ -134,17 +224,27 @@ async def _assert_selected_issue_visible(
         "selected call read surfaces did not address its exact bound issue: "
         f"expected_path={expected_path!r}, urls={urls!r}"
     )
+    projected_site_url, browser_context_kwargs, redirect_origin_aliases = (
+        _project_browser_verification(
+            live_config,
+            site_url=str(instance["site_url"]),
+            browser_context_kwargs=resolved_auth.browser_context_kwargs,
+        )
+    )
 
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(headless=True)
         try:
             outcome = await verify_seed_renders(
                 browser=browser,
+                # Preserve host/path alternatives from the editor. The
+                # production renderer owns canonicalization to site_url.
                 urls=[str(url) for url in urls],
                 site_name="gitlab",
-                site_url=str(instance["site_url"]),
+                site_url=projected_site_url,
                 signature=signature,
-                browser_context_kwargs=resolved_auth.browser_context_kwargs,
+                browser_context_kwargs=browser_context_kwargs,
+                redirect_origin_aliases=redirect_origin_aliases,
                 write_tokens=dict(selected_row.get("write_tokens") or {}),
                 diagnostics={
                     "reader_session": "fresh_agent_authenticated_context",
@@ -282,6 +382,7 @@ def test_gitlab_compare_decide_and_act_vertical_slice(live_config) -> None:
         signature = f"Logical record: {target.logical_record_key}"
         asyncio.run(
             _assert_selected_issue_visible(
+                live_config,
                 instance,
                 selected_row=selected_row,
                 expected_project_path=project_path,
@@ -385,3 +486,56 @@ def test_gitlab_compare_decide_and_act_vertical_slice(live_config) -> None:
                     cleanup_errors.append(f"seed cleanup failed: {exc}")
         finalization_errors = reset_errors + cleanup_errors
         assert not finalization_errors, "; ".join(finalization_errors)
+
+
+def test_browser_verification_proxy_projection_is_origin_scoped() -> None:
+    proxy = SimpleNamespace(token="local-test-token", port_offset=10000, scheme="http")
+    live_config = SimpleNamespace(verification_proxy=proxy)
+
+    site_url, context_kwargs, redirect_origin_aliases = _project_browser_verification(
+        live_config,
+        site_url="http://benchmark.test:8023",
+        browser_context_kwargs={
+            "extra_http_headers": {"X-Reader": "alice"},
+            "http_credentials": {
+                "username": "alice",
+                "password": "test-password",
+                "origin": "http://benchmark.test:8023",
+            },
+            "storage_state": {
+                "cookies": [{"name": "session", "value": "opaque", "secure": False}],
+                "origins": [
+                    {"origin": "http://benchmark.test:8023", "localStorage": []},
+                    {"origin": "http://benchmark.test:9000", "localStorage": []},
+                ],
+            },
+        },
+    )
+
+    assert site_url == "http://benchmark.test:18023"
+    assert redirect_origin_aliases == (
+        "http://benchmark.test:8023",
+        "http://benchmark.test",
+        "http://benchmark.test:80",
+    )
+    assert context_kwargs["extra_http_headers"] == {
+        "X-Reader": "alice",
+        "X-Worldsim-Token": "local-test-token",
+    }
+    assert context_kwargs["http_credentials"]["origin"] == "http://benchmark.test:18023"
+    assert context_kwargs["storage_state"]["origins"][0]["origin"] == (
+        "http://benchmark.test:18023"
+    )
+    assert context_kwargs["storage_state"]["origins"][1]["origin"] == ("http://benchmark.test:9000")
+
+    direct_config = SimpleNamespace(
+        verification_proxy=SimpleNamespace(token="", port_offset=10000, scheme="http")
+    )
+    direct_site_url, direct_context, direct_aliases = _project_browser_verification(
+        direct_config,
+        site_url="http://benchmark.test:8023",
+        browser_context_kwargs={"extra_http_headers": {"X-Reader": "alice"}},
+    )
+    assert direct_site_url == "http://benchmark.test:8023"
+    assert direct_context == {"extra_http_headers": {"X-Reader": "alice"}}
+    assert direct_aliases == ()
