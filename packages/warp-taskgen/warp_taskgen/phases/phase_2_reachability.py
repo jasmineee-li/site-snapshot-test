@@ -147,12 +147,17 @@ async def _install_resource_blocker(
     *,
     scoped_extra_http_headers: dict[str, str] | None = None,
     header_scope_url: str | None = None,
+    redirect_origin_aliases: tuple[str, ...] = (),
 ) -> None:
     """Abort non-essential subresources before ``page.goto``.
 
     Shared by ``phase_2_reachability.verify_reachable`` and
     ``phase_2_render_check.verify_seed_renders``. Must be installed
     after ``context.new_page()`` and before any navigation.
+
+    ``redirect_origin_aliases`` is deliberately exact: only a declared
+    absolute origin may be rebound to ``header_scope_url``. This supports
+    token-gated proxy redirects without sending scoped headers elsewhere.
     """
 
     async def _handler(route: Any) -> None:
@@ -178,7 +183,33 @@ async def _install_resource_blocker(
                     fulfill = getattr(route, "fulfill", None)
                     if callable(fetch) and callable(fulfill):
                         response = await fetch(headers=headers, max_redirects=0)
-                        await fulfill(response=response)
+                        fulfill_kwargs: dict[str, Any] = {"response": response}
+                        response_headers = getattr(response, "headers", None)
+                        status = getattr(response, "status", None)
+                        if (
+                            isinstance(status, int)
+                            and 300 <= status < 400
+                            and isinstance(response_headers, Mapping)
+                        ):
+                            location_key = next(
+                                (key for key in response_headers if str(key).lower() == "location"),
+                                None,
+                            )
+                            location = (
+                                response_headers.get(location_key)
+                                if location_key is not None
+                                else None
+                            )
+                            rewritten_location = _rewrite_origin_alias(
+                                location,
+                                aliases=redirect_origin_aliases,
+                                target_origin=header_scope_url,
+                            )
+                            if rewritten_location is not None:
+                                headers_override = dict(response_headers)
+                                headers_override[str(location_key)] = rewritten_location
+                                fulfill_kwargs["headers"] = headers_override
+                        await fulfill(**fulfill_kwargs)
                     else:
                         logger.warning(
                             "phase 2c route cannot inject scoped headers without "
@@ -198,6 +229,31 @@ async def _install_resource_blocker(
                 logger.debug("phase 2c route abort after handler exception failed", exc_info=True)
 
     await page.route("**/*", _handler)
+
+
+def _rewrite_origin_alias(
+    url: Any,
+    *,
+    aliases: tuple[str, ...],
+    target_origin: str | None,
+) -> str | None:
+    """Rewrite an exact absolute origin alias while preserving path/query."""
+
+    if not isinstance(url, str) or not url or not aliases or not target_origin:
+        return None
+    parsed = urlsplit(url)
+    target = urlsplit(target_origin)
+    if not parsed.scheme or not parsed.netloc or not target.scheme or not target.netloc:
+        return None
+    request_origin = (parsed.scheme.lower(), parsed.netloc.lower())
+    alias_origins = {
+        (alias.scheme.lower(), alias.netloc.lower())
+        for raw_alias in aliases
+        if (alias := urlsplit(raw_alias)).scheme and alias.netloc
+    }
+    if request_origin not in alias_origins:
+        return None
+    return urlunsplit((target.scheme, target.netloc, parsed.path, parsed.query, parsed.fragment))
 
 
 @dataclass(frozen=True)

@@ -13,6 +13,7 @@ tail under ``--feasibility-concurrency=24`` on r5:
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 from typing import Any
 
 from warp_taskgen.phase_2.phase_2c import probes
@@ -237,6 +238,40 @@ def test_route_blocker_strips_http_headers_from_off_origin_requests() -> None:
     assert route.continued
     assert route.continue_kwargs == {}
     assert route.fetch_kwargs is None
+
+
+def test_route_blocker_rewrites_declared_redirect_origin_alias() -> None:
+    page = _ProbePage()
+    asyncio.run(
+        reach._install_resource_blocker(
+            page,
+            scoped_extra_http_headers={"X-Worldsim-Token": "test-token"},
+            header_scope_url="http://live:18023",
+            redirect_origin_aliases=("http://live:8023", "http://live"),
+        )
+    )
+    handler = page.route_handler
+    assert handler is not None
+    route = _Route("document", url="http://live:18023/source")
+    route.fetch_response = SimpleNamespace(
+        status=302,
+        headers={"Location": "http://live/target?from=gitlab"},
+    )
+
+    asyncio.run(handler(route))
+
+    assert route.fulfill_kwargs == {
+        "response": route.fetch_response,
+        "headers": {"Location": "http://live:18023/target?from=gitlab"},
+    }
+
+    foreign = _Route("document", url="http://live:18023/source")
+    foreign.fetch_response = SimpleNamespace(
+        status=302,
+        headers={"Location": "http://other.test/target"},
+    )
+    asyncio.run(handler(foreign))
+    assert foreign.fulfill_kwargs == {"response": foreign.fetch_response}
 
 
 def test_reachability_passes_http_headers_as_playwright_extra_headers() -> None:
