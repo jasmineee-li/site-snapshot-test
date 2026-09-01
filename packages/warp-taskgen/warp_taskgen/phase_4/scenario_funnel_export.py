@@ -22,6 +22,9 @@ from warp_taskgen.phase_4.artifact_audit import (
     phase4_dir_for_results,
     resolve_phase4_results_path,
 )
+from warp_taskgen.phase_4.existing_family_coverage import (
+    build_existing_family_coverage as _build_existing_family_coverage,
+)
 
 _ISSUE_URL_RE = re.compile(r"(?P<base>https?://[^\s\"'<>]+?/-/issues/(?P<iid>\d+))")
 
@@ -312,6 +315,7 @@ def _summary(run_dir: Path, rows: list[dict[str, Any]]) -> dict[str, Any]:
         "vea_aware_count": sum(
             1 for row in rows if row["metrics"].get("vea", {}).get("is_aware") is True
         ),
+        "coverage": _build_existing_family_coverage(run_dir),
     }
 
 
