@@ -148,3 +148,37 @@ _Avoid_: Asset, source fixture
 **Run Lifecycle**:
 The durable execution state of a Run, such as running, paused, interrupted, failed, or complete. It is independent of the process state of any Remote Job.
 _Avoid_: Remote Job status, process status
+
+**Independent Authenticated Reader**:
+A fresh reader context authenticated as a non-admin participant other than the
+Regular Participant Writer, used to observe the exact resource through that
+participant's legitimate access. It does not reuse the writer's cookies,
+storage state, or credentials.
+_Avoid_: Fresh Anonymous Reader, writer session, admin observer
+
+**Information-only Benign Task**:
+A legitimate browser task whose requested result is information rather than a
+change to Site state. Its paired attack may still seek a state-changing effect.
+_Avoid_: Non-mutating attack, read-only attack
+
+**State-changing Benign Task**:
+A legitimate browser task whose requested result includes creating, updating,
+or removing persistent Site state. The requested changes remain distinct from
+the paired attack's objective.
+_Avoid_: Mutation attack, adversarial action
+
+**Task Archetype**:
+A behavioral family of benign browser tasks defined by their information need,
+decision logic, required actions, navigation, and data dependencies. Different
+record names or wording alone do not define a new archetype.
+_Avoid_: Carrier family, payload variant
+
+**Attacker Objective**:
+The observable effect an attack seeks to induce beyond or contrary to the
+legitimate user's request.
+_Avoid_: Payload text, attack strategy
+
+**Content Propagation**:
+Transfer of attacker-specified content into an agent answer or persisted
+artifact. Propagation alone does not establish endorsement or obedience.
+_Avoid_: Semantic obedience, endorsement

@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Q4 prototype · logical record binding</title>
+  <style>
+    :root {
+      --ink: #16222d;
+      --muted: #5c6b78;
+      --paper: #f5f7f8;
+      --card: #ffffff;
+      --line: #d7e0e6;
+      --accent: #116466;
+      --accent-soft: #e4f2f1;
+      --ok: #16734b;
+      --ok-soft: #e6f5ed;
+      --warn: #975c00;
+      --warn-soft: #fff2d9;
+      --fail: #a33434;
+      --fail-soft: #fde8e8;
+      --shadow: 0 5px 18px rgba(22, 34, 45, .07);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { max-width: 1180px; margin: 0 auto; padding: 36px 22px 72px; }
+    h1, h2, h3 { line-height: 1.2; margin: 0; }
+    h1 { font-size: clamp(1.8rem, 3.2vw, 2.8rem); letter-spacing: -.03em; }
+    h2 { font-size: 1.35rem; }
+    h3 { font-size: 1rem; }
+    p { margin: .55rem 0; }
+    code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    button {
+      border: 1px solid var(--accent);
+      border-radius: 7px;
+      padding: .55rem .75rem;
+      color: #fff;
+      background: var(--accent);
+      cursor: pointer;
+      font: inherit;
+      line-height: 1.25;
+    }
+    button:hover { background: #0d4f51; }
+    button:focus-visible { outline: 3px solid #8ed6d2; outline-offset: 2px; }
+    button.secondary { color: var(--accent); background: #fff; }
+    button.secondary:hover { background: var(--accent-soft); }
+    button.ghost { color: var(--ink); border-color: var(--line); background: #fff; }
+    button.ghost:hover { border-color: var(--accent); background: var(--accent-soft); }
+    button:disabled { color: #8996a0; border-color: #c7d0d6; background: #edf0f2; cursor: not-allowed; }
+    .eyebrow { margin: 0 0 7px; color: var(--accent); font-size: .77rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .subtitle { max-width: 780px; margin-top: 10px; color: var(--muted); font-size: 1.05rem; }
+    .prototype-badge { display: inline-block; margin: 15px 0 25px; border: 1px solid #b6d8d6; border-radius: 99px; padding: 4px 10px; color: var(--accent); background: var(--accent-soft); font-size: .78rem; font-weight: 750; letter-spacing: .04em; }
+    .question { margin: 0 0 26px; border-left: 4px solid var(--accent); padding: 15px 18px; background: var(--card); box-shadow: var(--shadow); }
+    .question strong { display: block; margin-bottom: 5px; color: var(--accent); font-size: .82rem; letter-spacing: .08em; text-transform: uppercase; }
+    .question q { font-size: 1.16rem; font-weight: 650; quotes: none; }
+    .question q::before, .question q::after { content: none; }
+    .section { margin-top: 30px; }
+    .section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .section-heading p { color: var(--muted); font-size: .9rem; }
+    .card { border: 1px solid var(--line); border-radius: 11px; background: var(--card); box-shadow: var(--shadow); }
+    .state-overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .state-card { min-height: 106px; padding: 13px 14px; }
+    .state-card h3 { color: var(--muted); font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; }
+    .state-card .value { margin-top: 7px; font-size: 1.07rem; font-weight: 720; overflow-wrap: anywhere; }
+    .state-card .detail { color: var(--muted); font-size: .84rem; overflow-wrap: anywhere; }
+    .status { display: inline-block; border-radius: 99px; padding: 2px 8px; font-size: .75rem; font-weight: 800; letter-spacing: .04em; }
+    .status.ready { color: var(--muted); background: #edf0f2; }
+    .status.ok { color: var(--ok); background: var(--ok-soft); }
+    .status.warn { color: var(--warn); background: var(--warn-soft); }
+    .status.fail { color: var(--fail); background: var(--fail-soft); }
+    .attempt-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+    .attempt-card { padding: 15px; }
+    .attempt-card h3 { display: flex; justify-content: space-between; gap: 10px; }
+    .attempt-card h3 span { color: var(--muted); font-size: .8rem; font-weight: 500; }
+    .attempt-meta { margin: 8px 0 12px; color: var(--muted); font-size: .85rem; }
+    .call-row, .binding-row { display: grid; grid-template-columns: minmax(100px, .9fr) minmax(80px, .55fr) minmax(115px, 1.15fr); gap: 8px; align-items: start; border-top: 1px solid var(--line); padding: 9px 0; font-size: .84rem; }
+    .call-row:first-of-type, .binding-row:first-of-type { border-top: 0; }
+    .call-row .alias, .binding-row .alias { font-weight: 700; overflow-wrap: anywhere; }
+    .call-row .facts, .binding-row .facts { color: var(--muted); overflow-wrap: anywhere; }
+    .empty { color: var(--muted); font-style: italic; }
+    .binding-block { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+    .binding-block > h3 { margin-bottom: 5px; color: var(--accent); font-size: .85rem; letter-spacing: .06em; text-transform: uppercase; }
+    .binding-row { grid-template-columns: minmax(130px, 1fr) minmax(115px, 1fr) minmax(130px, 1fr); }
+    .history { margin-top: 14px; padding: 14px 15px; }
+    .history h3 { margin-bottom: 8px; }
+    .history-entry { border-top: 1px solid var(--line); padding: 7px 0; font-size: .83rem; }
+    .history-entry:first-of-type { border-top: 0; }
+    .history-entry .phase { color: var(--accent); font-weight: 750; }
+    .issues { margin-top: 14px; padding: 14px 15px; }
+    .issues h3 { margin-bottom: 7px; }
+    .issues ul, .event-log { margin: 0; padding-left: 20px; }
+    .issues li { margin: 4px 0; color: var(--fail); }
+    .event-log li { margin: 4px 0; color: var(--muted); font-size: .84rem; }
+    .event-log li strong { color: var(--ink); }
+    .counterfactual { margin-top: 14px; padding: 15px; }
+    .counterfactual h3 { color: var(--warn); }
+    .counterfactual .cf-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+    .counterfactual .cf-cell { border: 1px solid #efd7a6; border-radius: 7px; padding: 9px; background: #fffaf0; }
+    .counterfactual .label { display: block; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
+    .counterfactual .cf-cell strong { display: block; margin-top: 3px; overflow-wrap: anywhere; }
+    .controls { padding: 16px; }
+    .control-group + .control-group { margin-top: 17px; border-top: 1px solid var(--line); padding-top: 14px; }
+    .control-group h3 { margin-bottom: 8px; }
+    .control-group p { margin-bottom: 9px; color: var(--muted); font-size: .87rem; }
+    .button-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tab-list { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+    .tab-list button { color: var(--accent); border-color: #add2d0; background: #fff; font-size: .88rem; }
+    .tab-list button[aria-selected="true"] { color: #fff; border-color: var(--accent); background: var(--accent); }
+    .walkthrough { padding: 17px; }
+    .walkthrough .description { max-width: 820px; color: var(--muted); }
+    .walkthrough-top { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 9px; }
+    .step-count { color: var(--muted); font-size: .86rem; white-space: nowrap; }
+    .step-list { display: grid; gap: 7px; margin-top: 14px; }
+    .step { display: grid; grid-template-columns: 31px minmax(0, 1fr) auto; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: #fbfcfc; }
+    .step.current { border-color: #8bc3c0; background: var(--accent-soft); }
+    .step.done { border-color: #b4dac6; background: var(--ok-soft); }
+    .step-number { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: var(--muted); background: #e8edf0; font-size: .77rem; font-weight: 800; }
+    .step.current .step-number { color: #fff; background: var(--accent); }
+    .step.done .step-number { color: #fff; background: var(--ok); }
+    .step-copy { font-size: .9rem; }
+    .step-result { color: var(--muted); font-size: .76rem; }
+    .limitations { border: 1px solid #efd7a6; padding: 16px; background: var(--warn-soft); }
+    .limitations h2 { color: var(--warn); }
+    .limitations p { color: #61420f; }
+    .footer-note { margin-top: 34px; color: var(--muted); font-size: .82rem; }
+    @media (max-width: 850px) {
+      .state-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .attempt-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      main { padding: 25px 13px 55px; }
+      .state-overview { grid-template-columns: 1fr; }
+      .call-row, .binding-row { grid-template-columns: 1fr 1fr; }
+      .call-row .facts, .binding-row .facts { grid-column: 1 / -1; }
+      .counterfactual .cf-grid { grid-template-columns: 1fr; }
+      .step { grid-template-columns: 31px minmax(0, 1fr); }
+      .step button { grid-column: 2; justify-self: start; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">WARP benchmark-expansion planning · Q4 logic prototype</p>
+      <h1>Logical record binding across seed attempts</h1>
+      <p class="subtitle">A small, disposable state-model demo for checking whether generated records can stay addressable when each seed attempt gives them different physical IDs.</p>
+      <span class="prototype-badge">THROWAWAY · IN-MEMORY · NO LIVE BENCHMARK</span>
+    </header>
+
+    <section class="question" aria-labelledby="question-heading">
+      <strong id="question-heading">Question under test</strong>
+      <q>Can stable logical record aliases bind to different physical IDs on each Phase2c/Phase4 seed attempt without stale/last-write targeting?</q>
+      <p>Watch the alias (for example, <code>release-blocker</code>) remain stable while the Phase 2c and Phase 4 IDs change. The safe resolver uses the selected alias and that attempt's per-call result; it never uses an aggregate counter or an ID remembered from an earlier attempt.</p>
+    </section>
+
+    <section class="section" aria-labelledby="state-heading">
+      <div class="section-heading">
+        <h2 id="state-heading">Current state</h2>
+        <p>Every button re-renders the complete relevant state.</p>
+      </div>
+      <div class="state-overview">
+        <article class="card state-card">
+          <h3>Last action</h3>
+          <div class="value" id="last-action">—</div>
+          <div class="detail" id="last-detail">No action yet.</div>
+        </article>
+        <article class="card state-card">
+          <h3>Binding verdict</h3>
+          <div class="value" id="binding-verdict"><span class="status ready">READY</span></div>
+          <div class="detail" id="binding-detail">No record has been bound.</div>
+        </article>
+        <article class="card state-card">
+          <h3>Selected record</h3>
+          <div class="value mono" id="selected-record">—</div>
+          <div class="detail" id="selected-detail">The decision rule has not been applied.</div>
+        </article>
+        <article class="card state-card">
+          <h3>Resolved target</h3>
+          <div class="value mono" id="resolved-target">—</div>
+          <div class="detail" id="resolved-detail">No action target resolved.</div>
+        </article>
+      </div>
+
+      <div class="attempt-grid">
+        <article class="card attempt-card" id="phase2c-card"></article>
+        <article class="card attempt-card" id="phase4-card"></article>
+      </div>
+      <article class="card history" id="history-card"></article>
+      <article class="card issues" id="issues-card"></article>
+      <article class="card counterfactual" id="counterfactual-card"></article>
+      <article class="card issues" id="event-card"></article>
+    </section>
+
+    <section class="section" aria-labelledby="free-play-heading">
+      <div class="section-heading">
+        <h2 id="free-play-heading">Free play</h2>
+        <p>Try actions in any order; failures stay visible and fail closed.</p>
+      </div>
+      <article class="card controls">
+        <div class="control-group">
+          <h3>Start or clear a known state</h3>
+          <div class="button-row">
+            <button data-action="reset">Reset all in-memory state</button>
+            <button class="secondary" data-action="seed-p2-happy">Seed Phase 2c: three GitLab issues</button>
+            <button class="secondary" data-action="seed-p4-happy">Seed Phase 4: same aliases, new IDs</button>
+            <button class="secondary" data-action="reset-p4">Reset Phase 4 only</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <h3>Bind, select, and resolve</h3>
+          <p>The rule selects the open issue that blocks <code>release-4</code>. The binding uses the exact per-call result for that alias.</p>
+          <div class="button-row">
+            <button data-action="bind-p2">Bind Phase 2c records</button>
+            <button data-action="bind-p4">Bind Phase 4 records</button>
+            <button class="secondary" data-action="select-p2-winner">Select Phase 2c rule winner</button>
+            <button class="secondary" data-action="select-p4-winner">Select Phase 4 rule winner</button>
+            <button class="secondary" data-action="resolve-p2">Resolve Phase 2c selected target</button>
+            <button class="secondary" data-action="resolve-p4">Resolve Phase 4 selected target</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <h3>Push the awkward cases</h3>
+          <p>These controls intentionally exercise the cases that a last-written ID or stale Phase 2c ID would get wrong.</p>
+          <div class="button-row">
+            <button class="ghost" data-action="last-write-p2">Run deliberately naive last-write resolver</button>
+            <button class="ghost" data-action="reuse-p2-in-p4">Try to reuse the Phase 2c physical ID in Phase 4</button>
+            <button class="ghost" data-action="seed-missing-alias">Seed malformed: missing alias</button>
+            <button class="ghost" data-action="seed-duplicate-alias">Seed malformed: duplicate alias</button>
+            <button class="ghost" data-action="seed-missing-result">Seed malformed: missing call result</button>
+            <button class="ghost" data-action="seed-duplicate-id">Seed malformed: duplicate physical ID</button>
+            <button class="ghost" data-action="seed-wrong-benchmark">Seed malformed: wrong Benchmark</button>
+            <button class="ghost" data-action="seed-wrong-site">Seed malformed: wrong Site</button>
+            <button class="ghost" data-action="seed-wrong-method">Seed malformed: wrong method</button>
+            <button class="ghost" data-action="seed-wrong-kind">Seed malformed: wrong resource kind</button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="section" aria-labelledby="guided-heading">
+      <div class="section-heading">
+        <h2 id="guided-heading">Guided walkthroughs</h2>
+        <p>Opening a tab starts that scenario from its known initial state.</p>
+      </div>
+      <div class="tab-list" role="tablist" aria-label="Logical binding scenarios" id="scenario-tabs"></div>
+      <article class="card walkthrough" id="walkthrough-panel" role="tabpanel"></article>
+    </section>
+
+    <section class="section card limitations" aria-labelledby="limitations-heading">
+      <h2 id="limitations-heading">Limitations — what this prototype does not prove</h2>
+      <p>This validates the state and interface logic of alias-to-ID binding using deterministic in-memory fixtures. It does <strong>not</strong> validate actual WARP integration, deployed GitLab/TAC behavior, authentication, browser exposure, cleanup, or a live reset/reseed. A successful walkthrough is a design signal, not runtime evidence.</p>
+      <p>There is deliberately no persistence, framework, server, browser, model call, or benchmark infrastructure here. The pure module in the first script is the part that could later be lifted into a focused implementation; the surrounding page is only a hand-driven explanation.</p>
+    </section>
+
+    <p class="footer-note">Planning date: 2026-08-31 · Research baseline: 2026-08-30 · Q4's architecture is accepted; the real seed/evidence seams remain unimplemented and untested.</p>
+  </main>
+
+  <!-- Pure, portable state model. It has no DOM references and can be lifted independently. -->
+  <script>
+    const Q4BindingLogic = (() => {
+      const CONTRACT = Object.freeze({ benchmark: "webarena_verified", site: "gitlab", method: "create_issue", resourceKind: "issue" });
+      const DECISION_RULE = "state=open AND dependency=release-4 (exactly one winner)";
+
+      const FACTS = Object.freeze({
+        blocker: Object.freeze({ state: "open", dependency: "release-4", summary: "open · blocks release-4" }),
+        docs: Object.freeze({ state: "open", dependency: "docs-refresh", summary: "open · blocks docs-refresh" }),
+        closed: Object.freeze({ state: "closed", dependency: "release-4", summary: "closed · blocks release-4" })
+      });
+
+      function deepCopy(value) {
+        return JSON.parse(JSON.stringify(value));
+      }
+
+      function issueCall(logicalAlias, physicalId, facts, overrides) {
+        const result = physicalId === null ? null : {
+          physicalId,
+          benchmark: CONTRACT.benchmark,
+          site: CONTRACT.site,
+          method: CONTRACT.method,
+          resourceKind: CONTRACT.resourceKind,
+          facts: deepCopy(facts)
+        };
+        return Object.assign({
+          callId: "create-" + logicalAlias,
+          logicalAlias,
+          result
+        }, overrides || {});
+      }
+
+      function attempt(attemptId, phase, ids, options) {
+        const opts = options || {};
+        const aliases = ["release-blocker", "docs-gap", "closed-bug"];
+        const calls = opts.callResults || [
+          issueCall(aliases[0], ids[0], FACTS.blocker),
+          issueCall(aliases[1], ids[1], FACTS.docs),
+          issueCall(aliases[2], ids[2], FACTS.closed)
+        ];
+        return {
+          attemptId,
+          phase,
+          expectedAliases: opts.expectedAliases || aliases,
+          callResults: calls,
+          aggregateLastPhysicalId: opts.aggregateLastPhysicalId || null
+        };
+      }
+
+      const FIXTURES = Object.freeze({
+        phase2cHappy: attempt("p2c-seed-001", "Phase 2c", ["gl-204", "gl-205", "gl-206"], { aggregateLastPhysicalId: "gl-206" }),
+        phase4Happy: attempt("p4-seed-017", "Phase 4", ["gl-804", "gl-805", "gl-806"], { aggregateLastPhysicalId: "gl-806" }),
+        phase4Reseed: attempt("p4-seed-018-after-reset", "Phase 4", ["gl-1404", "gl-1405", "gl-1406"], { aggregateLastPhysicalId: "gl-1406" }),
+        missingAlias: attempt("p2c-bad-missing-alias", "Phase 2c", ["gl-301", "gl-302", "gl-303"], {
+          expectedAliases: ["release-blocker", "docs-gap", "closed-bug"],
+          callResults: [issueCall("release-blocker", "gl-301", FACTS.blocker), issueCall("closed-bug", "gl-303", FACTS.closed)]
+        }),
+        duplicateAlias: attempt("p2c-bad-duplicate-alias", "Phase 2c", ["gl-311", "gl-312", "gl-313"], {
+          callResults: [issueCall("release-blocker", "gl-311", FACTS.blocker), issueCall("release-blocker", "gl-312", FACTS.docs), issueCall("closed-bug", "gl-313", FACTS.closed)]
+        }),
+        missingResult: attempt("p2c-bad-missing-result", "Phase 2c", ["gl-321", "gl-322", "gl-323"], {
+          callResults: [issueCall("release-blocker", "gl-321", FACTS.blocker), { callId: "create-docs-gap", logicalAlias: "docs-gap", result: null }, issueCall("closed-bug", "gl-323", FACTS.closed)]
+        }),
+        wrongSite: attempt("p2c-bad-site", "Phase 2c", ["gl-331", "gl-332", "gl-333"], {
+          callResults: [issueCall("release-blocker", "gl-331", FACTS.blocker, { result: { physicalId: "gl-331", benchmark: CONTRACT.benchmark, site: "postmill", method: CONTRACT.method, resourceKind: CONTRACT.resourceKind, facts: deepCopy(FACTS.blocker) } }), issueCall("docs-gap", "gl-332", FACTS.docs), issueCall("closed-bug", "gl-333", FACTS.closed)]
+        }),
+        wrongBenchmark: attempt("p2c-bad-benchmark", "Phase 2c", ["gl-336", "gl-337", "gl-338"], {
+          callResults: [issueCall("release-blocker", "gl-336", FACTS.blocker, { result: { physicalId: "gl-336", benchmark: "theagentcompany", site: CONTRACT.site, method: CONTRACT.method, resourceKind: CONTRACT.resourceKind, facts: deepCopy(FACTS.blocker) } }), issueCall("docs-gap", "gl-337", FACTS.docs), issueCall("closed-bug", "gl-338", FACTS.closed)]
+        }),
+        wrongMethod: attempt("p2c-bad-method", "Phase 2c", ["gl-341", "gl-342", "gl-343"], {
+          callResults: [issueCall("release-blocker", "gl-341", FACTS.blocker, { result: { physicalId: "gl-341", benchmark: CONTRACT.benchmark, site: CONTRACT.site, method: "create_note", resourceKind: CONTRACT.resourceKind, facts: deepCopy(FACTS.blocker) } }), issueCall("docs-gap", "gl-342", FACTS.docs), issueCall("closed-bug", "gl-343", FACTS.closed)]
+        }),
+        wrongKind: attempt("p2c-bad-kind", "Phase 2c", ["gl-351", "gl-352", "gl-353"], {
+          callResults: [issueCall("release-blocker", "gl-351", FACTS.blocker, { result: { physicalId: "gl-351", benchmark: CONTRACT.benchmark, site: CONTRACT.site, method: CONTRACT.method, resourceKind: "note", facts: deepCopy(FACTS.blocker) } }), issueCall("docs-gap", "gl-352", FACTS.docs), issueCall("closed-bug", "gl-353", FACTS.closed)]
+        }),
+        duplicatePhysicalId: attempt("p2c-bad-duplicate-id", "Phase 2c", ["gl-361", "gl-361", "gl-363"], {
+          callResults: [issueCall("release-blocker", "gl-361", FACTS.blocker), issueCall("docs-gap", "gl-361", FACTS.docs), issueCall("closed-bug", "gl-363", FACTS.closed)]
+        })
+      });
+
+      function createInitialState() {
+        return {
+          phase2c: { attempt: null, binding: null, status: "empty", errors: [] },
+          phase4: { attempt: null, binding: null, status: "empty", errors: [] },
+          selected: null,
+          resolvedTarget: null,
+          history: [],
+          errors: [],
+          events: [],
+          counterfactual: null,
+          lastAction: "Initial state",
+          lastDetail: "No seed attempt has been loaded."
+        };
+      }
+
+      function phaseLabel(phase) {
+        return phase === "phase2c" ? "Phase 2c" : "Phase 4";
+      }
+
+      function bindingFor(state, phase) {
+        return state[phase] && state[phase].binding;
+      }
+
+      function attemptFor(state, phase) {
+        return state[phase] && state[phase].attempt;
+      }
+
+      function winnerForAttempt(candidateAttempt) {
+        if (!candidateAttempt || !Array.isArray(candidateAttempt.callResults)) return null;
+        const winners = candidateAttempt.callResults.filter((row) => row && row.result && row.result.facts && row.result.facts.state === "open" && row.result.facts.dependency === "release-4");
+        return winners.length === 1 ? winners[0].logicalAlias : null;
+      }
+
+      function pushEvent(next, action, detail, kind) {
+        next.events.unshift({ action, detail, kind: kind || "info" });
+        if (next.events.length > 14) next.events.length = 14;
+        next.lastAction = action;
+        next.lastDetail = detail;
+      }
+
+      function fail(next, action, messages) {
+        const list = Array.isArray(messages) ? messages : [messages];
+        next.errors = list.slice();
+        pushEvent(next, action, list.join(" "), "fail");
+      }
+
+      function archiveExisting(next, phase) {
+        const slot = next[phase];
+        if (!slot.attempt || !slot.binding) return;
+        const aliases = Object.keys(slot.binding);
+        next.history.unshift({
+          phase: phaseLabel(phase),
+          attemptId: slot.attempt.attemptId,
+          mapping: aliases.map((alias) => alias + " → " + slot.binding[alias].physicalId)
+        });
+      }
+
+      function seed(state, phase, candidateAttempt, actionLabel) {
+        const next = deepCopy(state);
+        archiveExisting(next, phase);
+        next[phase] = { attempt: deepCopy(candidateAttempt), binding: null, status: "seeded", errors: [] };
+        next.selected = next.selected ? next.selected : null;
+        next.resolvedTarget = null;
+        next.errors = [];
+        next.counterfactual = null;
+        pushEvent(next, actionLabel || ("Seed " + phaseLabel(phase)), phaseLabel(phase) + " attempt " + candidateAttempt.attemptId + " loaded with " + candidateAttempt.callResults.length + " call-result row(s).", "seed");
+        return next;
+      }
+
+      function resetPhase(state, phase) {
+        const next = deepCopy(state);
+        archiveExisting(next, phase);
+        next[phase] = { attempt: null, binding: null, status: "empty", errors: [] };
+        next.resolvedTarget = next.resolvedTarget && next.resolvedTarget.phase === phase ? null : next.resolvedTarget;
+        next.errors = [];
+        next.counterfactual = null;
+        pushEvent(next, "Reset " + phaseLabel(phase), phaseLabel(phase) + " attempt and current binding cleared; any archived mapping remains visible below.", "reset");
+        return next;
+      }
+
+      function validateAndBind(state, phase) {
+        const next = deepCopy(state);
+        const slot = next[phase];
+        const candidateAttempt = slot.attempt;
+        const action = "Bind " + phaseLabel(phase) + " records";
+        const problems = [];
+        if (!candidateAttempt) problems.push("No seed attempt is loaded.");
+        if (candidateAttempt && candidateAttempt.phase !== phaseLabel(phase)) problems.push("The attempt is labelled " + candidateAttempt.phase + ", not " + phaseLabel(phase) + ".");
+        if (candidateAttempt && !Array.isArray(candidateAttempt.callResults)) problems.push("The seed has no per-call result list.");
+
+        const mapping = {};
+        const seen = new Set();
+        const seenPhysicalIds = new Set();
+        if (candidateAttempt && Array.isArray(candidateAttempt.callResults)) {
+          candidateAttempt.callResults.forEach((row, index) => {
+            if (!row || typeof row !== "object") {
+              problems.push("Call-result row " + (index + 1) + " is missing.");
+              return;
+            }
+            if (!row.logicalAlias) {
+              problems.push("Call-result row " + (index + 1) + " has no logical alias.");
+              return;
+            }
+            if (seen.has(row.logicalAlias)) problems.push("Logical alias " + row.logicalAlias + " appears more than once.");
+            seen.add(row.logicalAlias);
+            if (!row.result) {
+              problems.push("Call result for " + row.logicalAlias + " is missing.");
+              return;
+            }
+            const result = row.result;
+            if (!result.physicalId) problems.push("Call result for " + row.logicalAlias + " has no physical ID.");
+            if (result.physicalId && seenPhysicalIds.has(result.physicalId)) problems.push("Physical ID " + result.physicalId + " is bound to more than one logical alias.");
+            if (result.physicalId) seenPhysicalIds.add(result.physicalId);
+            if (result.benchmark !== CONTRACT.benchmark) problems.push("Call result for " + row.logicalAlias + " has Benchmark " + String(result.benchmark) + "; expected " + CONTRACT.benchmark + ".");
+            if (result.site !== CONTRACT.site) problems.push("Call result for " + row.logicalAlias + " has Site " + String(result.site) + "; expected " + CONTRACT.site + ".");
+            if (result.method !== CONTRACT.method) problems.push("Call result for " + row.logicalAlias + " uses method " + String(result.method) + "; expected " + CONTRACT.method + ".");
+            if (result.resourceKind !== CONTRACT.resourceKind) problems.push("Call result for " + row.logicalAlias + " has resource kind " + String(result.resourceKind) + "; expected " + CONTRACT.resourceKind + ".");
+            if (result.physicalId && result.benchmark === CONTRACT.benchmark && result.site === CONTRACT.site && result.method === CONTRACT.method && result.resourceKind === CONTRACT.resourceKind) {
+              mapping[row.logicalAlias] = {
+                logicalAlias: row.logicalAlias,
+                physicalId: result.physicalId,
+                benchmark: result.benchmark,
+                site: result.site,
+                method: result.method,
+                resourceKind: result.resourceKind,
+                facts: deepCopy(result.facts || {})
+              };
+            }
+          });
+        }
+
+        if (candidateAttempt && Array.isArray(candidateAttempt.expectedAliases)) {
+          candidateAttempt.expectedAliases.forEach((alias) => {
+            if (!seen.has(alias)) problems.push("Expected logical alias " + alias + " has no call-result row.");
+          });
+          seen.forEach((alias) => {
+            if (!candidateAttempt.expectedAliases.includes(alias)) problems.push("Unexpected logical alias " + alias + " is outside the declared candidate set.");
+          });
+        }
+
+        if (problems.length) {
+          slot.binding = null;
+          slot.status = "failed";
+          slot.errors = problems.slice();
+          next.errors = problems.slice();
+          next.resolvedTarget = null;
+          fail(next, action, problems);
+          return next;
+        }
+
+        const p2Ids = phase === "phase4" && next.phase2c.binding ? Object.values(next.phase2c.binding).map((entry) => entry.physicalId) : [];
+        const reused = Object.values(mapping).find((entry) => p2Ids.includes(entry.physicalId));
+        if (reused) {
+          const message = "Physical ID " + reused.physicalId + " already belongs to the Phase 2c binding; Phase 4 must bind fresh IDs.";
+          slot.binding = null;
+          slot.status = "failed";
+          slot.errors = [message];
+          next.errors = [message];
+          next.resolvedTarget = null;
+          fail(next, action, message);
+          return next;
+        }
+
+        slot.binding = mapping;
+        slot.status = "bound";
+        slot.errors = [];
+        next.errors = [];
+        next.resolvedTarget = null;
+        const winner = winnerForAttempt(candidateAttempt);
+        pushEvent(next, action, Object.keys(mapping).length + " logical alias(es) bound. Rule winner is " + (winner || "ambiguous" ) + ".", "ok");
+        return next;
+      }
+
+      function selectAlias(state, phase, alias) {
+        const next = deepCopy(state);
+        const candidateAttempt = attemptFor(next, phase);
+        const known = Boolean(candidateAttempt && candidateAttempt.callResults && candidateAttempt.callResults.some((row) => row && row.logicalAlias === alias));
+        const expected = winnerForAttempt(candidateAttempt);
+        next.selected = { phase, logicalAlias: alias, expectedAlias: expected, matchesRule: known && expected === alias };
+        next.resolvedTarget = null;
+        next.errors = known ? [] : ["Logical alias " + alias + " is not present in the " + phaseLabel(phase) + " candidate set."];
+        if (!known) {
+          fail(next, "Select " + alias, next.errors);
+        } else {
+          pushEvent(next, "Select " + alias, phaseLabel(phase) + " selected; rule winner is " + (expected || "ambiguous") + (expected === alias ? " (match)." : " (not a match)."), "select");
+        }
+        return next;
+      }
+
+      function resolveTarget(state, phase, alias, requestedPhysicalId) {
+        const next = deepCopy(state);
+        const chosenAlias = alias || (next.selected && next.selected.logicalAlias);
+        const binding = bindingFor(next, phase);
+        const action = "Resolve " + phaseLabel(phase) + " target";
+        const problems = [];
+        if (!binding) problems.push("No valid " + phaseLabel(phase) + " binding is available.");
+        if (!chosenAlias) problems.push("No logical alias has been selected.");
+        const record = binding && chosenAlias ? binding[chosenAlias] : null;
+        if (binding && chosenAlias && !record) problems.push("Alias " + chosenAlias + " is not in the " + phaseLabel(phase) + " binding.");
+        if (record && requestedPhysicalId && record.physicalId !== requestedPhysicalId) problems.push("Requested physical ID " + requestedPhysicalId + " does not belong to alias " + chosenAlias + " in this attempt.");
+        if (record && next.history.some((entry) => entry.phase === phaseLabel(phase) && entry.mapping.some((mapping) => mapping.endsWith("→ " + record.physicalId)))) problems.push("Physical ID " + record.physicalId + " belongs to an archived attempt, not the current one.");
+
+        if (problems.length) {
+          next.resolvedTarget = null;
+          next.errors = problems.slice();
+          fail(next, action, problems);
+          return next;
+        }
+
+        next.resolvedTarget = { phase, logicalAlias: chosenAlias, physicalId: record.physicalId, benchmark: record.benchmark, site: record.site, method: record.method, resourceKind: record.resourceKind };
+        next.errors = [];
+        pushEvent(next, action, chosenAlias + " resolves to current physical ID " + record.physicalId + ".", "ok");
+        return next;
+      }
+
+      function runLastWriteCounterfactual(state, phase) {
+        const next = deepCopy(state);
+        const candidateAttempt = attemptFor(next, phase);
+        const chosenAlias = next.selected && next.selected.logicalAlias;
+        const action = "Run deliberately naive last-write resolver";
+        if (!candidateAttempt || !chosenAlias) {
+          next.counterfactual = { status: "not-run", message: "Load an attempt and select a logical alias first." };
+          next.errors = [next.counterfactual.message];
+          fail(next, action, next.counterfactual.message);
+          return next;
+        }
+        const lastRow = candidateAttempt.callResults[candidateAttempt.callResults.length - 1];
+        const lastId = lastRow && lastRow.result && lastRow.result.physicalId;
+        const binding = bindingFor(next, phase);
+        const safeRecord = binding && binding[chosenAlias];
+        const safeId = safeRecord && safeRecord.physicalId;
+        const fails = !lastId || !safeId || lastId !== safeId;
+        next.counterfactual = {
+          status: fails ? "fails" : "happens-to-match",
+          phase,
+          logicalAlias: chosenAlias,
+          naiveLastWriteId: lastId || "missing",
+          safeAliasId: safeId || "unresolved",
+          message: fails ? "Counterexample: the last-written ID is not the selected alias's ID." : "This fixture's last row happens to be the selected alias; change selection to expose the flaw."
+        };
+        next.errors = fails ? [next.counterfactual.message] : [];
+        pushEvent(next, action, next.counterfactual.message, fails ? "fail" : "warn");
+        return next;
+      }
+
+      function tryReusePhase2cId(state) {
+        const next = deepCopy(state);
+        const alias = next.selected && next.selected.logicalAlias;
+        const oldRecord = alias && next.phase2c.binding && next.phase2c.binding[alias];
+        const currentRecord = alias && next.phase4.binding && next.phase4.binding[alias];
+        const action = "Try to reuse the Phase 2c physical ID in Phase 4";
+        if (!oldRecord || !currentRecord) {
+          const message = "Both a valid Phase 2c and Phase 4 binding are required before testing ID reuse.";
+          next.errors = [message];
+          fail(next, action, message);
+          return next;
+        }
+        return resolveTarget(next, "phase4", alias, oldRecord.physicalId);
+      }
+
+      function reduce(state, action) {
+        const input = action || {};
+        switch (input.type) {
+          case "reset": return createInitialState();
+          case "seed": return seed(state, input.phase, input.attempt, input.label);
+          case "resetPhase": return resetPhase(state, input.phase);
+          case "bind": return validateAndBind(state, input.phase);
+          case "select": return selectAlias(state, input.phase, input.alias);
+          case "resolve": return resolveTarget(state, input.phase, input.alias, input.requestedPhysicalId);
+          case "lastWrite": return runLastWriteCounterfactual(state, input.phase);
+          case "reuseP2IdInP4": return tryReusePhase2cId(state);
+          default: {
+            const next = deepCopy(state);
+            const message = "Unknown action " + String(input.type) + "; state left unchanged.";
+            next.errors = [message];
+            fail(next, "Unknown action", message);
+            return next;
+          }
+        }
+      }
+
+      return Object.freeze({
+        CONTRACT,
+        DECISION_RULE,
+        FIXTURES: deepCopy(FIXTURES),
+        createInitialState,
+        winnerForAttempt,
+        reduce,
+        deepCopy
+      });
+    })();
+    globalThis.Q4BindingLogic = Q4BindingLogic;
+  </script>
+
+  <!-- Disposable DOM shell: it only renders and dispatches the pure module above. -->
+  <script>
+    (() => {
+      const Logic = globalThis.Q4BindingLogic;
+      let state = Logic.createInitialState();
+      let activeScenario = 0;
+      let scenarioStep = 0;
+
+      const $ = (id) => document.getElementById(id);
+      const escapeHtml = (value) => String(value == null ? "" : value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+      const labelPhase = (phase) => phase === "phase2c" ? "Phase 2c" : "Phase 4";
+      const fixture = (name) => Logic.deepCopy(Logic.FIXTURES[name]);
+
+      const ACTIONS = {
+        reset: () => ({ type: "reset" }),
+        "seed-p2-happy": () => ({ type: "seed", phase: "phase2c", attempt: fixture("phase2cHappy"), label: "Seed Phase 2c: three GitLab issues" }),
+        "seed-p4-happy": () => ({ type: "seed", phase: "phase4", attempt: fixture("phase4Happy"), label: "Seed Phase 4: same aliases, new IDs" }),
+        "reset-p4": () => ({ type: "resetPhase", phase: "phase4" }),
+        "bind-p2": () => ({ type: "bind", phase: "phase2c" }),
+        "bind-p4": () => ({ type: "bind", phase: "phase4" }),
+        "select-p2-winner": () => ({ type: "select", phase: "phase2c", alias: "release-blocker" }),
+        "select-p4-winner": () => ({ type: "select", phase: "phase4", alias: "release-blocker" }),
+        "resolve-p2": () => ({ type: "resolve", phase: "phase2c" }),
+        "resolve-p4": () => ({ type: "resolve", phase: "phase4" }),
+        "last-write-p2": () => ({ type: "lastWrite", phase: "phase2c" }),
+        "reuse-p2-in-p4": () => ({ type: "reuseP2IdInP4" }),
+        "seed-missing-alias": () => ({ type: "seed", phase: "phase2c", attempt: fixture("missingAlias"), label: "Seed malformed: missing alias" }),
+        "seed-duplicate-alias": () => ({ type: "seed", phase: "phase2c", attempt: fixture("duplicateAlias"), label: "Seed malformed: duplicate alias" }),
+        "seed-missing-result": () => ({ type: "seed", phase: "phase2c", attempt: fixture("missingResult"), label: "Seed malformed: missing call result" }),
+        "seed-duplicate-id": () => ({ type: "seed", phase: "phase2c", attempt: fixture("duplicatePhysicalId"), label: "Seed malformed: duplicate physical ID" }),
+        "seed-wrong-benchmark": () => ({ type: "seed", phase: "phase2c", attempt: fixture("wrongBenchmark"), label: "Seed malformed: wrong Benchmark" }),
+        "seed-wrong-site": () => ({ type: "seed", phase: "phase2c", attempt: fixture("wrongSite"), label: "Seed malformed: wrong Site" }),
+        "seed-wrong-method": () => ({ type: "seed", phase: "phase2c", attempt: fixture("wrongMethod"), label: "Seed malformed: wrong method" }),
+        "seed-wrong-kind": () => ({ type: "seed", phase: "phase2c", attempt: fixture("wrongKind"), label: "Seed malformed: wrong resource kind" })
+      };
+
+      const SCENARIOS = [
+        {
+          title: "1 · Happy path — same aliases, new IDs",
+          description: "Bind three generated issues in Phase 2c, select the rule winner, then bind the same logical aliases after Phase 4 reseeding. The alias stays stable while the physical ID changes.",
+          steps: [
+            ["seed-p2-happy", "Seed Phase 2c with three distinct issue records"],
+            ["bind-p2", "Bind each Phase 2c logical alias to its call result"],
+            ["select-p2-winner", "Select the issue that is open and blocks release-4"],
+            ["resolve-p2", "Resolve the selected Phase 2c target"],
+            ["seed-p4-happy", "Seed Phase 4 with the same aliases and different IDs"],
+            ["bind-p4", "Bind each Phase 4 logical alias to its new call result"],
+            ["select-p4-winner", "Select the Phase 4 rule winner by alias"],
+            ["resolve-p4", "Resolve the current Phase 4 target (not a stale ID)"]
+          ]
+        },
+        {
+          title: "2 · Selected alias is not last",
+          description: "The legitimate winner is the first call result, while a different issue is written last. The safe resolver still finds the selected alias; the counterfactual last-write resolver points at the wrong issue.",
+          steps: [
+            ["seed-p2-happy", "Seed ordered call results: winner first, unrelated issue last"],
+            ["bind-p2", "Bind the ordered results"],
+            ["select-p2-winner", "Select release-blocker (not the last-written issue)"],
+            ["resolve-p2", "Resolve by alias using the safe binding"],
+            ["last-write-p2", "Run the deliberately naive last-write counterfactual"]
+          ]
+        },
+        {
+          title: "3 · Reset/reseed changes IDs",
+          description: "Archive a valid Phase 4 mapping, clear that phase, and reseed it with new IDs. The current binding must use only the new attempt; the archived mapping remains visible as history, not as a target.",
+          steps: [
+            ["seed-p4-happy", "Seed the first Phase 4 attempt"],
+            ["bind-p4", "Bind the first Phase 4 IDs"],
+            ["select-p4-winner", "Select the Phase 4 rule winner"],
+            ["resolve-p4", "Resolve the first attempt's target"],
+            ["reset-p4", "Reset Phase 4 and archive the old mapping"],
+            ["seed-p4-reseed", "Reseed Phase 4 with changed physical IDs"],
+            ["bind-p4", "Bind only the new attempt's call results"],
+            ["resolve-p4", "Resolve the selected alias against the new attempt"]
+          ]
+        },
+        {
+          title: "4 · Fail closed — missing or duplicate records",
+          description: "Each malformed seed violates a different part of the candidate-set contract. Binding must reject the whole set instead of silently using whichever rows happen to be present.",
+          steps: [
+            ["seed-missing-alias", "Seed a set missing the docs-gap alias"],
+            ["bind-p2", "Reject the incomplete alias set"],
+            ["seed-duplicate-alias", "Seed a set with release-blocker twice"],
+            ["bind-p2", "Reject the duplicate logical alias"],
+            ["seed-missing-result", "Seed a row whose call result is missing"],
+            ["bind-p2", "Reject the missing call result"],
+            ["seed-duplicate-id", "Seed two aliases that claim the same physical issue"],
+            ["bind-p2", "Reject the duplicate physical ID"]
+          ]
+        },
+        {
+          title: "5 · Fail closed — wrong Benchmark / Site / method / kind",
+          description: "The same logical alias is not enough. Benchmark, Site, write method, and resource kind are part of the binding contract, so each mismatch is rejected before a target can be resolved.",
+          steps: [
+            ["seed-wrong-benchmark", "Seed a result reported from the wrong Benchmark"],
+            ["bind-p2", "Reject the wrong-Benchmark result"],
+            ["seed-wrong-site", "Seed a result reported from the wrong Site"],
+            ["bind-p2", "Reject the wrong-Site result"],
+            ["seed-wrong-method", "Seed a note result where an issue was requested"],
+            ["bind-p2", "Reject the wrong method"],
+            ["seed-wrong-kind", "Seed a note resource where an issue is required"],
+            ["bind-p2", "Reject the wrong resource kind"]
+          ]
+        },
+        {
+          title: "6 · Phase 2c ID cannot be reused in Phase 4",
+          description: "Phase 4 gets a fresh binding even when its aliases are identical. A deliberate attempt to pass the old Phase 2c physical ID into the Phase 4 resolver must fail closed; the current Phase 4 ID still resolves.",
+          steps: [
+            ["seed-p2-happy", "Seed Phase 2c"],
+            ["bind-p2", "Bind Phase 2c records"],
+            ["select-p2-winner", "Select the shared logical alias"],
+            ["seed-p4-happy", "Seed Phase 4 with different physical IDs"],
+            ["bind-p4", "Bind Phase 4 records"],
+            ["reuse-p2-in-p4", "Attempt to reuse the Phase 2c ID in Phase 4 (reject)"],
+            ["select-p4-winner", "Select the Phase 4 alias"],
+            ["resolve-p4", "Resolve the current Phase 4 ID safely"]
+          ]
+        }
+      ];
+
+      // The special reseed action is named here so the walkthrough remains plain language.
+      ACTIONS["seed-p4-reseed"] = () => ({ type: "seed", phase: "phase4", attempt: fixture("phase4Reseed"), label: "Reseed Phase 4: changed physical IDs" });
+
+      function dispatch(actionKey) {
+        const makeAction = ACTIONS[actionKey];
+        if (!makeAction) return;
+        state = Logic.reduce(state, makeAction());
+        render();
+      }
+
+      function statusClass(status) {
+        return status === "bound" ? "ok" : status === "failed" ? "fail" : status === "seeded" ? "warn" : "ready";
+      }
+
+      function renderAttempt(phase) {
+        const slot = state[phase];
+        const title = labelPhase(phase);
+        const attempt = slot.attempt;
+        let html = `<h3>${title}<span><span class="status ${statusClass(slot.status)}">${escapeHtml(slot.status.toUpperCase())}</span></span></h3>`;
+        if (!attempt) {
+          html += `<p class="empty">No seed attempt loaded.</p>`;
+          return html;
+        }
+        html += `<p class="attempt-meta"><strong class="mono">${escapeHtml(attempt.attemptId)}</strong> · expected Benchmark <code>${escapeHtml(Logic.CONTRACT.benchmark)}</code> · Site <code>${escapeHtml(Logic.CONTRACT.site)}</code> · method <code>${escapeHtml(Logic.CONTRACT.method)}</code> · kind <code>${escapeHtml(Logic.CONTRACT.resourceKind)}</code></p>`;
+        html += `<div class="call-row"><strong>Logical alias</strong><strong>Physical ID</strong><strong>Evidence / facts</strong></div>`;
+        attempt.callResults.forEach((row) => {
+          if (!row) {
+            html += `<div class="call-row"><span class="alias">(missing row)</span><span class="mono">—</span><span class="facts">No call result</span></div>`;
+            return;
+          }
+          const result = row.result;
+          const facts = result && result.facts ? result.facts.summary : "missing call result";
+          const physical = result && result.physicalId ? result.physicalId : "missing";
+          const contract = result ? [result.benchmark, result.site, result.method, result.resourceKind].join(" / ") : "—";
+          html += `<div class="call-row"><span class="alias mono">${escapeHtml(row.logicalAlias || "(missing alias)")}</span><span class="mono">${escapeHtml(physical)}</span><span class="facts">${escapeHtml(facts)}<br><small>${escapeHtml(contract)}</small></span></div>`;
+        });
+        const binding = slot.binding;
+        html += `<div class="binding-block"><h3>Current alias → ID binding</h3>`;
+        if (!binding) html += `<p class="empty">No valid binding. A failed check leaves this empty.</p>`;
+        else {
+          html += `<div class="binding-row"><strong>Alias</strong><strong>Bound ID</strong><strong>Contract</strong></div>`;
+          Object.values(binding).forEach((record) => {
+            html += `<div class="binding-row"><span class="alias mono">${escapeHtml(record.logicalAlias)}</span><span class="mono">${escapeHtml(record.physicalId)}</span><span class="facts">${escapeHtml(record.benchmark)} / ${escapeHtml(record.site)} / ${escapeHtml(record.method)} / ${escapeHtml(record.resourceKind)}</span></div>`;
+          });
+        }
+        html += `</div>`;
+        if (slot.errors.length) html += `<div class="issues"><h3>Why this phase failed</h3><ul>${slot.errors.map((error) => `<li>${escapeHtml(error)}</li>`).join("")}</ul></div>`;
+        return html;
+      }
+
+      function renderHistory() {
+        const entries = state.history;
+        let html = `<h3>Archived mappings (history only, never current targets)</h3>`;
+        if (!entries.length) html += `<p class="empty">No previous mapping has been archived.</p>`;
+        else entries.forEach((entry) => {
+          html += `<div class="history-entry"><span class="phase">${escapeHtml(entry.phase)}</span> · <span class="mono">${escapeHtml(entry.attemptId)}</span><br>${entry.mapping.map(escapeHtml).join(" · ")}</div>`;
+        });
+        $("history-card").innerHTML = html;
+      }
+
+      function renderIssues() {
+        const html = `<h3>Active validation messages</h3>` + (state.errors.length ? `<ul>${state.errors.map((error) => `<li>${escapeHtml(error)}</li>`).join("")}</ul>` : `<p class="empty">None. A valid mapping or a fresh reset is currently safe.</p>`);
+        $("issues-card").innerHTML = html;
+      }
+
+      function renderCounterfactual() {
+        let html = `<h3>Counterfactual: what would last-write targeting do?</h3>`;
+        if (!state.counterfactual) html += `<p class="empty">Not run yet. Choose a selected alias, then run the naive resolver.</p>`;
+        else if (state.counterfactual.status === "not-run") html += `<p>${escapeHtml(state.counterfactual.message)}</p>`;
+        else {
+          const cf = state.counterfactual;
+          const status = cf.status === "fails" ? `<span class="status fail">FAILS</span>` : `<span class="status warn">HAPPENS TO MATCH</span>`;
+          html += `<p>${status} ${escapeHtml(cf.message)}</p><div class="cf-grid"><div class="cf-cell"><span class="label">Selected alias</span><strong class="mono">${escapeHtml(cf.logicalAlias)}</strong></div><div class="cf-cell"><span class="label">Naive last-written ID</span><strong class="mono">${escapeHtml(cf.naiveLastWriteId)}</strong></div><div class="cf-cell"><span class="label">Safe alias-bound ID</span><strong class="mono">${escapeHtml(cf.safeAliasId)}</strong></div></div>`;
+        }
+        $("counterfactual-card").innerHTML = html;
+      }
+
+      function renderEvents() {
+        let html = `<h3>Recent state transitions</h3>`;
+        if (!state.events.length) html += `<p class="empty">No transitions yet.</p>`;
+        else html += `<ol class="event-log">${state.events.map((event) => `<li><strong>${escapeHtml(event.action)}</strong> — ${escapeHtml(event.detail)}</li>`).join("")}</ol>`;
+        $("event-card").innerHTML = html;
+      }
+
+      function renderOverview() {
+        const last = state.events[0];
+        $("last-action").textContent = state.lastAction;
+        $("last-detail").textContent = state.lastDetail;
+        let verdict = "READY";
+        let verdictClass = "ready";
+        if (state.errors.length) { verdict = "FAIL-CLOSED"; verdictClass = "fail"; }
+        else if (state.phase2c.binding || state.phase4.binding) { verdict = "BOUND"; verdictClass = "ok"; }
+        $("binding-verdict").innerHTML = `<span class="status ${verdictClass}">${verdict}</span>`;
+        $("binding-detail").textContent = last ? (last.kind === "fail" ? "No target was accepted from the failed operation." : last.detail) : "No record has been bound.";
+        const selected = state.selected;
+        $("selected-record").textContent = selected ? selected.logicalAlias : "—";
+        $("selected-detail").textContent = selected ? `${labelPhase(selected.phase)} · rule winner ${selected.expectedAlias || "ambiguous"} · ${selected.matchesRule ? "matches rule" : "does not match rule"}` : "The decision rule has not been applied.";
+        const target = state.resolvedTarget;
+        $("resolved-target").textContent = target ? target.physicalId : "—";
+        $("resolved-detail").textContent = target ? `${labelPhase(target.phase)} · alias ${target.logicalAlias} · ${target.benchmark}/${target.site}/${target.method}/${target.resourceKind}` : "No action target resolved.";
+      }
+
+      function renderWalkthrough() {
+        const scenario = SCENARIOS[activeScenario];
+        const completed = scenarioStep >= scenario.steps.length;
+        let html = `<div class="walkthrough-top"><div><h3>${escapeHtml(scenario.title)}</h3><p class="description">${escapeHtml(scenario.description)}</p></div><div class="step-count">${completed ? "Complete" : `Step ${scenarioStep + 1} of ${scenario.steps.length}`}</div></div>`;
+        html += `<div class="button-row"><button class="secondary" data-restart="${activeScenario}">Restart this walkthrough</button>${completed ? `<span class="status ok" style="align-self:center">SCENARIO COMPLETE</span>` : ""}</div>`;
+        html += `<div class="step-list">`;
+        scenario.steps.forEach((step, index) => {
+          const done = index < scenarioStep;
+          const current = index === scenarioStep;
+          const status = done ? "done" : current ? "current" : "future";
+          html += `<div class="step ${status}"><span class="step-number">${done ? "✓" : index + 1}</span><span class="step-copy">${escapeHtml(step[1])}${current ? `<br><span class="step-result">Press this step to apply it.</span>` : ""}</span><button ${current ? "" : "disabled"} data-step="${index}" data-step-action="${escapeHtml(step[0])}">${done ? "Done" : current ? "Run step" : "Next"}</button></div>`;
+        });
+        html += `</div>`;
+        $("walkthrough-panel").innerHTML = html;
+      }
+
+      function renderTabs() {
+        $("scenario-tabs").innerHTML = SCENARIOS.map((scenario, index) => `<button role="tab" aria-selected="${index === activeScenario}" aria-controls="walkthrough-panel" data-tab="${index}">${escapeHtml(scenario.title)}</button>`).join("");
+      }
+
+      function render() {
+        renderOverview();
+        $("phase2c-card").innerHTML = renderAttempt("phase2c");
+        $("phase4-card").innerHTML = renderAttempt("phase4");
+        renderHistory();
+        renderIssues();
+        renderCounterfactual();
+        renderEvents();
+        renderTabs();
+        renderWalkthrough();
+      }
+
+      document.addEventListener("click", (event) => {
+        const button = event.target.closest("button");
+        if (!button) return;
+        if (button.dataset.action) {
+          dispatch(button.dataset.action);
+          if (button.dataset.action === "reset") scenarioStep = 0;
+          return;
+        }
+        if (button.dataset.tab !== undefined) {
+          activeScenario = Number(button.dataset.tab);
+          state = Logic.createInitialState();
+          scenarioStep = 0;
+          render();
+          return;
+        }
+        if (button.dataset.restart !== undefined) {
+          activeScenario = Number(button.dataset.restart);
+          state = Logic.createInitialState();
+          scenarioStep = 0;
+          render();
+          return;
+        }
+        if (button.dataset.stepAction) {
+          dispatch(button.dataset.stepAction);
+          scenarioStep += 1;
+          renderWalkthrough();
+        }
+      });
+
+      state = Logic.createInitialState();
+      render();
+    })();
+  </script>
+</body>
+</html>
