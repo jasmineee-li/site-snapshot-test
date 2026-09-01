@@ -35,6 +35,14 @@ _ALIASES: dict[str, str] = {
     "st webagentbench": "stwebagentbench",
     "doomarena": "doomarena",
     "doom arena": "doomarena",
+    # TheAgentCompany is a source-only WARP transfer Benchmark in the
+    # Rocket.Chat response slice.  Keep its short TAC spelling as an alias,
+    # while using the source project's stable compact name as canonical.
+    "tac": "theagentcompany",
+    "the agent company": "theagentcompany",
+    "the_agent_company": "theagentcompany",
+    "the-agent-company": "theagentcompany",
+    "theagentcompany": "theagentcompany",
 }
 
 _WARP_CAPABILITIES = frozenset(
@@ -93,6 +101,17 @@ _CAPABILITIES: dict[str, BenchmarkCapabilities] = {
         phase_4_mode="comparison_runner",
         comparison_outcome_mode="attack_success",
         evaluator_authorities=("comparison_runner",),
+    ),
+    "theagentcompany": BenchmarkCapabilities(
+        canonical_name="theagentcompany",
+        default_runner="browser_use",
+        supported_runners=("browser_use",),
+        # The response family is source-complete for generation and its
+        # task-id-less local evaluator seam.  It intentionally does not
+        # claim Phase 2/4 execution or deployed Site support.
+        capabilities=frozenset({"phase_1_generation", "warp_evaluation"}),
+        phase_4_mode="unsupported",
+        evaluator_authorities=("warp_local_task_idless",),
     ),
 }
 
