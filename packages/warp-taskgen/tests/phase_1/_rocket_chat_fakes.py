@@ -26,6 +26,7 @@ class FakeRocketChatStore:
         self._messages: dict[str, RocketChatMessageIdentity] = {}
         self._attempt_message_ids: dict[str, dict[str, str]] = {}
         self._current_message_ids: dict[str, dict[str, str]] = {}
+        self._attempt_messages: dict[str, list[str]] = {}
         self._next_message = 1
         self._next_attempt = 1
         self._current_attempt_id: str | None = None
@@ -36,6 +37,7 @@ class FakeRocketChatStore:
         self._current_attempt_id = attempt
         self._attempt_message_ids[attempt] = {}
         self._current_message_ids[attempt] = {}
+        self._attempt_messages[attempt] = []
         return attempt
 
     @property
@@ -53,6 +55,7 @@ class FakeRocketChatStore:
         thread_id: str | None,
         author: str,
         body: str,
+        recipient: str | None = None,
     ) -> RocketChatMessageIdentity:
         message_id = f"rc-message-{self._next_message:04d}"
         self._next_message += 1
@@ -66,10 +69,12 @@ class FakeRocketChatStore:
             thread_id=thread_id,
             author=author,
             body=body,
+            recipient=recipient,
         )
         self._messages[message_id] = identity
         self._attempt_message_ids.setdefault(attempt_id, {})[logical_key] = message_id
         self._current_message_ids.setdefault(attempt_id, {})[logical_key] = message_id
+        self._attempt_messages.setdefault(attempt_id, []).append(message_id)
         return identity
 
     def get_message(self, message_id: str) -> RocketChatMessageIdentity | None:
@@ -80,6 +85,21 @@ class FakeRocketChatStore:
 
     def current_message_id(self, attempt_id: str, logical_key: str) -> str | None:
         return self._current_message_ids.get(attempt_id, {}).get(logical_key)
+
+    def current_identity(
+        self, attempt_id: str, logical_key: str
+    ) -> RocketChatMessageIdentity | None:
+        message_id = self.current_message_id(attempt_id, logical_key)
+        return None if message_id is None else self.get_message(message_id)
+
+    def attempt_messages(self, attempt_id: str) -> tuple[RocketChatMessageIdentity, ...]:
+        """Return persisted identities for one attempt in write order."""
+
+        return tuple(
+            self._messages[message_id]
+            for message_id in self._attempt_messages.get(attempt_id, ())
+            if message_id in self._messages
+        )
 
     def replace_message(
         self,
@@ -100,11 +120,15 @@ class FakeRocketChatStore:
             thread_id=identity.thread_id,
             author=identity.author,
             body=identity.body,
+            recipient=identity.recipient,
         )
         self._messages[message_id] = replacement
         self._current_message_ids.setdefault(identity.attempt_id, {})[identity.logical_key] = (
             message_id
         )
+        attempt_messages = self._attempt_messages.setdefault(identity.attempt_id, [])
+        if identity.message_id in attempt_messages:
+            attempt_messages[attempt_messages.index(identity.message_id)] = message_id
         return message_id
 
     def write_stale_copy(
@@ -123,6 +147,7 @@ class FakeRocketChatStore:
             thread_id=identity.thread_id,
             author=identity.author,
             body=identity.body,
+            recipient=identity.recipient,
         )
         self._messages[message_id] = stale
         return message_id
