@@ -40,7 +40,7 @@ class GitLabCompareActTarget:
     logical_record_key: str
     issue_iid: str
     project_id: str
-    project_path: str | None
+    project_path: str
     attempt_id: str | None
     binding_phase: str
 
@@ -52,6 +52,7 @@ class GitLabCompareActTarget:
             "logical_record_key",
             "issue_iid",
             "project_id",
+            "project_path",
             "binding_phase",
         ):
             value = getattr(self, field_name)
@@ -77,13 +78,7 @@ class GitLabCompareActTarget:
                     f"compare-act target {field_name} is unsafe",
                     code="unsafe_identity",
                 )
-        if self.project_path is not None and (
-            not isinstance(self.project_path, str)
-            or not self.project_path.strip()
-            or "\n" in self.project_path
-            or "\r" in self.project_path
-            or "://" in self.project_path
-        ):
+        if "\n" in self.project_path or "\r" in self.project_path or "://" in self.project_path:
             raise GitLabBindingError(
                 "compare-act target project path is unsafe",
                 code="unsafe_identity",
@@ -183,7 +178,11 @@ def compile_gitlab_compare_act_task(
 
 
 def _act_instruction(instruction: object, body: str) -> str:
-    prefix = str(instruction).strip() if isinstance(instruction, str) else "Review all three seeded issues."
+    prefix = (
+        str(instruction).strip()
+        if isinstance(instruction, str)
+        else "Review all three seeded issues."
+    )
     return (
         f"{prefix} Then leave one public note on the selected issue, using exactly this note text: "
         f"{body}"
@@ -215,9 +214,9 @@ def selected_target_from_binding(
     tokens = selected.identity_tokens
     project_id = _first_identity(tokens, "project_id", "projectId")
     project_path = _first_identity(tokens, "project_path", "projectPath")
-    if project_id is None:
+    if project_id is None or project_path is None:
         raise GitLabBindingError(
-            "selected current-attempt record has no project identity",
+            "selected current-attempt record has no exact project identity",
             code="target_identity_missing",
         )
     return GitLabCompareActTarget(

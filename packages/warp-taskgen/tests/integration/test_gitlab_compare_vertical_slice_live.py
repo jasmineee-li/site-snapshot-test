@@ -5,7 +5,7 @@ Run this test alone through the existing integration wrapper::
     PYTEST_GITLAB_COMPARE_VERTICAL_SLICE=1 \
       bash scripts/run_integration_tests.sh \
       --host-config configs/benchmark_hosts/r8a.local.yaml --quiet -- \
-      tests/integration/test_gitlab_compare_vertical_slice_live.py
+      -k test_gitlab_compare_decide_and_act_vertical_slice
 
 The explicit opt-in matters: this test performs Golden-State Reset before and
 after its attempt, so it must never share a reset-sensitive benchmark instance
@@ -24,10 +24,12 @@ import copy
 import ipaddress
 import json
 import os
+import time
 import uuid
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import Mock
 from urllib.parse import quote, urlsplit, urlunsplit
 
 import pytest
@@ -61,6 +63,7 @@ from warp_taskgen.seeding import SeedCleanupHandle, apply_data_seed
 pytestmark = pytest.mark.integration
 
 _OPT_IN_ENV = "PYTEST_GITLAB_COMPARE_VERTICAL_SLICE"
+_FINALIZATION_ABSENCE_TIMEOUT_SECONDS = 30.0
 
 
 def _require_explicit_opt_in() -> None:
@@ -280,7 +283,7 @@ def _note_network_event(
     }
 
 
-def _assert_resource_absent_after_reset(
+def _wait_for_resource_absent_after_finalization(
     instance: dict[str, Any],
     *,
     project_path: str,
@@ -288,29 +291,70 @@ def _assert_resource_absent_after_reset(
 ) -> None:
     clear_run_token_cache()
     token_errors = acquire_tokens_for_instances([instance])
-    assert token_errors == [], f"post-reset GitLab auth refresh failed: {token_errors}"
+    assert token_errors == [], f"post-finalization GitLab auth refresh failed: {token_errors}"
+    deadline = time.monotonic() + _FINALIZATION_ABSENCE_TIMEOUT_SECONDS
+    project = None
+    issue = None
     with requests.Session() as session:
         editor = GitlabEditor(instance, session)
-        project = editor._gitlab_get_json(
-            f"/api/v4/projects/{editor._quote(project_path)}",
-            allow_missing=True,
-        )
-        issue = None
-        if (
-            issue_iid is not None
-            and isinstance(project, dict)
-            and project.get("id") not in (None, "")
-        ):
-            issue = editor._gitlab_get_json(
-                f"/api/v4/projects/{editor._quote(project['id'])}/issues/"
-                f"{editor._quote(issue_iid)}",
-                allow_missing=True,
+        while time.monotonic() < deadline:
+            project = _gitlab_get_json_before_deadline(
+                editor,
+                f"/api/v4/projects/{editor._quote(project_path)}",
+                deadline=deadline,
             )
+            issue = None
+            if (
+                issue_iid is not None
+                and isinstance(project, dict)
+                and project.get("id") not in (None, "")
+            ):
+                issue = _gitlab_get_json_before_deadline(
+                    editor,
+                    f"/api/v4/projects/{editor._quote(project['id'])}/issues/"
+                    f"{editor._quote(issue_iid)}",
+                    deadline=deadline,
+                )
+            if project is None and issue is None:
+                return
+            remaining = deadline - time.monotonic()
+            if remaining > 0:
+                time.sleep(min(0.5, remaining))
     assert project is None and issue is None, (
-        "Golden-State Reset left the exact comparison resource behind: "
+        "GitLab finalization left the exact comparison resource behind after 30 seconds: "
         f"project_path={project_path!r}, issue_iid={issue_iid!r}, "
         f"project_present={project is not None}, issue_present={issue is not None}"
     )
+
+
+def _gitlab_get_json_before_deadline(
+    editor: GitlabEditor,
+    path: str,
+    *,
+    deadline: float,
+) -> Any:
+    """Read one exact GitLab resource without outliving the smoke budget."""
+
+    remaining = deadline - time.monotonic()
+    if remaining <= 0.1:
+        raise TimeoutError("GitLab finalization absence budget expired")
+    stage_timeout = min(5.0, remaining / 2.0)
+    response = editor.session.get(
+        f"{editor._site_url()}{path}",
+        headers=editor._build_headers(mechanism="api"),
+        timeout=(stage_timeout, stage_timeout),
+        allow_redirects=False,
+    )
+    if response.status_code == 404:
+        return None
+    assert response.status_code == 200, (
+        "GitLab finalization read failed: "
+        f"path={path!r}, status={response.status_code}, redirect={response.headers.get('Location')!r}"
+    )
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise AssertionError(f"GitLab finalization read returned non-JSON: path={path!r}") from exc
 
 
 def test_gitlab_compare_decide_and_act_vertical_slice(live_config) -> None:
@@ -443,28 +487,12 @@ def test_gitlab_compare_decide_and_act_vertical_slice(live_config) -> None:
         assert action_passed, f"production GitLab action readback failed: {action_message}"
         assert "exact parent, actor, identity, and scope" in action_message
     finally:
-        reset_verified = False
         reset_errors: list[str] = []
         cleanup_errors: list[str] = []
 
-        # Reset while the exact project still exists. This makes the absence
-        # check a proof of Golden-State Reset rather than a consequence of the
-        # editors' ordinary cleanup callbacks.
-        try:
-            asyncio.run(_reset_task_environment(bound_task))
-            if project_path is not None:
-                _assert_resource_absent_after_reset(
-                    instance,
-                    project_path=project_path,
-                    issue_iid=issue_iid,
-                )
-                reset_verified = True
-        except Exception as exc:  # pragma: no cover - live failure diagnostic
-            reset_errors.append(f"final reset or absence verification failed: {exc}")
-
-        # Always run the existing cleanup contracts as a second, idempotent
-        # safety net. Post-reset auth refresh above mutates the shared instance
-        # mapping, so these callbacks use a current token when reset rotates it.
+        # WebArena's GitLab /init does not restore the database snapshot, so
+        # exact editor cleanup owns resource removal. Close every writer before
+        # the mandatory final reset, then prove eventual absence after reset.
         if action_editor is not None:
             try:
                 action_editor.cleanup()
@@ -476,14 +504,21 @@ def test_gitlab_compare_decide_and_act_vertical_slice(live_config) -> None:
             try:
                 handle.cleanup()
             except Exception as exc:  # pragma: no cover - live failure diagnostic
-                # The ordinary GitLab cleanup stack closes issues before it
-                # deletes their project, and that close operation is not
-                # idempotent after /init has already removed the project.
-                # Accept only that expected 404 after exact reset absence was
-                # independently verified; every other cleanup failure remains
-                # fatal.
-                if not (reset_verified and "HTTP 404" in str(exc)):
-                    cleanup_errors.append(f"seed cleanup failed: {exc}")
+                cleanup_errors.append(f"seed cleanup failed: {exc}")
+
+        try:
+            asyncio.run(_reset_task_environment(bound_task))
+        except Exception as exc:  # pragma: no cover - live failure diagnostic
+            reset_errors.append(f"final reset failed: {exc}")
+        if project_path is not None:
+            try:
+                _wait_for_resource_absent_after_finalization(
+                    instance,
+                    project_path=project_path,
+                    issue_iid=issue_iid,
+                )
+            except Exception as exc:  # pragma: no cover - live failure diagnostic
+                reset_errors.append(f"post-reset absence verification failed: {exc}")
         finalization_errors = reset_errors + cleanup_errors
         assert not finalization_errors, "; ".join(finalization_errors)
 
@@ -539,3 +574,29 @@ def test_browser_verification_proxy_projection_is_origin_scoped() -> None:
     assert direct_site_url == "http://benchmark.test:8023"
     assert direct_context == {"extra_http_headers": {"X-Reader": "alice"}}
     assert direct_aliases == ()
+
+
+def test_finalization_probe_caps_each_request_to_remaining_budget(monkeypatch) -> None:
+    response = SimpleNamespace(status_code=404, headers={})
+    session = SimpleNamespace(get=Mock(return_value=response))
+    editor = SimpleNamespace(
+        session=session,
+        _site_url=lambda: "http://gitlab.test",
+        _build_headers=lambda **_: {"PRIVATE-TOKEN": "test-token"},
+    )
+    monkeypatch.setattr(time, "monotonic", lambda: 100.0)
+
+    assert (
+        _gitlab_get_json_before_deadline(
+            editor,
+            "/api/v4/projects/1",
+            deadline=108.0,
+        )
+        is None
+    )
+    session.get.assert_called_once_with(
+        "http://gitlab.test/api/v4/projects/1",
+        headers={"PRIVATE-TOKEN": "test-token"},
+        timeout=(4.0, 4.0),
+        allow_redirects=False,
+    )
