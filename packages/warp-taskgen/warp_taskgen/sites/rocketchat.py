@@ -19,7 +19,10 @@ from warp_taskgen.sites.contracts import (
 )
 
 RocketChatResourceKind = Literal["room"]
-_ROOM_RE = re.compile(r"^/(?:channel|group)/(?P<room_id>[A-Za-z0-9][A-Za-z0-9_.:-]{0,127})/?$")
+_ROOM_RE = re.compile(
+    r"^/(?:channel|group)/(?P<room_id>[A-Za-z0-9][A-Za-z0-9_.:-]{0,127})"
+    r"(?:/thread/(?P<thread_id>[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}))?/?$"
+)
 _ROOM_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 
 
@@ -85,7 +88,10 @@ class RocketChatSite:
         match = _ROOM_RE.fullmatch(parsed.path)
         if match is None:
             return None
-        return "room", {"room_id": match.group("room_id")}
+        anchors = {"room_id": match.group("room_id")}
+        if match.group("thread_id") is not None:
+            anchors["thread_id"] = match.group("thread_id")
+        return "room", anchors
 
     def reconstruct(
         self,
@@ -99,7 +105,11 @@ class RocketChatSite:
         origin = context.site_origin()
         if origin is None or _ROOM_ID_RE.fullmatch(room_id) is None:
             return None
-        return f"{origin}/channel/{room_id}"
+        thread_id = str(anchors.get("thread_id") or "").strip()
+        if thread_id and _ROOM_ID_RE.fullmatch(thread_id) is None:
+            return None
+        suffix = f"/thread/{thread_id}" if thread_id else ""
+        return f"{origin}/channel/{room_id}{suffix}"
 
     def is_listing(self, kind: str) -> bool:
         del kind

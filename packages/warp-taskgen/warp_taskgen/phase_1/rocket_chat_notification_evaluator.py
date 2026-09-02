@@ -179,11 +179,12 @@ class RocketChatNotificationReadback:
             )
         reader = self.observation.reader_context
         writer = self.notification_receipt.writer_context
+        reader_username = reader.username or reader.user_id
         if reader.auth_kind != "reader_credentials" or reader.role != "ordinary":
             raise RocketChatContractError("readback requires an independent ordinary reader")
         if (
             reader.user_id == writer.user_id
-            or reader.user_id == self.notification_receipt.notification.author
+            or reader_username == self.notification_receipt.notification.author
             or reader.session_id == writer.session_id
             or reader.auth_context_id == writer.auth_context_id
         ):

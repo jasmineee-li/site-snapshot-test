@@ -63,6 +63,7 @@ class RowsTransport:
             user_id=f"uid-{credentials.username}",
             username=credentials.username,
             session_id=f"session-{credentials.username}-{self.login_count}",
+            roles=("user",),
         )
 
     def channel_id(self, channel: str) -> str:
@@ -94,7 +95,16 @@ class RowsTransport:
         self.history_calls += 1
         if self.fail_on_history == self.history_calls:
             raise RocketChatTransportError("notification history read failed")
-        return tuple(self.rows)
+        return tuple(row for row in self.rows if row.get("tmid") in (None, ""))
+
+    def thread_history(self, *, room_id: str, thread_id: str):
+        del room_id, thread_id
+        self.history_calls += 1
+        if self.fail_on_history == self.history_calls:
+            raise RocketChatTransportError("notification history read failed")
+        # Deliberately return every threaded row. The production caller must
+        # still reject an endpoint that leaks a wrong-room or wrong-thread row.
+        return tuple(row for row in self.rows if row.get("tmid") not in (None, ""))
 
 
 @dataclass
@@ -121,6 +131,15 @@ class RecordingSession:
                     "data": {"authToken": f"token-{username}", "userId": f"uid-{username}"},
                 }
             )
+        if url.endswith("/api/v1/me"):
+            user_id = kwargs["headers"]["X-User-Id"]
+            username = user_id.removeprefix("uid-")
+            return FakeResponse(
+                {
+                    "success": True,
+                    "user": {"_id": user_id, "username": username, "roles": ["user"]},
+                }
+            )
         if url.endswith("/api/v1/channels.info"):
             return FakeResponse({"success": True, "channel": {"_id": "physical-room-001"}})
         if url.endswith("/api/v1/chat.sendMessage"):
@@ -139,7 +158,20 @@ class RecordingSession:
             self.rows.append(row)
             return FakeResponse({"success": True, "message": row})
         if url.endswith("/api/v1/channels.history"):
-            return FakeResponse({"success": True, "messages": list(self.rows)})
+            return FakeResponse(
+                {
+                    "success": True,
+                    "messages": [row for row in self.rows if row.get("tmid") in (None, "")],
+                }
+            )
+        if url.endswith("/api/v1/chat.getThreadMessages"):
+            thread_id = kwargs["params"]["tmid"]
+            return FakeResponse(
+                {
+                    "success": True,
+                    "messages": [row for row in self.rows if row.get("tmid") == thread_id],
+                }
+            )
         raise AssertionError(url)
 
 

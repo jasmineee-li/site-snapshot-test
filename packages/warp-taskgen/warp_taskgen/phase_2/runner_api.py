@@ -57,7 +57,7 @@ from typing import Any
 from anthropic import AsyncAnthropic
 
 from warp_taskgen.adversarial_actions import ACTION_KINDS, action_kinds_for_exposure_contracts
-from warp_taskgen.benchmark_capabilities import get_benchmark_capabilities, infer_benchmark_name
+from warp_taskgen.benchmark_capabilities import infer_benchmark_name
 from warp_taskgen.cost_tracker import tracker as cost_tracker
 from warp_taskgen.editors._registry import (
     ContractRenderContext,
@@ -72,6 +72,10 @@ from warp_taskgen.phase_4.anthropic_client import (
 )
 from warp_taskgen.phase_4.concurrency import get_api_semaphore
 from warp_taskgen.prompt_loading import load_prompt
+from warp_taskgen.runtime_composition import (
+    RuntimeComposition,
+    benchmark_capabilities_for_runtime,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -423,6 +427,7 @@ async def generate_phase_2a_plans_api(
     label: str = "phase_2a",
     site: str | None = None,
     benchmark: str | None = None,
+    runtime_composition: RuntimeComposition | None = None,
     client: AsyncAnthropic | None = None,
 ) -> list[dict[str, Any]]:
     """Run one Phase 2a shard via single-turn forced-tool-use API call.
@@ -438,7 +443,11 @@ async def generate_phase_2a_plans_api(
     """
     target_count = sum(cell_targets.values()) or len(benign_tasks)
     requested = max(target_count, int(target_count * _OVERGENERATION_MULTIPLIER))
-    benchmark_name = _infer_api_benchmark(benign_tasks, benchmark)
+    benchmark_name = _infer_api_benchmark(
+        benign_tasks,
+        benchmark,
+        runtime_composition=runtime_composition,
+    )
 
     client = client or get_client()
     system, messages = _build_messages(
@@ -521,6 +530,8 @@ async def generate_phase_2a_plans_api(
 def _infer_api_benchmark(
     benign_tasks: list[dict[str, Any]],
     explicit_benchmark: str | None,
+    *,
+    runtime_composition: RuntimeComposition | None = None,
 ) -> str:
     values: list[Any] = [explicit_benchmark]
     for task in benign_tasks:
@@ -537,7 +548,9 @@ def _infer_api_benchmark(
     if benchmark is None:
         raise ValueError("Phase 2a API tasks are missing benchmark metadata")
     try:
-        capabilities = get_benchmark_capabilities(benchmark).require("phase_2_generation")
+        capabilities = benchmark_capabilities_for_runtime(
+            benchmark, runtime_composition
+        ).require("phase_2_generation")
     except ValueError as exc:
         raise ValueError(f"benchmark {benchmark!r} does not support WARP Taskgen Phase 2") from exc
     return capabilities.canonical_name

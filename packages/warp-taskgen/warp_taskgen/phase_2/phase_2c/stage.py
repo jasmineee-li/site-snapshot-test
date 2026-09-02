@@ -147,7 +147,9 @@ async def _run_feasibility_stage(
     if getattr(args, "skip_feasibility", False):
         selected_current = _filter_records_for_sites(current, sites_filter)
         try:
-            benchmark_name = _gate_phase_2_skip_benchmark(selected_current)
+            benchmark_name = _gate_phase_2_skip_benchmark(
+                selected_current, runtime_composition
+            )
         except ValueError as exc:
             logger.error("Phase 2c benchmark gate failed: %s", exc)
             save_state(
@@ -264,6 +266,7 @@ async def _run_feasibility_stage(
             task_records=selected_current,
             raw_instances=raw_instances,
             instances=instances,
+            runtime_composition=runtime_composition,
         )
     except ValueError as exc:
         logger.error("Phase 2c benchmark gate failed: %s", exc)

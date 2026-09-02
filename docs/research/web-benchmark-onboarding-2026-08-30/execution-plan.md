@@ -4,6 +4,10 @@ Planning date: **2026-09-01 (America/New_York)**. Research baseline:
 **2026-08-30**. Source baseline: `origin/main` at
 `5c45a32fdc3c509db2a9435849df7edf8c6eeb45`.
 
+Execution update: **2026-09-02 (America/New_York)**. E1's production source
+path and no-model disposable-host proof are complete; model-driven evaluation
+and the remaining E2–E7 work are still pending.
+
 Status: **source implementation complete; scientific execution pending**.
 The source tickets under parent issue #192 are closed; PRs #199–#204 and
 #206–#208 are merged, and live-proof issue #205 is closed. This
@@ -24,7 +28,7 @@ publication authority.
 | Claim area | Evidence now | What it does not establish |
 | --- | --- | --- |
 | GitLab comparison | Generated compare-and-decide/act source, strict current-attempt binding, exact grading, green CI, and one externally reported serialized r8a source/evaluator smoke with fresh authenticated render, one selected-issue note, readback, cleanup and reset. | A locally retained runtime bundle, model-driven browser-agent performance, task-family rates, or corpus breadth. |
-| Rocket.Chat transfer | Typed conversation and notification families, exact local evaluators, fake ordinary writer/independent reader, and static incomplete Site Composition. | Real TAC transport, ordinary-role permissions, painted exposure, persisted notification, reset, or cross-Benchmark execution. |
+| Rocket.Chat transfer | Typed decision/notification families plus an opt-in production decision composition. One serialized no-model smoke on pinned TAC commit `98b68ef82a47690c316f42fddb05baafaab56851` and Rocket.Chat 5.3 proved separate ordinary writer/reader identities, exact root/reply IDs and bodies, the deep thread-panel read surface, finite positive/negative grading, terminal reset, zero final history and marker absence. | Model-driven browser-agent performance, notification persistence/action grading, corpus breadth, or TAC-wide/general cross-Benchmark support. |
 | Existing-family volume | A read-only funnel projection that preserves authoritative statuses and labels missing counts unavailable. | Any newly generated, admitted or evaluated task volume. The tracked released corpus remains 50 unique tasks. |
 | Matched rewriting | A study-only one-opportunity contract, deterministic provider tests, retained failures/accounting and resume identity, with the default iterator unchanged. | A real model/browser pair, treatment effect, token use, or cost. |
 | Paper | Accepted research framing and implementation plan. | Updated corpus, transfer, matched-study results, tables, limitations, or submission. |
@@ -85,6 +89,20 @@ Evidence: focused positive/negative tests; one readable source/evaluator smoke;
 exact room/message/author/thread/body readback; pre/final state; reset result.
 Failure to obtain ordinary-role visibility is a measured boundary, not
 permission to substitute an admin writer.
+
+Result recorded 2026-09-02: the no-model E1 smoke started from the pinned
+fixture's golden `project-graphdb` room (zero messages, five members), seeded a
+generated plan/update/correction thread through an ordinary account, and bound
+the independent ordinary REST and browser reader to the same physical user.
+The exact Rocket.Chat 5.3 thread-panel adapter matched one correction element
+and all three generated message IDs, authors, thread links, order and body
+digests. The current structured decision passed; the stale initial decision
+failed. The host-owned synchronous reset reported terminal completion, after
+which room history was zero and the unique run marker was absent. Layout-at-
+entry and scroll distance remain telemetry under the existing Phase 2c policy;
+the successful resource proof required nonzero unhidden exact-selector
+geometry and did not relabel that telemetry. No model or live NPC ran, and no
+new evidence format was introduced.
 
 ### E2 — Rocket.Chat notification live slice
 

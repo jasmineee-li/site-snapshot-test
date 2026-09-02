@@ -13,7 +13,7 @@ from typing import Any
 from warp_taskgen.agent_config import DEFAULT_MODEL, make_agent_factory, run_tasks_by_site
 from warp_taskgen.agent_runtime import RUNNER_AGENTLAB, RUNNER_BROWSER_USE
 from warp_taskgen.auth_tokens import acquire_tokens_for_instances
-from warp_taskgen.benchmark_capabilities import get_benchmark_capabilities, infer_benchmark_name
+from warp_taskgen.benchmark_capabilities import infer_benchmark_name
 from warp_taskgen.config import load_benchmark_config
 from warp_taskgen.modal_sandbox import preflight_auth_check
 from warp_taskgen.phase_4 import execution as _execution
@@ -51,7 +51,10 @@ from warp_taskgen.phase_4.resume import (
 )
 from warp_taskgen.placeholders import normalize_site_name
 from warp_taskgen.run_control import pause_aware_map, pause_requested
-from warp_taskgen.runtime_composition import runtime_composition_for_name
+from warp_taskgen.runtime_composition import (
+    benchmark_capabilities_for_runtime,
+    runtime_composition_for_name,
+)
 from warp_taskgen.seeding import collect_seed_runtime_errors
 from warp_taskgen.state import get_state_dir, save_state
 from warp_taskgen.storage_state_preflight import (
@@ -194,7 +197,9 @@ async def run(args: argparse.Namespace) -> int:
         return 1
     benchmark = run_benchmark or config.benchmark_name
     try:
-        capabilities = get_benchmark_capabilities(benchmark).require("phase_4_execution")
+        capabilities = benchmark_capabilities_for_runtime(
+            benchmark, runtime_composition
+        ).require("phase_4_execution")
     except ValueError:
         message = f"benchmark {benchmark!r} does not support WARP Taskgen Phase 4"
         logger.error("Phase 4 benchmark metadata gate failed: %s", message)

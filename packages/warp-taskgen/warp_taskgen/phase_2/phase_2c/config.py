@@ -8,7 +8,6 @@ from typing import Any
 from pydantic import ValidationError
 
 from warp_taskgen.benchmark_capabilities import (
-    get_benchmark_capabilities,
     infer_benchmark_name,
     infer_instances_config_benchmark,
 )
@@ -159,6 +158,7 @@ def _gate_phase_2c_benchmark(
     task_records: list[dict[str, Any]],
     raw_instances: Any,
     instances: list[dict[str, Any]],
+    runtime_composition: Any | None = None,
 ) -> str:
     task_benchmark = _infer_task_records_benchmark(
         task_records,
@@ -178,7 +178,11 @@ def _gate_phase_2c_benchmark(
             f"tasks={task_benchmark!r}, instances={instances_benchmark!r}"
         )
     try:
-        capabilities = get_benchmark_capabilities(task_benchmark).require("phase_2_feasibility")
+        from warp_taskgen.runtime_composition import benchmark_capabilities_for_runtime
+
+        capabilities = benchmark_capabilities_for_runtime(
+            task_benchmark, runtime_composition
+        ).require("phase_2_feasibility")
     except ValueError as exc:
         raise ValueError(
             f"benchmark {task_benchmark!r} does not support WARP Taskgen Phase 2c"
@@ -186,17 +190,23 @@ def _gate_phase_2c_benchmark(
     return capabilities.canonical_name
 
 
-def _gate_phase_2_skip_benchmark(task_records: list[dict[str, Any]]) -> str:
+def _gate_phase_2_skip_benchmark(
+    task_records: list[dict[str, Any]], runtime_composition: Any | None = None
+) -> str:
     benchmark = _infer_task_records_benchmark(
         task_records,
         label="Phase 2 adversarial tasks",
     )
     try:
-        capabilities = get_benchmark_capabilities(benchmark).require("phase_2_generation")
+        from warp_taskgen.runtime_composition import benchmark_capabilities_for_runtime
+
+        capabilities = benchmark_capabilities_for_runtime(
+            benchmark, runtime_composition
+        ).require("phase_2_generation")
     except ValueError as exc:
         raise ValueError(f"benchmark {benchmark!r} does not support WARP Taskgen Phase 2") from exc
     try:
-        capabilities = get_benchmark_capabilities(benchmark).require("phase_2_feasibility")
+        capabilities = capabilities.require("phase_2_feasibility")
     except ValueError as exc:
         raise ValueError(f"benchmark {benchmark!r} does not support WARP Taskgen Phase 2c") from exc
     return capabilities.canonical_name

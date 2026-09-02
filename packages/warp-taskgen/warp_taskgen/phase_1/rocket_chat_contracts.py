@@ -22,6 +22,7 @@ ROCKET_CHAT_BENCHMARK = "theagentcompany"
 ROCKET_CHAT_SITE = "rocketchat"
 ROCKET_CHAT_RESOURCE_KIND = "message"
 ROCKET_CHAT_TASK_KIND = "rocket_chat_conversation_decision"
+ROCKET_CHAT_SEED_METHOD = "seed_rocket_chat_conversation"
 ROCKET_CHAT_EVALUATOR_AUTHORITY = "warp_local_task_idless"
 ROCKET_CHAT_EVALUATOR_NAME = "RocketChatEvaluator"
 
@@ -344,6 +345,11 @@ class RocketChatParticipantContext:
         "writer_credentials", "reader_credentials", "writer_cookies", "writer_storage"
     ]
     role: Literal["ordinary", "admin"] = "ordinary"
+    # Rocket.Chat REST identities have a physical ``_id`` and a human-facing
+    # username.  Legacy fixtures used the username as ``user_id``; preserving
+    # this optional field lets the runtime bind the physical ID without
+    # breaking those source-level fixtures.
+    username: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "user_id", _identity(self.user_id, field="context user"))
@@ -360,6 +366,8 @@ class RocketChatParticipantContext:
             )
         if self.role not in {"ordinary", "admin"}:
             raise RocketChatContractError("Rocket.Chat context role is invalid")
+        if self.username is not None:
+            object.__setattr__(self, "username", _identity(self.username, field="context username"))
 
 
 @dataclass(frozen=True)
@@ -479,7 +487,28 @@ class RocketChatObservation:
         for key, identity in self.messages.items():
             if not isinstance(key, str) or not isinstance(identity, RocketChatMessageIdentity):
                 raise RocketChatContractError("observation messages must be typed identities")
+            if key != identity.logical_key:
+                raise RocketChatContractError(
+                    "observation logical key does not match physical identity"
+                )
+            if identity.benchmark != self.benchmark or identity.site != self.site:
+                raise RocketChatContractError(
+                    "observation message Benchmark or Site does not match observation"
+                )
+            if identity.attempt_id != self.attempt_id:
+                raise RocketChatContractError("observation message belongs to a different attempt")
+            if identity.room_id != self.room_id:
+                raise RocketChatContractError("observation message belongs to a different room")
+            if identity.thread_id not in (None, self.thread_id):
+                raise RocketChatContractError("observation message belongs to a different thread")
+            reader_username = self.reader_context.username or self.reader_context.user_id
+            if identity.author == reader_username:
+                raise RocketChatContractError(
+                    "observation reader must be distinct from the message author"
+                )
             normalized[key] = identity
+        if len({item.message_id for item in normalized.values()}) != len(normalized):
+            raise RocketChatContractError("observation contains duplicate physical message IDs")
         object.__setattr__(self, "messages", MappingProxyType(normalized))
 
     @property

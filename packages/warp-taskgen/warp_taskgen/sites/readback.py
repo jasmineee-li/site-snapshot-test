@@ -88,6 +88,16 @@ class BoundReadback:
     def supports_readback_observation(self) -> bool:
         """Return whether the bound adapter declares the optional HTML hook."""
 
+        # Feature Sites may expose forwarding methods even when their
+        # deployment adapter is intentionally unconfigured.  Consult the
+        # concrete capability first; checking method callability alone would
+        # turn those forwards into a false admission signal.
+        declared = getattr(self._adapter, "supports_readback_observation", None)
+        if callable(declared):
+            try:
+                return bool(declared())
+            except Exception:
+                return False
         return callable(getattr(self._adapter, "observe_readback_html", None)) and callable(
             getattr(self._adapter, "readback_visibility_selector", None)
         )
