@@ -203,11 +203,6 @@ def _compile_phase1_rocket_chat_task(
     conversation = _conversation_from_content(
         content,
         task_id=task_id,
-        family=(
-            ROCKET_CHAT_NOTIFICATION_GENERATION_FAMILY
-            if notification
-            else ROCKET_CHAT_DECISION_GENERATION_FAMILY
-        ),
         room_id=_host_identity(host, "room_id", field="room"),
         thread_key=_host_identity(host, "thread_key", field="thread"),
         writer_user=_host_identity(host, "writer_user", field="writer"),
@@ -403,7 +398,6 @@ def _conversation_from_content(
     content: RocketChatGeneratedContent,
     *,
     task_id: str,
-    family: str,
     room_id: str,
     thread_key: str,
     writer_user: str,
