@@ -18,7 +18,11 @@ if TYPE_CHECKING:
     from warp_taskgen.sites.catalog import SiteCatalog
 
 CLASSIFIEDS_LISTING_REPLY_POC = "classifieds_listing_reply_poc"
-RUNTIME_COMPOSITION_CHOICES = (CLASSIFIEDS_LISTING_REPLY_POC,)
+ROCKET_CHAT_CONVERSATION_DECISION_POC = "rocket_chat_conversation_decision_poc"
+RUNTIME_COMPOSITION_CHOICES = (
+    CLASSIFIEDS_LISTING_REPLY_POC,
+    ROCKET_CHAT_CONVERSATION_DECISION_POC,
+)
 
 
 class RequiredSeedCleanupError(RuntimeError):
@@ -101,6 +105,42 @@ def classifieds_listing_reply_poc() -> RuntimeComposition:
     )
 
 
+def rocket_chat_conversation_decision_poc() -> RuntimeComposition:
+    """Build explicit, non-admitted TAC source wiring for seam tests.
+
+    The composition is intentionally separate from the static Site catalog:
+    selecting it does not reopen Rocket.Chat as a default WARP carrier.  TAC's
+    benchmark capability gates remain source-only, so Phase 2/4 reject this
+    composition until a host reset owner and exact painted readback exist.
+    Writer cleanup remains strict and fails closed without reset/admin input.
+    """
+
+    from warp_taskgen.phase_2.phase_2c.policy import FeasibilityPolicyCatalog
+    from warp_taskgen.seeding.site_contracts import SeedSiteRegistration, SeedSiteRegistry
+    from warp_taskgen.sites.catalog import SiteCatalog
+    from warp_taskgen.sites.rocketchat_runtime import (
+        RocketChatFeasibilityPolicy,
+        RocketChatHttpEditor,
+        RocketChatRuntimeSite,
+        preflight_rocket_chat_reader,
+    )
+
+    benchmark = "theagentcompany"
+    site = "rocketchat"
+    return RuntimeComposition(
+        name=ROCKET_CHAT_CONVERSATION_DECISION_POC,
+        site_catalog=SiteCatalog((RocketChatRuntimeSite(),)),
+        seed_registry=SeedSiteRegistry.from_registrations(
+            (SeedSiteRegistration(benchmark, site, RocketChatHttpEditor),)
+        ),
+        feasibility_policy_catalog=FeasibilityPolicyCatalog.from_policies(
+            (RocketChatFeasibilityPolicy(),)
+        ),
+        reader_preflight=preflight_rocket_chat_reader,
+        strict_seed_cleanup=True,
+    )
+
+
 def runtime_composition_for_name(name: object) -> RuntimeComposition | None:
     """Resolve an explicit runtime opt-in; empty/default input stays ``None``."""
 
@@ -113,6 +153,8 @@ def runtime_composition_for_name(name: object) -> RuntimeComposition | None:
         return None
     if normalized == CLASSIFIEDS_LISTING_REPLY_POC:
         return classifieds_listing_reply_poc()
+    if normalized == ROCKET_CHAT_CONVERSATION_DECISION_POC:
+        return rocket_chat_conversation_decision_poc()
     raise ValueError(
         f"unknown runtime composition {name!r}; expected one of {RUNTIME_COMPOSITION_CHOICES!r}"
     )
@@ -120,9 +162,11 @@ def runtime_composition_for_name(name: object) -> RuntimeComposition | None:
 
 __all__ = [
     "CLASSIFIEDS_LISTING_REPLY_POC",
+    "ROCKET_CHAT_CONVERSATION_DECISION_POC",
     "RUNTIME_COMPOSITION_CHOICES",
     "RequiredSeedCleanupError",
     "RuntimeComposition",
     "classifieds_listing_reply_poc",
+    "rocket_chat_conversation_decision_poc",
     "runtime_composition_for_name",
 ]

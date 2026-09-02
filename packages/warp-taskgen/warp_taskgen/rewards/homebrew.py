@@ -10,6 +10,33 @@ from warp_taskgen.rewards.network_event import _eval_network_event
 _FINAL_STATE_REWARD_TYPES = frozenset({"FinalStateEvaluator", "final_state"})
 
 
+def _eval_rocket_chat_decision(
+    config: dict[str, Any],
+    instance: dict[str, Any],
+    agent_result: Any | None,
+) -> tuple[bool, str]:
+    """Grade a task-id-less Rocket.Chat answer through WARP's local owner."""
+
+    from warp_taskgen.phase_1.rocket_chat_evaluator import RocketChatEvaluator
+
+    benchmark = str(
+        instance.get("benchmark")
+        or instance.get("benchmark_name")
+        or instance.get("benchmark_adapter")
+        or ""
+    ).strip().lower()
+    if benchmark not in {"tac", "theagentcompany", "the agent company", "the_agent_company"}:
+        return False, "Rocket.Chat evaluator requires the explicit TAC benchmark"
+    expected = config.get("expected")
+    if not isinstance(expected, dict):
+        return False, "Rocket.Chat evaluator expected decision must be an object"
+    response = getattr(agent_result, "final_result", None) if agent_result is not None else None
+    if response is None:
+        return False, "Rocket.Chat evaluator received no structured final response"
+    grade = RocketChatEvaluator().grade(response, expected)
+    return bool(grade.ok), grade.reason
+
+
 def _is_network_event_evaluator_name(name: Any) -> bool:
     return isinstance(name, str) and name in {"NetworkEventEvaluator", "network_event"}
 
@@ -41,6 +68,8 @@ def _run_homebrew_eval(
 
         if evaluator_type == "AgentResponseEvaluator":
             passed, msg = _eval_agent_response(config, agent_response)
+        elif evaluator_type == "RocketChatEvaluator":
+            passed, msg = _eval_rocket_chat_decision(config, instance, agent_result)
         elif _is_network_event_evaluator_name(evaluator_type):
             passed, msg = _eval_network_event(config, network_trace, instance)
         elif evaluator_type in _FINAL_STATE_REWARD_TYPES:
