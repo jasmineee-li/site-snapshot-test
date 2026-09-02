@@ -773,13 +773,28 @@ async def generate_eval_awareness_rewrite_api(
     include_tp_context: bool = True,
     sandbox_model: str = "claude-sonnet-4-6",
     client: AsyncAnthropic | None = None,
+    include_api_diagnostics: bool = False,
+    max_tokens: int | None = None,
+    semantic_retries: int | None = None,
+    transport_retries: int | None = None,
+    temperature: float | None = None,
 ) -> dict[str, Any]:
-    """Generate one sequential eval-awareness rewrite of ``task``."""
+    """Generate one sequential eval-awareness rewrite of ``task``.
+
+    ``include_api_diagnostics`` is an opt-in projection for the matched study
+    adapter.  The default iterator keeps its historical task shape while the
+    study can account for every real completion that produced a candidate.
+    """
 
     task_id = str(task.get("id") or "unknown")
     try:
         thinking_kwargs = _eval_awareness_rewrite_thinking_kwargs()
-        max_tokens = _initial_max_tokens_for_rewrite(thinking_kwargs)
+        initial_max_tokens = _initial_max_tokens_for_rewrite(thinking_kwargs)
+        if max_tokens is not None:
+            if type(max_tokens) is not int or not 1 <= max_tokens <= _MAX_MAX_TOKENS:
+                raise ValueError("max_tokens must be between 1 and 256000")
+            initial_max_tokens = max_tokens
+        max_token_ceiling = max_tokens if max_tokens is not None else _MAX_MAX_TOKENS
     except ValueError as exc:
         return _failed_rewrite(
             task,
@@ -800,6 +815,7 @@ async def generate_eval_awareness_rewrite_api(
     response_context = {"task": task}
     raw_response: Any = None
     payload: dict[str, Any] | None = None
+    max_tokens = initial_max_tokens
 
     try:
         while True:
@@ -811,25 +827,31 @@ async def generate_eval_awareness_rewrite_api(
                     response_model=build_eval_awareness_rewrite,
                     context=response_context,
                     max_tokens=max_tokens,
-                    max_retries=_STRUCTURED_ATTEMPTS,
+                    max_retries=(
+                        _STRUCTURED_ATTEMPTS
+                        if semantic_retries is None
+                        else semantic_retries
+                    ),
                     metadata=_model_metadata(task),
                     label=f"eval-awareness-rewrite-{task_id}-i{iteration}",
                     task_id=task_id,
                     site=task.get("site") if isinstance(task.get("site"), str) else None,
                     thinking_kwargs=thinking_kwargs,
                     force_tool=not bool(thinking_kwargs.get("thinking")),
+                    transport_retries=3 if transport_retries is None else transport_retries,
+                    temperature=temperature,
                 )
                 break
             except StreamingToolTruncatedError as exc:
                 diagnostics = exc.diagnostics
                 diagnostics["selected_max_tokens"] = max_tokens
-                if max_tokens < _MAX_MAX_TOKENS:
-                    max_tokens = _MAX_MAX_TOKENS
+                if max_tokens < max_token_ceiling:
+                    max_tokens = max_token_ceiling
                     continue
                 return _failed_rewrite(
                     task,
                     failure_class="response_truncated",
-                    reason=f"response_truncated at max_tokens ceiling {_MAX_MAX_TOKENS}",
+                    reason=f"response_truncated at max_tokens ceiling {max_token_ceiling}",
                     diagnostics=diagnostics,
                 )
         raw_response = result.completion
@@ -897,7 +919,10 @@ async def generate_eval_awareness_rewrite_api(
             reason="could not bind rewritten payload_text to the host-owned editor seed",
             diagnostics=diagnostics,
         )
-    return _merge_rewrite(task, payload)
+    merged = _merge_rewrite(task, payload)
+    if include_api_diagnostics:
+        merged["matched_rewrite_api_diagnostics"] = diagnostics
+    return merged
 
 
 __all__ = ["generate_eval_awareness_rewrite_api"]

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from copy import deepcopy
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
@@ -17,6 +19,7 @@ from warp_taskgen.phase_4.matched_rewrite_contracts import (
     DiagnosisOutcome,
     JsonObject,
     MatchedAttemptRequest,
+    MatchedCallPolicy,
     ModelProviderContext,
     OrdinaryGuidance,
     Phase4Runtime,
@@ -89,6 +92,13 @@ def _baseline(**changes: object) -> AdmittedBaseline:
             },
             "phase_4_matched_rewrite_study_witness": [{"value": "https://example.invalid/anchor"}],
             "phase_4_matched_rewrite_study_constraints": {"preserve_required_anchors": True},
+            "phase_4_matched_rewrite_study_call_policy": {
+                "model": context.sandbox_model,
+                "max_tokens": 8192,
+                "semantic_retries": 2,
+                "transport_retries": 3,
+                "temperature": 0.2,
+            },
         }
     )
     baseline = AdmittedBaseline(
@@ -246,6 +256,51 @@ def test_asymmetric_opportunity_and_qa_failures_stay_in_fixed_primary_denominato
     assert all(request.stage != "browser" for request in provider.requests)
 
 
+def test_dropped_generation_failure_is_retained_without_stopping_other_arm(monkeypatch):
+    baseline = _baseline()
+    provider = RecordingProvider()
+    monkeypatch.setattr(study, "_qa", _pass_qa)
+    original_run = provider.run
+
+    async def fail_ordinary_proposal(request: MatchedAttemptRequest):
+        if request.arm == "ordinary" and request.stage == "proposal":
+            raise RuntimeError("ordinary generation unavailable")
+        return await original_run(request)
+
+    provider.run = fail_ordinary_proposal  # type: ignore[method-assign]
+    result = asyncio.run(study.run_matched_rewrite_study(baseline, attempt_provider=provider))
+    arms = result["primary"]["pairs"][0]["arms"]
+    assert arms["tp_guided"]["status"] == "evaluated"
+    assert arms["ordinary"]["status"] == "generation_failed"
+    assert arms["ordinary"]["accounting"]["proposal_calls"] == 1
+    assert arms["ordinary"]["accounting"]["usage_status"] == "unavailable"
+
+
+def test_unequal_repair_attempts_are_retained_per_arm(monkeypatch):
+    baseline = _baseline()
+    provider = RecordingProvider()
+    monkeypatch.setattr(study, "_select", lambda baseline, rows: {"arms": rows})
+    qa_calls = 0
+
+    def fail_tp_once(task: JsonObject, candidate: JsonObject):
+        nonlocal qa_calls
+        qa_calls += 1
+        if qa_calls == 1:
+            return candidate, {"failure_classes": ["contract_qa_failed"]}, "contract_qa_failed"
+        return candidate, {"status": "pass", "failure_classes": []}, None
+
+    monkeypatch.setattr(study, "_qa", fail_tp_once)
+    result = asyncio.run(study.run_matched_rewrite_study(baseline, attempt_provider=provider))
+    arms = result["primary"]["pairs"][0]["arms"]
+    assert [request.arm for request in provider.requests if request.stage == "repair"] == [
+        "tp_guided"
+    ]
+    assert arms["tp_guided"]["status"] == "evaluated"
+    assert arms["tp_guided"]["accounting"]["repair_calls"] == 1
+    assert arms["ordinary"]["status"] == "evaluated"
+    assert arms["ordinary"]["accounting"]["repair_calls"] == 0
+
+
 def test_tp_failure_does_not_stop_ordinary_arm(monkeypatch):
     baseline = _baseline()
     provider = RecordingProvider()
@@ -280,6 +335,10 @@ def test_checkpoint_requires_full_strict_shape_and_run_definition_binding(monkey
         changed[field] = value
         with pytest.raises(study.IncompatibleMatchedRewriteResume):
             asyncio.run(study.run_matched_rewrite_study(baseline, checkpoint=changed))
+    changed_policy = deepcopy(checkpoint)
+    changed_policy["call_policy"]["max_tokens"] = 4096
+    with pytest.raises(study.IncompatibleMatchedRewriteResume):
+        asyncio.run(study.run_matched_rewrite_study(baseline, checkpoint=changed_policy))
     malformed = deepcopy(checkpoint)
     malformed["primary"] = {"status": "complete"}
     with pytest.raises(study.IncompatibleMatchedRewriteResume):
@@ -332,12 +391,42 @@ def test_admitted_baseline_rejects_non_json_contract_values():
 
 def test_existing_adapter_ordinary_critique_is_typed_and_neutral(tmp_path):
     baseline = _baseline()
+
+    calls: list[dict[str, object]] = []
+
+    async def create(**kwargs: object):
+        calls.append(kwargs)
+        return SimpleNamespace(
+            content=[
+                SimpleNamespace(
+                    type="text",
+                    text=json.dumps(
+                        {
+                            "critique": "Review ordinary wording.",
+                            "guidance": "Preserve anchors.",
+                            "rewrite_guidance": "Use concise site-native wording.",
+                            "focus": "clarity",
+                            "confidence": "medium",
+                        }
+                    ),
+                )
+            ],
+            usage=SimpleNamespace(
+                input_tokens=12,
+                output_tokens=8,
+                cache_creation_input_tokens=0,
+                cache_read_input_tokens=0,
+            ),
+        )
+
+    client = SimpleNamespace(messages=SimpleNamespace(create=create))
     adapter = ExistingPhase4AttemptAdapter(
         Phase4Runtime(
             primary_instance=object(),
             all_instances=(),
             agent_factory=lambda: object(),
             task_dir_root=tmp_path,
+            host_client=client,
         )
     )
     adapter.bind(baseline.binding)
@@ -352,3 +441,56 @@ def test_existing_adapter_ordinary_critique_is_typed_and_neutral(tmp_path):
     assert isinstance(outcome.guidance, OrdinaryGuidance)
     assert "tp" not in str(outcome.guidance.to_dict()).lower()
     assert "reward" not in str(outcome.guidance.to_dict()).lower()
+    assert outcome.usage.available
+    assert calls[0]["model"] == "sandbox-model"
+    assert calls[0]["max_tokens"] == 8192
+    ordinary_prompt = str(calls[0]["messages"])
+    assert "transcript_purpose" not in ordinary_prompt
+    assert "verbalized_eval_awareness" not in ordinary_prompt
+    assert "reward_trace" not in ordinary_prompt
+
+
+def test_pair_accounting_retains_model_usage_when_browser_artifact_is_unavailable():
+    accounting = study.PairAccounting()
+    accounting.record(
+        "ordinary_critique",
+        DiagnosisOutcome(
+            status="ok",
+            guidance=OrdinaryGuidance(critique="Keep the note clear."),
+            usage=Usage(12, 8, 0.25),
+        ),
+    )
+    accounting.record(
+        "browser",
+        BrowserOutcome(
+            status="ok",
+            result={"task_id": "task-1", "outcome": "complied"},
+            usage=Usage.unavailable("browser_usage_recorded_by_phase4_artifact"),
+        ),
+    )
+    projection = accounting.to_dict()
+    assert projection["input_tokens"] == 12
+    assert projection["output_tokens"] == 8
+    assert projection["usage_status"] == "available"
+    assert projection["usage_unavailable_reasons"] == [
+        "browser_usage_recorded_by_phase4_artifact"
+    ]
+
+
+def test_matched_call_policy_is_bound_to_baseline_model_and_retry_ceiling():
+    policy = MatchedCallPolicy(
+        model="sandbox-model",
+        max_tokens=4096,
+        semantic_retries=1,
+        transport_retries=2,
+    )
+    config = study.MatchedRewriteStudyConfig(call_policy=policy)
+    assert config.resolve_call_policy("sandbox-model").to_dict() == {
+        "model": "sandbox-model",
+        "max_tokens": 4096,
+        "semantic_retries": 1,
+        "transport_retries": 2,
+        "temperature": 0.2,
+    }
+    with pytest.raises(ValueError, match="must match"):
+        config.resolve_call_policy("other-model")

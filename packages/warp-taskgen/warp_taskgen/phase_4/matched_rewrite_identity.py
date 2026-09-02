@@ -18,6 +18,7 @@ BASELINE_RESULT_FIELD: Final = "phase_4_matched_rewrite_study_baseline_result"
 BASELINE_SELECTED_PAYLOAD_FIELD: Final = "phase_4_matched_rewrite_study_selected_payload"
 BASELINE_WITNESS_FIELD: Final = "phase_4_matched_rewrite_study_witness"
 BASELINE_CONSTRAINTS_FIELD: Final = "phase_4_matched_rewrite_study_constraints"
+CALL_POLICY_FIELD: Final = "phase_4_matched_rewrite_study_call_policy"
 _CONDITION_FIELD: Final = "phase_4_matched_rewrite_study_condition"
 _SCHEDULE_FIELD: Final = "phase_4_matched_rewrite_study_schedule"
 _CONTEXT_FIELDS: Final = {
@@ -53,6 +54,7 @@ def validate_baseline_binding(
         BASELINE_CONSTRAINTS_FIELD: baseline.constraints,
         _CONDITION_FIELD: config.condition,
         _SCHEDULE_FIELD: config.schedule,
+        CALL_POLICY_FIELD: config.resolve_call_policy(baseline.model_context.sandbox_model).to_dict(),
     }
     expected_inputs.update(
         {
@@ -91,6 +93,7 @@ def checkpoint_payload(
         "schedule": config.schedule,
         "baseline_identity": baseline.identity,
         "run_definition": baseline.run_definition.to_dict(),
+        "call_policy": config.resolve_call_policy(baseline.model_context.sandbox_model).to_dict(),
         "status": "complete",
         "primary": {
             "status": "complete",
@@ -128,6 +131,7 @@ def validate_checkpoint(
         "schedule",
         "baseline_identity",
         "run_definition",
+        "call_policy",
         "status",
     ):
         if checkpoint[field] != expected[field]:
@@ -151,6 +155,7 @@ __all__ = [
     "BASELINE_SELECTED_PAYLOAD_FIELD",
     "BASELINE_TASK_FIELD",
     "BASELINE_WITNESS_FIELD",
+    "CALL_POLICY_FIELD",
     "STUDY_ID",
     "STUDY_SCHEMA_VERSION",
     "IncompatibleMatchedRewriteResume",

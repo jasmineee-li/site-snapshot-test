@@ -6,6 +6,10 @@ import copy
 from dataclasses import dataclass
 from typing import cast
 
+from warp_taskgen.phase_4.anthropic_client import (
+    classify_api_exception,
+    get_client,
+)
 from warp_taskgen.phase_4.matched_rewrite_contracts import (
     AttemptOutcome,
     BaselineBinding,
@@ -13,14 +17,21 @@ from warp_taskgen.phase_4.matched_rewrite_contracts import (
     DiagnosisOutcome,
     JsonObject,
     MatchedAttemptRequest,
-    OrdinaryGuidance,
+    MatchedCallPolicy,
     Phase4Runtime,
     ProposalOutcome,
     TPGuidance,
     Usage,
 )
+from warp_taskgen.phase_4.matched_rewrite_ordinary_api import (
+    browser_usage,
+    run_ordinary_critique,
+    usage_from_diagnostics,
+)
 from warp_taskgen.phase_4.prompt_contracts import trajectory_summary
-from warp_taskgen.phase_4.prompt_payloads import sanitize_task_for_model_prompt
+from warp_taskgen.phase_4.prompt_payloads import (
+    sanitize_task_for_model_prompt,
+)
 
 
 def _strings(value: object) -> tuple[str, ...]:
@@ -77,12 +88,11 @@ def _tp_guidance(raw: object) -> TPGuidance | None:
 
 @dataclass(frozen=True, slots=True)
 class ExistingPhase4AttemptAdapter:
-    """Dispatch existing owners without retaining a second baseline snapshot.
+    """Dispatch existing Phase 4 owners for one matched study opportunity.
 
-    Ordinary critique is deliberately a small deterministic projection because
-    the existing judge API is not stage-matched to this study.  Consequently
-    this adapter is source-path compatible for browser/finalization dispatch,
-    but does not claim a live ordinary-model study run.
+    The ordinary diagnosis is a neutral, stage-matched host Messages call. The
+    deterministic provider below remains available only for source tests; this
+    adapter never substitutes it on the live study path.
     """
 
     runtime: Phase4Runtime
@@ -97,12 +107,17 @@ class ExistingPhase4AttemptAdapter:
         if self._binding != request.binding:
             raise ValueError("attempt provider is not bound to the admitted baseline")
 
+    def _client(self) -> object:
+        """Use an injected test client or the shared host Messages client."""
+
+        return self.runtime.host_client or get_client()
+
     async def run(self, request: MatchedAttemptRequest) -> AttemptOutcome:
         self._check_binding(request)
         if request.stage == "tp_diagnosis":
             return await self._diagnose(request)
         if request.stage == "ordinary_critique":
-            return self._ordinary_critique(request)
+            return await self._ordinary_critique(request)
         if request.stage in {"proposal", "repair"}:
             return await self._rewrite(request)
         return await self._browser(request)
@@ -123,39 +138,69 @@ class ExistingPhase4AttemptAdapter:
                 if key.startswith("transcript_purpose_")
             }
         )
-        raw = await run_eval_awareness_cue_api(
-            request.evidence.task,
-            result,
-            iteration=1,
-            sandbox_model=self.runtime.sandbox_model,
-        )
+        policy = self._call_policy(request)
+        try:
+            raw = await run_eval_awareness_cue_api(
+                request.evidence.task,
+                result,
+                iteration=1,
+                sandbox_model=policy.model,
+                client=self._client(),  # type: ignore[arg-type]
+                max_tokens=policy.max_tokens,
+                semantic_retries=policy.semantic_retries,
+                transport_retries=policy.transport_retries,
+                temperature=policy.temperature,
+            )
+        except Exception as exc:
+            return DiagnosisOutcome(
+                status="failed",
+                guidance=None,
+                usage=Usage.unavailable(f"tp_diagnosis_api_error:{classify_api_exception(exc)}"),
+                failure="tp_diagnosis_unavailable",
+            )
         status = raw.get("status") if isinstance(raw, dict) else None
-        guidance = _tp_guidance(raw.get("diagnosis") if isinstance(raw, dict) else None)
+        guidance = _tp_guidance(
+            raw.get("diagnosis") if isinstance(raw, dict) and raw.get("diagnosis") else raw
+        )
+        usage = usage_from_diagnostics(
+            raw.get("api_diagnostics") if isinstance(raw, dict) else None,
+            model=policy.model,
+            fallback_reason="tp_diagnosis_usage_unavailable",
+        )
         if status != "ok" or guidance is None:
             return DiagnosisOutcome(
                 status="failed",
                 guidance=None,
-                usage=Usage.unavailable("tp_diagnosis_usage_unavailable"),
+                usage=usage,
                 failure="tp_diagnosis_unavailable",
             )
         return DiagnosisOutcome(
             status="ok",
             guidance=guidance,
-            usage=Usage.unavailable("tp_diagnosis_usage_unavailable"),
+            usage=usage,
         )
 
-    def _ordinary_critique(self, request: MatchedAttemptRequest) -> DiagnosisOutcome:
-        # Keep this deterministic and neutral: no judge, TP, VEA, reward, or
-        # raw trajectory data enters the ordinary arm's guidance.
-        return DiagnosisOutcome(
-            status="ok",
-            guidance=OrdinaryGuidance(
-                critique="Review the selected payload for clear, ordinary wording.",
-                guidance="Preserve the task action, anchors, placement, and field budget.",
-                rewrite_guidance="Use concise site-native wording while preserving the action.",
-                focus="ordinary_clarity",
-            ),
-            usage=Usage.unavailable("ordinary_critique_is_deterministic"),
+    def _call_policy(self, request: MatchedAttemptRequest) -> MatchedCallPolicy:
+        return request.call_policy or MatchedCallPolicy.for_model(self.runtime.sandbox_model)
+
+    async def _ordinary_critique(self, request: MatchedAttemptRequest) -> DiagnosisOutcome:
+        """Run a neutral ordinary model critique at the TP diagnosis boundary."""
+
+        try:
+            client = self._client()
+        except Exception as exc:
+            return DiagnosisOutcome(
+                status="failed",
+                guidance=None,
+                usage=Usage.unavailable(
+                    f"ordinary_critique_api_error:{classify_api_exception(exc)}"
+                ),
+                failure="ordinary_critique_unavailable",
+            )
+        return await run_ordinary_critique(
+            request,
+            policy=self._call_policy(request),
+            client=client,
         )
 
     async def _rewrite(self, request: MatchedAttemptRequest) -> ProposalOutcome:
@@ -163,17 +208,32 @@ class ExistingPhase4AttemptAdapter:
             generate_eval_awareness_rewrite_api,
         )
 
+        policy = self._call_policy(request)
         guidance = request.guidance.to_dict() if request.guidance is not None else {}
         task = sanitize_task_for_model_prompt(request.variant_task or request.evidence.task)
-        raw = await generate_eval_awareness_rewrite_api(
-            task,
-            guidance,
-            iteration=1,
-            prior_feedback=[guidance] if request.stage == "repair" else None,
-            parent_result=None,
-            include_tp_context=False,
-            sandbox_model=self.runtime.sandbox_model,
-        )
+        try:
+            raw = await generate_eval_awareness_rewrite_api(
+                task,
+                guidance,
+                iteration=1,
+                prior_feedback=[guidance] if request.stage == "repair" else None,
+                parent_result=None,
+                include_tp_context=False,
+                sandbox_model=policy.model,
+                client=self._client(),  # type: ignore[arg-type]
+                include_api_diagnostics=True,
+                max_tokens=policy.max_tokens,
+                semantic_retries=policy.semantic_retries,
+                transport_retries=policy.transport_retries,
+                temperature=policy.temperature,
+            )
+        except Exception as exc:
+            return ProposalOutcome(
+                status="failed",
+                candidate=None,
+                usage=Usage.unavailable(f"rewrite_api_error:{classify_api_exception(exc)}"),
+                failure="rewrite_provider_failed",
+            )
         candidate = _json_object(raw)
         if candidate is None:
             return ProposalOutcome(
@@ -182,27 +242,35 @@ class ExistingPhase4AttemptAdapter:
                 usage=Usage.unavailable("rewrite_usage_unavailable"),
                 failure="rewrite_provider_returned_non_object",
             )
+        diagnostics = candidate.pop("matched_rewrite_api_diagnostics", None)
         marker = candidate.get("variant_status")
+        if diagnostics is None and isinstance(marker, dict):
+            diagnostics = marker.get("api_diagnostics")
+        usage = usage_from_diagnostics(
+            diagnostics,
+            model=policy.model,
+            fallback_reason="rewrite_usage_unavailable",
+        )
         if isinstance(marker, dict):
             marker_status = marker.get("status")
             if marker_status == "inapplicable":
                 return ProposalOutcome(
                     status="inapplicable",
                     candidate=None,
-                    usage=Usage.unavailable("rewrite_usage_unavailable"),
+                    usage=usage,
                     failure=_text(marker.get("reason")) or "rewrite_inapplicable",
                 )
             if marker_status == "failed":
                 return ProposalOutcome(
                     status="failed",
                     candidate=None,
-                    usage=Usage.unavailable("rewrite_usage_unavailable"),
+                    usage=usage,
                     failure=_text(marker.get("failure_class")) or "rewrite_failed",
                 )
         return ProposalOutcome(
             status="ok",
             candidate=candidate,
-            usage=Usage.unavailable("rewrite_usage_unavailable"),
+            usage=usage,
         )
 
     async def _browser(self, request: MatchedAttemptRequest) -> BrowserOutcome:
@@ -226,7 +294,7 @@ class ExistingPhase4AttemptAdapter:
             self.runtime.agent_factory,
             namespace,
             benchmark_root=self.runtime.benchmark_root,
-            sandbox_model=self.runtime.sandbox_model,
+            sandbox_model=self._call_policy(request).model,
             site_profile=self.runtime.site_profile,
             agent_execution=self.runtime.agent_execution,
             browser_worker_semaphore=self.runtime.browser_worker_semaphore,
@@ -243,7 +311,7 @@ class ExistingPhase4AttemptAdapter:
         return BrowserOutcome(
             status="ok",
             result=output,
-            usage=Usage.unavailable("browser_usage_unavailable"),
+            usage=browser_usage(output),
         )
 
 

@@ -98,6 +98,7 @@ def _request(
         baseline_result=baseline.result_copy(),
         variant_task=copy.deepcopy(variant_task),
         artifact_namespace=f"{STUDY_ID}/{arm}/pair-0",
+        call_policy=config.resolve_call_policy(baseline.model_context.sandbox_model),
     )
 
 
@@ -133,6 +134,9 @@ def _matched_inputs(baseline: AdmittedBaseline, config: MatchedRewriteStudyConfi
             "repair_attempts": config.repair_attempts,
             "baseline_identity": baseline.identity,
             "run_definition_digest": baseline.run_definition.definition_digest,
+            "call_policy": config.resolve_call_policy(
+                baseline.model_context.sandbox_model
+            ).to_dict(),
         }
     )
     return evidence
@@ -340,6 +344,7 @@ def _aggregate(rows: dict[Arm, dict[str, object]]) -> dict[str, object]:
         total.proposal_calls += int(accounting.get("proposal_calls", 0))
         total.repair_calls += int(accounting.get("repair_calls", 0))
         total.browser_attempts += int(accounting.get("browser_attempts", 0))
+        total.retry_attempts += int(accounting.get("retry_attempts", 0))
         if accounting.get("usage_status") == "unavailable":
             total.input_tokens = total.output_tokens = total.total_tokens = total.cost_usd = None
             reasons = accounting.get("usage_unavailable_reasons")
@@ -370,6 +375,7 @@ async def run_matched_rewrite_study(
         raise TypeError("matched rewrite study requires an AdmittedBaseline")
     settings = config or MatchedRewriteStudyConfig()
     validate_baseline_binding(baseline, settings)
+    call_policy = settings.resolve_call_policy(baseline.model_context.sandbox_model)
     if checkpoint is not None:
         validate_checkpoint(checkpoint, baseline=baseline, config=settings)
         return {
@@ -383,6 +389,7 @@ async def run_matched_rewrite_study(
         "schema_version": STUDY_SCHEMA_VERSION,
         "condition": settings.condition,
         "schedule": settings.schedule,
+        "call_policy": call_policy.to_dict(),
         "baseline": baseline.to_dict(),
         "status": "scheduled",
         "primary": {"endpoint": "primary_fixed_index_scheduled_attempt", "pairs": []},
