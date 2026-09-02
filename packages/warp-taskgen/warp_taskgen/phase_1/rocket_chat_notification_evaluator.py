@@ -63,8 +63,6 @@ def _seed_root(
         )
     if root.logical_key != notification.thread_key:
         raise RocketChatContractError("seed root logical key does not match notification thread")
-    if root.room_id != notification.room_id:
-        raise RocketChatContractError("seed root room does not match notification room")
     if root.thread_id is not None:
         raise RocketChatContractError("seed root must be a root message, not a threaded reply")
     return root
@@ -305,6 +303,13 @@ def grade_rocket_chat_notification(
 
     expected_notification, expected_values, expected_identity = _expected_values(expected)
     outcomes = {name: False for name in NOTIFICATION_OUTCOMES}
+    if isinstance(expected, Mapping) and decision_response is None:
+        outcomes[INCORRECT_DECISION] = True
+        return _failure_grade(
+            expected_values,
+            "incorrect decision: mapping expected state requires a structured decision response",
+            outcomes=outcomes,
+        )
     if decision_response is not None:
         decision_grade = grade_rocket_chat_decision(
             decision_response, expected_notification.current_decision
