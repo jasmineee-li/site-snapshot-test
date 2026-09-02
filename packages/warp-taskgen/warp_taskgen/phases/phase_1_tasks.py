@@ -23,6 +23,12 @@ from warp_taskgen.phase_1.novel_task_validation import (
 from warp_taskgen.phase_1.novel_task_validation import (
     sort_novel_tasks as _sort_novel_tasks,
 )
+from warp_taskgen.phase_1.rocket_chat_generation import (
+    compile_phase1_rocket_chat_decision_task,
+    compile_phase1_rocket_chat_notification_task,
+    rocket_chat_decision_generation_contract,
+    rocket_chat_notification_generation_contract,
+)
 from warp_taskgen.phases.phase_1_existing_tasks import build_existing_task_wraps
 from warp_taskgen.phases.phase_1_generate_new_tasks import (
     DEFAULT_NOVEL_TASKS_PER_SITE,
@@ -401,6 +407,10 @@ def _compile_feature_owned_task(
     for card in task_card_plan.get("task_cards", []):
         if not isinstance(card, Mapping) or card.get("id") != task_card_id:
             continue
+        if rocket_chat_notification_generation_contract(card) is not None:
+            return compile_phase1_rocket_chat_notification_task(task, task_card=card)
+        if rocket_chat_decision_generation_contract(card) is not None:
+            return compile_phase1_rocket_chat_decision_task(task, task_card=card)
         if (
             gitlab_compare_decide_generation_contract(card) is None
             and gitlab_compare_act_generation_contract(card) is None

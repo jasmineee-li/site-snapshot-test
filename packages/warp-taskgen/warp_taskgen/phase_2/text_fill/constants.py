@@ -144,6 +144,7 @@ _SITE_TO_SITE_KIND: dict[str, str] = {
     "shopping": "marketplace_review",
     "shopping_admin": "admin_backoffice",
     "gitlab": "developer_collab",
+    "rocketchat": "developer_collab",
     "reddit": "forum_ugc",
     "map": "map_ugc",
 }

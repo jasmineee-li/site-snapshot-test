@@ -14,6 +14,7 @@ from warp_taskgen.atomic_io import write_json_atomic
 from warp_taskgen.cost_tracker import tracker as cost_tracker
 from warp_taskgen.phase_2 import generation as _generation
 from warp_taskgen.phase_2 import reuse as _reuse
+from warp_taskgen.phase_2 import rocket_chat as _rocket_chat
 from warp_taskgen.phase_2 import shards as _shards
 from warp_taskgen.phase_2 import target_inputs as _target_inputs
 from warp_taskgen.phase_2.exposure_contract import exposure_contract_signature
@@ -207,9 +208,9 @@ async def run(args: argparse.Namespace) -> int:
             label="Phase 1 benign tasks",
         )
         try:
-            benchmark_capabilities_for_runtime(
-                benchmark_name, runtime_composition
-            ).require("phase_2_generation")
+            benchmark_capabilities_for_runtime(benchmark_name, runtime_composition).require(
+                "phase_2_generation"
+            )
         except ValueError as exc:
             raise ValueError(
                 f"benchmark {benchmark_name!r} does not support WARP Taskgen Phase 2"
@@ -327,6 +328,7 @@ async def run(args: argparse.Namespace) -> int:
         site_profiles=site_profile_payloads,
         current_sandbox_model=sandbox_model,
         current_phase_2a_resolution_signature=state_metadata["phase_2a_resolution_signature"],
+        runtime_composition=runtime_composition,
     )
     reusable_final_tasks = None
     planning_completed_now = False
@@ -358,6 +360,7 @@ async def run(args: argparse.Namespace) -> int:
             current_sandbox_model=sandbox_model,
             current_text_model=text_fill_model,
             current_phase_2a_resolution_signature=state_metadata["phase_2a_resolution_signature"],
+            runtime_composition=runtime_composition,
         )
         if reusable_final_tasks is not None:
             validate_unique_text_fill_task_ids(reusable_final_tasks)
@@ -562,6 +565,7 @@ async def run(args: argparse.Namespace) -> int:
                 current_phase_2a_resolution_signature=state_metadata[
                     "phase_2a_resolution_signature"
                 ],
+                runtime_composition=runtime_composition,
             )
             if reusable_final_tasks is not None:
                 validate_unique_text_fill_task_ids(reusable_final_tasks)
@@ -621,6 +625,41 @@ async def run(args: argparse.Namespace) -> int:
             **state_metadata,
         )
         return 1
+
+    # The generic text-fill path materializes payloads for every site.  Before
+    # Phase 2c, re-check exact Rocket.Chat rows with the feature-owned typed
+    # validator so a newly filled task receives the same protection as a
+    # cached/reused task (the latter is also checked by ``reuse.py``).
+    if runtime_composition is not None:
+        for filled_task in filled_tasks:
+            if not _rocket_chat.composition_supports_rocket_chat(
+                runtime_composition,
+                benchmark=filled_task.get("benchmark"),
+                site=filled_task.get("site"),
+            ):
+                continue
+            benign_parent = benign_by_id.get(str(filled_task.get("benign_task_id") or ""))
+            if benign_parent is None:
+                feature_error = "Rocket.Chat materialized task references an unknown benign parent"
+            else:
+                feature_error = _rocket_chat.validate_materialized_task(
+                    filled_task,
+                    benign_task=benign_parent,
+                    runtime_composition=runtime_composition,
+                )
+            if feature_error is not None:
+                logger.error("Phase 2 Rocket.Chat materialization failed: %s", feature_error)
+                save_state(
+                    "phase_2",
+                    status="failed",
+                    reason="rocket_chat_materialization_invalid",
+                    materialization_error=feature_error,
+                    phase_2_stage="text_fill",
+                    generation_failures=site_failures,
+                    text_fill_failures=text_fill_diagnostics,
+                    **state_metadata,
+                )
+                return 1
 
     merged_output = _merge_preserving_unfiltered_sites(
         output_path,

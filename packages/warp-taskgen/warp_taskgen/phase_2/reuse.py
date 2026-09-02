@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from warp_taskgen.phase_2 import rocket_chat as _rocket_chat
 from warp_taskgen.phase_2 import target_stage as _target_stage
 from warp_taskgen.phase_2.plan_validation import (
     _FINAL_STAGE_ONLY_FIELDS,
@@ -23,6 +24,9 @@ from warp_taskgen.phase_2.text_fill.validation import validate_text_post_hoc
 
 logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from warp_taskgen.runtime_composition import RuntimeComposition
+
 
 def _load_reusable_phase_2_plans(
     *,
@@ -34,6 +38,7 @@ def _load_reusable_phase_2_plans(
     site_profiles: dict[str, dict[str, Any]],
     current_sandbox_model: str,
     current_phase_2a_resolution_signature: dict[str, Any] | None = None,
+    runtime_composition: RuntimeComposition | None = None,
 ) -> list[dict[str, Any]] | None:
     if prior_state.get("step") != "phase_2":
         return None
@@ -85,12 +90,28 @@ def _load_reusable_phase_2_plans(
         site_profile = site_profiles.get(str(plan.get("site", "")))
         if not isinstance(site_profile, dict):
             return None
-        problem = _validate_generated_adversarial_task(
-            plan,
-            index,
-            benign_by_id,
-            site_profile,
-        )
+        if runtime_composition is not None and _rocket_chat.composition_supports_rocket_chat(
+            runtime_composition,
+            benchmark=plan.get("benchmark"),
+            site=plan.get("site"),
+        ):
+            contract = plan.get("exposure_contract")
+            problem = _rocket_chat.validate_plan(
+                plan,
+                index=index,
+                benign_by_id=benign_by_id,
+                exposure_contracts={str(plan.get("benign_task_id") or ""): contract}
+                if isinstance(contract, dict)
+                else {},
+                runtime_composition=runtime_composition,
+            )
+        else:
+            problem = _validate_generated_adversarial_task(
+                plan,
+                index,
+                benign_by_id,
+                site_profile,
+            )
         if problem is not None:
             logger.warning("Phase 2: ignoring saved adversarial plan reuse because %s", problem)
             return None
@@ -110,6 +131,7 @@ def _load_reusable_phase_2_tasks(
     current_sandbox_model: str,
     current_text_model: str,
     current_phase_2a_resolution_signature: dict[str, Any] | None = None,
+    runtime_composition: RuntimeComposition | None = None,
 ) -> list[dict[str, Any]] | None:
     if prior_state.get("step") != "phase_2":
         return None
@@ -180,6 +202,7 @@ def _load_reusable_phase_2_tasks(
             texts_per_plan=texts_per_plan,
             benign_by_id=benign_by_id,
             site_profiles=site_profiles,
+            runtime_composition=runtime_composition,
         )
         if problem is not None:
             logger.warning("Phase 2: ignoring saved adversarial task reuse because %s", problem)
@@ -249,6 +272,7 @@ def _validate_reusable_phase_2_task(
     texts_per_plan: int,
     benign_by_id: dict[str, dict[str, Any]],
     site_profiles: dict[str, dict[str, Any]],
+    runtime_composition: RuntimeComposition | None = None,
 ) -> str | None:
     if not isinstance(task, dict):
         return f"saved task {task_index} is not an object"
@@ -263,9 +287,23 @@ def _validate_reusable_phase_2_task(
     if not isinstance(site_profile, dict):
         return f"{task_name} references unknown site {task.get('site')!r}"
 
-    violation = _validate_adversarial_task_contract(task, benign_parent, site_profile)
-    if violation is not None:
-        return f"{task_name} violates adversarial task contract: {violation}"
+    rc_runtime = runtime_composition is not None and _rocket_chat.composition_supports_rocket_chat(
+        runtime_composition,
+        benchmark=task.get("benchmark"),
+        site=task.get("site"),
+    )
+    if rc_runtime:
+        feature_problem = _rocket_chat.validate_materialized_task(
+            task,
+            benign_task=benign_parent,
+            runtime_composition=runtime_composition,
+        )
+        if feature_problem is not None:
+            return f"{task_name} violates Rocket.Chat task contract: {feature_problem}"
+    else:
+        violation = _validate_adversarial_task_contract(task, benign_parent, site_profile)
+        if violation is not None:
+            return f"{task_name} violates adversarial task contract: {violation}"
 
     stale_contract_reason = _stale_reusable_exposure_contract_reason(task)
     if stale_contract_reason is not None:
@@ -280,10 +318,11 @@ def _validate_reusable_phase_2_task(
             )
         return None
 
-    try:
-        validate_seed_template_contract(task.get("seed_template"))
-    except ValueError as exc:
-        return f"{task_name} seed_template invalid: {exc}"
+    if not rc_runtime:
+        try:
+            validate_seed_template_contract(task.get("seed_template"))
+        except ValueError as exc:
+            return f"{task_name} seed_template invalid: {exc}"
 
     payload_texts = task.get("payload_texts")
     if not isinstance(payload_texts, list) or len(payload_texts) < texts_per_plan:

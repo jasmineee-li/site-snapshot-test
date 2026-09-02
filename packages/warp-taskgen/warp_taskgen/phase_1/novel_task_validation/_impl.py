@@ -45,7 +45,12 @@ _NOVEL_TASK_REQUIRED_FIELDS = (
     "data_seed",
     "reward_function",
 )
-_ALLOWED_GENERATE_NEW_TASKS_EVALUATORS = {"NetworkEventEvaluator", "AgentResponseEvaluator"}
+_ALLOWED_GENERATE_NEW_TASKS_EVALUATORS = {
+    "NetworkEventEvaluator",
+    "AgentResponseEvaluator",
+    "RocketChatEvaluator",
+    "RocketChatNotificationEvaluator",
+}
 _HOST_ACTION_ONLY_PLACEHOLDER_EVALUATOR = "HostActionOnlyPlaceholder"
 _MODEL_AUTHORED_HOST_METADATA_FIELDS = (
     "allowed_action_kinds",

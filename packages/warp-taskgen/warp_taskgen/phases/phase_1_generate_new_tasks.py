@@ -31,6 +31,15 @@ from warp_taskgen.phase_1.novel_task_validation import (
     validate_generated_novel_tasks,
     validate_generated_novel_tasks_detailed,
 )
+from warp_taskgen.phase_1.rocket_chat_generation import (
+    compile_phase1_rocket_chat_decision_task,
+    compile_phase1_rocket_chat_notification_task,
+    rocket_chat_decision_generation_contract,
+    rocket_chat_notification_generation_contract,
+)
+from warp_taskgen.phase_1.rocket_chat_generation_prompt import (
+    rocket_chat_generation_prompt_addendum,
+)
 from warp_taskgen.phases.phase_1_contract_bound_action_api import (
     contract_bound_tool_schema_digest,
     generate_contract_bound_action_tasks_api,
@@ -494,14 +503,29 @@ async def generate_new_tasks_for_site(
         generated_tasks = (
             _stamp_new_task_origin(raw_tasks) if isinstance(raw_tasks, list) else raw_tasks
         )
-        validated_tasks, detailed_errors = validate_generated_novel_tasks_detailed(
-            generated_tasks,
-            site_name=site.site_name,
-            profile=site.profile,
-            expected_task_count=expected_task_count,
-            route_contracts=route_contracts,
-            task_card_plan=task_card_plan,
-        )
+        try:
+            generated_tasks = _compile_phase1_model_owned_features(
+                generated_tasks,
+                task_card_plan=task_card_plan,
+            )
+        except (TypeError, ValueError) as exc:
+            detailed_errors = [
+                GeneratedTaskValidationError(
+                    code="FEATURE_GENERATION_CONTRACT_INVALID",
+                    path="$",
+                    message=str(exc),
+                )
+            ]
+            validated_tasks = []
+        else:
+            validated_tasks, detailed_errors = validate_generated_novel_tasks_detailed(
+                generated_tasks,
+                site_name=site.site_name,
+                profile=site.profile,
+                expected_task_count=expected_task_count,
+                route_contracts=route_contracts,
+                task_card_plan=task_card_plan,
+            )
         if not detailed_errors:
             try:
                 compiled_tasks = _compile_phase1_feature_tasks(
@@ -590,10 +614,49 @@ def _compile_phase1_feature_tasks(
         card = cards.get(str(task.get("task_card_id") or ""))
         if not isinstance(card, Mapping):
             compiled.append(task)
+        elif rocket_chat_notification_generation_contract(card) is not None:
+            compiled.append(compile_phase1_rocket_chat_notification_task(task, task_card=card))
+        elif rocket_chat_decision_generation_contract(card) is not None:
+            compiled.append(compile_phase1_rocket_chat_decision_task(task, task_card=card))
         elif gitlab_compare_act_generation_contract(card) is not None:
             compiled.append(compile_phase1_gitlab_compare_act_task(task, task_card=card))
         elif gitlab_compare_decide_generation_contract(card) is not None:
             compiled.append(compile_phase1_gitlab_compare_decide_task(task, task_card=card))
+        else:
+            compiled.append(task)
+    return compiled
+
+
+def _compile_phase1_model_owned_features(
+    tasks: Any,
+    *,
+    task_card_plan: dict[str, Any] | None,
+) -> Any:
+    """Compile strict semantic slots before generic task validation.
+
+    Rocket.Chat model output contains only generated facts; its feature owner
+    reconstructs every seed, evaluator, identity, and action field before the
+    ordinary Phase 1 validators see the row. Other feature compilers retain
+    their established post-validation ordering.
+    """
+
+    if not isinstance(tasks, list) or not isinstance(task_card_plan, Mapping):
+        return tasks
+    cards = {
+        str(card.get("id")): card
+        for card in task_card_plan.get("task_cards", [])
+        if isinstance(card, Mapping) and isinstance(card.get("id"), str)
+    }
+    compiled: list[Any] = []
+    for task in tasks:
+        if not isinstance(task, Mapping):
+            compiled.append(task)
+            continue
+        card = cards.get(str(task.get("task_card_id") or ""))
+        if rocket_chat_notification_generation_contract(card) is not None:
+            compiled.append(compile_phase1_rocket_chat_notification_task(task, task_card=card))
+        elif rocket_chat_decision_generation_contract(card) is not None:
+            compiled.append(compile_phase1_rocket_chat_decision_task(task, task_card=card))
         else:
             compiled.append(task)
     return compiled
@@ -814,14 +877,12 @@ def render_generate_benign_tasks_prompt(
         validation_command=f"benign-tasks --site-name {site_name}",
     )
     rendered = prompt.replace("{site_name}", site_name).replace("{num_tasks}", str(num_tasks))
-    if site_name == "gitlab" and isinstance(task_card_plan, dict):
-        # Keep the ordinary prompt unchanged unless this plan explicitly opts
-        # into the feature-owned compare generation contract.
-        from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
-            gitlab_compare_generation_prompt_addendum,
-        )
-
-        addendum = gitlab_compare_generation_prompt_addendum(task_card_plan)
+    if isinstance(task_card_plan, dict):
+        addendum = ""
+        if site_name == "gitlab":
+            addendum = gitlab_compare_generation_prompt_addendum(task_card_plan)
+        elif site_name == "rocketchat":
+            addendum = rocket_chat_generation_prompt_addendum(task_card_plan)
         if addendum:
             rendered = f"{rendered}\n\n{addendum}"
     return rendered
@@ -953,6 +1014,9 @@ def compute_generate_new_tasks_shared_inputs_fingerprint(
         ),
         "gitlab_comparison_prompt_addendum": gitlab_compare_generation_prompt_addendum(
             task_card_plan_for_site(task_card_plan, "gitlab")
+        ),
+        "rocket_chat_prompt_addendum": rocket_chat_generation_prompt_addendum(
+            task_card_plan_for_site(task_card_plan, "rocketchat")
         ),
         "contract_bound_action_tool_schema": contract_bound_tool_schema_digest(),
         "contract_bound_action_backend_env": os.environ.get(CONTRACT_BOUND_ACTION_API_ENV, ""),
