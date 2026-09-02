@@ -20,7 +20,7 @@ from warp_taskgen.phase_1.rocket_chat_contracts import (
 from warp_taskgen.phase_1.rocket_chat_task_envelope import (
     ROCKET_CHAT_CONTRACT_FIELD,
     project_rocket_chat_static_contract,
-    validate_rocket_chat_benign_task,
+    validate_rocket_chat_cross_phase_task,
 )
 from warp_taskgen.runtime_composition import Phase2RuntimeAdmission
 from warp_taskgen.sites.catalog import SiteCatalog
@@ -60,6 +60,8 @@ def rocket_chat_phase2_admission(
     *,
     site_catalog: SiteCatalog,
     reader_preflight: Callable[[Mapping[str, object]], object],
+    expected_evaluator: str = ROCKET_CHAT_EVALUATOR_NAME,
+    required_checks: tuple[str, ...] = (),
 ) -> Phase2RuntimeAdmission:
     """Check every live prerequisite before a Rocket.Chat seed can mutate.
 
@@ -94,7 +96,7 @@ def rocket_chat_phase2_admission(
         try:
             static_contract = project_rocket_chat_static_contract(task)
             if ROCKET_CHAT_CONTRACT_FIELD in task:
-                validate_rocket_chat_benign_task(task)
+                validate_rocket_chat_cross_phase_task(task)
         except (RocketChatContractError, TypeError, ValueError):
             return _failure("task_contract_invalid", f"task_{index}")
         reward = static_contract.get("reward_function")
@@ -103,7 +105,7 @@ def rocket_chat_phase2_admission(
             not isinstance(evaluations, list)
             or len(evaluations) != 1
             or not isinstance(evaluations[0], Mapping)
-            or evaluations[0].get("evaluator") != ROCKET_CHAT_EVALUATOR_NAME
+            or evaluations[0].get("evaluator") != expected_evaluator
         ):
             return _failure("unsupported_evaluator", f"task_{index}")
     for index, instance in enumerate(instances):
@@ -141,7 +143,13 @@ def rocket_chat_phase2_admission(
     return Phase2RuntimeAdmission(
         True,
         "explicit_reset_reader_and_painted_readback_contracts_admitted",
-        ("reset_endpoint", "independent_reader", "painted_readback", "warp_local_evaluator"),
+        (
+            "reset_endpoint",
+            "independent_reader",
+            "painted_readback",
+            "warp_local_evaluator",
+            *required_checks,
+        ),
     )
 
 

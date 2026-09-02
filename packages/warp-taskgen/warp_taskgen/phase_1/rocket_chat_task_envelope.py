@@ -1,4 +1,4 @@
-"""WARP task envelope for the Rocket.Chat conversation-decision feature.
+"""WARP task envelopes for the Rocket.Chat conversation workflow family.
 
 The strict static compiler remains the authority for generated conversation
 facts and finite grading.  This module owns only the adapter into WARP's
@@ -23,10 +23,15 @@ from warp_taskgen.phase_1.rocket_chat_decisions import (
     compile_rocket_chat_task,
     validate_rocket_chat_task,
 )
+from warp_taskgen.phase_1.rocket_chat_notifications import (
+    ROCKET_CHAT_NOTIFICATION_TASK_KIND,
+    compile_rocket_chat_notification_task,
+    validate_rocket_chat_notification_task,
+)
 
 ROCKET_CHAT_CONTRACT_FIELD = "rocket_chat_contract"
 
-_STATIC_TASK_KEYS = frozenset(
+_DECISION_STATIC_TASK_KEYS = frozenset(
     {
         "benchmark",
         "site",
@@ -37,6 +42,23 @@ _STATIC_TASK_KEYS = frozenset(
         "conversation",
         "response_schema",
         "expected_decision",
+        "reward_function",
+        "reader_contract",
+    }
+)
+_NOTIFICATION_STATIC_TASK_KEYS = frozenset(
+    {
+        "benchmark",
+        "site",
+        "task_kind",
+        "task_id",
+        "evaluator_authority",
+        "start_urls",
+        "conversation",
+        "response_schema",
+        "expected_decision",
+        "notification",
+        "action_contract",
         "reward_function",
         "reader_contract",
     }
@@ -55,6 +77,7 @@ _ENVELOPE_REQUIRED_KEYS = frozenset(
         ROCKET_CHAT_CONTRACT_FIELD,
     }
 )
+_CROSS_PHASE_REQUIRED_KEYS = _ENVELOPE_REQUIRED_KEYS - {"origin"}
 
 
 def project_rocket_chat_static_contract(
@@ -64,16 +87,23 @@ def project_rocket_chat_static_contract(
 
     if not isinstance(task, Mapping):
         raise RocketChatContractError("Rocket.Chat task must be a mapping")
-    if set(task) == _STATIC_TASK_KEYS:
-        validate_rocket_chat_task(task)
+    if frozenset(task) in {_DECISION_STATIC_TASK_KEYS, _NOTIFICATION_STATIC_TASK_KEYS}:
+        _validate_static_contract(task)
         return task
     nested = task.get(ROCKET_CHAT_CONTRACT_FIELD)
     if not isinstance(nested, Mapping):
         raise RocketChatContractError(
             f"Rocket.Chat WARP task requires {ROCKET_CHAT_CONTRACT_FIELD!r}"
         )
-    validate_rocket_chat_task(nested)
+    _validate_static_contract(nested)
     return nested
+
+
+def _validate_static_contract(task: Mapping[str, object]) -> None:
+    if task.get("task_kind") == ROCKET_CHAT_NOTIFICATION_TASK_KIND:
+        validate_rocket_chat_notification_task(task)
+        return
+    validate_rocket_chat_task(task)
 
 
 def _expected_seed(static: Mapping[str, object]) -> dict[str, object]:
@@ -109,12 +139,14 @@ def _expected_seed(static: Mapping[str, object]) -> dict[str, object]:
     }
 
 
-def validate_rocket_chat_benign_task(task: Mapping[str, object]) -> None:
-    """Validate the feature's cross-phase envelope and its static projection."""
-
+def _validate_rocket_chat_envelope_fields(
+    task: Mapping[str, object],
+    *,
+    required_keys: frozenset[str],
+) -> Mapping[str, object]:
     if not isinstance(task, Mapping):
         raise RocketChatContractError("Rocket.Chat WARP task must be a mapping")
-    missing = _ENVELOPE_REQUIRED_KEYS - set(task)
+    missing = required_keys - set(task)
     if missing:
         raise RocketChatContractError(
             "Rocket.Chat WARP task is missing fields: "
@@ -122,8 +154,6 @@ def validate_rocket_chat_benign_task(task: Mapping[str, object]) -> None:
         )
     _identity(task["id"], field="WARP task id")
     _text(task["instruction"], field="WARP task instruction", max_length=1000)
-    if task["origin"] != "new_task":
-        raise RocketChatContractError("Rocket.Chat WARP task origin must be new_task")
     if task["benchmark"] != ROCKET_CHAT_BENCHMARK:
         raise RocketChatContractError("Rocket.Chat WARP task Benchmark is inconsistent")
     if task["site"] != ROCKET_CHAT_SITE or task["sites"] != [ROCKET_CHAT_SITE]:
@@ -134,10 +164,44 @@ def validate_rocket_chat_benign_task(task: Mapping[str, object]) -> None:
     static = project_rocket_chat_static_contract(task)
     if task["start_urls"] != static["start_urls"]:
         raise RocketChatContractError("Rocket.Chat WARP task start URLs drifted")
-    if task["reward_function"] != static["reward_function"]:
-        raise RocketChatContractError("Rocket.Chat WARP task reward drifted")
     if task["data_seed"] != _expected_seed(static):
         raise RocketChatContractError("Rocket.Chat WARP task seed drifted")
+    return static
+
+
+def validate_rocket_chat_benign_task(task: Mapping[str, object]) -> None:
+    """Validate the feature's benign envelope and its static projection."""
+
+    static = _validate_rocket_chat_envelope_fields(
+        task,
+        required_keys=_ENVELOPE_REQUIRED_KEYS,
+    )
+    if task["origin"] != "new_task":
+        raise RocketChatContractError("Rocket.Chat WARP task origin must be new_task")
+    if task["reward_function"] != static["reward_function"]:
+        raise RocketChatContractError("Rocket.Chat WARP task reward drifted")
+
+
+def validate_rocket_chat_cross_phase_task(task: Mapping[str, object]) -> None:
+    """Validate benign or Phase 2 composite envelopes without reward confusion."""
+
+    static = _validate_rocket_chat_envelope_fields(
+        task,
+        required_keys=_CROSS_PHASE_REQUIRED_KEYS,
+    )
+    reward = task["reward_function"]
+    if reward == static["reward_function"]:
+        validate_rocket_chat_benign_task(task)
+        return
+    if not isinstance(reward, Mapping):
+        raise RocketChatContractError("Rocket.Chat Phase 2 reward must be a mapping")
+    if reward.get("benign_reward") != static["reward_function"]:
+        raise RocketChatContractError("Rocket.Chat Phase 2 benign reward drifted")
+    adversarial_reward = reward.get("adversarial_reward")
+    if not isinstance(adversarial_reward, Mapping) or not adversarial_reward:
+        raise RocketChatContractError(
+            "Rocket.Chat Phase 2 task requires a non-empty adversarial reward"
+        )
 
 
 def compile_rocket_chat_benign_task(
@@ -148,13 +212,42 @@ def compile_rocket_chat_benign_task(
 ) -> dict[str, object]:
     """Compile one generated conversation into the normal WARP task shape."""
 
+    static = compile_rocket_chat_task(conversation)
+    return _compile_rocket_chat_benign_envelope(
+        static,
+        task_id=task_id,
+        instruction=instruction,
+    )
+
+
+def compile_rocket_chat_notification_benign_task(
+    conversation: RocketChatConversation,
+    *,
+    task_id: str,
+    instruction: str,
+) -> dict[str, object]:
+    """Compile one generated notification behavior into a normal WARP task."""
+
+    static = compile_rocket_chat_notification_task(conversation)
+    return _compile_rocket_chat_benign_envelope(
+        static,
+        task_id=task_id,
+        instruction=instruction,
+    )
+
+
+def _compile_rocket_chat_benign_envelope(
+    static: Mapping[str, object],
+    *,
+    task_id: str,
+    instruction: str,
+) -> dict[str, object]:
     stable_id = _identity(task_id, field="WARP task id")
     task_instruction = _text(
         instruction,
         field="WARP task instruction",
         max_length=1000,
     )
-    static = compile_rocket_chat_task(conversation)
     task: dict[str, object] = {
         "id": stable_id,
         "origin": "new_task",
@@ -174,6 +267,8 @@ def compile_rocket_chat_benign_task(
 __all__ = [
     "ROCKET_CHAT_CONTRACT_FIELD",
     "compile_rocket_chat_benign_task",
+    "compile_rocket_chat_notification_benign_task",
     "project_rocket_chat_static_contract",
     "validate_rocket_chat_benign_task",
+    "validate_rocket_chat_cross_phase_task",
 ]

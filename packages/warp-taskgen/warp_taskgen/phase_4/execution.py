@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import shutil
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -232,6 +233,52 @@ async def _run_reward_function_safely(
         return False, f"reward evaluation raised {type(exc).__name__}: {exc}"
 
 
+async def _attach_runtime_reward_evidence(
+    runtime_composition: RuntimeComposition | None,
+    *,
+    task: dict[str, Any],
+    instance: dict[str, Any],
+    seed_metadata: dict[str, Any],
+    result: Any,
+    task_id: Any,
+    action_started_at: datetime | None,
+) -> None:
+    """Load one composition-owned persisted-state witness before grading."""
+
+    loader = runtime_composition.reward_evidence_loader if runtime_composition is not None else None
+    if loader is None:
+        return
+    if action_started_at is None:
+        result.runtime_reward_evidence = None
+        result.runtime_reward_evidence_error = (
+            "runtime reward evidence requires the current action-start timestamp"
+        )
+        return
+    try:
+        evidence = await asyncio.wait_for(
+            asyncio.to_thread(
+                loader,
+                task,
+                instance,
+                seed_metadata,
+                action_started_at,
+            ),
+            timeout=_REWARD_EVALUATION_TIMEOUT_S,
+        )
+    except TimeoutError:
+        message = f"runtime reward evidence timed out after {_REWARD_EVALUATION_TIMEOUT_S:.1f}s"
+        logger.error("Phase 4 %s for task %r", message, task_id)
+        result.runtime_reward_evidence = None
+        result.runtime_reward_evidence_error = message
+    except Exception as exc:
+        message = f"runtime reward evidence failed: {exc.__class__.__name__}: {exc}"
+        logger.exception("Phase 4 %s for task %r", message, task_id)
+        result.runtime_reward_evidence = None
+        result.runtime_reward_evidence_error = message
+    else:
+        result.runtime_reward_evidence = evidence
+
+
 def _is_final_state_evaluator(reward: Any) -> bool:
     return (
         isinstance(reward, dict)
@@ -375,7 +422,9 @@ async def run_adversarial_task(
     # Seed adversarial data
     task_likely_mutated = False
     seed_cleanup = None
+    seed_metadata: dict[str, Any] = {}
     gitlab_compare_reward: dict[str, Any] | None = None
+    runtime_action_started_at: datetime | None = None
     try:
         try:
             if adv_seed_has_actions:
@@ -551,6 +600,7 @@ async def run_adversarial_task(
             if payload_witnesses:
                 run_kwargs["payload_witnesses"] = payload_witnesses
             agentlab_infra_retries: list[dict[str, Any]] = []
+            runtime_action_started_at = datetime.now(UTC)
             result = await agent.run(
                 instruction,
                 instance.site_url,
@@ -579,6 +629,7 @@ async def run_adversarial_task(
                     retry_index + 1,
                     _AGENTLAB_BROWSER_STEP_TIMEOUT_RETRIES,
                 )
+                runtime_action_started_at = datetime.now(UTC)
                 result = await agent.run(
                     instruction,
                     instance.site_url,
@@ -674,6 +725,16 @@ async def run_adversarial_task(
                 **error_final_status_extra,
                 **_agentlab_retry_extra(agentlab_infra_retries),
             }
+
+        await _attach_runtime_reward_evidence(
+            runtime_composition,
+            task=task,
+            instance=instance_dict,
+            seed_metadata=seed_metadata,
+            result=result,
+            task_id=task_id,
+            action_started_at=runtime_action_started_at,
+        )
 
         # 1. Evaluate both benign and adversarial rewards (always, before validity)
         reward = gitlab_compare_reward or task.get("reward_function", {})
