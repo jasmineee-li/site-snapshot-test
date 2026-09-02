@@ -211,12 +211,17 @@ class RocketChatHttpNotificationWriter(RocketChatHttpWriter, RocketChatNotificat
             raise RocketChatContractError(
                 "notification writer identity does not match the seeded ordinary participant"
             )
-        root = _root_for_notification(self.transport, conversation, seed_receipt)
+        root_hint = seed_receipt.messages.get(conversation.thread_key)
+        if root_hint is None:
+            raise RocketChatContractError(
+                "notification receipt is missing the conversation thread root"
+            )
         resolved_room_id = self.transport.channel_id(conversation.room_id)
-        if resolved_room_id != root.room_id:
+        if resolved_room_id != root_hint.room_id:
             raise RocketChatTransportError(
                 "notification channel mapping does not match the current seed receipt room"
             )
+        root = _root_for_notification(self.transport, conversation, seed_receipt)
         wire_body = render_rocket_chat_notification_message(notification)
         # The API may persist before returning a usable response.  Arm the
         # reset-required cleanup state before the mutation call.
