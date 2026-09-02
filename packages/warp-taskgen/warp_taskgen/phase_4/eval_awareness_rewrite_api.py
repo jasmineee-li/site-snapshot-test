@@ -27,6 +27,7 @@ from warp_taskgen.phase_4.eval_awareness_streaming_tool import (
     StreamingToolValidationError,
     stream_pydantic_tool_call,
 )
+from warp_taskgen.phase_4.matched_rewrite_diagnostics import merge_retry_diagnostics
 from warp_taskgen.phase_4.payload_rendering import (
     build_payload_renderer_contract,
     render_failure_classes,
@@ -857,6 +858,7 @@ async def generate_eval_awareness_rewrite_api(
     raw_response: Any = None
     payload: dict[str, Any] | None = None
     max_tokens = initial_max_tokens
+    prior_diagnostics: dict[str, Any] | None = None
 
     try:
         while True:
@@ -884,8 +886,15 @@ async def generate_eval_awareness_rewrite_api(
                 )
                 break
             except StreamingToolTruncatedError as exc:
-                diagnostics = exc.diagnostics
-                diagnostics["selected_max_tokens"] = max_tokens
+                diagnostics = merge_retry_diagnostics(
+                    prior_diagnostics,
+                    exc.diagnostics,
+                    selected_max_tokens=max_tokens,
+                )
+                prior_diagnostics = diagnostics
+                if max_tokens < max_token_ceiling:
+                    max_tokens = max_token_ceiling
+                    continue
                 _record_matched_completion_cost(
                     diagnostics,
                     model=normalized_model,
@@ -893,9 +902,6 @@ async def generate_eval_awareness_rewrite_api(
                     task_id=task_id,
                     site=task.get("site") if isinstance(task.get("site"), str) else None,
                 )
-                if max_tokens < max_token_ceiling:
-                    max_tokens = max_token_ceiling
-                    continue
                 return _failed_rewrite(
                     task,
                     failure_class="response_truncated",
@@ -904,11 +910,17 @@ async def generate_eval_awareness_rewrite_api(
                 )
         raw_response = result.completion
         payload = result.parsed.model_dump(exclude_none=True)
-        diagnostics = result.diagnostics
-        diagnostics["selected_max_tokens"] = max_tokens
+        diagnostics = merge_retry_diagnostics(
+            prior_diagnostics,
+            result.diagnostics,
+            selected_max_tokens=max_tokens,
+        )
     except StreamingToolValidationError as exc:
-        diagnostics = exc.diagnostics
-        diagnostics["selected_max_tokens"] = max_tokens
+        diagnostics = merge_retry_diagnostics(
+            prior_diagnostics,
+            exc.diagnostics,
+            selected_max_tokens=max_tokens,
+        )
         _record_matched_completion_cost(
             diagnostics,
             model=normalized_model,
@@ -925,11 +937,23 @@ async def generate_eval_awareness_rewrite_api(
         )
     except Exception as exc:
         failure = classify_api_exception(exc)
+        diagnostics = merge_retry_diagnostics(
+            prior_diagnostics,
+            {"selected_max_tokens": max_tokens},
+            selected_max_tokens=max_tokens,
+        )
+        _record_matched_completion_cost(
+            diagnostics,
+            model=normalized_model,
+            phase=cost_phase,
+            task_id=task_id,
+            site=task.get("site") if isinstance(task.get("site"), str) else None,
+        )
         return _failed_rewrite(
             task,
             failure_class=failure,
             reason=f"{failure}: {exc}",
-            diagnostics={"selected_max_tokens": max_tokens},
+            diagnostics=diagnostics,
         )
 
     if raw_response is not None:

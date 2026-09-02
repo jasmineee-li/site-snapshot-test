@@ -455,6 +455,9 @@ class Phase4Runtime:
     browser_worker_semaphore: object | None = None
     runtime_composition: object | None = None
     host_client: object | None = None
+    browser_model: str | None = None
+    browser_provider: str | None = None
+    browser_runner: str = "agentlab"
 
 
 __all__ = [

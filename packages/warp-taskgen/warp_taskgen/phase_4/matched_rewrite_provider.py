@@ -374,6 +374,7 @@ class ExistingPhase4AttemptAdapter:
         from warp_taskgen.phase_4.variant_eval import _evaluate_variant
 
         namespace = self.runtime.task_dir_root / request.artifact_namespace
+        policy = self._call_policy(request)
         result = await _evaluate_variant(
             request.baseline_task,
             request.variant_task,
@@ -384,7 +385,7 @@ class ExistingPhase4AttemptAdapter:
             self.runtime.agent_factory,
             namespace,
             benchmark_root=self.runtime.benchmark_root,
-            sandbox_model=self._call_policy(request).model,
+            sandbox_model=policy.model,
             site_profile=self.runtime.site_profile,
             agent_execution=self.runtime.agent_execution,
             browser_worker_semaphore=self.runtime.browser_worker_semaphore,
@@ -401,7 +402,14 @@ class ExistingPhase4AttemptAdapter:
         return BrowserOutcome(
             status="ok",
             result=output,
-            usage=browser_usage(output),
+            usage=browser_usage(
+                output,
+                artifact_dir=namespace,
+                expected_model=self.runtime.browser_model or policy.model,
+                expected_provider=self.runtime.browser_provider
+                or policy.provider,
+                expected_runner=self.runtime.browser_runner,
+            ),
             diagnostics=_json_object(output.get("api_diagnostics")),
         )
 
