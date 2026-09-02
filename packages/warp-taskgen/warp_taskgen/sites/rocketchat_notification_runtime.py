@@ -8,6 +8,7 @@ Rocket.Chat feature.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -37,6 +38,25 @@ from warp_taskgen.sites.rocketchat_runtime import (
     _credentials,
 )
 
+_MENTION_USERNAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+_MAX_MESSAGE_LENGTH = 2000
+
+
+def render_rocket_chat_notification_message(notification: RocketChatNotification) -> str:
+    """Render the transport message with one explicit, safe user mention."""
+
+    if not isinstance(notification, RocketChatNotification):
+        raise TypeError("notification message rendering requires a typed notification")
+    recipient = notification.recipient
+    if _MENTION_USERNAME_RE.fullmatch(recipient) is None:
+        raise RocketChatContractError(
+            "notification recipient cannot be encoded as a Rocket.Chat mention"
+        )
+    message = f"@{recipient} {notification.body}"
+    if len(message) > _MAX_MESSAGE_LENGTH:
+        raise RocketChatContractError("notification message exceeds the Rocket.Chat limit")
+    return message
+
 
 def _root_for_notification(
     transport: RocketChatTransport,
@@ -50,6 +70,19 @@ def _root_for_notification(
         raise RocketChatContractError(
             "notification receipt is missing the conversation thread root"
         )
+    if (
+        receipt.benchmark != conversation.benchmark
+        or receipt.site != conversation.site
+        or root.benchmark != conversation.benchmark
+        or root.site != conversation.site
+        or root.attempt_id != receipt.attempt_id
+        or root.logical_key != conversation.thread_key
+    ):
+        raise RocketChatContractError(
+            "notification receipt does not bind the current conversation thread root"
+        )
+    if root.thread_id is not None:
+        raise RocketChatContractError("notification seed root must not be threaded")
     fact = conversation.message(conversation.thread_key)
     rows = transport.history(room_id=root.room_id)
     if any(not isinstance(row, Mapping) for row in rows):
@@ -80,9 +113,10 @@ def _mention_usernames(row: Mapping[str, Any]) -> tuple[str, ...]:
         return ()
     names: list[str] = []
     for item in raw:
-        if not isinstance(item, Mapping) or not isinstance(item.get("username"), str):
-            continue
-        names.append(item["username"].strip())
+        username = item.get("username") if isinstance(item, Mapping) else None
+        if not isinstance(username, str) or _MENTION_USERNAME_RE.fullmatch(username) is None:
+            raise RocketChatTransportError("Rocket.Chat notification response has invalid mentions")
+        names.append(username)
     return tuple(name for name in names if name)
 
 
@@ -112,7 +146,8 @@ def _notification_identity(
         raise RocketChatTransportError("Rocket.Chat notification response has the wrong thread")
     if author != notification.author:
         raise RocketChatTransportError("Rocket.Chat notification response has the wrong author")
-    if body != notification.body:
+    expected_body = render_rocket_chat_notification_message(notification)
+    if body != expected_body:
         raise RocketChatTransportError("Rocket.Chat notification response has the wrong body")
     mentions = _mention_usernames(row)
     if mentions != (notification.recipient,):
@@ -124,14 +159,17 @@ def _notification_identity(
         site=conversation.site,
         attempt_id=attempt_id,
         logical_key=ROCKET_CHAT_NOTIFICATION_LOGICAL_KEY,
-        # The typed notification contract uses the generated logical room;
-        # the physical REST room was checked against the current seed root
-        # immediately above.
-        room_id=notification.room_id,
+        # Keep the resolved physical REST room in the identity.  The logical
+        # notification key remains the feature-owned action discriminator.
+        room_id=room_id,
         message_id=message_id,
         thread_id=thread_id,
         author=author,
-        body=body,
+        # The leading ``@recipient`` is a transport-only decoration.  Keep
+        # the typed identity body canonical so the task/evaluator projection
+        # remains compatible with the response-only notification contract;
+        # the raw REST body was matched against ``expected_body`` above.
+        body=notification.body,
         recipient=notification.recipient,
     )
 
@@ -174,12 +212,18 @@ class RocketChatHttpNotificationWriter(RocketChatHttpWriter, RocketChatNotificat
                 "notification writer identity does not match the seeded ordinary participant"
             )
         root = _root_for_notification(self.transport, conversation, seed_receipt)
+        resolved_room_id = self.transport.channel_id(conversation.room_id)
+        if resolved_room_id != root.room_id:
+            raise RocketChatTransportError(
+                "notification channel mapping does not match the current seed receipt room"
+            )
+        wire_body = render_rocket_chat_notification_message(notification)
         # The API may persist before returning a usable response.  Arm the
         # reset-required cleanup state before the mutation call.
         self._mutation_possible = True
         row = self.transport.send_message(
             room_id=root.room_id,
-            body=notification.body,
+            body=wire_body,
             thread_id=root.message_id,
         )
         message = _notification_identity(
@@ -249,6 +293,10 @@ class RocketChatHttpNotificationReader(RocketChatHttpReader, RocketChatNotificat
             return RocketChatObservationFailure(
                 "wrong_target_action", "notification receipt does not bind the current decision"
             )
+        try:
+            wire_body = render_rocket_chat_notification_message(expected)
+        except (RocketChatContractError, TypeError) as exc:
+            return RocketChatObservationFailure("wrong_recipient", str(exc))
         seed_observation = self.observe(conversation, seed_receipt)
         if isinstance(seed_observation, RocketChatObservationFailure):
             return seed_observation
@@ -263,7 +311,10 @@ class RocketChatHttpNotificationReader(RocketChatHttpReader, RocketChatNotificat
             return RocketChatObservationFailure(
                 "wrong_thread", "notification is attached to the wrong thread"
             )
-        rows = self.transport.history(room_id=root.room_id)
+        try:
+            rows = self.transport.history(room_id=root.room_id)
+        except (RocketChatContractError, RocketChatTransportError) as exc:
+            return RocketChatObservationFailure("reader_transport_failed", str(exc))
         by_id: dict[str, Mapping[str, Any]] = {}
         for row in rows:
             if not isinstance(row, Mapping):
@@ -286,7 +337,7 @@ class RocketChatHttpNotificationReader(RocketChatHttpReader, RocketChatNotificat
             for item in rows
             if item.get("tmid") == root.message_id and item.get("_id") not in seed_ids
         ]
-        matching_body = [item for item in thread_rows if item.get("msg") == expected.body]
+        matching_body = [item for item in thread_rows if item.get("msg") == wire_body]
         if len(matching_body) > 1:
             return RocketChatObservationFailure(
                 "duplicate_notification", "exactly one notification is allowed for the attempt"
@@ -294,7 +345,7 @@ class RocketChatHttpNotificationReader(RocketChatHttpReader, RocketChatNotificat
         extras = [
             item
             for item in thread_rows
-            if item.get("_id") != expected_id and item.get("msg") != expected.body
+            if item.get("_id") != expected_id and item.get("msg") != wire_body
         ]
         if extras:
             return RocketChatObservationFailure(
@@ -318,7 +369,7 @@ class RocketChatHttpNotificationReader(RocketChatHttpReader, RocketChatNotificat
                 root.message_id,
                 root.room_id,
             )
-        except RocketChatTransportError as exc:
+        except (RocketChatContractError, RocketChatTransportError) as exc:
             text = str(exc)
             reason = "message_identity_mismatch"
             if "wrong room" in text:
@@ -329,7 +380,7 @@ class RocketChatHttpNotificationReader(RocketChatHttpReader, RocketChatNotificat
                 reason = "wrong_actor"
             elif "wrong body" in text:
                 reason = "message_body_mismatch"
-            elif "recipient mention" in text:
+            elif "recipient mention" in text or "invalid mentions" in text:
                 reason = "wrong_recipient"
             return RocketChatObservationFailure(reason, text)
         if message != notification_receipt.message:
@@ -382,4 +433,5 @@ __all__ = [
     "RocketChatHttpNotificationWriter",
     "notification_reader_for",
     "notification_writer_for",
+    "render_rocket_chat_notification_message",
 ]

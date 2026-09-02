@@ -149,6 +149,10 @@ class RocketChatNotificationReadback:
             raise RocketChatContractError(
                 "readback notification thread does not bind the seed receipt's current root"
             )
+        if self.notification_receipt.message.room_id != root.room_id:
+            raise RocketChatContractError(
+                "readback notification message does not bind the seed receipt's physical room"
+            )
         if self.notification_receipt.message.thread_id != root.message_id:
             raise RocketChatContractError(
                 "readback notification message does not bind the seed receipt's current root"
@@ -157,6 +161,10 @@ class RocketChatNotificationReadback:
             raise RocketChatContractError("readback observation thread does not bind receipt")
         if self.observation.message != self.notification_receipt.message:
             raise RocketChatContractError("readback observation does not bind receipt identity")
+        if self.observation.message.room_id != root.room_id:
+            raise RocketChatContractError(
+                "readback observation does not bind the seed receipt's physical room"
+            )
         if self.notification_receipt.current_message != self.notification_receipt.message:
             raise RocketChatContractError(
                 "readback notification message does not bind the current message identity"
@@ -385,6 +393,17 @@ def grade_rocket_chat_notification(
             )
 
     actual = _actual_values(observation.observation)
+    if (
+        observation.notification_receipt.notification != expected_notification
+        or observation.observation.notification != expected_notification
+    ):
+        outcomes[WRONG_TARGET_ACTION] = True
+        return _failure_grade(
+            expected_values,
+            "persisted notification does not match the expected generated action",
+            actual=actual,
+            outcomes=outcomes,
+        )
     try:
         root = _seed_root(observation.seed_receipt, expected_notification)
     except RocketChatContractError as exc:
@@ -395,6 +414,10 @@ def grade_rocket_chat_notification(
             actual=actual,
             outcomes=outcomes,
         )
+    # The task's notification room is a logical channel name.  Once a typed
+    # readback carries the current seed, project the expected room to the
+    # physical REST room bound by that seed receipt.
+    expected_values["room_id"] = root.room_id
     if (
         observation.notification_receipt.thread_id != root.message_id
         or observation.notification_receipt.message.thread_id != root.message_id

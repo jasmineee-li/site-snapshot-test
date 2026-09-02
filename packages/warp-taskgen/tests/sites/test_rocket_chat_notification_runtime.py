@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
-from warp_taskgen.phase_1.rocket_chat_contracts import RocketChatObservationFailure
+from warp_taskgen.phase_1.rocket_chat_contracts import (
+    RocketChatContractError,
+    RocketChatObservationFailure,
+)
 from warp_taskgen.phase_1.rocket_chat_decisions import generate_rocket_chat_conversation
 from warp_taskgen.phase_1.rocket_chat_notification_evaluator import (
     CONTENT_PROPAGATION,
@@ -24,8 +28,10 @@ from warp_taskgen.rewards import run_reward_function
 from warp_taskgen.sites.rocketchat_notification_runtime import (
     RocketChatHttpNotificationReader,
     RocketChatHttpNotificationWriter,
+    render_rocket_chat_notification_message,
 )
 from warp_taskgen.sites.rocketchat_runtime import (
+    RequestsRocketChatTransport,
     RocketChatAuthSession,
     RocketChatCredentials,
     RocketChatHttpWriter,
@@ -34,15 +40,22 @@ from warp_taskgen.sites.rocketchat_runtime import (
 
 
 @dataclass
-class MentioningTransport:
+class RowsTransport:
+    """In-memory rows transport; response mentions are explicit fixtures."""
+
     rows: list[dict[str, Any]] | None = None
     sender_username: str = "planner"
     next_id: int = 0
     login_count: int = 0
     fail_notification: bool = False
+    response_mentions: Mapping[str, list[dict[str, str]]] | None = None
+    sent_messages: list[dict[str, Any]] | None = None
+    history_calls: int = 0
+    fail_on_history: int | None = None
 
     def __post_init__(self) -> None:
         self.rows = [] if self.rows is None else self.rows
+        self.sent_messages = [] if self.sent_messages is None else self.sent_messages
 
     def login(self, credentials: RocketChatCredentials) -> RocketChatAuthSession:
         self.login_count += 1
@@ -60,6 +73,7 @@ class MentioningTransport:
         self, *, room_id: str, body: str, thread_id: str | None = None
     ) -> dict[str, Any]:
         self.next_id += 1
+        self.sent_messages.append({"room_id": room_id, "body": body, "thread_id": thread_id})
         row: dict[str, Any] = {
             "_id": f"message-{self.next_id}",
             "rid": room_id,
@@ -68,16 +82,74 @@ class MentioningTransport:
         }
         if thread_id is not None:
             row["tmid"] = thread_id
-        if body.startswith("Current decision:"):
-            row["mentions"] = [{"username": "Priya"}]
+        if self.response_mentions is not None and body in self.response_mentions:
+            row["mentions"] = [dict(item) for item in self.response_mentions[body]]
         self.rows.append(row)
-        if self.fail_notification and body.startswith("Current decision:"):
+        if self.fail_notification and body.startswith("@"):
             raise RocketChatTransportError("notification write failed after persistence")
         return row
 
     def history(self, *, room_id: str):
         del room_id
+        self.history_calls += 1
+        if self.fail_on_history == self.history_calls:
+            raise RocketChatTransportError("notification history read failed")
         return tuple(self.rows)
+
+
+@dataclass
+class RecordingSession:
+    """Production-shaped REST server response with explicit mention fixtures."""
+
+    mentions_by_body: Mapping[str, list[dict[str, str]]]
+    rows: list[dict[str, Any]] | None = None
+    calls: list[dict[str, Any]] | None = None
+    next_id: int = 0
+    response_bodies: Mapping[str, str] | None = None
+
+    def __post_init__(self) -> None:
+        self.rows = [] if self.rows is None else self.rows
+        self.calls = [] if self.calls is None else self.calls
+
+    def request(self, method: str, url: str, **kwargs: Any) -> FakeResponse:
+        self.calls.append({"method": method, "url": url, **kwargs})
+        if url.endswith("/api/v1/login"):
+            username = kwargs["json"]["user"]
+            return FakeResponse(
+                {
+                    "status": "success",
+                    "data": {"authToken": f"token-{username}", "userId": f"uid-{username}"},
+                }
+            )
+        if url.endswith("/api/v1/channels.info"):
+            return FakeResponse({"success": True, "channel": {"_id": "physical-room-001"}})
+        if url.endswith("/api/v1/chat.sendMessage"):
+            message = dict(kwargs["json"]["message"])
+            self.next_id += 1
+            row = {
+                **message,
+                "_id": f"message-{self.next_id}",
+                "u": {"username": "planner"},
+            }
+            if self.response_bodies is not None and message["msg"] in self.response_bodies:
+                row["msg"] = self.response_bodies[message["msg"]]
+            mentions = self.mentions_by_body.get(message["msg"])
+            if mentions is not None:
+                row["mentions"] = [dict(item) for item in mentions]
+            self.rows.append(row)
+            return FakeResponse({"success": True, "message": row})
+        if url.endswith("/api/v1/channels.history"):
+            return FakeResponse({"success": True, "messages": list(self.rows)})
+        raise AssertionError(url)
+
+
+@dataclass
+class FakeResponse:
+    payload: Mapping[str, Any]
+    status_code: int = 200
+
+    def json(self) -> Mapping[str, Any]:
+        return self.payload
 
 
 def _instance() -> dict[str, object]:
@@ -90,14 +162,17 @@ def _instance() -> dict[str, object]:
 
 def _seed_and_notification():
     conversation = generate_rocket_chat_conversation()
-    writer_transport = MentioningTransport()
+    notification = derive_rocket_chat_notification(conversation)
+    wire_body = render_rocket_chat_notification_message(notification)
+    writer_transport = RowsTransport(
+        response_mentions={wire_body: [{"username": notification.recipient}]}
+    )
     seed_receipt = RocketChatHttpWriter(_instance(), transport=writer_transport).seed_conversation(
         conversation
     )
-    notification = derive_rocket_chat_notification(conversation)
     writer = RocketChatHttpNotificationWriter(_instance(), transport=writer_transport)
     receipt = writer.send_notification(conversation, seed_receipt, notification)
-    reader_transport = MentioningTransport(rows=writer_transport.rows, sender_username="reviewer")
+    reader_transport = RowsTransport(rows=writer_transport.rows, sender_username="reviewer")
     reader = RocketChatHttpNotificationReader(_instance(), transport=reader_transport)
     return conversation, notification, seed_receipt, receipt, writer, reader, writer_transport
 
@@ -112,10 +187,142 @@ def test_production_notification_writer_and_reader_bind_exact_persisted_identity
 
     assert grade.ok is True
     assert receipt.message_id == transport.rows[-1]["_id"]
+    assert transport.sent_messages[-1]["body"] == (
+        "@Priya Current decision: owner=Priya; due_date=2026-09-18."
+    )
+    assert receipt.message.room_id == "physical-room-001"
+    assert observation.message.room_id == "physical-room-001"
+    assert grade.actual["room_id"] == "physical-room-001"
+    assert grade.expected["room_id"] == "physical-room-001"
     assert transport.rows[-1]["mentions"] == [{"username": "Priya"}]
     assert writer._mutation_possible is True
     with pytest.raises(RuntimeError, match="reset/admin seam"):
         writer.cleanup()
+
+
+def test_requests_transport_sends_explicit_mention_and_reads_server_mentions() -> None:
+    conversation = generate_rocket_chat_conversation()
+    notification = derive_rocket_chat_notification(conversation)
+    wire_body = render_rocket_chat_notification_message(notification)
+    session = RecordingSession(mentions_by_body={wire_body: [{"username": notification.recipient}]})
+    transport = RequestsRocketChatTransport("http://rocketchat.test", session=session)
+    seed = RocketChatHttpWriter(_instance(), transport=transport).seed_conversation(conversation)
+    receipt = RocketChatHttpNotificationWriter(_instance(), transport=transport).send_notification(
+        conversation, seed, notification
+    )
+
+    send_calls = [
+        call for call in session.calls if call["url"].endswith("/api/v1/chat.sendMessage")
+    ]
+    assert send_calls[-1]["json"]["message"]["msg"] == wire_body
+    assert send_calls[-1]["json"]["message"]["msg"].startswith("@Priya ")
+    assert session.rows[-1]["mentions"] == [{"username": "Priya"}]
+    assert receipt.message.body == notification.body
+
+    reader_transport = RequestsRocketChatTransport("http://rocketchat.test", session=session)
+    observation = RocketChatHttpNotificationReader(
+        _instance(), transport=reader_transport
+    ).observe_notification(conversation, seed, receipt)
+    assert not isinstance(observation, RocketChatObservationFailure)
+    assert observation.message.room_id == "physical-room-001"
+
+    session.rows[-1]["mentions"] = [{"username": "Alex"}]
+    wrong_recipient = RocketChatHttpNotificationReader(
+        _instance(), transport=reader_transport
+    ).observe_notification(conversation, seed, receipt)
+    assert isinstance(wrong_recipient, RocketChatObservationFailure)
+    assert wrong_recipient.reason == "wrong_recipient"
+
+
+def test_requests_transport_rejects_missing_server_mention() -> None:
+    conversation = generate_rocket_chat_conversation()
+    notification = derive_rocket_chat_notification(conversation)
+    wire_body = render_rocket_chat_notification_message(notification)
+    session = RecordingSession(mentions_by_body={})
+    transport = RequestsRocketChatTransport("http://rocketchat.test", session=session)
+    seed = RocketChatHttpWriter(_instance(), transport=transport).seed_conversation(conversation)
+
+    with pytest.raises(RocketChatTransportError, match="exactly the intended recipient"):
+        RocketChatHttpNotificationWriter(_instance(), transport=transport).send_notification(
+            conversation, seed, notification
+        )
+    send_calls = [
+        call for call in session.calls if call["url"].endswith("/api/v1/chat.sendMessage")
+    ]
+    assert send_calls[-1]["json"]["message"]["msg"] == wire_body
+
+
+def test_requests_transport_rejects_plain_response_body_without_mention() -> None:
+    conversation = generate_rocket_chat_conversation()
+    notification = derive_rocket_chat_notification(conversation)
+    wire_body = render_rocket_chat_notification_message(notification)
+    session = RecordingSession(
+        mentions_by_body={wire_body: [{"username": notification.recipient}]},
+        response_bodies={wire_body: notification.body},
+    )
+    transport = RequestsRocketChatTransport("http://rocketchat.test", session=session)
+    seed = RocketChatHttpWriter(_instance(), transport=transport).seed_conversation(conversation)
+
+    with pytest.raises(RocketChatTransportError, match="wrong body"):
+        RocketChatHttpNotificationWriter(_instance(), transport=transport).send_notification(
+            conversation, seed, notification
+        )
+    send_calls = [
+        call for call in session.calls if call["url"].endswith("/api/v1/chat.sendMessage")
+    ]
+    assert send_calls[-1]["json"]["message"]["msg"] == wire_body
+
+
+def test_notification_message_rejects_unsafe_recipient_mentions() -> None:
+    conversation = generate_rocket_chat_conversation(corrected_owner="Priya Lee")
+    notification = derive_rocket_chat_notification(conversation)
+
+    with pytest.raises(RocketChatContractError, match="cannot be encoded"):
+        render_rocket_chat_notification_message(notification)
+
+
+def test_writer_rejects_changed_logical_to_physical_room_before_send() -> None:
+    conversation = generate_rocket_chat_conversation()
+    notification = derive_rocket_chat_notification(conversation)
+
+    class MappingDriftTransport(RowsTransport):
+        channel_calls: int = 0
+
+        def channel_id(self, channel: str) -> str:
+            self.channel_calls += 1
+            assert channel == conversation.room_id
+            return "physical-room-001" if self.channel_calls == 1 else "foreign-room"
+
+    wire_body = render_rocket_chat_notification_message(notification)
+    transport = MappingDriftTransport(
+        response_mentions={wire_body: [{"username": notification.recipient}]}
+    )
+    seed = RocketChatHttpWriter(_instance(), transport=transport).seed_conversation(conversation)
+
+    with pytest.raises(RocketChatTransportError, match="mapping"):
+        RocketChatHttpNotificationWriter(_instance(), transport=transport).send_notification(
+            conversation, seed, notification
+        )
+    assert len(transport.rows) == len(conversation.messages)
+    assert transport.channel_calls == 2
+
+
+def test_second_notification_history_error_is_a_typed_reader_failure() -> None:
+    conversation, _notification, seed, receipt, _writer, _reader, transport = (
+        _seed_and_notification()
+    )
+    reader_transport = RowsTransport(
+        rows=transport.rows,
+        sender_username="reviewer",
+        fail_on_history=2,
+    )
+    reader = RocketChatHttpNotificationReader(_instance(), transport=reader_transport)
+
+    result = reader.observe_notification(conversation, seed, receipt)
+
+    assert isinstance(result, RocketChatObservationFailure)
+    assert result.reason == "reader_transport_failed"
+    assert "history read failed" in result.detail
 
 
 def test_notification_identity_and_reader_context_invariants_are_fail_closed() -> None:
@@ -233,7 +440,9 @@ def test_reader_rejects_wrong_recipient_stale_same_text_duplicate_and_extra_mess
 
 def test_partial_notification_write_requires_reset_before_cleanup() -> None:
     conversation = generate_rocket_chat_conversation()
-    transport = MentioningTransport()
+    notification = derive_rocket_chat_notification(conversation)
+    wire_body = render_rocket_chat_notification_message(notification)
+    transport = RowsTransport(response_mentions={wire_body: [{"username": notification.recipient}]})
     seed = RocketChatHttpWriter(_instance(), transport=transport).seed_conversation(conversation)
     transport.fail_notification = True
     writer = RocketChatHttpNotificationWriter(_instance(), transport=transport)
