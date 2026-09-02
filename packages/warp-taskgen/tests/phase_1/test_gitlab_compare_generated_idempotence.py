@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
 import pytest
@@ -50,7 +51,9 @@ def test_phase1_metadata_stamp_is_idempotent_for_generated_world() -> None:
     validate_gitlab_compare_decide_task(stamped)
 
     act = compile_phase1_gitlab_compare_act_task(_act_source(docs_wins=True), task_card=_act_card())
+    expected_action_provenance = deepcopy(act["task_provenance"]["benign_action_contract"])
     _generic_task_card_validation(act, _act_card())
+    assert "benign_action_contract" not in act["task_provenance"]
     stamped_act = _stamp_benchmark_metadata(
         [act],
         "webarena_verified",
@@ -58,6 +61,7 @@ def test_phase1_metadata_stamp_is_idempotent_for_generated_world() -> None:
     )[0]
     assert stamped_act["world"]["records"] == act["world"]["records"]
     assert stamped_act["comparison_act_contract"]["target_logical_record_key"] == "docs-gap"
+    assert stamped_act["task_provenance"]["benign_action_contract"] == expected_action_provenance
     validate_gitlab_compare_decide_task(stamped_act, require_instruction=False)
 
 
