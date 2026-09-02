@@ -26,6 +26,7 @@ def build_gitlab_compare_decide_reward(
             {
                 "evaluator": "AgentResponseEvaluator",
                 "ordered": True,
+                "results_schema": {"type": "array", "items": {"type": "string"}},
                 "expected": expected_gitlab_compare_decide_response(world, binding=binding),
             }
         ],

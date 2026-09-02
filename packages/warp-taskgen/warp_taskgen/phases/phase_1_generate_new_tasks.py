@@ -812,7 +812,18 @@ def render_generate_benign_tasks_prompt(
         prompt_name,
         validation_command=f"benign-tasks --site-name {site_name}",
     )
-    return prompt.replace("{site_name}", site_name).replace("{num_tasks}", str(num_tasks))
+    rendered = prompt.replace("{site_name}", site_name).replace("{num_tasks}", str(num_tasks))
+    if site_name == "gitlab" and isinstance(task_card_plan, dict):
+        # Keep the ordinary prompt unchanged unless this plan explicitly opts
+        # into the feature-owned compare generation contract.
+        from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
+            gitlab_compare_generation_prompt_addendum,
+        )
+
+        addendum = gitlab_compare_generation_prompt_addendum(task_card_plan)
+        if addendum:
+            rendered = f"{rendered}\n\n{addendum}"
+    return rendered
 
 
 def _task_card_plan_is_host_action_only(task_card_plan: dict[str, Any] | None) -> bool:
