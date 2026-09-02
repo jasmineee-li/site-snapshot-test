@@ -3,6 +3,10 @@
 Run this file alone against the pinned disposable TAC instance::
 
     PYTEST_ROCKETCHAT_NOTIFICATION_VERTICAL_SLICE=1 \
+      WARP_ROCKETCHAT_WRITER_USERNAME=<ordinary-writer> \
+      WARP_ROCKETCHAT_WRITER_PASSWORD=<external-fixture-secret> \
+      WARP_ROCKETCHAT_READER_USERNAME=<distinct-ordinary-reader> \
+      WARP_ROCKETCHAT_READER_PASSWORD=<external-fixture-secret> \
       bash scripts/run_integration_tests.sh \
       --instances <host-owned-tac-instances.json> --quiet -- \
       -k test_rocket_chat_notification_vertical_slice --junitxml=<run>/e2.xml
@@ -24,6 +28,7 @@ from typing import Any
 import pytest
 
 from warp_taskgen.phase_1.rocket_chat_contracts import (
+    RocketChatConversation,
     RocketChatObservationFailure,
     RocketChatSeedReceipt,
 )
@@ -54,6 +59,11 @@ from warp_taskgen.sites.rocketchat_transport import (
 pytestmark = pytest.mark.integration
 
 _OPT_IN_ENV = "PYTEST_ROCKETCHAT_NOTIFICATION_VERTICAL_SLICE"
+_TAC_GOLDEN_ROOM = "project-graphdb"
+_WRITER_USERNAME_ENV = "WARP_ROCKETCHAT_WRITER_USERNAME"
+_WRITER_PASSWORD_ENV = "WARP_ROCKETCHAT_WRITER_PASSWORD"
+_READER_USERNAME_ENV = "WARP_ROCKETCHAT_READER_USERNAME"
+_READER_PASSWORD_ENV = "WARP_ROCKETCHAT_READER_PASSWORD"
 
 
 def _require_explicit_opt_in() -> None:
@@ -74,7 +84,73 @@ def _rocket_chat_instance(live_config) -> dict[str, Any]:
     )
     instance = matches[0].model_dump()
     instance["benchmark"] = live_config.benchmark_name or "theagentcompany"
+    writer_username = os.getenv(_WRITER_USERNAME_ENV, "").strip()
+    writer_password = os.getenv(_WRITER_PASSWORD_ENV, "")
+    reader_username = os.getenv(_READER_USERNAME_ENV, "").strip()
+    reader_password = os.getenv(_READER_PASSWORD_ENV, "")
+    missing = [
+        name
+        for name, value in (
+            (_WRITER_USERNAME_ENV, writer_username),
+            (_WRITER_PASSWORD_ENV, writer_password),
+            (_READER_USERNAME_ENV, reader_username),
+            (_READER_PASSWORD_ENV, reader_password),
+        )
+        if not value
+    ]
+    assert not missing, (
+        "Rocket.Chat live proof requires external fixture credentials in: "
+        + ", ".join(missing)
+    )
+    instance["auth"] = {
+        "type": "web_login",
+        "credentials": {"username": writer_username, "password": writer_password},
+    }
+    instance["reader_auth"] = {
+        "type": "credentials",
+        "credentials": {"username": reader_username, "password": reader_password},
+    }
     return instance
+
+
+def _fixture_conversation(
+    instance: Mapping[str, Any], *, marker: str
+) -> RocketChatConversation:
+    """Bind generated semantic roles to the pinned TAC fixture identities.
+
+    The stock TAC dump owns the physical room and ordinary accounts.  The
+    generated conversation still owns the plan, update, correction, and
+    decision values; this smoke only maps its writer, reader, and notification
+    recipient roles onto the configured deployment identities.
+    """
+
+    writer = rocket_chat_credentials(instance, role="writer").username
+    reader = rocket_chat_credentials(instance, role="reader").username
+    return generate_rocket_chat_conversation(
+        room_id=_TAC_GOLDEN_ROOM,
+        writer_user=writer,
+        reader_user=reader,
+        corrected_owner=reader,
+        run_marker=marker,
+    )
+
+
+def _bind_reader_browser_session(instance: dict[str, Any]) -> None:
+    """Mint an in-memory reader header session for admission preflight."""
+
+    transport = RequestsRocketChatTransport(str(instance["site_url"]))
+    try:
+        reader = transport.login(rocket_chat_credentials(instance, role="reader"))
+        declared = instance.get("reader_auth")
+        assert isinstance(declared, Mapping)
+        instance["reader_auth"] = {
+            **dict(declared),
+            "type": "http_headers",
+            "user_id": reader.user_id,
+            "headers": dict(transport._auth_headers),
+        }
+    finally:
+        _close_transport(transport)
 
 
 def _close_transport(transport: RequestsRocketChatTransport | None) -> None:
@@ -131,11 +207,12 @@ def test_rocket_chat_notification_vertical_slice(live_config, record_property) -
 
     _require_explicit_opt_in()
     instance = _rocket_chat_instance(live_config)
+    _bind_reader_browser_session(instance)
     resetter = resetter_from_instance(instance)
     assert resetter is not None, "Rocket.Chat live proof requires a host-owned reset endpoint"
 
     marker = f"WARP-E2-{uuid.uuid4().hex[:12]}"
-    conversation = generate_rocket_chat_conversation(run_marker=marker)
+    conversation = _fixture_conversation(instance, marker=marker)
     task = compile_rocket_chat_notification_benign_task(
         conversation,
         task_id=f"novel_rocketchat_notification_{uuid.uuid4().hex[:12]}",

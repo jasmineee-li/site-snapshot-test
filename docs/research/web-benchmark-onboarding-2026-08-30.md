@@ -510,3 +510,35 @@ dependency installation, paper edit or new evidence/attestation system was
 part of the proof. The focused [execution plan](web-benchmark-onboarding-2026-08-30/execution-plan.md)
 continues with E2 notification persistence and grading while E3's non-TAC
 generation may proceed independently.
+
+## 17. E2 Rocket.Chat notification source proof executed 2026-09-02
+
+The research baseline remains **2026-08-30**; this execution record is dated
+**2026-09-02 (America/New_York)**. The opt-in E2 smoke now binds its generated
+conversation roles to the pinned TAC fixture instead of assuming synthetic
+`planner`/`reviewer` accounts and a nonexistent `project-alpha` room. Physical
+writer/reader credentials remain external process inputs. The generated plan,
+update, decisive correction, due date and unique marker remain WARP-owned task
+content. The room and ordinary participant identities come from the deployment;
+the notification recipient is intentionally bound to the configured reader.
+
+One serialized no-model smoke used TAC source commit
+`98b68ef82a47690c316f42fddb05baafaab56851`, Rocket.Chat 5.3 and the golden
+`project-graphdb` room on the approved disposable r8a host. A configured
+ordinary writer seeded the generated conversation and persisted one
+decision-derived notification mentioning the distinct ordinary reader. Fresh
+independent readback verified the exact room, current root/thread, message ID,
+author, recipient mention and body. WARP-local final-state grading passed.
+Existing JUnit properties retained `pre_state_status=empty`,
+`action_status=persisted`, `readback_status=verified`, `grade_status=passed`,
+`cleanup_status=passed`, `final_reset_status=passed` and
+`final_absence_status=verified`, together with the exact attempt identities and
+timestamps. The host-owned reset restored only the pinned Rocket.Chat database
+namespace, returned terminal completion and left the golden room empty.
+
+This establishes the E2 source/action/readback/evaluator boundary. It does not
+add model-driven TAC results, task-family rates, an expanded corpus, live NPCs
+or a broad notification framework. The E2 smoke reused E1's established
+browser-exposure boundary and did not independently repeat the painted-browser
+proof. No model call, paper edit or new evidence format was part of this smoke.
+The next critical path is E3's frozen expanded-bank generation and admission.
