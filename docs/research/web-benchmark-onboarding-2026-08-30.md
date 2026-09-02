@@ -443,3 +443,32 @@ fresh Phase 4 authority and fail-closed backpressure instead of aggregate
 fallback. With D1a accepted, the focused plan has no unresolved consequential
 architecture choice. It is implementation-ready for approval, while all runtime,
 experiment and publication boundaries remain unchanged.
+
+## 15. Source implementation completed; execution planning opened 2026-09-01
+
+Parent issue #192 is closed; source PRs #199–#204 and #206–#208 are merged,
+and live-proof issue #205 is closed. They implement the
+GitLab comparison siblings, static Rocket.Chat decision/notification families,
+the existing-family funnel projection and the study-only matched-rewrite
+contract. One externally reported serialized r8a source/evaluator smoke passed for GitLab
+compare-and-act with fresh authenticated rendering, exact selected-issue
+readback, cleanup and final reset; no runtime bundle is retained in this
+checkout. This is not a model-driven browser-agent result or a larger corpus.
+
+Two bounded Luna/max audits rechecked the merged issues, PR evidence and
+`origin/main` at `5c45a32f`. They found no new expanded task artifacts, no live
+TAC transfer and no measured matched-rewrite pair. Rocket.Chat remains
+static/fake-backed with incomplete operational composition; the coverage
+projection reports existing artifacts but does not create volume; the matched
+study retains deterministic attempts but has not called a model or browser.
+
+The focused [execution and evidence plan](web-benchmark-onboarding-2026-08-30/execution-plan.md)
+now owns the remaining dependency tree: live Rocket.Chat decision then
+notification, expanded-bank generation then evaluation, one real matched pair
+then the representative cohort, and evidence-grounded manuscript synthesis.
+Parent issue [#209](https://github.com/jasmineee-li/warp/issues/209) and its
+seven vertical child tickets track that execution.
+The user approved continuing the entire vertical slice on 2026-09-01. Missing
+hosts, credentials, model/billing limits, corpus size and publication authority
+remain concrete operational inputs rather than architecture questions or
+unlimited authorization.
