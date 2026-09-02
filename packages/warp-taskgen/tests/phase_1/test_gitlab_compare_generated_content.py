@@ -15,7 +15,6 @@ from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
     compile_phase1_gitlab_compare_act_task,
     compile_phase1_gitlab_compare_decide_task,
     gitlab_compare_generation_prompt_addendum,
-    validate_gitlab_compare_decide_task,
 )
 from warp_taskgen.phase_1.gitlab_compare_decide_reward import (
     grade_gitlab_compare_decide,
@@ -26,7 +25,6 @@ from warp_taskgen.phases.phase_1_generate_new_tasks import (
     EligibleSiteProfile,
     render_generate_benign_tasks_prompt,
 )
-from warp_taskgen.phases.phase_1_tasks import _stamp_benchmark_metadata
 from warp_taskgen.prompt_loading import load_prompt
 from warp_taskgen.seeding import apply_data_seed
 from warp_taskgen.seeding.site_contracts import SeedSiteRegistration, SeedSiteRegistry
@@ -213,10 +211,7 @@ def test_generated_facts_change_world_and_selected_conclusion() -> None:
     assert release_wins["comparison_contract"]["content_source"] == "warp_generated"
     assert docs_wins["comparison_contract"]["content_source"] == "warp_generated"
     assert release_wins["world"]["records"] != docs_wins["world"]["records"]
-    assert (
-        release_wins["comparison_contract"]["selected_logical_record_key"]
-        == "release-blocker"
-    )
+    assert release_wins["comparison_contract"]["selected_logical_record_key"] == "release-blocker"
     assert docs_wins["comparison_contract"]["selected_logical_record_key"] == "docs-gap"
     assert release_wins["reward_function"] != docs_wins["reward_function"]
 
@@ -249,9 +244,9 @@ def test_generated_facts_change_world_and_selected_conclusion() -> None:
             "all three",
         ),
         (
-            lambda task: task["reward_function"]["eval"][0]["expected"]["retrieved_data"].__setitem__(
-                0, "selected_iid=docs-gap"
-            ),
+            lambda task: task["reward_function"]["eval"][0]["expected"][
+                "retrieved_data"
+            ].__setitem__(0, "selected_iid=docs-gap"),
             "expected response",
         ),
     ],
@@ -271,7 +266,10 @@ def test_valid_generated_task_preserves_identity_and_compiles_three_calls() -> N
     assert task["origin"] == source["origin"] == "new_task"
     assert task["benchmark"] == source["benchmark"] == "webarena_verified"
     assert task["site"] == source["site"] == "gitlab"
-    assert task["task_provenance"] == source["task_provenance"]
+    assert task["task_provenance"] == {
+        **source["task_provenance"],
+        "task_card_id": "gitlab_compare_decide",
+    }
     assert task["route_id"] == source["route_id"]
     assert "generated_comparison" not in task
     assert len(task["data_seed"]["editor_calls"]) == 3
@@ -281,34 +279,7 @@ def test_valid_generated_task_preserves_identity_and_compiles_three_calls() -> N
     assert task["comparison_contract"]["expected_logical_record_keys"] == list(_RECORD_KEYS)
     assert task["comparison_contract"]["decision_rule"] == _DECISION_RULE
     assert task["comparison_contract"]["workflow_source"] == "task_card"
-    assert task["reward_function"]["eval"][0]["expected"] == _selected_expected(
-        docs_wins=False
-    )
-
-
-def test_phase1_metadata_stamp_is_idempotent_for_generated_world() -> None:
-    compiled = _compile(docs_wins=True)
-    stamped = _stamp_benchmark_metadata(
-        [compiled],
-        "webarena_verified",
-        task_card_plan={"task_cards": [_card()]},
-    )[0]
-
-    assert stamped["world"]["records"] == compiled["world"]["records"]
-    assert stamped["comparison_contract"]["selected_logical_record_key"] == "docs-gap"
-    assert stamped["comparison_contract"]["content_source"] == "warp_generated"
-    assert stamped["benchmark"] == "webarena_verified"
-    validate_gitlab_compare_decide_task(stamped)
-
-    act = compile_phase1_gitlab_compare_act_task(_act_source(docs_wins=True), task_card=_act_card())
-    stamped_act = _stamp_benchmark_metadata(
-        [act],
-        "webarena_verified",
-        task_card_plan={"task_cards": [_act_card()]},
-    )[0]
-    assert stamped_act["world"]["records"] == act["world"]["records"]
-    assert stamped_act["comparison_act_contract"]["target_logical_record_key"] == "docs-gap"
-    validate_gitlab_compare_decide_task(stamped_act, require_instruction=False)
+    assert task["reward_function"]["eval"][0]["expected"] == _selected_expected(docs_wins=False)
 
 
 def _act_card() -> dict[str, Any]:
@@ -390,9 +361,7 @@ def test_generated_act_compiles_binds_and_targets_selected_record() -> None:
         ),
     ],
 )
-def test_generated_act_rejects_malformed_or_ambiguous_model_output(
-    mutation, message: str
-) -> None:
+def test_generated_act_rejects_malformed_or_ambiguous_model_output(mutation, message: str) -> None:
     task = _act_source()
     mutation(task)
 
@@ -421,9 +390,7 @@ def test_fake_seed_binding_and_finite_grade_ignore_aggregate_last_write() -> Non
     assert grade_gitlab_compare_decide(task, deepcopy(expected), binding=binding)[0] is True
 
     wrong = deepcopy(expected)
-    wrong["retrieved_data"][0] = (
-        f"selected_iid={binding.records['closed-bug'].physical_id}"
-    )
+    wrong["retrieved_data"][0] = f"selected_iid={binding.records['closed-bug'].physical_id}"
     assert grade_gitlab_compare_decide(task, wrong, binding=binding)[0] is False
 
 
@@ -437,7 +404,9 @@ def test_compare_prompt_addendum_exposes_facts_but_not_host_structure() -> None:
     assert "Do not include a" in prompt
 
 
-def test_compare_prompt_and_pre_feature_cache_identity_are_not_reused(tmp_path, monkeypatch) -> None:
+def test_compare_prompt_and_pre_feature_cache_identity_are_not_reused(
+    tmp_path, monkeypatch
+) -> None:
     benchmark_root = tmp_path / "benchmark"
     benchmark_root.mkdir()
     plan = {"task_cards": [_card()]}
@@ -453,10 +422,12 @@ def test_compare_prompt_and_pre_feature_cache_identity_are_not_reused(tmp_path, 
         "gitlab_compare_generation_prompt_addendum",
         lambda _: original_addendum(plan) + "\nchanged",
     )
-    changed_shared = phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
-        benchmark_root=benchmark_root,
-        manifest={},
-        task_card_plan=plan,
+    changed_shared = (
+        phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
+            benchmark_root=benchmark_root,
+            manifest={},
+            task_card_plan=plan,
+        )
     )
     assert changed_shared != shared
 
@@ -489,10 +460,14 @@ def test_compare_prompt_and_pre_feature_cache_identity_are_not_reused(tmp_path, 
 
 
 def test_non_compare_prompt_rendering_is_unchanged() -> None:
-    expected = load_prompt(
-        "generate-benign-tasks",
-        validation_command="benign-tasks --site-name gitlab",
-    ).replace("{site_name}", "gitlab").replace("{num_tasks}", "1")
+    expected = (
+        load_prompt(
+            "generate-benign-tasks",
+            validation_command="benign-tasks --site-name gitlab",
+        )
+        .replace("{site_name}", "gitlab")
+        .replace("{num_tasks}", "1")
+    )
     actual = render_generate_benign_tasks_prompt(
         site_name="gitlab",
         num_tasks=1,

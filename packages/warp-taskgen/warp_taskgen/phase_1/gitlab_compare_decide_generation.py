@@ -16,11 +16,17 @@ from copy import deepcopy
 from typing import Any
 
 from warp_taskgen.phase_1.gitlab_compare_act import compile_gitlab_compare_act_task
+from warp_taskgen.phase_1.gitlab_compare_compiled_validation import (
+    GENERATION_CONTRACT_VERSION as _GENERATION_CONTRACT_VERSION,
+)
+from warp_taskgen.phase_1.gitlab_compare_compiled_validation import (
+    is_host_compiled_comparison_task,
+    validate_gitlab_compare_decide_task,
+)
 from warp_taskgen.phase_1.gitlab_compare_decide import (
     GitLabComparisonWorld,
     compile_gitlab_compare_decide_task,
     expected_gitlab_compare_decide_response,
-    select_gitlab_record,
 )
 from warp_taskgen.phase_1.gitlab_compare_decide_content import (
     GENERATED_COMPARISON_CONTENT_KEY,
@@ -28,17 +34,12 @@ from warp_taskgen.phase_1.gitlab_compare_decide_content import (
     _validate_compare_act_instruction,
     _validate_compare_act_model_reward,
     _validate_compare_decide_instruction,
-    _world_from_compiled_task,
-    validate_compiled_comparison_act,
-    validate_compiled_comparison_seed,
     world_for_phase1_task,
 )
 
 GITLAB_COMPARE_DECIDE_GENERATION_FAMILY = "gitlab_compare_decide"
 GITLAB_COMPARE_ACT_GENERATION_FAMILY = "gitlab_compare_act"
 _GENERATION_CONTRACT_KEY = "generation_contract"
-_GENERATION_CONTRACT_VERSION = 1
-_HOST_COMPILED_CONTENT_SOURCES = frozenset({"feature_default", "warp_generated"})
 _SELECTOR_KEYS = frozenset(
     {
         "labels",
@@ -48,57 +49,6 @@ _SELECTOR_KEYS = frozenset(
         "project_path_template",
     }
 )
-
-
-def validate_gitlab_compare_decide_task(
-    task: Mapping[str, Any],
-    *,
-    require_instruction: bool = True,
-) -> None:
-    """Validate the feature's world, instruction, contract, and answer key."""
-
-    if not isinstance(task, Mapping):
-        raise ValueError("GitLab comparison task must be an object")
-    world = task.get("world")
-    if not isinstance(world, Mapping):
-        raise ValueError("GitLab comparison task must include a world")
-    resolved = _world_from_compiled_task(task)
-    selected = select_gitlab_record(resolved)
-    contract = task.get("comparison_contract")
-    if not isinstance(contract, Mapping):
-        raise ValueError("GitLab comparison task must include comparison_contract")
-    if contract.get("benchmark") not in (None, resolved.benchmark):
-        raise ValueError("GitLab comparison contract benchmark disagrees with world")
-    if str(contract.get("site") or resolved.site).strip().lower() != resolved.site:
-        raise ValueError("GitLab comparison contract site disagrees with world")
-    expected_keys = contract.get("expected_logical_record_keys")
-    actual_keys = [record.logical_record_key for record in resolved.records]
-    if expected_keys != actual_keys:
-        raise ValueError("GitLab comparison contract logical record keys disagree with world")
-    declared_keys = contract.get("record_keys")
-    if declared_keys is not None and declared_keys != actual_keys:
-        raise ValueError("GitLab comparison contract record_keys disagree with world")
-    if contract.get("selected_logical_record_key") != selected.logical_record_key:
-        raise ValueError("GitLab comparison contract selected record disagrees with decision rule")
-    if _canonical_mapping(contract.get("decision_rule")) != dict(resolved.decision_rule):
-        raise ValueError("GitLab comparison contract decision rule disagrees with world")
-    if require_instruction:
-        _validate_compare_decide_instruction(task.get("instruction"), resolved)
-        reward = task.get("reward_function")
-        if not isinstance(reward, Mapping):
-            raise ValueError("GitLab comparison task must include reward_function")
-        evals = reward.get("eval")
-        if not isinstance(evals, list) or not evals:
-            raise ValueError("GitLab comparison task reward must include an evaluator")
-        expected = evals[0].get("expected") if isinstance(evals[0], Mapping) else None
-        if expected != expected_gitlab_compare_decide_response(resolved):
-            raise ValueError("GitLab comparison expected response disagrees with decision rule")
-
-
-def _canonical_mapping(value: Any) -> dict[str, str]:
-    if not isinstance(value, Mapping):
-        return {}
-    return {str(key): str(raw).strip() for key, raw in value.items()}
 
 
 _PRESERVED_TASK_FIELDS = (
@@ -167,11 +117,7 @@ def gitlab_compare_generation_prompt_addendum(
         if contract is None:
             continue
         raw_keys = contract.get("record_keys", ("release-blocker", "docs-gap", "closed-bug"))
-        record_keys = (
-            [str(key) for key in raw_keys]
-            if isinstance(raw_keys, (list, tuple))
-            else []
-        )
+        record_keys = [str(key) for key in raw_keys] if isinstance(raw_keys, (list, tuple)) else []
         raw_rule = contract.get("decision_rule")
         if isinstance(raw_rule, Mapping):
             decision_rule = {
@@ -261,9 +207,19 @@ def compile_phase1_gitlab_compare_decide_task(
     contract = gitlab_compare_decide_generation_contract(task_card)
     if contract is None:
         return deepcopy(dict(task))
-    if _is_host_compiled_task(task, act=False):
+    task_card_id = _expected_task_card_id(task, task_card)
+    if is_host_compiled_comparison_task(
+        task,
+        act=False,
+        task_card_id=task_card_id,
+    ):
         return deepcopy(dict(task))
-    return _compile_phase1_gitlab_comparison_task(task, contract=contract, act=False)
+    return _compile_phase1_gitlab_comparison_task(
+        task,
+        contract=contract,
+        act=False,
+        task_card_id=task_card_id,
+    )
 
 
 def compile_phase1_gitlab_compare_act_task(
@@ -276,45 +232,31 @@ def compile_phase1_gitlab_compare_act_task(
     contract = gitlab_compare_act_generation_contract(task_card)
     if contract is None:
         return deepcopy(dict(task))
-    if _is_host_compiled_task(task, act=True):
+    task_card_id = _expected_task_card_id(task, task_card)
+    if is_host_compiled_comparison_task(
+        task,
+        act=True,
+        task_card_id=task_card_id,
+    ):
         return deepcopy(dict(task))
-    return _compile_phase1_gitlab_comparison_task(task, contract=contract, act=True)
+    return _compile_phase1_gitlab_comparison_task(
+        task,
+        contract=contract,
+        act=True,
+        task_card_id=task_card_id,
+    )
 
 
-def _is_host_compiled_task(task: Mapping[str, Any], *, act: bool) -> bool:
-    """Accept a prior compiler result only after rechecking every derived seam."""
-
-    comparison_contract = task.get("comparison_contract")
-    if not isinstance(comparison_contract, Mapping):
-        return False
-    if comparison_contract.get("workflow_source") != "task_card":
-        return False
-    if GENERATED_COMPARISON_CONTENT_KEY in task:
-        return False
-    _validate_host_compiled_task(task, act=act)
-    return True
-
-
-def _validate_host_compiled_task(task: Mapping[str, Any], *, act: bool) -> None:
-    comparison_contract = task.get("comparison_contract")
-    if not isinstance(comparison_contract, Mapping):
-        raise ValueError("GitLab comparison host output requires comparison_contract")
-    if comparison_contract.get("generation_contract_version") != _GENERATION_CONTRACT_VERSION:
-        raise ValueError("GitLab comparison host output has an unsupported generation version")
-    if comparison_contract.get("content_source") not in _HOST_COMPILED_CONTENT_SOURCES:
-        raise ValueError("GitLab comparison host output has an unknown content source")
-    if task.get("site") != "gitlab" or task.get("sites") != ["gitlab"]:
-        raise ValueError("GitLab comparison host output has an invalid site declaration")
-    if task.get("benchmark") not in (None, "webarena_verified"):
-        raise ValueError("GitLab comparison host output has an invalid benchmark declaration")
-    world = _world_from_compiled_task(task)
-    validate_gitlab_compare_decide_task(task, require_instruction=not act)
-    if act:
-        _validate_compare_act_instruction(task.get("instruction"), world)
-        validate_compiled_comparison_act(task, world)
-    validate_compiled_comparison_seed(task, world)
-    if not act and "comparison_act_contract" in task:
-        raise ValueError("GitLab compare-and-decide host output must not include an act contract")
+def _expected_task_card_id(
+    task: Mapping[str, Any],
+    task_card: Mapping[str, Any],
+) -> str:
+    card_id = task_card.get("id")
+    if not isinstance(card_id, str) or not card_id.strip():
+        raise ValueError("GitLab comparison generation requires a named task card")
+    if task.get("task_card_id") != card_id:
+        raise ValueError("GitLab comparison task_card_id disagrees with the selected task card")
+    return card_id
 
 
 def _compile_phase1_gitlab_comparison_task(
@@ -322,6 +264,7 @@ def _compile_phase1_gitlab_comparison_task(
     *,
     contract: Mapping[str, Any],
     act: bool,
+    task_card_id: str,
 ) -> dict[str, Any]:
     if str(task.get("site") or "").strip().lower() != "gitlab":
         raise ValueError("GitLab comparison generation contract requires a GitLab task card")
@@ -339,9 +282,7 @@ def _compile_phase1_gitlab_comparison_task(
     )
     source_benchmark = task.get("benchmark")
     if source_benchmark is not None and str(source_benchmark).strip() != world.benchmark:
-        raise ValueError(
-            "GitLab comparison generation requires benchmark webarena_verified"
-        )
+        raise ValueError("GitLab comparison generation requires benchmark webarena_verified")
     _validate_model_output(task, world, act=act)
     resource = task.get("benign_target_resource")
     compiled = compile_gitlab_compare_decide_task(
@@ -358,11 +299,16 @@ def _compile_phase1_gitlab_comparison_task(
             "workflow_source": "task_card",
             "content_source": content_source,
             "generation_contract_version": _GENERATION_CONTRACT_VERSION,
+            "task_card_id": task_card_id,
         }
     )
     compiled["comparison_contract"] = comparison_contract
     if act:
         compiled = compile_gitlab_compare_act_task(compiled)
+    provenance = compiled.get("task_provenance")
+    provenance_map = deepcopy(dict(provenance)) if isinstance(provenance, Mapping) else {}
+    provenance_map["task_card_id"] = task_card_id
+    compiled["task_provenance"] = provenance_map
     compiled["data_seed"] = _phase1_seed_for_task(compiled["data_seed"], task, method=method)
     compiled["adversarial_data_seed"] = deepcopy(compiled["data_seed"])
     if act:
@@ -403,13 +349,9 @@ def _phase1_method(task: Mapping[str, Any]) -> str:
     source = task.get("data_seed")
     source_calls = source.get("editor_calls") if isinstance(source, Mapping) else None
     if not isinstance(source_calls, list) or not source_calls:
-        raise ValueError(
-            "GitLab comparison generation requires a route-selected editor seed call"
-        )
+        raise ValueError("GitLab comparison generation requires a route-selected editor seed call")
     methods = {
-        str(call.get("method") or "").strip()
-        for call in source_calls
-        if isinstance(call, Mapping)
+        str(call.get("method") or "").strip() for call in source_calls if isinstance(call, Mapping)
     }
     methods.discard("")
     if len(methods) != 1 or methods.isdisjoint({"create_issue", "create_issue_description"}):
@@ -432,9 +374,7 @@ def _phase1_seed_for_task(
     source = task.get("data_seed")
     source_calls = source.get("editor_calls") if isinstance(source, Mapping) else None
     if not isinstance(source_calls, list) or not source_calls:
-        raise ValueError(
-            "GitLab comparison generation requires a route-selected editor seed call"
-        )
+        raise ValueError("GitLab comparison generation requires a route-selected editor seed call")
     compiled_calls = seed.get("editor_calls")
     if not isinstance(compiled_calls, list) or not compiled_calls:
         raise ValueError("GitLab comparison compiler emitted an invalid editor-call set")
@@ -460,7 +400,11 @@ def _phase1_seed_for_task(
                 adapted_args[key] = deepcopy(value)
         for selector in _SELECTOR_KEYS:
             generated_value = args.get(selector)
-            if selector not in adapted_args and isinstance(generated_value, str) and not generated_value.startswith("{"):
+            if (
+                selector not in adapted_args
+                and isinstance(generated_value, str)
+                and not generated_value.startswith("{")
+            ):
                 adapted_args[selector] = generated_value
         if method == "create_issue_description":
             adapted_args["body"] = args["body_template"]

@@ -242,7 +242,9 @@ def _validate_compare_act_model_reward(
         if config.get("evaluator") != "AgentResponseEvaluator":
             continue
         if config.get("expected") != expected_response:
-            raise ValueError("GitLab comparison generated expected response disagrees with decision rule")
+            raise ValueError(
+                "GitLab comparison generated expected response disagrees with decision rule"
+            )
 
 
 def validate_compiled_comparison_seed(
@@ -270,7 +272,9 @@ def validate_compiled_comparison_seed(
             or call.get("method") != world.method
             or call.get("resource_kind") != world.resource_kind
         ):
-            raise ValueError("GitLab comparison host output seed call contract disagrees with world")
+            raise ValueError(
+                "GitLab comparison host output seed call contract disagrees with world"
+            )
         if call.get("logical_record_key") != record.logical_record_key:
             raise ValueError("GitLab comparison host output seed key order disagrees with world")
         args = call.get("args")
@@ -298,6 +302,8 @@ def _record_body(record: GitLabIssueRecord) -> str:
 def validate_compiled_comparison_act(
     task: Mapping[str, Any],
     world: GitLabComparisonWorld,
+    *,
+    expected_task_card_id: str | None = None,
 ) -> None:
     """Re-check the host-owned action contract before an idempotent return."""
 
@@ -323,9 +329,7 @@ def validate_compiled_comparison_act(
         raise ValueError("GitLab compare-act host output reward disagrees with action contract")
     provenance = task.get("task_provenance")
     action_provenance = (
-        provenance.get("benign_action_contract")
-        if isinstance(provenance, Mapping)
-        else None
+        provenance.get("benign_action_contract") if isinstance(provenance, Mapping) else None
     )
     expected_provenance = {
         "schema_version": "worldsim-benign-action-contract-v1",
@@ -333,7 +337,14 @@ def validate_compiled_comparison_act(
         "witness": note_body,
         "evaluator": expected_reward["eval"][0],
     }
-    if action_provenance != expected_provenance:
+    if action_provenance is not None:
+        if action_provenance != expected_provenance:
+            raise ValueError("GitLab compare-act host output provenance disagrees with reward")
+    elif (
+        expected_task_card_id is None
+        or not isinstance(provenance, Mapping)
+        or provenance.get("task_card_id") != expected_task_card_id
+    ):
         raise ValueError("GitLab compare-act host output provenance disagrees with reward")
 
 
@@ -359,7 +370,9 @@ def _validate_record_keys(value: Sequence[str]) -> tuple[str, ...]:
 def _normalize_decision_rule(value: Mapping[str, Any]) -> dict[str, str]:
     rule = {str(key): str(raw).strip() for key, raw in value.items()}
     if set(rule) != set(DEFAULT_DECISION_RULE) or any(not raw for raw in rule.values()):
-        raise ValueError("GitLab comparison decision rule must declare non-empty state and dependency")
+        raise ValueError(
+            "GitLab comparison decision rule must declare non-empty state and dependency"
+        )
     return rule
 
 
@@ -371,13 +384,9 @@ def _record_from_generated_mapping(
     facts = value.get("facts")
     fact_map = facts if isinstance(facts, Mapping) else value
     title = _generated_text(value.get("title"), field="title")
-    state = _generated_text(
-        fact_map.get("state", fact_map.get("status")), field="facts.state"
-    )
+    state = _generated_text(fact_map.get("state", fact_map.get("status")), field="facts.state")
     dependency = _generated_text(fact_map.get("dependency"), field="facts.dependency")
-    summary = _generated_text(
-        fact_map.get("summary", fact_map.get("body")), field="facts.summary"
-    )
+    summary = _generated_text(fact_map.get("summary", fact_map.get("body")), field="facts.summary")
     return GitLabIssueRecord(key, title, state, dependency, summary)
 
 
@@ -398,7 +407,9 @@ def _contract_decision_rule(contract: Mapping[str, Any]) -> dict[str, str]:
     raw_rule = contract.get("decision_rule")
     if raw_rule is not None:
         if not isinstance(raw_rule, Mapping):
-            raise ValueError("GitLab comparison generation contract decision_rule must be an object")
+            raise ValueError(
+                "GitLab comparison generation contract decision_rule must be an object"
+            )
         rule = _normalize_decision_rule(raw_rule)
         legacy_dependency = contract.get("decision_dependency")
         if legacy_dependency is not None and str(legacy_dependency).strip() != rule["dependency"]:
