@@ -98,11 +98,29 @@ def _request(
         baseline_result=baseline.result_copy(),
         variant_task=copy.deepcopy(variant_task),
         artifact_namespace=f"{STUDY_ID}/{arm}/pair-0",
+        call_policy=config.resolve_call_policy(baseline.model_context.sandbox_model),
+        budget=config.budget,
     )
 
 
 def _failure_text(value: str | None, fallback: str) -> str:
     return value.strip() if isinstance(value, str) and value.strip() else fallback
+
+
+def _record_diagnostics(
+    row: dict[str, object], stage: Stage, outcome: AttemptOutcome
+) -> None:
+    diagnostics = getattr(outcome, "diagnostics", None)
+    if diagnostics is None:
+        return
+    captured = cast(dict[str, object], row["diagnostics"])
+    previous = captured.get(stage)
+    if previous is None:
+        captured[stage] = copy.deepcopy(diagnostics)
+    elif isinstance(previous, list):
+        previous.append(copy.deepcopy(diagnostics))
+    else:
+        captured[stage] = [previous, copy.deepcopy(diagnostics)]
 
 
 def _qa(task: JsonObject, candidate: JsonObject) -> tuple[JsonObject, JsonObject, str | None]:
@@ -133,6 +151,10 @@ def _matched_inputs(baseline: AdmittedBaseline, config: MatchedRewriteStudyConfi
             "repair_attempts": config.repair_attempts,
             "baseline_identity": baseline.identity,
             "run_definition_digest": baseline.run_definition.definition_digest,
+            "call_policy": config.resolve_call_policy(
+                baseline.model_context.sandbox_model
+            ).to_dict(),
+            "budget": config.budget.to_dict() if config.budget is not None else None,
         }
     )
     return evidence
@@ -156,12 +178,14 @@ async def _run_arm(
         "repair_attempts": [],
         "qa": None,
         "result": None,
+        "diagnostics": {},
     }
     diagnosis_stage: Stage = "tp_diagnosis" if arm == "tp_guided" else "ordinary_critique"
     diagnosis = await _invoke(
         provider,
         _request(baseline, config, arm=arm, stage=diagnosis_stage),
     )
+    _record_diagnostics(row, diagnosis_stage, diagnosis)
     accounting.record(diagnosis_stage, diagnosis)
     if not isinstance(diagnosis, DiagnosisOutcome) or diagnosis.status != "ok":
         row["status"] = "diagnosis_failed"
@@ -185,6 +209,7 @@ async def _run_arm(
         provider,
         _request(baseline, config, arm=arm, stage="proposal", guidance=guidance),
     )
+    _record_diagnostics(row, "proposal", proposal)
     accounting.record("proposal", proposal)
     if not isinstance(proposal, ProposalOutcome):
         row["status"] = "generation_failed"
@@ -224,6 +249,7 @@ async def _run_arm(
                 variant_task=finalized,
             ),
         )
+        _record_diagnostics(row, "repair", repair)
         accounting.record("repair", repair)
         if not isinstance(repair, ProposalOutcome):
             repairs.append(
@@ -271,6 +297,7 @@ async def _run_arm(
             variant_task=finalized,
         ),
     )
+    _record_diagnostics(row, "browser", browser)
     if not isinstance(browser, BrowserOutcome):
         row["status"] = "browser_attempt_failed"
         row["failure"] = "browser_outcome_type_mismatch"
@@ -340,11 +367,12 @@ def _aggregate(rows: dict[Arm, dict[str, object]]) -> dict[str, object]:
         total.proposal_calls += int(accounting.get("proposal_calls", 0))
         total.repair_calls += int(accounting.get("repair_calls", 0))
         total.browser_attempts += int(accounting.get("browser_attempts", 0))
+        total.retry_attempts += int(accounting.get("retry_attempts", 0))
+        reasons = accounting.get("usage_unavailable_reasons")
+        if isinstance(reasons, list) and total.usage_unavailable_reasons is not None:
+            total.usage_unavailable_reasons.extend(str(reason) for reason in reasons)
         if accounting.get("usage_status") == "unavailable":
             total.input_tokens = total.output_tokens = total.total_tokens = total.cost_usd = None
-            reasons = accounting.get("usage_unavailable_reasons")
-            if isinstance(reasons, list) and total.usage_unavailable_reasons is not None:
-                total.usage_unavailable_reasons.extend(str(reason) for reason in reasons)
         elif total.input_tokens is not None:
             total.input_tokens += int(accounting.get("input_tokens", 0))
             total.output_tokens = cast(int, total.output_tokens) + int(
@@ -370,6 +398,7 @@ async def run_matched_rewrite_study(
         raise TypeError("matched rewrite study requires an AdmittedBaseline")
     settings = config or MatchedRewriteStudyConfig()
     validate_baseline_binding(baseline, settings)
+    call_policy = settings.resolve_call_policy(baseline.model_context.sandbox_model)
     if checkpoint is not None:
         validate_checkpoint(checkpoint, baseline=baseline, config=settings)
         return {
@@ -383,6 +412,8 @@ async def run_matched_rewrite_study(
         "schema_version": STUDY_SCHEMA_VERSION,
         "condition": settings.condition,
         "schedule": settings.schedule,
+        "call_policy": call_policy.to_dict(),
+        "budget": settings.budget.to_dict() if settings.budget is not None else None,
         "baseline": baseline.to_dict(),
         "status": "scheduled",
         "primary": {"endpoint": "primary_fixed_index_scheduled_attempt", "pairs": []},

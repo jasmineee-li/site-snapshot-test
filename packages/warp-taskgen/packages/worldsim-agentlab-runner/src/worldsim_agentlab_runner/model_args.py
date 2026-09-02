@@ -10,6 +10,7 @@ protocol object WorldSim needs without patching AgentLab.
 
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -97,7 +98,7 @@ class WorldSimChatModel:
         self.retries = 0
         self.success = False
         self.error_types: list[str] = []
-        self.last_usage: dict[str, int] = {}
+        self.last_usage: dict[str, int | float] = {}
         self.last_response_model: str | None = None
 
     def __call__(self, messages: Any, n_samples: int = 1, temperature: float | None = None) -> dict:
@@ -234,6 +235,9 @@ class WorldSimChatModel:
             "output_tokens": output_tokens,
             "total_tokens": _int_attr(usage, "total_tokens"),
         }
+        cost_usd = _response_cost_usd(response)
+        if cost_usd is not None:
+            self.last_usage["cost_usd"] = cost_usd
         try:
             import agentlab.llm.tracking as tracking
 
@@ -253,6 +257,7 @@ class WorldSimChatModel:
             "display_name": self.display_name,
             "transport": self.transport,
             "provider": self.provider,
+            "runner": "agentlab",
             "request_model": self.model_name,
             "response_model": getattr(response, "model", None),
             "response_provider": getattr(response, "provider", None),
@@ -407,3 +412,24 @@ def _int_attr(value: Any, attr: str) -> int:
     else:
         raw = getattr(value, attr, 0)
     return int(raw or 0)
+
+
+def _response_cost_usd(response: Any) -> float | None:
+    """Return provider-reported cost without applying a local price table."""
+
+    usage = getattr(response, "usage", None)
+    hidden = getattr(response, "_hidden_params", None)
+    for owner in (response, usage, hidden):
+        if isinstance(owner, dict):
+            values = (owner.get(name) for name in ("cost_usd", "cost", "response_cost"))
+        else:
+            values = (getattr(owner, name, None) for name in ("cost_usd", "cost", "response_cost"))
+        for value in values:
+            if (
+                isinstance(value, (int, float))
+                and not isinstance(value, bool)
+                and math.isfinite(value)
+                and value >= 0
+            ):
+                return float(value)
+    return None

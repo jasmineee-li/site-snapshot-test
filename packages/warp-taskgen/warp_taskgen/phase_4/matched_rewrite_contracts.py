@@ -9,6 +9,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol, cast
 
+from warp_taskgen.phase_4.matched_rewrite_accounting import (
+    MatchedCallPolicy,
+    MatchedStudyBudget,
+    PairAccounting,
+    Usage,
+)
 from warp_taskgen.phase_4.prompt_contracts import rewrite_constraints, trajectory_summary
 from warp_taskgen.phase_4.prompt_payloads import sanitize_task_for_model_prompt
 from warp_taskgen.run_definition_contracts import RunDefinition
@@ -92,16 +98,32 @@ class MatchedRewriteStudyConfig:
 
     condition: Condition = STUDY_CONDITION
     schedule: Schedule = STUDY_SCHEDULE
+    call_policy: MatchedCallPolicy | None = None
+    budget: MatchedStudyBudget | None = None
 
     def __post_init__(self) -> None:
         if self.condition != STUDY_CONDITION:
             raise ValueError(f"unsupported matched rewrite condition: {self.condition!r}")
         if self.schedule != STUDY_SCHEDULE:
             raise ValueError(f"unsupported matched rewrite schedule: {self.schedule!r}")
+        if self.call_policy is not None and not isinstance(self.call_policy, MatchedCallPolicy):
+            raise ValueError("matched rewrite call_policy must be MatchedCallPolicy or null")
+        if self.budget is not None and not isinstance(self.budget, MatchedStudyBudget):
+            raise ValueError("matched rewrite budget must be MatchedStudyBudget or null")
 
     @property
     def repair_attempts(self) -> int:
         return STUDY_REPAIR_ATTEMPTS
+
+    def resolve_call_policy(self, model: str) -> MatchedCallPolicy:
+        """Resolve and verify the policy against the baseline model identity."""
+
+        policy = self.call_policy or MatchedCallPolicy.for_model(model)
+        if policy.model != model.strip():
+            raise ValueError(
+                "matched rewrite call policy model must match the baseline sandbox model"
+            )
+        return policy
 
 
 @dataclass(frozen=True, slots=True)
@@ -299,6 +321,8 @@ class MatchedAttemptRequest:
     baseline_result: JsonObject
     variant_task: JsonObject | None = None
     artifact_namespace: str = ""
+    call_policy: MatchedCallPolicy | None = None
+    budget: MatchedStudyBudget | None = None
 
     def __post_init__(self) -> None:
         if self.pair_index != 0:
@@ -311,6 +335,10 @@ class MatchedAttemptRequest:
             raise ValueError("proposal and repair requests require arm guidance")
         if self.repair_attempt < 0:
             raise ValueError("repair attempt must be non-negative")
+        if self.call_policy is not None and not isinstance(self.call_policy, MatchedCallPolicy):
+            raise ValueError("attempt call_policy must be MatchedCallPolicy or null")
+        if self.budget is not None and not isinstance(self.budget, MatchedStudyBudget):
+            raise ValueError("attempt budget must be MatchedStudyBudget or null")
         for name in ("baseline_task", "baseline_result"):
             if not isinstance(getattr(self, name), dict):
                 raise ValueError(f"attempt {name} must be a JSON object")
@@ -332,40 +360,9 @@ class MatchedAttemptRequest:
             "evidence": self.evidence.to_dict(),
             "guidance": self.guidance.to_dict() if self.guidance is not None else None,
             "repair_attempt": self.repair_attempt,
+            "call_policy": self.call_policy.to_dict() if self.call_policy is not None else None,
+            "budget": self.budget.to_dict() if self.budget is not None else None,
         }
-
-
-@dataclass(frozen=True, slots=True)
-class Usage:
-    input_tokens: int | None
-    output_tokens: int | None
-    cost_usd: float | None
-    unavailable_reason: str | None = None
-
-    @classmethod
-    def unavailable(cls, reason: str) -> Usage:
-        return cls(None, None, None, reason.strip() or "usage_unavailable")
-
-    @property
-    def available(self) -> bool:
-        return (
-            self.input_tokens is not None
-            and self.output_tokens is not None
-            and self.cost_usd is not None
-            and self.unavailable_reason is None
-        )
-
-    def __post_init__(self) -> None:
-        for name in ("input_tokens", "output_tokens"):
-            value = getattr(self, name)
-            if value is not None and (type(value) is not int or value < 0):
-                raise ValueError(f"usage {name} must be a non-negative integer or null")
-        if self.cost_usd is not None and (
-            type(self.cost_usd) not in (int, float)
-            or not math.isfinite(self.cost_usd)
-            or self.cost_usd < 0
-        ):
-            raise ValueError("usage cost_usd must be non-negative or null")
 
 
 @dataclass(frozen=True, slots=True)
@@ -374,6 +371,7 @@ class DiagnosisOutcome:
     guidance: Guidance | None
     usage: Usage
     failure: str | None = None
+    diagnostics: JsonObject | None = None
 
     def __post_init__(self) -> None:
         if self.status not in {"ok", "failed"}:
@@ -384,6 +382,9 @@ class DiagnosisOutcome:
             raise ValueError("successful diagnosis outcome requires guidance")
         if self.status == "failed" and self.guidance is not None:
             raise ValueError("failed diagnosis outcome cannot include guidance")
+        if self.diagnostics is not None:
+            _validate_json(self.diagnostics, path="diagnosis.diagnostics")
+            object.__setattr__(self, "diagnostics", _copy(self.diagnostics))
 
 
 @dataclass(frozen=True, slots=True)
@@ -392,6 +393,7 @@ class ProposalOutcome:
     candidate: JsonObject | None
     usage: Usage
     failure: str | None = None
+    diagnostics: JsonObject | None = None
 
     def __post_init__(self) -> None:
         if self.status not in {"ok", "inapplicable", "failed"}:
@@ -402,6 +404,9 @@ class ProposalOutcome:
             raise ValueError("successful proposal outcome requires a candidate")
         if self.status != "ok" and self.candidate is not None:
             raise ValueError("non-successful proposal outcome cannot include a candidate")
+        if self.diagnostics is not None:
+            _validate_json(self.diagnostics, path="proposal.diagnostics")
+            object.__setattr__(self, "diagnostics", _copy(self.diagnostics))
 
 
 @dataclass(frozen=True, slots=True)
@@ -410,6 +415,7 @@ class BrowserOutcome:
     result: JsonObject | None
     usage: Usage
     failure: str | None = None
+    diagnostics: JsonObject | None = None
 
     def __post_init__(self) -> None:
         if self.status not in {"ok", "no_rerun", "failed"}:
@@ -420,6 +426,9 @@ class BrowserOutcome:
             raise ValueError("successful browser outcome requires a result")
         if self.status != "ok" and self.result is not None:
             raise ValueError("non-successful browser outcome cannot include a result")
+        if self.diagnostics is not None:
+            _validate_json(self.diagnostics, path="browser.diagnostics")
+            object.__setattr__(self, "diagnostics", _copy(self.diagnostics))
 
 
 AttemptOutcome = DiagnosisOutcome | ProposalOutcome | BrowserOutcome
@@ -445,64 +454,10 @@ class Phase4Runtime:
     agent_execution: JsonObject | None = None
     browser_worker_semaphore: object | None = None
     runtime_composition: object | None = None
-
-
-@dataclass(slots=True)
-class PairAccounting:
-    diagnosis_calls: int = 0
-    proposal_calls: int = 0
-    repair_calls: int = 0
-    browser_attempts: int = 0
-    input_tokens: int | None = 0
-    output_tokens: int | None = 0
-    total_tokens: int | None = 0
-    cost_usd: float | None = 0.0
-    usage_unavailable_reasons: list[str] | None = None
-
-    def __post_init__(self) -> None:
-        if self.usage_unavailable_reasons is None:
-            self.usage_unavailable_reasons = []
-
-    def record(
-        self, stage: Stage, outcome: AttemptOutcome, *, browser_counted: bool = True
-    ) -> None:
-        if stage in {"tp_diagnosis", "ordinary_critique"}:
-            self.diagnosis_calls += 1
-        elif stage == "proposal":
-            self.proposal_calls += 1
-        elif stage == "repair":
-            self.repair_calls += 1
-        elif stage == "browser" and browser_counted:
-            self.browser_attempts += 1
-        usage = outcome.usage
-        if not usage.available:
-            reason = usage.unavailable_reason or f"{stage}_usage_unavailable"
-            assert self.usage_unavailable_reasons is not None
-            self.usage_unavailable_reasons.append(reason)
-            self.input_tokens = self.output_tokens = self.total_tokens = self.cost_usd = None
-            return
-        if self.input_tokens is not None:
-            self.input_tokens += cast(int, usage.input_tokens)
-        if self.output_tokens is not None:
-            self.output_tokens += cast(int, usage.output_tokens)
-        if self.total_tokens is not None:
-            self.total_tokens += cast(int, usage.input_tokens) + cast(int, usage.output_tokens)
-        if self.cost_usd is not None:
-            self.cost_usd += cast(float, usage.cost_usd)
-
-    def to_dict(self) -> JsonObject:
-        return {
-            "diagnosis_calls": self.diagnosis_calls,
-            "proposal_calls": self.proposal_calls,
-            "repair_calls": self.repair_calls,
-            "browser_attempts": self.browser_attempts,
-            "input_tokens": self.input_tokens,
-            "output_tokens": self.output_tokens,
-            "total_tokens": self.total_tokens,
-            "cost_usd": self.cost_usd,
-            "usage_status": "available" if not self.usage_unavailable_reasons else "unavailable",
-            "usage_unavailable_reasons": list(self.usage_unavailable_reasons or []),
-        }
+    host_client: object | None = None
+    browser_model: str | None = None
+    browser_provider: str | None = None
+    browser_runner: str = "agentlab"
 
 
 __all__ = [
@@ -521,7 +476,9 @@ __all__ = [
     "JsonObject",
     "JsonValue",
     "MatchedAttemptRequest",
+    "MatchedCallPolicy",
     "MatchedRewriteStudyConfig",
+    "MatchedStudyBudget",
     "ModelProviderContext",
     "NeutralEvidence",
     "OrdinaryGuidance",

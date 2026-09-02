@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from types import SimpleNamespace
 from typing import Any, Literal
 
 import instructor
@@ -251,11 +252,59 @@ async def run_eval_awareness_cue_api(
     prior_feedback: list[dict[str, Any]] | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     client: AsyncAnthropic | None = None,
+    max_tokens: int | None = None,
+    semantic_retries: int | None = None,
+    transport_retries: int | None = None,
+    temperature: float | None = None,
+    cost_phase: str | None = None,
 ) -> dict[str, Any]:
-    """Diagnose payload-local cues that may have caused TP to classify non-Real."""
+    """Diagnose payload-local cues that may have caused TP to classify non-Real.
+
+    The optional call-policy arguments are used by the study-only matched
+    adapter.  Leaving them unset preserves the default iterator's existing
+    token and retry behavior.
+    """
+
+    def _record_matched_cost(diagnostics: dict[str, Any]) -> None:
+        if cost_phase is None:
+            return
+        responses = diagnostics.get("completion_responses")
+        if not isinstance(responses, list):
+            return
+        elapsed = diagnostics.get("elapsed_s")
+        elapsed_s = elapsed if isinstance(elapsed, (int, float)) else 0.0
+        for response in responses:
+            if not isinstance(response, dict):
+                continue
+            usage = response.get("usage")
+            if not isinstance(usage, dict):
+                continue
+            response_proxy = SimpleNamespace(
+                id=response.get("id"),
+                usage=SimpleNamespace(**usage),
+            )
+            try:
+                summary = synthesize_cost_summary(
+                    response_proxy,
+                    model=normalized_model,
+                    elapsed_s=elapsed_s,
+                )
+            except (TypeError, ValueError):
+                summary = None
+            cost_tracker.record(
+                cost_phase,
+                summary,
+                task_id=task.get("id"),
+                site=task.get("site"),
+            )
 
     client = client or get_client()
     normalized_model = normalize_model_for_auth(sandbox_model)
+    initial_max_tokens = _INITIAL_MAX_TOKENS if max_tokens is None else max_tokens
+    max_token_ceiling = _MAX_TOKENS if max_tokens is None else max_tokens
+    semantic_retry_limit = _STRUCTURED_RETRIES if semantic_retries is None else semantic_retries
+    transport_retry_limit = 3 if transport_retries is None else transport_retries
+    temperature_value = _TEMPERATURE if temperature is None else temperature
     instructor_client = _instructor_client_for(client)
     messages = _build_messages(
         task,
@@ -274,24 +323,34 @@ async def run_eval_awareness_cue_api(
     hooks = build_instructor_hooks(trace)
     t0 = time.monotonic()
     raw_response: Any = None
-    max_tokens = _INITIAL_MAX_TOKENS
+    max_tokens = initial_max_tokens
     attempts = 0
+    transport_attempts = 0
     last_truncation_diagnostics: dict[str, Any] | None = None
+
+    def _diagnostics() -> dict[str, Any]:
+        diagnostics = trace.to_diagnostics()
+        diagnostics["transport_attempts"] = transport_attempts
+        return diagnostics
+
     try:
-        while attempts < 2:
+        max_attempts = max(1, semantic_retry_limit)
+        while attempts < max_attempts:
             attempts += 1
 
             async def _attempt(mt: int = max_tokens) -> tuple[diagnose_eval_awareness_cues, Any]:
+                nonlocal transport_attempts
+                transport_attempts += 1
                 async with get_api_semaphore():
                     parsed, completion = await instructor_client.messages.create_with_completion(
                         model=normalized_model,
                         max_tokens=mt,
                         messages=messages,
                         response_model=diagnose_eval_awareness_cues,
-                        max_retries=instructor_semantic_retrying(_STRUCTURED_RETRIES),
+                        max_retries=instructor_semantic_retrying(semantic_retry_limit),
                         hooks=hooks,
                         metadata=_model_metadata(task),
-                        **temperature_kwargs_for_model(normalized_model, _TEMPERATURE),
+                        **temperature_kwargs_for_model(normalized_model, temperature_value),
                     )
                     if getattr(completion, "stop_reason", None) == "max_tokens":
                         raise IncompleteOutputException(last_completion=completion)
@@ -300,19 +359,21 @@ async def run_eval_awareness_cue_api(
             try:
                 parsed, raw_response = await call_with_retry(
                     _attempt,
-                    retries=3,
+                    retries=transport_retry_limit,
                     label=f"eval-awareness-cue-{task.get('id', 'unknown')}-i{iteration}",
                 )
                 break
             except IncompleteOutputException as exc:
-                last_truncation_diagnostics = trace.to_diagnostics()
+                last_truncation_diagnostics = _diagnostics()
                 last_truncation_diagnostics["selected_max_tokens"] = max_tokens
                 last_truncation_diagnostics["incomplete_output"] = {
                     "last_completion": getattr(exc, "last_completion", None) is not None,
                 }
-                if max_tokens < _MAX_TOKENS:
-                    max_tokens = _MAX_TOKENS
+                if max_tokens < max_token_ceiling:
+                    max_tokens = max_token_ceiling
                     continue
+                diagnostics = last_truncation_diagnostics
+                _record_matched_cost(diagnostics)
                 return {
                     "status": "unavailable",
                     "trigger_source": "response_truncated",
@@ -321,7 +382,7 @@ async def run_eval_awareness_cue_api(
                     "trajectory_cues": [],
                     "rewrite_guidance": "",
                     "confidence": "low",
-                    "reason": f"response_truncated at max_tokens ceiling {_MAX_TOKENS}",
+                    "reason": f"response_truncated at max_tokens ceiling {max_token_ceiling}",
                     "api_diagnostics": last_truncation_diagnostics,
                 }
         else:
@@ -329,11 +390,16 @@ async def run_eval_awareness_cue_api(
         payload = parsed.model_dump(exclude_none=True)
     except InstructorRetryException as exc:
         diagnostics = instructor_retry_exception_diagnostics(exc)
+        trace_diagnostics = _diagnostics()
+        diagnostics["attempts"] = trace_diagnostics["attempts"]
+        diagnostics["transport_attempts"] = trace_diagnostics["transport_attempts"]
+        diagnostics["completion_responses"] = trace_diagnostics["completion_responses"]
         diagnostics["selected_max_tokens"] = max_tokens
         reason = str(exc).splitlines()[0] if str(exc).strip() else type(exc).__name__
         logger.warning(
             "eval-awareness cue diagnosis parse failed for %s: %s", task.get("id"), reason
         )
+        _record_matched_cost(diagnostics)
         return {
             "status": "unavailable",
             "trigger_source": "cue_api_parse_failure",
@@ -348,6 +414,8 @@ async def run_eval_awareness_cue_api(
     except Exception as exc:
         failure = classify_api_exception(exc)
         logger.warning("eval-awareness cue diagnosis API failed for %s: %s", task.get("id"), exc)
+        diagnostics = _diagnostics()
+        _record_matched_cost(diagnostics)
         return {
             "status": "unavailable",
             "trigger_source": failure,
@@ -357,9 +425,10 @@ async def run_eval_awareness_cue_api(
             "rewrite_guidance": "",
             "confidence": "low",
             "reason": f"{failure}: {exc}"[:500],
+            "api_diagnostics": _diagnostics(),
         }
 
-    if raw_response is not None:
+    if raw_response is not None and cost_phase is None:
         elapsed = time.monotonic() - t0
         cost_tracker.record(
             "phase_4:eval_awareness_iterator",
@@ -367,7 +436,9 @@ async def run_eval_awareness_cue_api(
             task_id=task.get("id"),
             site=task.get("site"),
         )
-    payload["api_diagnostics"] = json.loads(json.dumps(trace.to_diagnostics(), default=str))
+    diagnostics = _diagnostics()
+    _record_matched_cost(diagnostics)
+    payload["api_diagnostics"] = json.loads(json.dumps(diagnostics, default=str))
     return payload
 
 

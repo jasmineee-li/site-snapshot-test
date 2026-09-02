@@ -12,12 +12,14 @@ from warp_taskgen.phase_4.matched_rewrite_contracts import (
 from warp_taskgen.run_definition import define_run
 
 STUDY_ID: Final = "matched_tp_guided_vs_ordinary_rewrite"
-STUDY_SCHEMA_VERSION: Final = 1
+STUDY_SCHEMA_VERSION: Final = 2
 BASELINE_TASK_FIELD: Final = "phase_4_matched_rewrite_study_baseline_task"
 BASELINE_RESULT_FIELD: Final = "phase_4_matched_rewrite_study_baseline_result"
 BASELINE_SELECTED_PAYLOAD_FIELD: Final = "phase_4_matched_rewrite_study_selected_payload"
 BASELINE_WITNESS_FIELD: Final = "phase_4_matched_rewrite_study_witness"
 BASELINE_CONSTRAINTS_FIELD: Final = "phase_4_matched_rewrite_study_constraints"
+CALL_POLICY_FIELD: Final = "phase_4_matched_rewrite_study_call_policy"
+BUDGET_FIELD: Final = "phase_4_matched_rewrite_study_budget"
 _CONDITION_FIELD: Final = "phase_4_matched_rewrite_study_condition"
 _SCHEDULE_FIELD: Final = "phase_4_matched_rewrite_study_schedule"
 _CONTEXT_FIELDS: Final = {
@@ -53,7 +55,10 @@ def validate_baseline_binding(
         BASELINE_CONSTRAINTS_FIELD: baseline.constraints,
         _CONDITION_FIELD: config.condition,
         _SCHEDULE_FIELD: config.schedule,
+        CALL_POLICY_FIELD: config.resolve_call_policy(baseline.model_context.sandbox_model).to_dict(),
     }
+    if config.budget is not None:
+        expected_inputs[BUDGET_FIELD] = config.budget.to_dict()
     expected_inputs.update(
         {
             field: value
@@ -91,6 +96,8 @@ def checkpoint_payload(
         "schedule": config.schedule,
         "baseline_identity": baseline.identity,
         "run_definition": baseline.run_definition.to_dict(),
+        "call_policy": config.resolve_call_policy(baseline.model_context.sandbox_model).to_dict(),
+        "budget": config.budget.to_dict() if config.budget is not None else None,
         "status": "complete",
         "primary": {
             "status": "complete",
@@ -128,6 +135,8 @@ def validate_checkpoint(
         "schedule",
         "baseline_identity",
         "run_definition",
+        "call_policy",
+        "budget",
         "status",
     ):
         if checkpoint[field] != expected[field]:
@@ -151,6 +160,8 @@ __all__ = [
     "BASELINE_SELECTED_PAYLOAD_FIELD",
     "BASELINE_TASK_FIELD",
     "BASELINE_WITNESS_FIELD",
+    "BUDGET_FIELD",
+    "CALL_POLICY_FIELD",
     "STUDY_ID",
     "STUDY_SCHEMA_VERSION",
     "IncompatibleMatchedRewriteResume",

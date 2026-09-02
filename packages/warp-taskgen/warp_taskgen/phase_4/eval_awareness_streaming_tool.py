@@ -25,7 +25,7 @@ from warp_taskgen.host_api_observability import (
     summarize_provider_kwargs,
     summarize_provider_response,
 )
-from warp_taskgen.phase_4.anthropic_client import call_with_retry
+from warp_taskgen.phase_4.anthropic_client import call_with_retry, temperature_kwargs_for_model
 from warp_taskgen.phase_4.concurrency import get_api_semaphore
 
 _STREAM_TIMEOUT_ENV = "WORLDSIM_EVAL_AWARENESS_REWRITE_STREAM_TIMEOUT_S"
@@ -53,6 +53,7 @@ class StreamingToolCallTrace:
     completion_errors: list[dict[str, Any]] = field(default_factory=list)
     retry_feedback: list[dict[str, Any]] = field(default_factory=list)
     retry_fallbacks: list[dict[str, Any]] = field(default_factory=list)
+    transport_attempts: int = 0
 
     def record_kwargs(self, kwargs: dict[str, Any]) -> None:
         self.completion_kwargs.append(summarize_provider_kwargs(kwargs))
@@ -88,6 +89,7 @@ class StreamingToolCallTrace:
             "response_model": self.response_model_name,
             "elapsed_s": round(max(0.0, time.monotonic() - self.started_at), 3),
             "attempts": len(self.completion_kwargs),
+            "transport_attempts": self.transport_attempts,
             "completion_kwargs": self.completion_kwargs,
             "completion_responses": self.completion_responses,
             "parse_errors": self.parse_errors,
@@ -127,6 +129,8 @@ async def stream_pydantic_tool_call(
     site: str | None = None,
     thinking_kwargs: dict[str, Any] | None = None,
     force_tool: bool = True,
+    transport_retries: int = 3,
+    temperature: float | None = None,
 ) -> StreamingToolResult:
     """Stream one Anthropic tool call and validate it with Pydantic.
 
@@ -164,12 +168,18 @@ async def stream_pydantic_tool_call(
             metadata=metadata,
             thinking_kwargs=thinking_kwargs,
             force_tool=force_tool,
+            temperature=temperature,
         )
         trace.record_kwargs(kwargs)
         try:
+
+            async def _transport_call(current_kwargs: dict[str, Any] = kwargs) -> Message:
+                trace.transport_attempts += 1
+                return await _stream_once(client, current_kwargs)
+
             completion = await call_with_retry(
-                lambda kwargs=kwargs: _stream_once(client, kwargs),
-                retries=3,
+                _transport_call,
+                retries=transport_retries,
                 label=f"{label}-stream-a{attempt}",
                 timeout_s=_STREAM_TIMEOUT_S,
             )
@@ -293,6 +303,7 @@ def _request_kwargs(
     metadata: dict[str, str],
     thinking_kwargs: dict[str, Any],
     force_tool: bool,
+    temperature: float | None = None,
 ) -> dict[str, Any]:
     kwargs: dict[str, Any] = {
         "model": model,
@@ -302,6 +313,7 @@ def _request_kwargs(
         "metadata": metadata,
     }
     kwargs.update(thinking_kwargs)
+    kwargs.update(temperature_kwargs_for_model(model, temperature))
     if thinking_kwargs:
         kwargs["tool_choice"] = {"type": "auto"}
         kwargs["system"] = [

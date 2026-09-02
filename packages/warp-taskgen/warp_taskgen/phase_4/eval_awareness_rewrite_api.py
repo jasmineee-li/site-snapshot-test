@@ -6,6 +6,7 @@ import copy
 import json
 import logging
 import os
+from types import SimpleNamespace
 from typing import Any, Literal
 
 from anthropic import AsyncAnthropic
@@ -26,6 +27,7 @@ from warp_taskgen.phase_4.eval_awareness_streaming_tool import (
     StreamingToolValidationError,
     stream_pydantic_tool_call,
 )
+from warp_taskgen.phase_4.matched_rewrite_diagnostics import merge_retry_diagnostics
 from warp_taskgen.phase_4.payload_rendering import (
     build_payload_renderer_contract,
     render_failure_classes,
@@ -762,6 +764,45 @@ def _failed_rewrite(
     return skipped
 
 
+def _record_matched_completion_cost(
+    diagnostics: dict[str, Any],
+    *,
+    model: str,
+    phase: str | None,
+    task_id: str,
+    site: str | None,
+) -> None:
+    """Record every captured completion for the feature-local cost phase."""
+
+    if phase is None:
+        return
+    responses = diagnostics.get("completion_responses")
+    if not isinstance(responses, list):
+        return
+    elapsed = diagnostics.get("elapsed_s")
+    elapsed_s = elapsed if isinstance(elapsed, (int, float)) else 0.0
+    for response in responses:
+        if not isinstance(response, dict):
+            continue
+        usage = response.get("usage")
+        if not isinstance(usage, dict):
+            continue
+        response_proxy = SimpleNamespace(
+            id=response.get("id"),
+            usage=SimpleNamespace(**usage),
+        )
+        try:
+            summary = synthesize_cost_summary(response_proxy, model=model, elapsed_s=elapsed_s)
+        except (TypeError, ValueError):
+            summary = None
+        cost_tracker.record(
+            phase,
+            summary,
+            task_id=task_id,
+            site=site,
+        )
+
+
 async def generate_eval_awareness_rewrite_api(
     task: dict[str, Any],
     cue_diagnosis: dict[str, Any],
@@ -773,13 +814,29 @@ async def generate_eval_awareness_rewrite_api(
     include_tp_context: bool = True,
     sandbox_model: str = "claude-sonnet-4-6",
     client: AsyncAnthropic | None = None,
+    include_api_diagnostics: bool = False,
+    max_tokens: int | None = None,
+    semantic_retries: int | None = None,
+    transport_retries: int | None = None,
+    temperature: float | None = None,
+    cost_phase: str | None = None,
 ) -> dict[str, Any]:
-    """Generate one sequential eval-awareness rewrite of ``task``."""
+    """Generate one sequential eval-awareness rewrite of ``task``.
+
+    ``include_api_diagnostics`` is an opt-in projection for the matched study
+    adapter.  The default iterator keeps its historical task shape while the
+    study can account for every real completion that produced a candidate.
+    """
 
     task_id = str(task.get("id") or "unknown")
     try:
         thinking_kwargs = _eval_awareness_rewrite_thinking_kwargs()
-        max_tokens = _initial_max_tokens_for_rewrite(thinking_kwargs)
+        initial_max_tokens = _initial_max_tokens_for_rewrite(thinking_kwargs)
+        if max_tokens is not None:
+            if type(max_tokens) is not int or not 1 <= max_tokens <= _MAX_MAX_TOKENS:
+                raise ValueError("max_tokens must be between 1 and 256000")
+            initial_max_tokens = max_tokens
+        max_token_ceiling = max_tokens if max_tokens is not None else _MAX_MAX_TOKENS
     except ValueError as exc:
         return _failed_rewrite(
             task,
@@ -800,6 +857,8 @@ async def generate_eval_awareness_rewrite_api(
     response_context = {"task": task}
     raw_response: Any = None
     payload: dict[str, Any] | None = None
+    max_tokens = initial_max_tokens
+    prior_diagnostics: dict[str, Any] | None = None
 
     try:
         while True:
@@ -811,34 +870,64 @@ async def generate_eval_awareness_rewrite_api(
                     response_model=build_eval_awareness_rewrite,
                     context=response_context,
                     max_tokens=max_tokens,
-                    max_retries=_STRUCTURED_ATTEMPTS,
+                    max_retries=(
+                        _STRUCTURED_ATTEMPTS
+                        if semantic_retries is None
+                        else semantic_retries
+                    ),
                     metadata=_model_metadata(task),
                     label=f"eval-awareness-rewrite-{task_id}-i{iteration}",
                     task_id=task_id,
                     site=task.get("site") if isinstance(task.get("site"), str) else None,
                     thinking_kwargs=thinking_kwargs,
                     force_tool=not bool(thinking_kwargs.get("thinking")),
+                    transport_retries=3 if transport_retries is None else transport_retries,
+                    temperature=temperature,
                 )
                 break
             except StreamingToolTruncatedError as exc:
-                diagnostics = exc.diagnostics
-                diagnostics["selected_max_tokens"] = max_tokens
-                if max_tokens < _MAX_MAX_TOKENS:
-                    max_tokens = _MAX_MAX_TOKENS
+                diagnostics = merge_retry_diagnostics(
+                    prior_diagnostics,
+                    exc.diagnostics,
+                    selected_max_tokens=max_tokens,
+                )
+                prior_diagnostics = diagnostics
+                if max_tokens < max_token_ceiling:
+                    max_tokens = max_token_ceiling
                     continue
+                _record_matched_completion_cost(
+                    diagnostics,
+                    model=normalized_model,
+                    phase=cost_phase,
+                    task_id=task_id,
+                    site=task.get("site") if isinstance(task.get("site"), str) else None,
+                )
                 return _failed_rewrite(
                     task,
                     failure_class="response_truncated",
-                    reason=f"response_truncated at max_tokens ceiling {_MAX_MAX_TOKENS}",
+                    reason=f"response_truncated at max_tokens ceiling {max_token_ceiling}",
                     diagnostics=diagnostics,
                 )
         raw_response = result.completion
         payload = result.parsed.model_dump(exclude_none=True)
-        diagnostics = result.diagnostics
-        diagnostics["selected_max_tokens"] = max_tokens
+        diagnostics = merge_retry_diagnostics(
+            prior_diagnostics,
+            result.diagnostics,
+            selected_max_tokens=max_tokens,
+        )
     except StreamingToolValidationError as exc:
-        diagnostics = exc.diagnostics
-        diagnostics["selected_max_tokens"] = max_tokens
+        diagnostics = merge_retry_diagnostics(
+            prior_diagnostics,
+            exc.diagnostics,
+            selected_max_tokens=max_tokens,
+        )
+        _record_matched_completion_cost(
+            diagnostics,
+            model=normalized_model,
+            phase=cost_phase,
+            task_id=task_id,
+            site=task.get("site") if isinstance(task.get("site"), str) else None,
+        )
         reason = str(exc).splitlines()[0] if str(exc).strip() else type(exc).__name__
         return _failed_rewrite(
             task,
@@ -848,26 +937,47 @@ async def generate_eval_awareness_rewrite_api(
         )
     except Exception as exc:
         failure = classify_api_exception(exc)
+        diagnostics = merge_retry_diagnostics(
+            prior_diagnostics,
+            {"selected_max_tokens": max_tokens},
+            selected_max_tokens=max_tokens,
+        )
+        _record_matched_completion_cost(
+            diagnostics,
+            model=normalized_model,
+            phase=cost_phase,
+            task_id=task_id,
+            site=task.get("site") if isinstance(task.get("site"), str) else None,
+        )
         return _failed_rewrite(
             task,
             failure_class=failure,
             reason=f"{failure}: {exc}",
-            diagnostics={"selected_max_tokens": max_tokens},
+            diagnostics=diagnostics,
         )
 
     if raw_response is not None:
         elapsed = diagnostics.get("elapsed_s")
         elapsed_s = elapsed if isinstance(elapsed, (int, float)) else None
-        cost_tracker.record(
-            "phase_4:eval_awareness_iterator",
-            synthesize_cost_summary(
-                raw_response,
+        if cost_phase is None:
+            cost_tracker.record(
+                "phase_4:eval_awareness_iterator",
+                synthesize_cost_summary(
+                    raw_response,
+                    model=normalized_model,
+                    elapsed_s=elapsed_s if elapsed_s is not None else 0.0,
+                ),
+                task_id=task_id,
+                site=task.get("site"),
+            )
+        else:
+            _record_matched_completion_cost(
+                diagnostics,
                 model=normalized_model,
-                elapsed_s=elapsed_s if elapsed_s is not None else 0.0,
-            ),
-            task_id=task_id,
-            site=task.get("site"),
-        )
+                phase=cost_phase,
+                task_id=task_id,
+                site=task.get("site") if isinstance(task.get("site"), str) else None,
+            )
     if payload is None:
         return _failed_rewrite(
             task,
@@ -897,7 +1007,10 @@ async def generate_eval_awareness_rewrite_api(
             reason="could not bind rewritten payload_text to the host-owned editor seed",
             diagnostics=diagnostics,
         )
-    return _merge_rewrite(task, payload)
+    merged = _merge_rewrite(task, payload)
+    if include_api_diagnostics:
+        merged["matched_rewrite_api_diagnostics"] = diagnostics
+    return merged
 
 
 __all__ = ["generate_eval_awareness_rewrite_api"]
