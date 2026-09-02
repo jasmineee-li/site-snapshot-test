@@ -302,6 +302,22 @@ class RocketChatHttpNotificationReader(RocketChatHttpReader, RocketChatNotificat
             wire_body = render_rocket_chat_notification_message(expected)
         except (RocketChatContractError, TypeError) as exc:
             return RocketChatObservationFailure("wrong_recipient", str(exc))
+        root = seed_receipt.messages.get(conversation.thread_key)
+        if root is None:
+            return RocketChatObservationFailure("missing_seed_identity", "seed root is missing")
+        try:
+            # Authenticate this reader transport before resolving the logical
+            # channel.  The mapping must be fresh and must precede the base
+            # seed history read so a stale/foreign room cannot be accepted.
+            self.transport.login(self.credentials)
+            resolved_room_id = self.transport.channel_id(conversation.room_id)
+        except (RocketChatContractError, RocketChatTransportError) as exc:
+            return RocketChatObservationFailure("reader_transport_failed", str(exc))
+        if resolved_room_id != root.room_id:
+            return RocketChatObservationFailure(
+                "wrong_room",
+                "reader channel mapping does not match the current seed receipt room",
+            )
         seed_observation = self.observe(conversation, seed_receipt)
         if isinstance(seed_observation, RocketChatObservationFailure):
             return seed_observation
@@ -309,9 +325,6 @@ class RocketChatHttpNotificationReader(RocketChatHttpReader, RocketChatNotificat
             return RocketChatObservationFailure(
                 "reader_transport_failed", "seed readback returned an unsupported result"
             )
-        root = seed_receipt.messages.get(conversation.thread_key)
-        if root is None:
-            return RocketChatObservationFailure("missing_seed_identity", "seed root is missing")
         if notification_receipt.thread_id != root.message_id:
             return RocketChatObservationFailure(
                 "wrong_thread", "notification is attached to the wrong thread"

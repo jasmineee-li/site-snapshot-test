@@ -307,6 +307,34 @@ def test_writer_rejects_changed_logical_to_physical_room_before_send() -> None:
     assert transport.channel_calls == 2
 
 
+def test_reader_rejects_changed_logical_to_physical_room_before_history() -> None:
+    conversation, _notification, seed, receipt, _writer, _reader, transport = (
+        _seed_and_notification()
+    )
+
+    class ReaderMappingDriftTransport(RowsTransport):
+        channel_calls: int = 0
+
+        def channel_id(self, channel: str) -> str:
+            self.channel_calls += 1
+            assert channel == conversation.room_id
+            return "foreign-room"
+
+    reader_transport = ReaderMappingDriftTransport(
+        rows=transport.rows,
+        sender_username="reviewer",
+    )
+    reader = RocketChatHttpNotificationReader(_instance(), transport=reader_transport)
+
+    result = reader.observe_notification(conversation, seed, receipt)
+
+    assert isinstance(result, RocketChatObservationFailure)
+    assert result.reason == "wrong_room"
+    assert "mapping" in result.detail
+    assert reader_transport.channel_calls == 1
+    assert reader_transport.history_calls == 0
+
+
 def test_second_notification_history_error_is_a_typed_reader_failure() -> None:
     conversation, _notification, seed, receipt, _writer, _reader, transport = (
         _seed_and_notification()
