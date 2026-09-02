@@ -68,6 +68,7 @@ _CONTRIBUTOR_FIELDS: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "phase_4_matched_rewrite_study_witness "
             "phase_4_matched_rewrite_study_constraints "
             "phase_4_matched_rewrite_study_call_policy "
+            "phase_4_matched_rewrite_study_budget "
             "adversarial_action_kind phase_4_task_id skip_intermediate_asr "
             "intermediate_asr_max_steps_per_task allow_unknown_auth "
             "skip_host_bound_storage_state_auth runtime_composition"

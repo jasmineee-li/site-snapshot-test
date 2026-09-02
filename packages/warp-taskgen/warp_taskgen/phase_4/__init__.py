@@ -55,6 +55,10 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "warp_taskgen.phase_4.matched_rewrite_contracts",
         "MatchedCallPolicy",
     ),
+    "MatchedStudyBudget": (
+        "warp_taskgen.phase_4.matched_rewrite_contracts",
+        "MatchedStudyBudget",
+    ),
     "MatchedRewriteStudyConfig": (
         "warp_taskgen.phase_4.matched_rewrite_study",
         "MatchedRewriteStudyConfig",

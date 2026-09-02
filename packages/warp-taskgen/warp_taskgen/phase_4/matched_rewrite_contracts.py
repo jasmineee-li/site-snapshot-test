@@ -11,6 +11,7 @@ from typing import Literal, Protocol, cast
 
 from warp_taskgen.phase_4.matched_rewrite_accounting import (
     MatchedCallPolicy,
+    MatchedStudyBudget,
     PairAccounting,
     Usage,
 )
@@ -98,6 +99,7 @@ class MatchedRewriteStudyConfig:
     condition: Condition = STUDY_CONDITION
     schedule: Schedule = STUDY_SCHEDULE
     call_policy: MatchedCallPolicy | None = None
+    budget: MatchedStudyBudget | None = None
 
     def __post_init__(self) -> None:
         if self.condition != STUDY_CONDITION:
@@ -106,6 +108,8 @@ class MatchedRewriteStudyConfig:
             raise ValueError(f"unsupported matched rewrite schedule: {self.schedule!r}")
         if self.call_policy is not None and not isinstance(self.call_policy, MatchedCallPolicy):
             raise ValueError("matched rewrite call_policy must be MatchedCallPolicy or null")
+        if self.budget is not None and not isinstance(self.budget, MatchedStudyBudget):
+            raise ValueError("matched rewrite budget must be MatchedStudyBudget or null")
 
     @property
     def repair_attempts(self) -> int:
@@ -318,6 +322,7 @@ class MatchedAttemptRequest:
     variant_task: JsonObject | None = None
     artifact_namespace: str = ""
     call_policy: MatchedCallPolicy | None = None
+    budget: MatchedStudyBudget | None = None
 
     def __post_init__(self) -> None:
         if self.pair_index != 0:
@@ -332,6 +337,8 @@ class MatchedAttemptRequest:
             raise ValueError("repair attempt must be non-negative")
         if self.call_policy is not None and not isinstance(self.call_policy, MatchedCallPolicy):
             raise ValueError("attempt call_policy must be MatchedCallPolicy or null")
+        if self.budget is not None and not isinstance(self.budget, MatchedStudyBudget):
+            raise ValueError("attempt budget must be MatchedStudyBudget or null")
         for name in ("baseline_task", "baseline_result"):
             if not isinstance(getattr(self, name), dict):
                 raise ValueError(f"attempt {name} must be a JSON object")
@@ -354,6 +361,7 @@ class MatchedAttemptRequest:
             "guidance": self.guidance.to_dict() if self.guidance is not None else None,
             "repair_attempt": self.repair_attempt,
             "call_policy": self.call_policy.to_dict() if self.call_policy is not None else None,
+            "budget": self.budget.to_dict() if self.budget is not None else None,
         }
 
 
@@ -363,6 +371,7 @@ class DiagnosisOutcome:
     guidance: Guidance | None
     usage: Usage
     failure: str | None = None
+    diagnostics: JsonObject | None = None
 
     def __post_init__(self) -> None:
         if self.status not in {"ok", "failed"}:
@@ -373,6 +382,9 @@ class DiagnosisOutcome:
             raise ValueError("successful diagnosis outcome requires guidance")
         if self.status == "failed" and self.guidance is not None:
             raise ValueError("failed diagnosis outcome cannot include guidance")
+        if self.diagnostics is not None:
+            _validate_json(self.diagnostics, path="diagnosis.diagnostics")
+            object.__setattr__(self, "diagnostics", _copy(self.diagnostics))
 
 
 @dataclass(frozen=True, slots=True)
@@ -381,6 +393,7 @@ class ProposalOutcome:
     candidate: JsonObject | None
     usage: Usage
     failure: str | None = None
+    diagnostics: JsonObject | None = None
 
     def __post_init__(self) -> None:
         if self.status not in {"ok", "inapplicable", "failed"}:
@@ -391,6 +404,9 @@ class ProposalOutcome:
             raise ValueError("successful proposal outcome requires a candidate")
         if self.status != "ok" and self.candidate is not None:
             raise ValueError("non-successful proposal outcome cannot include a candidate")
+        if self.diagnostics is not None:
+            _validate_json(self.diagnostics, path="proposal.diagnostics")
+            object.__setattr__(self, "diagnostics", _copy(self.diagnostics))
 
 
 @dataclass(frozen=True, slots=True)
@@ -399,6 +415,7 @@ class BrowserOutcome:
     result: JsonObject | None
     usage: Usage
     failure: str | None = None
+    diagnostics: JsonObject | None = None
 
     def __post_init__(self) -> None:
         if self.status not in {"ok", "no_rerun", "failed"}:
@@ -409,6 +426,9 @@ class BrowserOutcome:
             raise ValueError("successful browser outcome requires a result")
         if self.status != "ok" and self.result is not None:
             raise ValueError("non-successful browser outcome cannot include a result")
+        if self.diagnostics is not None:
+            _validate_json(self.diagnostics, path="browser.diagnostics")
+            object.__setattr__(self, "diagnostics", _copy(self.diagnostics))
 
 
 AttemptOutcome = DiagnosisOutcome | ProposalOutcome | BrowserOutcome
@@ -455,6 +475,7 @@ __all__ = [
     "MatchedAttemptRequest",
     "MatchedCallPolicy",
     "MatchedRewriteStudyConfig",
+    "MatchedStudyBudget",
     "ModelProviderContext",
     "NeutralEvidence",
     "OrdinaryGuidance",

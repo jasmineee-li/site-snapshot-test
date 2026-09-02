@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import cast
 
 from warp_taskgen.phase_4.anthropic_client import (
@@ -97,6 +97,11 @@ class ExistingPhase4AttemptAdapter:
 
     runtime: Phase4Runtime
     _binding: BaselineBinding | None = None
+    _budget_tokens: dict[str, int] = field(default_factory=dict, init=False, repr=False, compare=False)
+    _budget_cost_usd: dict[str, float] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
+    _budget_usage_unknown: bool = field(default=False, init=False, repr=False, compare=False)
 
     def bind(self, binding: BaselineBinding) -> None:
         if self._binding is not None and self._binding != binding:
@@ -107,6 +112,52 @@ class ExistingPhase4AttemptAdapter:
         if self._binding != request.binding:
             raise ValueError("attempt provider is not bound to the admitted baseline")
 
+    def _budget_failure(self, request: MatchedAttemptRequest) -> str | None:
+        """Return a fail-closed budget reason before any provider call."""
+
+        budget = request.budget
+        if budget is None:
+            return "matched_budget_missing"
+        if self._budget_usage_unknown:
+            return "matched_budget_usage_unknown"
+        arm_tokens = self._budget_tokens.get(request.arm, 0)
+        arm_cost = self._budget_cost_usd.get(request.arm, 0.0)
+        total_tokens = sum(self._budget_tokens.values())
+        total_cost = sum(self._budget_cost_usd.values())
+        if arm_tokens >= budget.per_arm_max_tokens:
+            return "matched_budget_per_arm_token_ceiling"
+        if total_tokens >= budget.total_max_tokens:
+            return "matched_budget_total_token_ceiling"
+        if arm_cost >= budget.per_arm_max_cost_usd:
+            return "matched_budget_per_arm_cost_ceiling"
+        if total_cost >= budget.total_max_cost_usd:
+            return "matched_budget_total_cost_ceiling"
+        return None
+
+    @staticmethod
+    def _budget_failure_outcome(stage: str, reason: str) -> AttemptOutcome:
+        usage = Usage.unavailable(reason)
+        if stage in {"tp_diagnosis", "ordinary_critique"}:
+            return DiagnosisOutcome(status="failed", guidance=None, usage=usage, failure=reason)
+        if stage in {"proposal", "repair"}:
+            return ProposalOutcome(status="failed", candidate=None, usage=usage, failure=reason)
+        return BrowserOutcome(status="failed", result=None, usage=usage, failure=reason)
+
+    def _record_budget(self, request: MatchedAttemptRequest, outcome: AttemptOutcome) -> None:
+        usage = outcome.usage
+        if not usage.available:
+            # Browser execution has a separate artifact accounting path. A
+            # missing model completion usage is unsafe for another provider
+            # call, so fail closed rather than guessing at spend.
+            if request.stage != "browser":
+                object.__setattr__(self, "_budget_usage_unknown", True)
+            return
+        tokens = cast(int, usage.input_tokens) + cast(int, usage.output_tokens)
+        self._budget_tokens[request.arm] = self._budget_tokens.get(request.arm, 0) + tokens
+        self._budget_cost_usd[request.arm] = self._budget_cost_usd.get(request.arm, 0.0) + cast(
+            float, usage.cost_usd
+        )
+
     def _client(self) -> object:
         """Use an injected test client or the shared host Messages client."""
 
@@ -114,13 +165,25 @@ class ExistingPhase4AttemptAdapter:
 
     async def run(self, request: MatchedAttemptRequest) -> AttemptOutcome:
         self._check_binding(request)
-        if request.stage == "tp_diagnosis":
-            return await self._diagnose(request)
-        if request.stage == "ordinary_critique":
-            return await self._ordinary_critique(request)
-        if request.stage in {"proposal", "repair"}:
-            return await self._rewrite(request)
-        return await self._browser(request)
+        budget_failure = self._budget_failure(request)
+        if budget_failure is not None:
+            return self._budget_failure_outcome(request.stage, budget_failure)
+        try:
+            if request.stage == "tp_diagnosis":
+                outcome = await self._diagnose(request)
+            elif request.stage == "ordinary_critique":
+                outcome = await self._ordinary_critique(request)
+            elif request.stage in {"proposal", "repair"}:
+                outcome = await self._rewrite(request)
+            else:
+                outcome = await self._browser(request)
+        except Exception as exc:
+            outcome = self._budget_failure_outcome(
+                request.stage,
+                f"{request.stage}_provider_error:{classify_api_exception(exc)}",
+            )
+        self._record_budget(request, outcome)
+        return outcome
 
     async def _diagnose(self, request: MatchedAttemptRequest) -> DiagnosisOutcome:
         # The canonical cue API itself projects task/result to model-safe
@@ -150,6 +213,7 @@ class ExistingPhase4AttemptAdapter:
                 semantic_retries=policy.semantic_retries,
                 transport_retries=policy.transport_retries,
                 temperature=policy.temperature,
+                cost_phase=f"phase_4:matched_rewrite_study:{request.stage}",
             )
         except Exception as exc:
             return DiagnosisOutcome(
@@ -167,17 +231,24 @@ class ExistingPhase4AttemptAdapter:
             model=policy.model,
             fallback_reason="tp_diagnosis_usage_unavailable",
         )
+        diagnostics = (
+            _json_object(raw.get("api_diagnostics"))
+            if isinstance(raw, dict)
+            else None
+        )
         if status != "ok" or guidance is None:
             return DiagnosisOutcome(
                 status="failed",
                 guidance=None,
                 usage=usage,
                 failure="tp_diagnosis_unavailable",
+                diagnostics=diagnostics,
             )
         return DiagnosisOutcome(
             status="ok",
             guidance=guidance,
             usage=usage,
+            diagnostics=diagnostics,
         )
 
     def _call_policy(self, request: MatchedAttemptRequest) -> MatchedCallPolicy:
@@ -226,6 +297,7 @@ class ExistingPhase4AttemptAdapter:
                 semantic_retries=policy.semantic_retries,
                 transport_retries=policy.transport_retries,
                 temperature=policy.temperature,
+                cost_phase=f"phase_4:matched_rewrite_study:{request.stage}",
             )
         except Exception as exc:
             return ProposalOutcome(
@@ -242,10 +314,10 @@ class ExistingPhase4AttemptAdapter:
                 usage=Usage.unavailable("rewrite_usage_unavailable"),
                 failure="rewrite_provider_returned_non_object",
             )
-        diagnostics = candidate.pop("matched_rewrite_api_diagnostics", None)
+        diagnostics = _json_object(candidate.pop("matched_rewrite_api_diagnostics", None))
         marker = candidate.get("variant_status")
         if diagnostics is None and isinstance(marker, dict):
-            diagnostics = marker.get("api_diagnostics")
+            diagnostics = _json_object(marker.get("api_diagnostics"))
         usage = usage_from_diagnostics(
             diagnostics,
             model=policy.model,
@@ -259,6 +331,7 @@ class ExistingPhase4AttemptAdapter:
                     candidate=None,
                     usage=usage,
                     failure=_text(marker.get("reason")) or "rewrite_inapplicable",
+                    diagnostics=diagnostics,
                 )
             if marker_status == "failed":
                 return ProposalOutcome(
@@ -266,11 +339,13 @@ class ExistingPhase4AttemptAdapter:
                     candidate=None,
                     usage=usage,
                     failure=_text(marker.get("failure_class")) or "rewrite_failed",
+                    diagnostics=diagnostics,
                 )
         return ProposalOutcome(
             status="ok",
             candidate=candidate,
             usage=usage,
+            diagnostics=diagnostics,
         )
 
     async def _browser(self, request: MatchedAttemptRequest) -> BrowserOutcome:
@@ -312,6 +387,7 @@ class ExistingPhase4AttemptAdapter:
             status="ok",
             result=output,
             usage=browser_usage(output),
+            diagnostics=_json_object(output.get("api_diagnostics")),
         )
 
 

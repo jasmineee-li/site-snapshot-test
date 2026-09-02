@@ -9,10 +9,16 @@ the adapter rather than constructing a second model framework.
 from __future__ import annotations
 
 import copy
+import time
 from typing import Any, cast
 
+from warp_taskgen.cost_tracker import tracker as cost_tracker
 from warp_taskgen.host_api_observability import (
     estimate_claude_messages_cost_usd,
+    summarize_exception,
+    summarize_provider_kwargs,
+    summarize_provider_response,
+    synthesize_cost_summary,
     usage_dict,
 )
 from warp_taskgen.phase_4.anthropic_client import (
@@ -115,7 +121,6 @@ def ordinary_critique_messages(request: MatchedAttemptRequest) -> list[dict[str,
             "<payload>\n"
             + format_json_for_model_prompt(evidence.selected_payload)
             + "\n</payload>",
-            "<witness>\n" + format_json_for_model_prompt(evidence.witness) + "\n</witness>",
             "<trajectory_summary>\n"
             + format_json_for_model_prompt(evidence.trajectory_summary)
             + "\n</trajectory_summary>",
@@ -236,14 +241,59 @@ def usage_from_diagnostics(
                 cost_usd=estimate_claude_messages_cost_usd(response_proxy, model=model),
             )
         )
-    raw_attempts = diagnostics.get(
-        "transport_attempts",
-        diagnostics.get("attempts", len(usages) or 1),
-    )
-    attempts = raw_attempts if isinstance(raw_attempts, int) and raw_attempts > 0 else 1
+    attempt_counts = [len(responses), len(usages)]
+    for key in ("attempts", "transport_attempts"):
+        raw_attempts = diagnostics.get(key)
+        if isinstance(raw_attempts, int) and raw_attempts > 0:
+            attempt_counts.append(raw_attempts)
+    attempts = max(1, *attempt_counts)
     if malformed:
         return Usage.unavailable("model_usage_malformed", attempts=attempts)
     return sum_usage(usages, attempts=attempts)
+
+
+def _ordinary_diagnostics(request: MatchedAttemptRequest, *, model: str) -> dict[str, Any]:
+    return {
+        "phase": "phase_4",
+        "label": "matched-rewrite-ordinary-critique",
+        "task_id": str(request.baseline_task.get("id") or "unknown"),
+        "site": request.baseline_task.get("site")
+        if isinstance(request.baseline_task.get("site"), str)
+        else None,
+        "provider": "anthropic",
+        "mode": "messages",
+        "response_model": "ordinary_critique",
+        "model": model,
+        "attempts": 0,
+        "transport_attempts": 0,
+        "completion_kwargs": [],
+        "completion_responses": [],
+        "parse_errors": [],
+        "completion_errors": [],
+    }
+
+
+def _record_ordinary_cost(
+    response: Any,
+    *,
+    model: str,
+    request: MatchedAttemptRequest,
+    elapsed_s: float,
+) -> None:
+    """Record each captured completion under the matched feature phase."""
+
+    try:
+        summary = synthesize_cost_summary(response, model=model, elapsed_s=elapsed_s)
+    except (TypeError, ValueError):
+        summary = None
+    cost_tracker.record(
+        "phase_4:matched_rewrite_study:ordinary_critique",
+        summary,
+        task_id=str(request.baseline_task.get("id") or "unknown"),
+        site=request.baseline_task.get("site")
+        if isinstance(request.baseline_task.get("site"), str)
+        else None,
+    )
 
 
 def browser_usage(result: JsonObject) -> Usage:
@@ -279,22 +329,44 @@ async def run_ordinary_critique(
     transport_attempts = 0
     max_attempts = max(1, policy.semantic_retries)
     last_failure = "ordinary_critique_parse_failure"
+    diagnostics = _ordinary_diagnostics(request, model=model)
+    started_at = time.monotonic()
 
     for semantic_attempt in range(1, max_attempts + 1):
+        diagnostics["attempts"] = semantic_attempt
         try:
 
             async def _call(current_messages: list[dict[str, Any]] = messages) -> Any:
                 nonlocal transport_attempts
                 transport_attempts += 1
+                diagnostics["transport_attempts"] = transport_attempts
+                request_kwargs: dict[str, Any] = {
+                    "model": model,
+                    "max_tokens": policy.max_tokens,
+                    "messages": current_messages,
+                    "metadata": {"user_id": "warp-taskgen-matched-ordinary-critique"},
+                    "extra_body": structured_output_extra_body(_ORDINARY_CRITIQUE_SCHEMA),
+                }
+                request_kwargs.update(temperature_kwargs_for_model(model, policy.temperature))
+                diagnostics["completion_kwargs"].append(
+                    summarize_provider_kwargs(request_kwargs)
+                )
                 async with get_api_semaphore():
-                    return await client.messages.create(
-                        model=model,
-                        max_tokens=policy.max_tokens,
-                        messages=current_messages,
-                        metadata={"user_id": "warp-taskgen-matched-ordinary-critique"},
-                        extra_body=structured_output_extra_body(_ORDINARY_CRITIQUE_SCHEMA),
-                        **temperature_kwargs_for_model(model, policy.temperature),
-                    )
+                    try:
+                        response = await client.messages.create(**request_kwargs)
+                    except Exception as exc:
+                        diagnostics["completion_errors"].append(summarize_exception(exc))
+                        raise
+                diagnostics["completion_responses"].append(
+                    summarize_provider_response(response) or {}
+                )
+                _record_ordinary_cost(
+                    response,
+                    model=model,
+                    request=request,
+                    elapsed_s=max(0.0, time.monotonic() - started_at),
+                )
+                return response
 
             response = await call_with_retry(
                 _call,
@@ -307,6 +379,7 @@ async def run_ordinary_critique(
                 guidance=None,
                 usage=sum_usage(usages, attempts=max(1, transport_attempts)),
                 failure=f"ordinary_critique_api_error:{classify_api_exception(exc)}",
+                diagnostics=copy.deepcopy(diagnostics),
             )
 
         usages.append(usage_from_response(response, model=model))
@@ -317,8 +390,12 @@ async def run_ordinary_critique(
                 status="ok",
                 guidance=guidance,
                 usage=sum_usage(usages, attempts=max(1, transport_attempts)),
+                diagnostics=copy.deepcopy(diagnostics),
             )
         last_failure = parse_failure or "ordinary_critique_schema_violation"
+        diagnostics["parse_errors"].append(
+            {"failure_class": last_failure}
+        )
         if semantic_attempt < max_attempts:
             messages = copy.deepcopy(base_messages)
             messages[0]["content"].append(
@@ -336,6 +413,7 @@ async def run_ordinary_critique(
         guidance=None,
         usage=sum_usage(usages, attempts=max(1, transport_attempts)),
         failure=last_failure,
+        diagnostics=copy.deepcopy(diagnostics),
     )
 
 

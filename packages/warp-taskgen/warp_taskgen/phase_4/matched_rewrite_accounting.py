@@ -63,6 +63,46 @@ class MatchedCallPolicy:
 
 
 @dataclass(frozen=True, slots=True)
+class MatchedStudyBudget:
+    """Operator ceilings for one fixed two-arm matched study.
+
+    The token and dollar values are aggregate backpressure limits for all
+    completions, including retries, in each arm and across the pair. Dollar
+    values are checked only against measured usage after a completion; they do
+    not pretend to be a provider-side pre-call reservation.
+    """
+
+    per_arm_max_tokens: int
+    total_max_tokens: int
+    per_arm_max_cost_usd: float
+    total_max_cost_usd: float
+
+    def __post_init__(self) -> None:
+        for name in ("per_arm_max_tokens", "total_max_tokens"):
+            value = getattr(self, name)
+            if type(value) is not int or value < 1:
+                raise ValueError(f"matched study budget {name} must be a positive integer")
+        for name in ("per_arm_max_cost_usd", "total_max_cost_usd"):
+            value = getattr(self, name)
+            if (
+                type(value) not in (int, float)
+                or not math.isfinite(value)
+                or value < 0
+            ):
+                raise ValueError(
+                    f"matched study budget {name} must be a finite non-negative number"
+                )
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "per_arm_max_tokens": self.per_arm_max_tokens,
+            "total_max_tokens": self.total_max_tokens,
+            "per_arm_max_cost_usd": self.per_arm_max_cost_usd,
+            "total_max_cost_usd": self.total_max_cost_usd,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class Usage:
     """Measured token and cost usage for one provider stage."""
 
@@ -166,4 +206,4 @@ class PairAccounting:
         }
 
 
-__all__ = ["MatchedCallPolicy", "PairAccounting", "Usage"]
+__all__ = ["MatchedCallPolicy", "MatchedStudyBudget", "PairAccounting", "Usage"]

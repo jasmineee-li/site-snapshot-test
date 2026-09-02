@@ -6,6 +6,7 @@ import copy
 import json
 import logging
 import os
+from types import SimpleNamespace
 from typing import Any, Literal
 
 from anthropic import AsyncAnthropic
@@ -762,6 +763,45 @@ def _failed_rewrite(
     return skipped
 
 
+def _record_matched_completion_cost(
+    diagnostics: dict[str, Any],
+    *,
+    model: str,
+    phase: str | None,
+    task_id: str,
+    site: str | None,
+) -> None:
+    """Record every captured completion for the feature-local cost phase."""
+
+    if phase is None:
+        return
+    responses = diagnostics.get("completion_responses")
+    if not isinstance(responses, list):
+        return
+    elapsed = diagnostics.get("elapsed_s")
+    elapsed_s = elapsed if isinstance(elapsed, (int, float)) else 0.0
+    for response in responses:
+        if not isinstance(response, dict):
+            continue
+        usage = response.get("usage")
+        if not isinstance(usage, dict):
+            continue
+        response_proxy = SimpleNamespace(
+            id=response.get("id"),
+            usage=SimpleNamespace(**usage),
+        )
+        try:
+            summary = synthesize_cost_summary(response_proxy, model=model, elapsed_s=elapsed_s)
+        except (TypeError, ValueError):
+            summary = None
+        cost_tracker.record(
+            phase,
+            summary,
+            task_id=task_id,
+            site=site,
+        )
+
+
 async def generate_eval_awareness_rewrite_api(
     task: dict[str, Any],
     cue_diagnosis: dict[str, Any],
@@ -778,6 +818,7 @@ async def generate_eval_awareness_rewrite_api(
     semantic_retries: int | None = None,
     transport_retries: int | None = None,
     temperature: float | None = None,
+    cost_phase: str | None = None,
 ) -> dict[str, Any]:
     """Generate one sequential eval-awareness rewrite of ``task``.
 
@@ -845,6 +886,13 @@ async def generate_eval_awareness_rewrite_api(
             except StreamingToolTruncatedError as exc:
                 diagnostics = exc.diagnostics
                 diagnostics["selected_max_tokens"] = max_tokens
+                _record_matched_completion_cost(
+                    diagnostics,
+                    model=normalized_model,
+                    phase=cost_phase,
+                    task_id=task_id,
+                    site=task.get("site") if isinstance(task.get("site"), str) else None,
+                )
                 if max_tokens < max_token_ceiling:
                     max_tokens = max_token_ceiling
                     continue
@@ -861,6 +909,13 @@ async def generate_eval_awareness_rewrite_api(
     except StreamingToolValidationError as exc:
         diagnostics = exc.diagnostics
         diagnostics["selected_max_tokens"] = max_tokens
+        _record_matched_completion_cost(
+            diagnostics,
+            model=normalized_model,
+            phase=cost_phase,
+            task_id=task_id,
+            site=task.get("site") if isinstance(task.get("site"), str) else None,
+        )
         reason = str(exc).splitlines()[0] if str(exc).strip() else type(exc).__name__
         return _failed_rewrite(
             task,
@@ -880,16 +935,25 @@ async def generate_eval_awareness_rewrite_api(
     if raw_response is not None:
         elapsed = diagnostics.get("elapsed_s")
         elapsed_s = elapsed if isinstance(elapsed, (int, float)) else None
-        cost_tracker.record(
-            "phase_4:eval_awareness_iterator",
-            synthesize_cost_summary(
-                raw_response,
+        if cost_phase is None:
+            cost_tracker.record(
+                "phase_4:eval_awareness_iterator",
+                synthesize_cost_summary(
+                    raw_response,
+                    model=normalized_model,
+                    elapsed_s=elapsed_s if elapsed_s is not None else 0.0,
+                ),
+                task_id=task_id,
+                site=task.get("site"),
+            )
+        else:
+            _record_matched_completion_cost(
+                diagnostics,
                 model=normalized_model,
-                elapsed_s=elapsed_s if elapsed_s is not None else 0.0,
-            ),
-            task_id=task_id,
-            site=task.get("site"),
-        )
+                phase=cost_phase,
+                task_id=task_id,
+                site=task.get("site") if isinstance(task.get("site"), str) else None,
+            )
     if payload is None:
         return _failed_rewrite(
             task,
