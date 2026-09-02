@@ -294,19 +294,20 @@ class RocketChatNotificationObservation:
                 "notification observation message has an unsupported logical key"
             )
         expected = {
-            "room_id": self.notification.room_id,
             "thread_id": self.thread_id,
             "author": self.notification.author,
             "recipient": self.notification.recipient,
             "body": self.notification.body,
         }
         actual = {
-            "room_id": self.message.room_id,
             "thread_id": self.message.thread_id,
             "author": self.message.author,
             "recipient": self.message.recipient,
             "body": self.message.body,
         }
+        # ``notification.room_id`` is the generated logical channel.  A Site
+        # adapter may resolve it to a different physical REST room; the
+        # adapter/evaluator binds that physical identity to the seed root.
         if actual != expected:
             raise RocketChatContractError("persisted notification identity is inconsistent")
 

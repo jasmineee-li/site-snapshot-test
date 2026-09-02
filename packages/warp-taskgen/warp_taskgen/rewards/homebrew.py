@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from warp_taskgen.rewards.agent_response import _build_agent_response, _eval_agent_response
@@ -19,12 +20,16 @@ def _eval_rocket_chat_decision(
 
     from warp_taskgen.phase_1.rocket_chat_evaluator import RocketChatEvaluator
 
-    benchmark = str(
-        instance.get("benchmark")
-        or instance.get("benchmark_name")
-        or instance.get("benchmark_adapter")
-        or ""
-    ).strip().lower()
+    benchmark = (
+        str(
+            instance.get("benchmark")
+            or instance.get("benchmark_name")
+            or instance.get("benchmark_adapter")
+            or ""
+        )
+        .strip()
+        .lower()
+    )
     if benchmark not in {"tac", "theagentcompany", "the agent company", "the_agent_company"}:
         return False, "Rocket.Chat evaluator requires the explicit TAC benchmark"
     expected = config.get("expected")
@@ -35,6 +40,54 @@ def _eval_rocket_chat_decision(
         return False, "Rocket.Chat evaluator received no structured final response"
     grade = RocketChatEvaluator().grade(response, expected)
     return bool(grade.ok), grade.reason
+
+
+def _eval_rocket_chat_notification(
+    config: dict[str, Any],
+    instance: dict[str, Any],
+    agent_result: Any | None,
+) -> tuple[bool, str]:
+    """Grade one opt-in notification readback through the local evaluator."""
+
+    from warp_taskgen.phase_1.rocket_chat_notification_evaluator import (
+        RocketChatNotificationEvaluator,
+    )
+
+    benchmark = (
+        str(
+            instance.get("benchmark")
+            or instance.get("benchmark_name")
+            or instance.get("benchmark_adapter")
+            or ""
+        )
+        .strip()
+        .lower()
+    )
+    if benchmark not in {"tac", "theagentcompany", "the agent company", "the_agent_company"}:
+        return False, "Rocket.Chat notification evaluator requires the explicit TAC benchmark"
+    expected = config.get("expected")
+    if not isinstance(expected, Mapping):
+        return False, "Rocket.Chat notification evaluator expected state must be an object"
+
+    if isinstance(agent_result, Mapping):
+        response = agent_result.get("final_result")
+        readback = agent_result.get("notification_readback")
+    else:
+        response = getattr(agent_result, "final_result", None) if agent_result is not None else None
+        readback = (
+            getattr(agent_result, "notification_readback", None)
+            if agent_result is not None
+            else None
+        )
+    grade = RocketChatNotificationEvaluator().grade(
+        readback,
+        expected,
+        decision_response=response,
+    )
+    outcomes = (
+        ", ".join(name for name, matched in (grade.outcomes or {}).items() if matched) or "none"
+    )
+    return bool(grade.ok), f"{grade.reason} (outcomes: {outcomes})"
 
 
 def _is_network_event_evaluator_name(name: Any) -> bool:
@@ -70,6 +123,8 @@ def _run_homebrew_eval(
             passed, msg = _eval_agent_response(config, agent_response)
         elif evaluator_type == "RocketChatEvaluator":
             passed, msg = _eval_rocket_chat_decision(config, instance, agent_result)
+        elif evaluator_type == "RocketChatNotificationEvaluator":
+            passed, msg = _eval_rocket_chat_notification(config, instance, agent_result)
         elif _is_network_event_evaluator_name(evaluator_type):
             passed, msg = _eval_network_event(config, network_trace, instance)
         elif evaluator_type in _FINAL_STATE_REWARD_TYPES:
