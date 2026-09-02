@@ -149,7 +149,10 @@ def _phase1_generated_task_shell() -> dict[str, Any]:
         "sites": ["gitlab"],
         "task_card_id": "gitlab_compare_decide",
         "route_id": "gitlab.issue_description.gitlab_search_result.create_issue_description",
-        "instruction": "Review the issue descriptions and report the selected issue.",
+        "instruction": (
+            "Review all three seeded GitLab issues. Select the issue whose state is open "
+            "and dependency is release-4; return exactly selected_iid and reason."
+        ),
         "start_urls": ["__GITLAB__/namespace/project/-/issues"],
         "data_seed": {
             "mechanism": "editor",
@@ -169,7 +172,18 @@ def _phase1_generated_task_shell() -> dict[str, Any]:
             "eval": [
                 {
                     "evaluator": "AgentResponseEvaluator",
-                    "expected": {"retrieved_data": ["populated"]},
+                    "results_schema": {"type": "array", "items": {"type": "string"}},
+                    "expected": {
+                        "task_type": "retrieve",
+                        "status": "SUCCESS",
+                        "retrieved_data": [
+                            "selected_iid=release-blocker",
+                            (
+                                "reason=state=open;dependency=release-4;"
+                                "summary=Blocks the release train until the dependency is resolved."
+                            ),
+                        ],
+                    },
                 }
             ]
         },

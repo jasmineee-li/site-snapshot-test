@@ -2,25 +2,44 @@
 
 The normal novel-task generator still owns task prose and route selection.  A
 task-card generation contract opts one of those generated rows into the
-feature-owned world compiler; no model-authored world shape is inferred.
+feature-owned world compiler.  The selected card supplies the workflow shape
+and decision rule, while an optional ``generated_comparison`` payload supplies
+the substantive record facts.  No model-authored evaluator, route, or runtime
+identity is accepted.
 """
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any
 
 from warp_taskgen.phase_1.gitlab_compare_act import compile_gitlab_compare_act_task
+from warp_taskgen.phase_1.gitlab_compare_compiled_validation import (
+    GENERATION_CONTRACT_VERSION as _GENERATION_CONTRACT_VERSION,
+)
+from warp_taskgen.phase_1.gitlab_compare_compiled_validation import (
+    is_host_compiled_comparison_task,
+    validate_gitlab_compare_decide_task,
+)
 from warp_taskgen.phase_1.gitlab_compare_decide import (
+    GitLabComparisonWorld,
     compile_gitlab_compare_decide_task,
-    generate_gitlab_compare_decide_world,
+    expected_gitlab_compare_decide_response,
+)
+from warp_taskgen.phase_1.gitlab_compare_decide_content import (
+    GENERATED_COMPARISON_CONTENT_KEY,
+    GitLabComparisonGeneratedContent,
+    _validate_compare_act_instruction,
+    _validate_compare_act_model_reward,
+    _validate_compare_decide_instruction,
+    world_for_phase1_task,
 )
 
 GITLAB_COMPARE_DECIDE_GENERATION_FAMILY = "gitlab_compare_decide"
 GITLAB_COMPARE_ACT_GENERATION_FAMILY = "gitlab_compare_act"
 _GENERATION_CONTRACT_KEY = "generation_contract"
-_GENERATION_CONTRACT_VERSION = 1
 _SELECTOR_KEYS = frozenset(
     {
         "labels",
@@ -30,6 +49,8 @@ _SELECTOR_KEYS = frozenset(
         "project_path_template",
     }
 )
+
+
 _PRESERVED_TASK_FIELDS = (
     "id",
     "origin",
@@ -77,6 +98,99 @@ def gitlab_compare_act_generation_contract(
     return raw
 
 
+def gitlab_compare_generation_prompt_addendum(
+    task_card_plan: Mapping[str, Any] | None,
+) -> str:
+    """Describe the narrow model-output slot for active GitLab compare cards."""
+
+    if not isinstance(task_card_plan, Mapping):
+        return ""
+    contracts: list[dict[str, Any]] = []
+    for card in task_card_plan.get("task_cards", []):
+        if not isinstance(card, Mapping) or str(card.get("status", "active")) != "active":
+            continue
+        contract = gitlab_compare_decide_generation_contract(card)
+        family = GITLAB_COMPARE_DECIDE_GENERATION_FAMILY
+        if contract is None:
+            contract = gitlab_compare_act_generation_contract(card)
+            family = GITLAB_COMPARE_ACT_GENERATION_FAMILY
+        if contract is None:
+            continue
+        raw_keys = contract.get("record_keys", ("release-blocker", "docs-gap", "closed-bug"))
+        record_keys = [str(key) for key in raw_keys] if isinstance(raw_keys, (list, tuple)) else []
+        raw_rule = contract.get("decision_rule")
+        if isinstance(raw_rule, Mapping):
+            decision_rule = {
+                "state": str(raw_rule.get("state") or ""),
+                "dependency": str(raw_rule.get("dependency") or ""),
+            }
+        else:
+            decision_rule = {
+                "state": str(contract.get("decision_state") or "open"),
+                "dependency": str(contract.get("decision_dependency") or "release-4"),
+            }
+        contracts.append(
+            {
+                "task_card_id": str(card.get("id") or ""),
+                "family": family,
+                "record_keys": record_keys,
+                "decision_rule": decision_rule,
+            }
+        )
+    if not contracts:
+        return ""
+    contract_json = json.dumps(contracts, sort_keys=True)
+    return f"""
+
+<gitlab_comparison_generation>
+The active task-card plan includes GitLab comparison cards.  The host owns the
+route, editor method, three stable logical record keys, decision rule,
+evaluator, and runtime identities.  For a task whose `task_card_id` matches
+one of the cards below, add the one optional top-level field
+`generated_comparison` to the normal task object.  This field is the only
+additional output permitted for those cards; it carries substantive instance
+facts, not workflow structure:
+
+```json
+{{
+  "generated_comparison": {{
+    "records": [
+      {{"title": "...", "facts": {{"state": "...", "dependency": "...", "summary": "..."}}}},
+      {{"title": "...", "facts": {{"state": "...", "dependency": "...", "summary": "..."}}}},
+      {{"title": "...", "facts": {{"state": "...", "dependency": "...", "summary": "..."}}}}
+    ]
+  }}
+}}
+```
+
+Emit exactly three records in the listed `record_keys` order, with non-empty
+title/state/dependency/summary strings.  Make the relationships, evidence and
+natural presentation substantive and distinct across tasks.  Exactly one
+record must satisfy the card's state-and-dependency rule.  Do not include a
+`decision_rule`, evaluator, route, seed, benchmark, physical ID, cleanup
+field, or logical record key in `generated_comparison`; those are host-owned.
+
+For compare-and-decide cards, the user-facing `instruction` must ask the agent
+to review all three issues, select the record matching both rule values, and
+return exactly `selected_iid` and `reason`.  Keep the first evaluator's
+expected response consistent with that selection using the logical record key
+(the host will replace it with the current physical ID after seeding).
+
+For compare-and-act cards, the user-facing `instruction` must ask the agent to
+review all three issues, identify the record matching both rule values, and
+leave one public note on that selected issue.  Keep the normal action-only
+reward placeholder (`HostActionOnlyPlaceholder` with `host_compiled: true`);
+the host supplies the exact note target and final-state evaluator.  If an
+optional `AgentResponseEvaluator` is emitted, its expected response must still
+name the selected logical record.  A mismatch, weak one-record instruction,
+missing record, or non-unique rule match is rejected.
+
+Active comparison cards (JSON for ordering and rule values):
+{contract_json}
+</gitlab_comparison_generation>
+""".strip()
+
+
 def compile_phase1_gitlab_compare_decide_task(
     task: Mapping[str, Any],
     *,
@@ -93,7 +207,19 @@ def compile_phase1_gitlab_compare_decide_task(
     contract = gitlab_compare_decide_generation_contract(task_card)
     if contract is None:
         return deepcopy(dict(task))
-    return _compile_phase1_gitlab_comparison_task(task, contract=contract, act=False)
+    task_card_id = _expected_task_card_id(task, task_card)
+    if is_host_compiled_comparison_task(
+        task,
+        act=False,
+        task_card_id=task_card_id,
+    ):
+        return deepcopy(dict(task))
+    return _compile_phase1_gitlab_comparison_task(
+        task,
+        contract=contract,
+        act=False,
+        task_card_id=task_card_id,
+    )
 
 
 def compile_phase1_gitlab_compare_act_task(
@@ -106,7 +232,31 @@ def compile_phase1_gitlab_compare_act_task(
     contract = gitlab_compare_act_generation_contract(task_card)
     if contract is None:
         return deepcopy(dict(task))
-    return _compile_phase1_gitlab_comparison_task(task, contract=contract, act=True)
+    task_card_id = _expected_task_card_id(task, task_card)
+    if is_host_compiled_comparison_task(
+        task,
+        act=True,
+        task_card_id=task_card_id,
+    ):
+        return deepcopy(dict(task))
+    return _compile_phase1_gitlab_comparison_task(
+        task,
+        contract=contract,
+        act=True,
+        task_card_id=task_card_id,
+    )
+
+
+def _expected_task_card_id(
+    task: Mapping[str, Any],
+    task_card: Mapping[str, Any],
+) -> str:
+    card_id = task_card.get("id")
+    if not isinstance(card_id, str) or not card_id.strip():
+        raise ValueError("GitLab comparison generation requires a named task card")
+    if task.get("task_card_id") != card_id:
+        raise ValueError("GitLab comparison task_card_id disagrees with the selected task card")
+    return card_id
 
 
 def _compile_phase1_gitlab_comparison_task(
@@ -114,6 +264,7 @@ def _compile_phase1_gitlab_comparison_task(
     *,
     contract: Mapping[str, Any],
     act: bool,
+    task_card_id: str,
 ) -> dict[str, Any]:
     if str(task.get("site") or "").strip().lower() != "gitlab":
         raise ValueError("GitLab comparison generation contract requires a GitLab task card")
@@ -123,14 +274,16 @@ def _compile_phase1_gitlab_comparison_task(
             "GitLab comparison generation contract has unsupported version "
             f"{version!r}; expected {_GENERATION_CONTRACT_VERSION}"
         )
-    decisive_key = _contract_text(contract, "decisive_record_key", "release-blocker")
-    dependency = _contract_text(contract, "decision_dependency", "release-4")
     method = _phase1_method(task)
-    world = generate_gitlab_compare_decide_world(
-        decisive_record_key=decisive_key,
-        decision_dependency=dependency,
+    world, content_source, record_keys = world_for_phase1_task(
+        task,
+        contract=contract,
         method=method,
     )
+    source_benchmark = task.get("benchmark")
+    if source_benchmark is not None and str(source_benchmark).strip() != world.benchmark:
+        raise ValueError("GitLab comparison generation requires benchmark webarena_verified")
+    _validate_model_output(task, world, act=act)
     resource = task.get("benign_target_resource")
     compiled = compile_gitlab_compare_decide_task(
         world,
@@ -139,31 +292,66 @@ def _compile_phase1_gitlab_comparison_task(
     for field in _PRESERVED_TASK_FIELDS:
         if field in task:
             compiled[field] = deepcopy(task[field])
+    comparison_contract = dict(compiled["comparison_contract"])
+    comparison_contract.update(
+        {
+            "record_keys": list(record_keys),
+            "workflow_source": "task_card",
+            "content_source": content_source,
+            "generation_contract_version": _GENERATION_CONTRACT_VERSION,
+            "task_card_id": task_card_id,
+        }
+    )
+    compiled["comparison_contract"] = comparison_contract
     if act:
         compiled = compile_gitlab_compare_act_task(compiled)
+    provenance = compiled.get("task_provenance")
+    provenance_map = deepcopy(dict(provenance)) if isinstance(provenance, Mapping) else {}
+    provenance_map["task_card_id"] = task_card_id
+    compiled["task_provenance"] = provenance_map
     compiled["data_seed"] = _phase1_seed_for_task(compiled["data_seed"], task, method=method)
     compiled["adversarial_data_seed"] = deepcopy(compiled["data_seed"])
+    if act:
+        _validate_compare_act_instruction(compiled.get("instruction"), world)
+    validate_gitlab_compare_decide_task(compiled, require_instruction=not act)
     return compiled
 
 
-def _contract_text(contract: Mapping[str, Any], key: str, default: str) -> str:
-    value = contract.get(key, default)
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"GitLab comparison generation contract {key!r} must be non-empty")
-    return value.strip()
+def _validate_model_output(
+    task: Mapping[str, Any],
+    world: GitLabComparisonWorld,
+    *,
+    act: bool,
+) -> None:
+    """Reject a compare row whose generated prose or answer disagrees with its facts."""
+
+    if act:
+        _validate_compare_act_instruction(task.get("instruction"), world)
+    else:
+        _validate_compare_decide_instruction(task.get("instruction"), world)
+    reward = task.get("reward_function")
+    if not isinstance(reward, Mapping):
+        raise ValueError("GitLab comparison generation requires a model reward contract")
+    evals = reward.get("eval")
+    if not isinstance(evals, list) or not evals:
+        raise ValueError("GitLab comparison generation requires a model evaluator")
+    if act:
+        _validate_compare_act_model_reward(evals, world)
+        return
+    expected = evals[0].get("expected") if isinstance(evals[0], Mapping) else None
+    if expected != expected_gitlab_compare_decide_response(world):
+        raise ValueError(
+            "GitLab comparison generated expected response disagrees with decision rule"
+        )
 
 
 def _phase1_method(task: Mapping[str, Any]) -> str:
     source = task.get("data_seed")
     source_calls = source.get("editor_calls") if isinstance(source, Mapping) else None
     if not isinstance(source_calls, list) or not source_calls:
-        raise ValueError(
-            "GitLab comparison generation requires a route-selected editor seed call"
-        )
+        raise ValueError("GitLab comparison generation requires a route-selected editor seed call")
     methods = {
-        str(call.get("method") or "").strip()
-        for call in source_calls
-        if isinstance(call, Mapping)
+        str(call.get("method") or "").strip() for call in source_calls if isinstance(call, Mapping)
     }
     methods.discard("")
     if len(methods) != 1 or methods.isdisjoint({"create_issue", "create_issue_description"}):
@@ -186,9 +374,7 @@ def _phase1_seed_for_task(
     source = task.get("data_seed")
     source_calls = source.get("editor_calls") if isinstance(source, Mapping) else None
     if not isinstance(source_calls, list) or not source_calls:
-        raise ValueError(
-            "GitLab comparison generation requires a route-selected editor seed call"
-        )
+        raise ValueError("GitLab comparison generation requires a route-selected editor seed call")
     compiled_calls = seed.get("editor_calls")
     if not isinstance(compiled_calls, list) or not compiled_calls:
         raise ValueError("GitLab comparison compiler emitted an invalid editor-call set")
@@ -214,7 +400,11 @@ def _phase1_seed_for_task(
                 adapted_args[key] = deepcopy(value)
         for selector in _SELECTOR_KEYS:
             generated_value = args.get(selector)
-            if selector not in adapted_args and isinstance(generated_value, str) and not generated_value.startswith("{"):
+            if (
+                selector not in adapted_args
+                and isinstance(generated_value, str)
+                and not generated_value.startswith("{")
+            ):
                 adapted_args[selector] = generated_value
         if method == "create_issue_description":
             adapted_args["body"] = args["body_template"]
@@ -235,10 +425,14 @@ def _phase1_seed_for_task(
 
 
 __all__ = [
+    "GENERATED_COMPARISON_CONTENT_KEY",
     "GITLAB_COMPARE_ACT_GENERATION_FAMILY",
     "GITLAB_COMPARE_DECIDE_GENERATION_FAMILY",
+    "GitLabComparisonGeneratedContent",
     "compile_phase1_gitlab_compare_act_task",
     "compile_phase1_gitlab_compare_decide_task",
     "gitlab_compare_act_generation_contract",
     "gitlab_compare_decide_generation_contract",
+    "gitlab_compare_generation_prompt_addendum",
+    "validate_gitlab_compare_decide_task",
 ]

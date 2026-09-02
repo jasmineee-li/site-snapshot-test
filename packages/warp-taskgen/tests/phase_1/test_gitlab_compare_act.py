@@ -26,9 +26,6 @@ from warp_taskgen.phase_1.gitlab_compare_decide import (
 from warp_taskgen.phase_1.gitlab_compare_decide_binding import (
     bind_gitlab_compare_decide_attempt,
 )
-from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
-    compile_phase1_gitlab_compare_act_task,
-)
 
 
 def _bound_metadata(
@@ -62,47 +59,6 @@ def _bound_metadata(
 def _act_task() -> dict[str, Any]:
     decide = compile_gitlab_compare_decide_task(generate_gitlab_compare_decide_world())
     return compile_gitlab_compare_act_task(decide)
-
-
-def test_authored_act_generation_preserves_route_seed_and_compiles_sibling() -> None:
-    source = {
-        "id": "novel_gitlab_act",
-        "site": "gitlab",
-        "route_id": "gitlab.issue_description.gitlab_search_result.create_issue_description",
-        "instruction": "Compare the issue descriptions.",
-        "start_urls": ["__GITLAB__/namespace/project/-/issues"],
-        "task_card_id": "gitlab_compare_act",
-        "data_seed": {
-            "mechanism": "editor",
-            "editor_calls": [
-                {
-                    "benchmark": "webarena_verified",
-                    "site": "gitlab",
-                    "method": "create_issue_description",
-                    "args": {"project_path_template": "{benign_project_path}", "body": "source"},
-                }
-            ],
-        },
-    }
-    card = {
-        "id": "gitlab_compare_act",
-        "site": "gitlab",
-        "generation_contract": {
-            "family": "gitlab_compare_act",
-            "version": 1,
-            "decisive_record_key": "release-blocker",
-            "decision_dependency": "release-4",
-        },
-    }
-
-    task = compile_phase1_gitlab_compare_act_task(source, task_card=card)
-    assert task["comparison_act_contract"]["family"] == GITLAB_COMPARE_ACT_FAMILY
-    assert task["id"] == source["id"]
-    assert len(task["data_seed"]["editor_calls"]) == 3
-    assert all(
-        call["method"] == "create_issue_description" for call in task["data_seed"]["editor_calls"]
-    )
-    assert "one public note" in task["instruction"]
 
 
 def test_compare_act_reuses_generated_selection_and_requests_one_note() -> None:

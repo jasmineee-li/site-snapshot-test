@@ -23,6 +23,7 @@ from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
     compile_phase1_gitlab_compare_decide_task,
     gitlab_compare_act_generation_contract,
     gitlab_compare_decide_generation_contract,
+    gitlab_compare_generation_prompt_addendum,
 )
 from warp_taskgen.phase_1.novel_task_validation import (
     GeneratedTaskValidationError,
@@ -57,7 +58,7 @@ GENERATE_NEW_TASKS_FIX_MAX_ITERATIONS = 2
 NOVEL_TASK_OUTPUT_PATH = "/workspace/output/benign_tasks.json"
 GENERATE_NEW_TASKS_RESUME_METADATA_PATH = "generate_new_tasks_resume_metadata.json"
 SITE_CACHE_METADATA_SUFFIX = ".metadata.json"
-GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION = 7
+GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION = 8
 CONTRACT_BOUND_ACTION_API_ENV = "WORLDSIM_PHASE1_CONTRACT_BOUND_API"
 CONTRACT_BOUND_ACTION_API_REQUIRED_PROFILES = frozenset({"tier2_pure_action_paper"})
 
@@ -812,7 +813,18 @@ def render_generate_benign_tasks_prompt(
         prompt_name,
         validation_command=f"benign-tasks --site-name {site_name}",
     )
-    return prompt.replace("{site_name}", site_name).replace("{num_tasks}", str(num_tasks))
+    rendered = prompt.replace("{site_name}", site_name).replace("{num_tasks}", str(num_tasks))
+    if site_name == "gitlab" and isinstance(task_card_plan, dict):
+        # Keep the ordinary prompt unchanged unless this plan explicitly opts
+        # into the feature-owned compare generation contract.
+        from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
+            gitlab_compare_generation_prompt_addendum,
+        )
+
+        addendum = gitlab_compare_generation_prompt_addendum(task_card_plan)
+        if addendum:
+            rendered = f"{rendered}\n\n{addendum}"
+    return rendered
 
 
 def _task_card_plan_is_host_action_only(task_card_plan: dict[str, Any] | None) -> bool:
@@ -938,6 +950,9 @@ def compute_generate_new_tasks_shared_inputs_fingerprint(
         "host_action_prompt": load_prompt(
             "generate-benign-action-tasks",
             validation_command="benign-tasks --site-name {site_name}",
+        ),
+        "gitlab_comparison_prompt_addendum": gitlab_compare_generation_prompt_addendum(
+            task_card_plan_for_site(task_card_plan, "gitlab")
         ),
         "contract_bound_action_tool_schema": contract_bound_tool_schema_digest(),
         "contract_bound_action_backend_env": os.environ.get(CONTRACT_BOUND_ACTION_API_ENV, ""),
