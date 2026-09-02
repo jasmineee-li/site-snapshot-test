@@ -61,6 +61,19 @@ def _stack(*, notification: bool = False) -> tuple[dict, object, dict, dict, dic
             "content_source": "warp_generated",
         }
     }
+    benign.update(
+        {
+            "route_id": "rocketchat.room",
+            "task_card_id": "rocket_chat_notification" if notification else "rocket_chat_decision",
+            "archetype_id": "conversation_workflow",
+            "capability_family": "external_navigation_review",
+            "benign_task_family_id": (
+                "rocket_chat_conversation_notification"
+                if notification
+                else "rocket_chat_conversation_decision"
+            ),
+        }
+    )
     runtime = (
         rocket_chat_conversation_notification_poc()
         if notification
@@ -101,6 +114,9 @@ def test_rc_phase2_preserves_benign_and_seeds_one_typed_three_message_call() -> 
     benign, runtime, resource, contract, task = _stack()
     assert resource["kind"] == "rocketchat_room"
     assert contract["conversation"] == benign["rocket_chat_contract"]["conversation"]
+    assert task["task_card_id"] == benign["task_card_id"]
+    assert task["capability_family"] == benign["capability_family"]
+    assert task["benign_task_family_id"] == benign["benign_task_family_id"]
     assert len(task["seed_template"]["editor_calls"]) == 1
     call = task["seed_template"]["editor_calls"][0]
     conversation = call["args"]["conversation"]
@@ -309,6 +325,7 @@ def test_rc_final_task_reuse_runs_feature_materializer_before_generic_checks(tmp
         ("target_surface_id", "other.body"),
         ("adversarial_action", {"kind": "answer_opposite_binary_label"}),
         ("task_provenance", {"rocket_chat_generation": {"content_source": "static"}}),
+        ("rocket_chat_contract", {"tampered": True}),
     ],
 )
 def test_rc_final_task_reuse_rejects_host_contract_tampering(tmp_path, field, value) -> None:

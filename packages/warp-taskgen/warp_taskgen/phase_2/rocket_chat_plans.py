@@ -79,7 +79,7 @@ def build_plan(
         or generation_provenance.get("content_source") != "warp_generated"
     ):
         raise ValueError("Rocket.Chat plan requires exact WARP-generation provenance")
-    return {
+    plan = {
         "id": plan_id,
         "origin": "new_task",
         "benign_task_id": task_id,
@@ -101,6 +101,16 @@ def build_plan(
         "task_provenance": provenance,
         "rocket_chat_contract": copy.deepcopy(task.get("rocket_chat_contract")),
     }
+    for field in (
+        "route_id",
+        "task_card_id",
+        "archetype_id",
+        "capability_family",
+        "benign_task_family_id",
+    ):
+        if field in task:
+            plan[field] = copy.deepcopy(task[field])
+    return plan
 
 
 def build_plans(
@@ -188,6 +198,16 @@ def validate_plan(
         validate_rocket_chat_benign_task(benign)
     except (RocketChatContractError, TypeError, ValueError) as exc:
         return f"{name} benign Rocket.Chat envelope is invalid: {exc}"
+    for field in (
+        "route_id",
+        "task_card_id",
+        "archetype_id",
+        "capability_family",
+        "benign_task_family_id",
+        "rocket_chat_contract",
+    ):
+        if plan.get(field) != benign.get(field):
+            return f"{name} {field} changed from its benign parent"
     contract_id = str(plan.get("exposure_contract_id") or "")
     contract = exposure_contracts.get(benign_id)
     if not isinstance(contract, Mapping) or contract.get("contract_id") != contract_id:
