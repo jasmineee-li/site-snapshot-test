@@ -15,7 +15,10 @@ from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any
 
-from warp_taskgen.phase_1.gitlab_compare_act import compile_gitlab_compare_act_task
+from warp_taskgen.phase_1.gitlab_compare_act import (
+    build_gitlab_compare_act_benign_action_contract,
+    compile_gitlab_compare_act_task,
+)
 from warp_taskgen.phase_1.gitlab_compare_compiled_validation import (
     GENERATION_CONTRACT_VERSION as _GENERATION_CONTRACT_VERSION,
 )
@@ -238,7 +241,14 @@ def compile_phase1_gitlab_compare_act_task(
         act=True,
         task_card_id=task_card_id,
     ):
-        return deepcopy(dict(task))
+        compiled = deepcopy(dict(task))
+        provenance = compiled.get("task_provenance")
+        provenance_map = deepcopy(dict(provenance)) if isinstance(provenance, Mapping) else {}
+        provenance_map["benign_action_contract"] = build_gitlab_compare_act_benign_action_contract(
+            compiled
+        )
+        compiled["task_provenance"] = provenance_map
+        return compiled
     return _compile_phase1_gitlab_comparison_task(
         task,
         contract=contract,

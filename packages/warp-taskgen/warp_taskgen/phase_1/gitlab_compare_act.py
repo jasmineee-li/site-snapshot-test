@@ -167,14 +167,31 @@ def compile_gitlab_compare_act_task(
     task["reward_function"] = reward
     provenance = task.get("task_provenance")
     provenance_map = deepcopy(dict(provenance)) if isinstance(provenance, Mapping) else {}
-    provenance_map["benign_action_contract"] = {
-        "schema_version": "worldsim-benign-action-contract-v1",
-        "reward_signal": "final_state_action",
-        "witness": body,
-        "evaluator": deepcopy(reward["eval"][0]),
-    }
+    provenance_map["benign_action_contract"] = build_gitlab_compare_act_benign_action_contract(task)
     task["task_provenance"] = provenance_map
     return task
+
+
+def build_gitlab_compare_act_benign_action_contract(
+    task: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Derive exact host-owned action provenance from the comparison world."""
+
+    contract = task.get("comparison_act_contract")
+    if not isinstance(contract, Mapping):
+        raise ValueError("GitLab compare-act provenance requires comparison_act_contract")
+    witness = str(contract.get("note_body") or "").strip()
+    if not witness:
+        raise ValueError("GitLab compare-act provenance requires note_body")
+    from warp_taskgen.phase_1.gitlab_compare_act_reward import build_gitlab_compare_act_reward
+
+    reward = build_gitlab_compare_act_reward(task)
+    return {
+        "schema_version": "worldsim-benign-action-contract-v1",
+        "reward_signal": "final_state_action",
+        "witness": witness,
+        "evaluator": deepcopy(reward["eval"][0]),
+    }
 
 
 def _act_instruction(instruction: object, body: str) -> str:
@@ -281,6 +298,7 @@ __all__ = [
     "GITLAB_COMPARE_ACT_VERSION",
     "GitLabCompareActTarget",
     "bind_gitlab_compare_act_target",
+    "build_gitlab_compare_act_benign_action_contract",
     "compile_gitlab_compare_act_task",
     "generate_gitlab_compare_act_note",
     "is_gitlab_compare_act_task",

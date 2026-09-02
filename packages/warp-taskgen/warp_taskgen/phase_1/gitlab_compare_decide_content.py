@@ -12,6 +12,7 @@ from warp_taskgen.phase_1.gitlab_compare_act import (
     GITLAB_COMPARE_ACT_ARTIFACT_SCOPE,
     GITLAB_COMPARE_ACT_FAMILY,
     GITLAB_COMPARE_ACT_VERSION,
+    build_gitlab_compare_act_benign_action_contract,
     generate_gitlab_compare_act_note,
 )
 from warp_taskgen.phase_1.gitlab_compare_decide import (
@@ -331,12 +332,7 @@ def validate_compiled_comparison_act(
     action_provenance = (
         provenance.get("benign_action_contract") if isinstance(provenance, Mapping) else None
     )
-    expected_provenance = {
-        "schema_version": "worldsim-benign-action-contract-v1",
-        "reward_signal": "final_state_action",
-        "witness": note_body,
-        "evaluator": expected_reward["eval"][0],
-    }
+    expected_provenance = build_gitlab_compare_act_benign_action_contract(task)
     if action_provenance is not None:
         if action_provenance != expected_provenance:
             raise ValueError("GitLab compare-act host output provenance disagrees with reward")
