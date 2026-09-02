@@ -29,6 +29,7 @@ from warp_taskgen.phase_2.output import (
 )
 from warp_taskgen.phase_2.pause_control import write_planning_shard_checkpoint
 from warp_taskgen.phase_2.planning_types import SiteInjectionResult
+from warp_taskgen.phase_2.runtime_generation import generation_for_runtime
 from warp_taskgen.phase_2.target_resolution.constants import (
     PHASE_2A_SYNTHETIC_PLACEHOLDERS as _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
 )
@@ -98,6 +99,11 @@ async def _generate_injections_for_site(
         if isinstance(site_profile_override, Mapping)
         else json.loads(profile_path.read_text())
     )
+    feature_generation = generation_for_runtime(
+        runtime_composition,
+        benchmark=benchmark,
+        site=site_name,
+    )
 
     # Pre-compute benign-target resources (Option A placement contract,
     # docs/handoffs/phase-2-placement-systemic-gap.md). 2a consumes this
@@ -110,42 +116,58 @@ async def _generate_injections_for_site(
     # concrete per-item records via suffixed-ID clones. Absent an
     # instance, the offline L1/L2-only path mirrors today's behavior
     # exactly and the task count is preserved.
-    (
-        site_tasks,
-        benign_target_resources,
-    ) = await _target_stage._resolve_benign_target_resources_for_shard(
-        site_tasks=site_tasks,
-        instance=instance,
-        site_name=site_name,
-        label=label,
-        benchmark=benchmark,
-    )
+    prepared_feature_shard = None
+    if feature_generation is not None:
+        try:
+            prepared_feature_shard = feature_generation.prepare_shard(
+                site_tasks,
+                runtime_composition,
+            )
+        except ValueError as exc:
+            return SiteInjectionResult(site_name, [], [f"feature planning failed: {exc}"])
+        site_tasks = prepared_feature_shard.tasks
+        benign_target_resources = prepared_feature_shard.benign_target_resources
+        exposure_contracts = prepared_feature_shard.exposure_contracts
+        eligibility_drops = prepared_feature_shard.eligibility_drops
+    else:
+        (
+            site_tasks,
+            benign_target_resources,
+        ) = await _target_stage._resolve_benign_target_resources_for_shard(
+            site_tasks=site_tasks,
+            instance=instance,
+            site_name=site_name,
+            label=label,
+            benchmark=benchmark,
+        )
     # L4 clones live only in this shard's local view; share the
     # expansion with the validator/merge step that runs against
     # *all_site_tasks* by substituting the expanded list whenever
     # expansion actually happened.
     if any(_target_stage.L4_TASK_ID_SUFFIX in str(t.get("id", "")) for t in site_tasks):
         all_site_tasks = site_tasks
-    exposure_contracts = _eligibility._build_exposure_contracts_for_shard(
-        site_tasks=site_tasks,
-        benign_target_resources=benign_target_resources,
-        site=site_name,
-        benchmark=benchmark,
-        surface_visibility_by_id=_eligibility._surface_visibility_by_id(site_profile),
-    )
-    exposure_contracts = annotate_exposure_contracts_with_action_policy(
-        exposure_contracts,
-        site_tasks,
-        policy=action_policy or "default",
-    )
+    if feature_generation is None:
+        exposure_contracts = _eligibility._build_exposure_contracts_for_shard(
+            site_tasks=site_tasks,
+            benign_target_resources=benign_target_resources,
+            site=site_name,
+            benchmark=benchmark,
+            surface_visibility_by_id=_eligibility._surface_visibility_by_id(site_profile),
+        )
+        exposure_contracts = annotate_exposure_contracts_with_action_policy(
+            exposure_contracts,
+            site_tasks,
+            policy=action_policy or "default",
+        )
     _eligibility._persist_exposure_contracts(site_name=site_name, contracts=exposure_contracts)
-    site_tasks, eligibility_drops = _eligibility._phase_2a_eligible_tasks_for_benchmark(
-        site_tasks,
-        benign_target_resources,
-        site_name,
-        benchmark=benchmark,
-        exposure_contracts=exposure_contracts,
-    )
+    if feature_generation is None:
+        site_tasks, eligibility_drops = _eligibility._phase_2a_eligible_tasks_for_benchmark(
+            site_tasks,
+            benign_target_resources,
+            site_name,
+            benchmark=benchmark,
+            exposure_contracts=exposure_contracts,
+        )
     if eligibility_drops:
         _eligibility._write_eligibility_drops(site_name, eligibility_drops)
     if not site_tasks:
@@ -167,24 +189,29 @@ async def _generate_injections_for_site(
                 exc,
             )
 
-    logger.info("Phase 2: launching injection API call %r (%d tasks)", label, len(site_tasks))
-    sanitized_site_tasks = [_sanitize_task_for_output(task) for task in site_tasks]
-    sanitized_agent_context = (
-        _sanitize_agent_context_for_output(agent_context) if agent_context is not None else None
-    )
-    adv_tasks = await _runner_api.generate_phase_2a_plans_api(
-        benign_tasks=sanitized_site_tasks,
-        benign_target_resources=benign_target_resources,
-        exposure_contracts=exposure_contracts,
-        cell_targets=cell_targets,
-        benchmark_profile=site_profile,
-        agent_context=sanitized_agent_context,
-        sandbox_model=sandbox_model,
-        label=label,
-        site=site_name,
-        benchmark=benchmark,
-        runtime_composition=runtime_composition,
-    )
+    if prepared_feature_shard is not None:
+        # An explicit composition may own a deterministic plan path outside
+        # the ordinary model planner while preserving the same output contract.
+        adv_tasks = prepared_feature_shard.plans
+    else:
+        logger.info("Phase 2: launching injection API call %r (%d tasks)", label, len(site_tasks))
+        sanitized_site_tasks = [_sanitize_task_for_output(task) for task in site_tasks]
+        sanitized_agent_context = (
+            _sanitize_agent_context_for_output(agent_context) if agent_context is not None else None
+        )
+        adv_tasks = await _runner_api.generate_phase_2a_plans_api(
+            benign_tasks=sanitized_site_tasks,
+            benign_target_resources=benign_target_resources,
+            exposure_contracts=exposure_contracts,
+            cell_targets=cell_targets,
+            benchmark_profile=site_profile,
+            agent_context=sanitized_agent_context,
+            sandbox_model=sandbox_model,
+            label=label,
+            site=site_name,
+            benchmark=benchmark,
+            runtime_composition=runtime_composition,
+        )
     if not adv_tasks:
         logger.warning("Phase 2: API path %r produced no plans", label)
         return SiteInjectionResult(
@@ -192,37 +219,45 @@ async def _generate_injections_for_site(
             [],
             ["API path produced no adversarial plans"],
         )
-    try:
-        _materialize_strategy_plans_from_exposure(
-            adv_tasks,
-            exposure_contracts=exposure_contracts,
-            benchmark=benchmark,
-            benign_tasks=all_site_tasks,
-        )
-    except ValueError as exc:
-        return SiteInjectionResult(site_name, [], [f"exposure materialization failed: {exc}"])
+    if prepared_feature_shard is None:
+        try:
+            _materialize_strategy_plans_from_exposure(
+                adv_tasks,
+                exposure_contracts=exposure_contracts,
+                benchmark=benchmark,
+                benign_tasks=all_site_tasks,
+            )
+        except ValueError as exc:
+            return SiteInjectionResult(site_name, [], [f"exposure materialization failed: {exc}"])
 
     # Programmatically copy immutable fields from benign tasks instead of
     # relying on the LLM to reproduce them byte-for-byte.
     try:
-        _merge_immutable_fields(
-            adv_tasks,
-            all_site_tasks,
-            enriched_resources=benign_target_resources,
-            exposure_contracts=exposure_contracts,
-        )
+        merge_kwargs: dict[str, Any] = {
+            "enriched_resources": benign_target_resources,
+            "exposure_contracts": exposure_contracts,
+        }
+        _merge_immutable_fields(adv_tasks, all_site_tasks, **merge_kwargs)
     except ValueError as exc:
         return SiteInjectionResult(site_name, [], [f"host reward compilation failed: {exc}"])
 
-    validated, errors = _plan_validation._validate_generated_adversarial_tasks(
-        adv_tasks,
-        all_site_tasks,
-        site_profile,
-    )
-    try:
-        enriched = _materialize_validated_shard_tasks(validated, site_profile)
-    except ValueError as exc:
-        return SiteInjectionResult(site_name, [], [f"plan enrichment failed: {exc}"])
+    if feature_generation is not None:
+        enriched, errors = feature_generation.validate_and_enrich_plans(
+            adv_tasks,
+            all_site_tasks,
+            exposure_contracts=exposure_contracts,
+            runtime_composition=runtime_composition,
+        )
+    else:
+        validated, errors = _plan_validation._validate_generated_adversarial_tasks(
+            adv_tasks,
+            all_site_tasks,
+            site_profile,
+        )
+        try:
+            enriched = _materialize_validated_shard_tasks(validated, site_profile)
+        except ValueError as exc:
+            return SiteInjectionResult(site_name, [], [f"plan enrichment failed: {exc}"])
     enriched = _eligibility._select_balanced_subset(enriched, cell_targets)
     _target_stage._normalize_l4_benign_task_ids_in_place(enriched)
 
@@ -322,7 +357,6 @@ def _merge_immutable_fields(
             "world",
             "comparison_contract",
             "comparison_act_contract",
-            "rocket_chat_contract",
         ):
             if field in benign_task:
                 value = json.loads(json.dumps(benign_task[field]))

@@ -80,18 +80,21 @@ ACTION_CAPABILITY_CONTRACTS: tuple[ActionCapabilityContract, ...] = (
         action_kind="open_required_url",
         impact_tier=1,
         capability_family="external_navigation_review",
-        compatible_sites=("gitlab", "reddit"),
-        compatible_carrier_surfaces=_BODY_LIKE_WASP_SURFACES,
+        compatible_sites=("gitlab", "reddit", "rocketchat"),
+        compatible_carrier_surfaces=(*_BODY_LIKE_WASP_SURFACES, "message.body"),
         compatible_editor_methods=(
             "create_issue_description",
             "create_issue_note",
             "create_submission",
             "create_comment",
+            "seed_rocket_chat_conversation",
         ),
         benign_task_family_ids=(
             "issue_external_reference_review",
             "submission_external_reference_review",
             "discussion_external_reference_review",
+            "rocket_chat_conversation_decision",
+            "rocket_chat_conversation_notification",
         ),
     ),
     ActionCapabilityContract(

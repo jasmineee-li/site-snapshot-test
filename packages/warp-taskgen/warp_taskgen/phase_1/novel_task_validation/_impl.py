@@ -45,7 +45,10 @@ _NOVEL_TASK_REQUIRED_FIELDS = (
     "data_seed",
     "reward_function",
 )
-_ALLOWED_GENERATE_NEW_TASKS_EVALUATORS = {"NetworkEventEvaluator", "AgentResponseEvaluator"}
+_ALLOWED_GENERATE_NEW_TASKS_EVALUATORS = {
+    "NetworkEventEvaluator",
+    "AgentResponseEvaluator",
+}
 _HOST_ACTION_ONLY_PLACEHOLDER_EVALUATOR = "HostActionOnlyPlaceholder"
 _MODEL_AUTHORED_HOST_METADATA_FIELDS = (
     "allowed_action_kinds",
@@ -148,6 +151,7 @@ def validate_generated_novel_tasks(
     expected_task_count: int | None = _DEFAULT_EXPECTED_TASK_COUNT,
     route_contracts: dict[str, Any] | None = None,
     task_card_plan: dict[str, Any] | None = None,
+    host_compiled_evaluator_types: frozenset[str] = frozenset(),
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """Validate sandbox-generated generate-new-tasks output for one site."""
     validated, detailed_errors = validate_generated_novel_tasks_detailed(
@@ -157,6 +161,7 @@ def validate_generated_novel_tasks(
         expected_task_count=expected_task_count,
         route_contracts=route_contracts,
         task_card_plan=task_card_plan,
+        host_compiled_evaluator_types=host_compiled_evaluator_types,
     )
     return validated, [error.legacy_render() for error in detailed_errors]
 
@@ -169,6 +174,7 @@ def validate_generated_novel_tasks_detailed(
     expected_task_count: int | None = _DEFAULT_EXPECTED_TASK_COUNT,
     route_contracts: dict[str, Any] | None = None,
     task_card_plan: dict[str, Any] | None = None,
+    host_compiled_evaluator_types: frozenset[str] = frozenset(),
 ) -> tuple[list[dict[str, Any]], list[GeneratedTaskValidationError]]:
     """Validate sandbox-generated output and return structured errors."""
     if not isinstance(raw_tasks, list):
@@ -204,6 +210,7 @@ def validate_generated_novel_tasks_detailed(
             start_url_policy=start_url_policy,
             route_index=route_index,
             task_card_index=card_index,
+            host_compiled_evaluator_types=host_compiled_evaluator_types,
         )
         if problem is not None:
             errors.append(problem)
@@ -313,6 +320,7 @@ def validate_generated_novel_task(
     start_url_policy: _StartUrlPolicy | None = None,
     route_index: dict[str, dict[str, Any]] | None = None,
     task_card_index: dict[str, dict[str, Any]] | None = None,
+    host_compiled_evaluator_types: frozenset[str] = frozenset(),
 ) -> GeneratedTaskValidationError | None:
     """Validate one new_task against Phase 1 and runtime constraints."""
     path = f"$[{index}]"
@@ -550,6 +558,7 @@ def validate_generated_novel_task(
         )
         if (
             evaluator not in _ALLOWED_GENERATE_NEW_TASKS_EVALUATORS
+            and evaluator not in host_compiled_evaluator_types
             and not host_compiled_final_state
             and not host_action_only_placeholder
         ):
@@ -558,7 +567,10 @@ def validate_generated_novel_task(
                 "UNSUPPORTED_EVALUATOR",
                 f"reward_function.eval[{eval_index}].evaluator",
                 f"eval[{eval_index}] uses unsupported evaluator {evaluator!r}",
-                expected=sorted(_ALLOWED_GENERATE_NEW_TASKS_EVALUATORS),
+                expected=sorted(
+                    _ALLOWED_GENERATE_NEW_TASKS_EVALUATORS
+                    | host_compiled_evaluator_types
+                ),
                 actual=evaluator,
             )
         if (

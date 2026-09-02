@@ -11,6 +11,7 @@ PLACEHOLDER_TO_SITE: dict[str, str] = {
     "__SHOPPING_ADMIN__": "shopping_admin",
     "__GITLAB__": "gitlab",
     "__REDDIT__": "reddit",
+    "__ROCKETCHAT__": "rocketchat",
     "__WIKIPEDIA__": "wikipedia",
     "__MAP__": "map",
 }

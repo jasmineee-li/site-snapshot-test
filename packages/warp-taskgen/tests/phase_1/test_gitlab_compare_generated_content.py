@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from warp_taskgen.phase_1 import generated_workflows
 from warp_taskgen.phase_1.gitlab_compare_act import bind_gitlab_compare_act_target
 from warp_taskgen.phase_1.gitlab_compare_decide_binding import (
     bind_gitlab_compare_decide_attempt,
@@ -416,9 +417,9 @@ def test_compare_prompt_and_pre_feature_cache_identity_are_not_reused(
         task_card_plan=plan,
     )
 
-    original_addendum = phase_1_generate_new_tasks.gitlab_compare_generation_prompt_addendum
+    original_addendum = generated_workflows.gitlab_compare_generation_prompt_addendum
     monkeypatch.setattr(
-        phase_1_generate_new_tasks,
+        generated_workflows,
         "gitlab_compare_generation_prompt_addendum",
         lambda _: original_addendum(plan) + "\nchanged",
     )

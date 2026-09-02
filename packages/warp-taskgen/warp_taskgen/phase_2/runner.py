@@ -22,6 +22,7 @@ from warp_taskgen.phase_2.pause_control import run_planning_shards
 from warp_taskgen.phase_2.phase_2c import stage as _phase_2c_stage
 from warp_taskgen.phase_2.phase_2c.config import _infer_task_records_benchmark
 from warp_taskgen.phase_2.planning_types import SiteInjectionResult
+from warp_taskgen.phase_2.runtime_generation import generation_for_runtime
 from warp_taskgen.phase_2.text_fill.checkpoint_runner import (
     fill_plans_with_checkpoints,
     validate_unique_text_fill_task_ids,
@@ -207,9 +208,9 @@ async def run(args: argparse.Namespace) -> int:
             label="Phase 1 benign tasks",
         )
         try:
-            benchmark_capabilities_for_runtime(
-                benchmark_name, runtime_composition
-            ).require("phase_2_generation")
+            benchmark_capabilities_for_runtime(benchmark_name, runtime_composition).require(
+                "phase_2_generation"
+            )
         except ValueError as exc:
             raise ValueError(
                 f"benchmark {benchmark_name!r} does not support WARP Taskgen Phase 2"
@@ -327,6 +328,7 @@ async def run(args: argparse.Namespace) -> int:
         site_profiles=site_profile_payloads,
         current_sandbox_model=sandbox_model,
         current_phase_2a_resolution_signature=state_metadata["phase_2a_resolution_signature"],
+        runtime_composition=runtime_composition,
     )
     reusable_final_tasks = None
     planning_completed_now = False
@@ -358,6 +360,7 @@ async def run(args: argparse.Namespace) -> int:
             current_sandbox_model=sandbox_model,
             current_text_model=text_fill_model,
             current_phase_2a_resolution_signature=state_metadata["phase_2a_resolution_signature"],
+            runtime_composition=runtime_composition,
         )
         if reusable_final_tasks is not None:
             validate_unique_text_fill_task_ids(reusable_final_tasks)
@@ -562,6 +565,7 @@ async def run(args: argparse.Namespace) -> int:
                 current_phase_2a_resolution_signature=state_metadata[
                     "phase_2a_resolution_signature"
                 ],
+                runtime_composition=runtime_composition,
             )
             if reusable_final_tasks is not None:
                 validate_unique_text_fill_task_ids(reusable_final_tasks)
@@ -621,6 +625,40 @@ async def run(args: argparse.Namespace) -> int:
             **state_metadata,
         )
         return 1
+
+    # Before Phase 2c, give an explicit composition the same final-task check
+    # for newly filled rows that reuse applies to cached rows.
+    if runtime_composition is not None:
+        for filled_task in filled_tasks:
+            feature_generation = generation_for_runtime(
+                runtime_composition,
+                benchmark=filled_task.get("benchmark"),
+                site=filled_task.get("site"),
+            )
+            if feature_generation is None:
+                continue
+            benign_parent = benign_by_id.get(str(filled_task.get("benign_task_id") or ""))
+            if benign_parent is None:
+                feature_error = "composition-owned task references an unknown benign parent"
+            else:
+                feature_error = feature_generation.validate_materialized_task(
+                    filled_task,
+                    benign_task=benign_parent,
+                    runtime_composition=runtime_composition,
+                )
+            if feature_error is not None:
+                logger.error("Phase 2 composition materialization failed: %s", feature_error)
+                save_state(
+                    "phase_2",
+                    status="failed",
+                    reason="composition_materialization_invalid",
+                    materialization_error=feature_error,
+                    phase_2_stage="text_fill",
+                    generation_failures=site_failures,
+                    text_fill_failures=text_fill_diagnostics,
+                    **state_metadata,
+                )
+                return 1
 
     merged_output = _merge_preserving_unfiltered_sites(
         output_path,
