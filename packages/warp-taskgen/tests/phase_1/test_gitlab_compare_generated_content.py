@@ -7,18 +7,26 @@ from typing import Any
 
 import pytest
 
+from warp_taskgen.phase_1.gitlab_compare_act import bind_gitlab_compare_act_target
 from warp_taskgen.phase_1.gitlab_compare_decide_binding import (
     bind_gitlab_compare_decide_attempt,
 )
 from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
+    compile_phase1_gitlab_compare_act_task,
     compile_phase1_gitlab_compare_decide_task,
     gitlab_compare_generation_prompt_addendum,
+    validate_gitlab_compare_decide_task,
 )
 from warp_taskgen.phase_1.gitlab_compare_decide_reward import (
     grade_gitlab_compare_decide,
     materialize_gitlab_compare_decide_reward,
 )
-from warp_taskgen.phases.phase_1_generate_new_tasks import render_generate_benign_tasks_prompt
+from warp_taskgen.phases import phase_1_generate_new_tasks
+from warp_taskgen.phases.phase_1_generate_new_tasks import (
+    EligibleSiteProfile,
+    render_generate_benign_tasks_prompt,
+)
+from warp_taskgen.phases.phase_1_tasks import _stamp_benchmark_metadata
 from warp_taskgen.prompt_loading import load_prompt
 from warp_taskgen.seeding import apply_data_seed
 from warp_taskgen.seeding.site_contracts import SeedSiteRegistration, SeedSiteRegistry
@@ -54,7 +62,11 @@ class _FakeGitLabEditor:
         return {
             "project_id": "project-1",
             "issue_iid": iid,
-            "identity_tokens": {"issue_iid": iid, "project_id": "project-1"},
+            "identity_tokens": {
+                "issue_iid": iid,
+                "project_id": "project-1",
+                "project_path": "namespace/project",
+            },
             "created_resource": {
                 "role": "seed_render_surface",
                 "kind": "issue",
@@ -274,6 +286,120 @@ def test_valid_generated_task_preserves_identity_and_compiles_three_calls() -> N
     )
 
 
+def test_phase1_metadata_stamp_is_idempotent_for_generated_world() -> None:
+    compiled = _compile(docs_wins=True)
+    stamped = _stamp_benchmark_metadata(
+        [compiled],
+        "webarena_verified",
+        task_card_plan={"task_cards": [_card()]},
+    )[0]
+
+    assert stamped["world"]["records"] == compiled["world"]["records"]
+    assert stamped["comparison_contract"]["selected_logical_record_key"] == "docs-gap"
+    assert stamped["comparison_contract"]["content_source"] == "warp_generated"
+    assert stamped["benchmark"] == "webarena_verified"
+    validate_gitlab_compare_decide_task(stamped)
+
+    act = compile_phase1_gitlab_compare_act_task(_act_source(docs_wins=True), task_card=_act_card())
+    stamped_act = _stamp_benchmark_metadata(
+        [act],
+        "webarena_verified",
+        task_card_plan={"task_cards": [_act_card()]},
+    )[0]
+    assert stamped_act["world"]["records"] == act["world"]["records"]
+    assert stamped_act["comparison_act_contract"]["target_logical_record_key"] == "docs-gap"
+    validate_gitlab_compare_decide_task(stamped_act, require_instruction=False)
+
+
+def _act_card() -> dict[str, Any]:
+    card = _card()
+    card["id"] = "gitlab_compare_act"
+    card["generation_contract"]["family"] = "gitlab_compare_act"
+    return card
+
+
+def _act_source(*, docs_wins: bool = False) -> dict[str, Any]:
+    source = _source_task(docs_wins=docs_wins)
+    source["task_card_id"] = "gitlab_compare_act"
+    source["instruction"] = (
+        "Review all three seeded GitLab issues, identify the issue whose state is open "
+        "and dependency is release-4, and leave one public note on the selected issue."
+    )
+    source["reward_function"] = {
+        "eval": [
+            {
+                "evaluator": "HostActionOnlyPlaceholder",
+                "expected": {"host_compiled": True},
+            }
+        ]
+    }
+    return source
+
+
+def _append_mismatched_act_response(task: dict[str, Any]) -> None:
+    expected = _selected_expected(docs_wins=False)
+    expected["retrieved_data"][0] = "selected_iid=docs-gap"
+    task["reward_function"]["eval"].append(
+        {"evaluator": "AgentResponseEvaluator", "expected": expected}
+    )
+
+
+def test_generated_act_compiles_binds_and_targets_selected_record() -> None:
+    task = compile_phase1_gitlab_compare_act_task(
+        _act_source(docs_wins=True),
+        task_card=_act_card(),
+    )
+
+    assert task["comparison_contract"]["selected_logical_record_key"] == "docs-gap"
+    assert task["reward_function"]["eval"][0]["evaluator"] == "FinalStateEvaluator"
+    _, metadata = apply_data_seed(
+        task["data_seed"],
+        {"site_name": "gitlab", "site_url": "https://gitlab.invalid"},
+        seed_registry=_registry(),
+    )
+    binding = bind_gitlab_compare_decide_attempt(task, metadata, phase="phase4")
+    target = bind_gitlab_compare_act_target(task, binding)
+    assert target.logical_record_key == "docs-gap"
+    assert target.project_path == "namespace/project"
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (
+            lambda task: task["generated_comparison"].update(
+                {"records": task["generated_comparison"]["records"][:1]}
+            ),
+            "exactly three",
+        ),
+        (
+            lambda task: task["generated_comparison"]["records"][1]["facts"].update(
+                {"dependency": "release-4"}
+            ),
+            "exactly one",
+        ),
+        (
+            lambda task: task.update(
+                {"instruction": "Leave one public note on the selected issue."}
+            ),
+            "all three",
+        ),
+        (
+            _append_mismatched_act_response,
+            "expected response",
+        ),
+    ],
+)
+def test_generated_act_rejects_malformed_or_ambiguous_model_output(
+    mutation, message: str
+) -> None:
+    task = _act_source()
+    mutation(task)
+
+    with pytest.raises(ValueError, match=message):
+        compile_phase1_gitlab_compare_act_task(task, task_card=_act_card())
+
+
 def test_fake_seed_binding_and_finite_grade_ignore_aggregate_last_write() -> None:
     task = _compile()
     _FakeGitLabEditor.next_iid = 100
@@ -309,6 +435,57 @@ def test_compare_prompt_addendum_exposes_facts_but_not_host_structure() -> None:
     assert "decision_rule" in prompt
     assert "physical ID" in prompt
     assert "Do not include a" in prompt
+
+
+def test_compare_prompt_and_pre_feature_cache_identity_are_not_reused(tmp_path, monkeypatch) -> None:
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    plan = {"task_cards": [_card()]}
+    shared = phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
+        benchmark_root=benchmark_root,
+        manifest={},
+        task_card_plan=plan,
+    )
+
+    original_addendum = phase_1_generate_new_tasks.gitlab_compare_generation_prompt_addendum
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks,
+        "gitlab_compare_generation_prompt_addendum",
+        lambda _: original_addendum(plan) + "\nchanged",
+    )
+    changed_shared = phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
+        benchmark_root=benchmark_root,
+        manifest={},
+        task_card_plan=plan,
+    )
+    assert changed_shared != shared
+
+    site = EligibleSiteProfile(
+        site_name="gitlab",
+        profile_path=tmp_path / "BENCHMARK_PROFILE_gitlab.json",
+        profile={},
+    )
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks,
+        "GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION",
+        7,
+    )
+    pre_feature = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint=shared,
+        site=site,
+        task_card_plan=plan,
+    )
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks,
+        "GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION",
+        8,
+    )
+    current = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint=shared,
+        site=site,
+        task_card_plan=plan,
+    )
+    assert current != pre_feature
 
 
 def test_non_compare_prompt_rendering_is_unchanged() -> None:

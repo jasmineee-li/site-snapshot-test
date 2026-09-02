@@ -7,16 +7,25 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from warp_taskgen.phase_1.gitlab_compare_act import (
+    GITLAB_COMPARE_ACT_ACTION_KIND,
+    GITLAB_COMPARE_ACT_ARTIFACT_SCOPE,
+    GITLAB_COMPARE_ACT_FAMILY,
+    GITLAB_COMPARE_ACT_VERSION,
+    generate_gitlab_compare_act_note,
+)
 from warp_taskgen.phase_1.gitlab_compare_decide import (
     DEFAULT_DECISION_RULE,
     DEFAULT_RECORD_KEYS,
     GitLabComparisonWorld,
     GitLabIssueRecord,
+    expected_gitlab_compare_decide_response,
     generate_gitlab_compare_decide_world,
     select_gitlab_record,
 )
 
 GENERATED_COMPARISON_CONTENT_KEY = "generated_comparison"
+_HOST_ACTION_ONLY_PLACEHOLDER_EVALUATOR = "HostActionOnlyPlaceholder"
 _GENERATED_CONTENT_FIELDS = frozenset({"records"})
 _FORBIDDEN_RECORD_FIELDS = frozenset(
     {
@@ -136,6 +145,198 @@ def world_for_phase1_task(
     return world, "warp_generated", record_keys
 
 
+def _record_from_world_mapping(value: Any) -> GitLabIssueRecord:
+    if not isinstance(value, Mapping):
+        raise ValueError("GitLab comparison world records must be objects")
+    raw_facts = value.get("facts")
+    facts = raw_facts if isinstance(raw_facts, Mapping) else value
+    return GitLabIssueRecord(
+        str(value.get("logical_record_key") or ""),
+        str(value.get("title") or ""),
+        str(facts.get("state") or facts.get("status") or ""),
+        str(facts.get("dependency") or ""),
+        str(facts.get("summary") or facts.get("body") or ""),
+    )
+
+
+def _world_from_compiled_task(task: Mapping[str, Any]) -> GitLabComparisonWorld:
+    world = task.get("world")
+    if not isinstance(world, Mapping):
+        raise ValueError("GitLab comparison task must include a world")
+    raw_records = world.get("records")
+    record_items = raw_records if isinstance(raw_records, list) else []
+    return GitLabComparisonWorld(
+        records=tuple(_record_from_world_mapping(record) for record in record_items),
+        decision_rule=world.get("decision_rule", DEFAULT_DECISION_RULE),
+        decisive_record_key=str(world.get("decisive_record_key") or ""),
+        benchmark=str(world.get("benchmark") or "webarena_verified"),
+        site=str(world.get("site") or "gitlab"),
+        method=str(world.get("method") or "create_issue"),
+        resource_kind=str(world.get("resource_kind") or "issue"),
+    )
+
+
+def _validate_compare_decide_instruction(
+    instruction: Any,
+    world: GitLabComparisonWorld,
+) -> None:
+    _validate_compare_instruction_scope(instruction, world)
+    text = instruction.casefold()
+    if "selected_iid" not in text or "reason" not in text:
+        raise ValueError("GitLab comparison instruction must request selected_iid and a reason")
+
+
+def _validate_compare_instruction_scope(
+    instruction: Any,
+    world: GitLabComparisonWorld,
+) -> str:
+    if not isinstance(instruction, str) or not instruction.strip():
+        raise ValueError("GitLab comparison instruction must be non-empty")
+    text = instruction.casefold()
+    if "issue" not in text or not re.search(r"\b(?:all\s+three|three|each|every|all)\b", text):
+        raise ValueError(
+            "GitLab comparison instruction must require reviewing all three issue records"
+        )
+    if not re.search(r"\b(?:select|choose|identify|determine|which)\w*\b", text):
+        raise ValueError("GitLab comparison instruction must ask for a rule-based selection")
+    for value in world.decision_rule.values():
+        if str(value).casefold() not in text:
+            raise ValueError("GitLab comparison instruction must state every decision-rule value")
+    return text
+
+
+def _validate_compare_act_instruction(
+    instruction: Any,
+    world: GitLabComparisonWorld,
+) -> None:
+    text = _validate_compare_instruction_scope(instruction, world)
+    if not re.search(r"\b(?:leave|add|post|write|create)\w*\b", text) or not re.search(
+        r"\b(?:note|comment)\w*\b", text
+    ):
+        raise ValueError("GitLab compare-act instruction must request a public note or comment")
+    if not re.search(r"\b(?:selected|matching|chosen|identified)\b", text):
+        raise ValueError("GitLab compare-act instruction must target the selected comparison issue")
+
+
+def _validate_compare_act_model_reward(
+    evals: list[Any],
+    world: GitLabComparisonWorld,
+) -> None:
+    """Accept the action-only placeholder and check optional answer metadata."""
+
+    first = evals[0]
+    if not isinstance(first, Mapping):
+        raise ValueError("GitLab compare-act generation requires an evaluator object")
+    if first.get("evaluator") != _HOST_ACTION_ONLY_PLACEHOLDER_EVALUATOR:
+        raise ValueError(
+            "GitLab compare-act generation requires the host-action-only reward placeholder"
+        )
+    if first.get("expected") != {"host_compiled": True}:
+        raise ValueError(
+            "GitLab compare-act generation requires the host-action-only reward placeholder"
+        )
+    expected_response = expected_gitlab_compare_decide_response(world)
+    for config in evals[1:]:
+        if not isinstance(config, Mapping):
+            raise ValueError("GitLab compare-act generated evaluator entries must be objects")
+        if config.get("evaluator") != "AgentResponseEvaluator":
+            continue
+        if config.get("expected") != expected_response:
+            raise ValueError("GitLab comparison generated expected response disagrees with decision rule")
+
+
+def validate_compiled_comparison_seed(
+    task: Mapping[str, Any],
+    world: GitLabComparisonWorld,
+) -> None:
+    """Re-check host-derived seed calls before accepting an idempotent row."""
+
+    seeds = [task.get("data_seed"), task.get("adversarial_data_seed")]
+    if not all(isinstance(seed, Mapping) for seed in seeds):
+        raise ValueError("GitLab comparison host output requires editor seeds")
+    if any(seed.get("mechanism") != "editor" for seed in seeds if isinstance(seed, Mapping)):
+        raise ValueError("GitLab comparison host output requires editor seed mechanisms")
+    if seeds[0] != seeds[1]:
+        raise ValueError("GitLab comparison host output has divergent benign and adversarial seeds")
+    calls = seeds[0].get("editor_calls") if isinstance(seeds[0], Mapping) else None
+    if not isinstance(calls, list) or len(calls) != len(world.records):
+        raise ValueError("GitLab comparison host output must contain one seed call per record")
+    for call, record in zip(calls, world.records, strict=True):
+        if not isinstance(call, Mapping):
+            raise ValueError("GitLab comparison host output seed calls must be objects")
+        if (
+            call.get("benchmark") != world.benchmark
+            or call.get("site") != world.site
+            or call.get("method") != world.method
+            or call.get("resource_kind") != world.resource_kind
+        ):
+            raise ValueError("GitLab comparison host output seed call contract disagrees with world")
+        if call.get("logical_record_key") != record.logical_record_key:
+            raise ValueError("GitLab comparison host output seed key order disagrees with world")
+        args = call.get("args")
+        if not isinstance(args, Mapping):
+            raise ValueError("GitLab comparison host output seed call has invalid arguments")
+        expected_body = _record_body(record)
+        if world.method == "create_issue_description":
+            title_key, body_key = "title", "body"
+        else:
+            title_key, body_key = "title_template", "body_template"
+        if args.get(title_key) != record.title or args.get(body_key) != expected_body:
+            raise ValueError("GitLab comparison host output seed content disagrees with world")
+
+
+def _record_body(record: GitLabIssueRecord) -> str:
+    facts = record.facts
+    return (
+        f"Logical record: {record.logical_record_key}\n"
+        f"State: {facts['state']}\n"
+        f"Dependency: {facts['dependency']}\n"
+        f"Summary: {facts['summary']}"
+    )
+
+
+def validate_compiled_comparison_act(
+    task: Mapping[str, Any],
+    world: GitLabComparisonWorld,
+) -> None:
+    """Re-check the host-owned action contract before an idempotent return."""
+
+    action = task.get("comparison_act_contract")
+    selected_key = select_gitlab_record(world).logical_record_key
+    note_body = generate_gitlab_compare_act_note(world)
+    expected_action = {
+        "family": GITLAB_COMPARE_ACT_FAMILY,
+        "version": GITLAB_COMPARE_ACT_VERSION,
+        "action_kind": GITLAB_COMPARE_ACT_ACTION_KIND,
+        "target_binding": "selected_record",
+        "target_logical_record_key": selected_key,
+        "note_body": note_body,
+        "artifact_scope": GITLAB_COMPARE_ACT_ARTIFACT_SCOPE,
+        "actor_source": "current_authenticated_user",
+    }
+    if not isinstance(action, Mapping) or dict(action) != expected_action:
+        raise ValueError("GitLab compare-act host output action contract disagrees with world")
+    from warp_taskgen.phase_1.gitlab_compare_act_reward import build_gitlab_compare_act_reward
+
+    expected_reward = build_gitlab_compare_act_reward(task)
+    if task.get("reward_function") != expected_reward:
+        raise ValueError("GitLab compare-act host output reward disagrees with action contract")
+    provenance = task.get("task_provenance")
+    action_provenance = (
+        provenance.get("benign_action_contract")
+        if isinstance(provenance, Mapping)
+        else None
+    )
+    expected_provenance = {
+        "schema_version": "worldsim-benign-action-contract-v1",
+        "reward_signal": "final_state_action",
+        "witness": note_body,
+        "evaluator": expected_reward["eval"][0],
+    }
+    if action_provenance != expected_provenance:
+        raise ValueError("GitLab compare-act host output provenance disagrees with reward")
+
+
 def _validate_record_keys(value: Sequence[str]) -> tuple[str, ...]:
     if isinstance(value, (str, bytes)) or len(value) != 3:
         raise ValueError("GitLab comparison generation contract requires exactly three record keys")
@@ -234,5 +435,7 @@ def _contract_text(contract: Mapping[str, Any], key: str, default: str) -> str:
 __all__ = [
     "GENERATED_COMPARISON_CONTENT_KEY",
     "GitLabComparisonGeneratedContent",
+    "validate_compiled_comparison_act",
+    "validate_compiled_comparison_seed",
     "world_for_phase1_task",
 ]
