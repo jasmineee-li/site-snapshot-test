@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from warp_taskgen.benchmark_capabilities import (
@@ -15,7 +17,14 @@ from warp_taskgen.benchmark_contracts import (
 from warp_taskgen.benchmark_contracts import (
     BenchmarkCatalog as ContractBenchmarkCatalog,
 )
-from warp_taskgen.phase_2.phase_2c.config import _gate_phase_2c_benchmark
+from warp_taskgen.phase_2.phase_2c.config import (
+    _gate_phase_2_skip_benchmark,
+    _gate_phase_2c_benchmark,
+)
+from warp_taskgen.runtime_composition import (
+    benchmark_capabilities_for_runtime,
+    rocket_chat_conversation_decision_poc,
+)
 
 
 def test_normalize_benchmark_aliases():
@@ -350,4 +359,55 @@ def test_phase_2c_gate_rejects_task_instance_mismatch():
             task_records=[{"id": "task-1", "benchmark": "webarena_verified"}],
             raw_instances={"benchmark_name": "wasp", "instances": [{"site_name": "gitlab"}]},
             instances=[{"site_name": "gitlab", "benchmark": "wasp"}],
+        )
+
+
+def test_rocket_chat_composition_capabilities_are_scoped_to_named_gate():
+    task_records = [{"id": "task-1", "benchmark": "theagentcompany"}]
+    raw_instances = {
+        "benchmark": "theagentcompany",
+        "instances": [{"site_name": "rocketchat", "site_url": "http://rc.test"}],
+    }
+    instances = list(raw_instances["instances"])
+
+    with pytest.raises(ValueError, match="does not support WARP Taskgen Phase 2c"):
+        _gate_phase_2c_benchmark(
+            task_records=task_records,
+            raw_instances=raw_instances,
+            instances=instances,
+        )
+
+    composition = rocket_chat_conversation_decision_poc(readback_adapter=None)
+    assert benchmark_capabilities_for_runtime("theagentcompany", composition).supports(
+        "phase_2_feasibility"
+    )
+    assert benchmark_capabilities_for_runtime("theagentcompany", composition).supports(
+        "phase_4_execution"
+    )
+    assert not get_benchmark_capabilities("theagentcompany").supports("phase_4_execution")
+    assert (
+        _gate_phase_2c_benchmark(
+            task_records=task_records,
+            raw_instances=raw_instances,
+            instances=instances,
+            runtime_composition=composition,
+        )
+        == "theagentcompany"
+    )
+
+
+def test_skip_feasibility_still_requires_scoped_phase_2c_capability():
+    composition = rocket_chat_conversation_decision_poc(readback_adapter=None)
+    generation_only = replace(
+        composition.benchmark_capabilities,
+        capabilities=frozenset({"phase_1_generation", "phase_2_generation"}),
+        phase_4_mode="unsupported",
+        evaluator_authorities=(),
+    )
+    composition = replace(composition, benchmark_capabilities=generation_only)
+
+    with pytest.raises(ValueError, match="does not support WARP Taskgen Phase 2c"):
+        _gate_phase_2_skip_benchmark(
+            [{"id": "task-1", "benchmark": "theagentcompany"}],
+            runtime_composition=composition,
         )

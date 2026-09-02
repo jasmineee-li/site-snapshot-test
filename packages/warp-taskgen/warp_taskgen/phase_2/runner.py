@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any
 
 from warp_taskgen.atomic_io import write_json_atomic
-from warp_taskgen.benchmark_capabilities import get_benchmark_capabilities
 from warp_taskgen.cost_tracker import tracker as cost_tracker
 from warp_taskgen.phase_2 import generation as _generation
 from warp_taskgen.phase_2 import reuse as _reuse
@@ -38,7 +37,10 @@ from warp_taskgen.phase_2.text_fill.constants import (
 )
 from warp_taskgen.phase_2.text_fill.service import fill_texts_for_tasks
 from warp_taskgen.run_definition import define_run
-from warp_taskgen.runtime_composition import runtime_composition_for_name
+from warp_taskgen.runtime_composition import (
+    benchmark_capabilities_for_runtime,
+    runtime_composition_for_name,
+)
 from warp_taskgen.state import get_state_dir, load_state, save_state
 
 logger = logging.getLogger(__name__)
@@ -205,7 +207,9 @@ async def run(args: argparse.Namespace) -> int:
             label="Phase 1 benign tasks",
         )
         try:
-            get_benchmark_capabilities(benchmark_name).require("phase_2_generation")
+            benchmark_capabilities_for_runtime(
+                benchmark_name, runtime_composition
+            ).require("phase_2_generation")
         except ValueError as exc:
             raise ValueError(
                 f"benchmark {benchmark_name!r} does not support WARP Taskgen Phase 2"
@@ -403,6 +407,7 @@ async def run(args: argparse.Namespace) -> int:
                         "instance": per_site_instance,
                         "benchmark": benchmark_name,
                         "action_policy": phase_2a_action_policy,
+                        "runtime_composition": runtime_composition,
                     }
                 )
 

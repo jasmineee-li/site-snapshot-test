@@ -504,3 +504,25 @@ def test_rocket_chat_site_owner_exposes_only_the_room_route() -> None:
     assert site.reconstruct("room", {"room_id": "project-alpha"}, origin_context) == (
         "https://rocketchat.example/channel/project-alpha"
     )
+    matched = site.match(
+        "https://rocketchat.example/channel/project-alpha/thread/message-123",
+        {},
+        origin_context,
+    )
+    assert matched == ("room", {"room_id": "project-alpha", "thread_id": "message-123"})
+    assert (
+        site.reconstruct(
+            "room",
+            {"room_id": "project-alpha", "thread_id": "message-123"},
+            origin_context,
+        )
+        == "https://rocketchat.example/channel/project-alpha/thread/message-123"
+    )
+    assert (
+        site.match(
+            "https://rocketchat.example/channel/project-alpha/thread/message-123?bad=1",
+            {},
+            origin_context,
+        )
+        is None
+    )

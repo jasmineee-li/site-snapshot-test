@@ -2,7 +2,9 @@
 
 This projection describes only the source-level response workflow.  It does
 not claim deployed authentication, painted visibility, cleanup, reset, or a
-final-state/action-card capability.
+final-state/action-card capability.  The executable owners are wired by the
+opt-in runtime composition; this static report remains a diagnostic until a
+live TAC proof is recorded.
 """
 
 from __future__ import annotations
@@ -35,9 +37,9 @@ def _owner(
 def rocket_chat_site_composition() -> SiteComposition:
     projection = SiteBenchmarkComposition(
         benchmark="theagentcompany",
-        # The pure route grammar is the only concrete owner in this source
-        # slice.  Authentication, editor, writer, readback, and evaluator
-        # behavior remain explicitly unsupported until their owners exist.
+        # The pure route grammar is the only statically supported owner in this
+        # source slice.  Runtime owners are deliberately unsupported here until
+        # a disposable TAC proof binds their host configuration.
         site_targeting=_owner(
             "warp.rocketchat.site_targeting",
             ("sites.rocketchat",),
@@ -46,21 +48,21 @@ def rocket_chat_site_composition() -> SiteComposition:
         profile=_owner("warp.rocketchat.profile", ("sites.rocketchat",)),
         editor_specification=_owner(
             "warp.rocketchat.editor_specification",
-            ("phase_1.rocket_chat_decisions",),
+            ("sites.rocketchat_runtime",),
         ),
         regular_participant_writer=_owner(
             "warp.rocketchat.regular_participant_writer",
-            ("phase_1.rocket_chat_decisions",),
+            ("sites.rocketchat_runtime",),
         ),
         feasibility=_owner(
             "warp.rocketchat.feasibility",
-            ("phase_1.rocket_chat_decisions",),
+            ("sites.rocketchat_runtime",),
         ),
         read_surface=_owner(
             "warp.rocketchat.read_surface",
-            ("phase_1.rocket_chat_decisions",),
+            ("sites.rocketchat_runtime",),
         ),
-        readback=_owner("warp.rocketchat.readback", ("phase_1.rocket_chat_decisions",)),
+        readback=_owner("warp.rocketchat.readback", ("sites.rocketchat_readback",)),
         final_state_evaluation=SiteOwnerDeclaration(
             state="unsupported",
             contract_version="v1",

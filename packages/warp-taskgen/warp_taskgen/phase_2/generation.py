@@ -6,7 +6,7 @@ import json
 import logging
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from warp_taskgen.adversarial_actions import (
     annotate_exposure_contracts_with_action_policy,
@@ -41,6 +41,9 @@ from warp_taskgen.seed_contracts.surface import _find_surface_by_id
 from warp_taskgen.seed_contracts.validation import _resolve_delivery_channel
 from warp_taskgen.state import get_state_dir
 
+if TYPE_CHECKING:
+    from warp_taskgen.runtime_composition import RuntimeComposition
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,6 +58,7 @@ async def _generate_injections_for_site(
     instance: Mapping[str, Any] | None = None,
     benchmark: str = "webarena_verified",
     action_policy: str | None = None,
+    runtime_composition: RuntimeComposition | None = None,
 ) -> SiteInjectionResult:
     """Generate adversarial injections for one shard through API Phase 2a.
 
@@ -179,6 +183,7 @@ async def _generate_injections_for_site(
         label=label,
         site=site_name,
         benchmark=benchmark,
+        runtime_composition=runtime_composition,
     )
     if not adv_tasks:
         logger.warning("Phase 2: API path %r produced no plans", label)

@@ -472,3 +472,41 @@ The user approved continuing the entire vertical slice on 2026-09-01. Missing
 hosts, credentials, model/billing limits, corpus size and publication authority
 remain concrete operational inputs rather than architecture questions or
 unlimited authorization.
+
+## 16. E1 Rocket.Chat decision source proof executed 2026-09-02
+
+The research baseline remains **2026-08-30**; this execution record is dated
+**2026-09-02 (America/New_York)**. The E1 implementation adds an opt-in,
+composition-scoped TAC decision path rather than changing the default
+Benchmark catalog. Feature-local owners now cover the generated WARP task
+envelope, ordinary-role Rocket.Chat 5.3 REST transport, independent reader
+identity, exact thread-panel readback, synchronous host reset and Phase 2
+admission. The existing Phase 4 WARP-local task-id-less evaluator remains the
+finite response authority. Generic changes are limited to composition-scoped
+Benchmark capabilities, one typed admission result, one explicit signature for
+a single nested editor call, and waiting for a Site-owned exact selector before
+sampling a SPA body. The later exact geometry and identity checks remain
+mandatory.
+
+One serialized no-model smoke used TAC source commit
+`98b68ef82a47690c316f42fddb05baafaab56851` and Rocket.Chat 5.3 on the approved
+disposable r8a host. It began from the golden `project-graphdb` fixture with
+zero messages and five members. A separately authenticated ordinary writer
+created the generated root, update and decisive correction; a distinct
+ordinary reader observed the exact physical room, root/thread/message IDs,
+author, chronological order and body digests through both REST and the deep
+thread-panel browser surface. The current structured decision graded true and
+the stale initial decision graded false. The exact correction selector had one
+nonzero, unhidden geometry match; `visible_at_entry=false` was retained as
+layout telemetry, consistent with the existing rule that only an explicit
+carrier contract such as Reddit comment exposure upgrades that field into an
+admission requirement. Host-owned synchronous reset then returned terminal
+completion, final room history was zero and the unique run marker was absent.
+
+This establishes the E1 source/runtime boundary, not a model-driven TAC
+benchmark result, task-family rate, notification action result, expanded
+corpus, live-NPC workflow or broad plug-and-play claim. No paid model call,
+dependency installation, paper edit or new evidence/attestation system was
+part of the proof. The focused [execution plan](web-benchmark-onboarding-2026-08-30/execution-plan.md)
+continues with E2 notification persistence and grading while E3's non-TAC
+generation may proceed independently.

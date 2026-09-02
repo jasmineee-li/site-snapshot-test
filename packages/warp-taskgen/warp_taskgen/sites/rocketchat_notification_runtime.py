@@ -206,7 +206,7 @@ class RocketChatHttpNotificationWriter(RocketChatHttpWriter, RocketChatNotificat
             or context.auth_context_id != writer.auth_context_id
             or context.auth_kind != writer.auth_kind
             or context.role != writer.role
-            or self.credentials.username != writer.user_id
+            or self.credentials.username != writer.username
         ):
             raise RocketChatContractError(
                 "notification writer identity does not match the seeded ordinary participant"
@@ -329,8 +329,14 @@ class RocketChatHttpNotificationReader(RocketChatHttpReader, RocketChatNotificat
             return RocketChatObservationFailure(
                 "wrong_thread", "notification is attached to the wrong thread"
             )
+        thread_reader = getattr(self.transport, "thread_history", None)
+        if not callable(thread_reader):
+            return RocketChatObservationFailure(
+                "thread_history_unavailable",
+                "Rocket.Chat notification readback requires a dedicated thread reader",
+            )
         try:
-            rows = self.transport.history(room_id=root.room_id)
+            rows = thread_reader(room_id=root.room_id, thread_id=root.message_id)
         except (RocketChatContractError, RocketChatTransportError) as exc:
             return RocketChatObservationFailure("reader_transport_failed", str(exc))
         by_id: dict[str, Mapping[str, Any]] = {}

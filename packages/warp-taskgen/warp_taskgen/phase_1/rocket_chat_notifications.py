@@ -272,7 +272,8 @@ class RocketChatNotificationObservation:
             raise RocketChatContractError("notification observation requires a typed notification")
         if self.notification.benchmark != self.benchmark or self.notification.site != self.site:
             raise RocketChatContractError("notification and observation Benchmark/Site must match")
-        if self.reader_context.user_id == self.notification.author:
+        reader_username = self.reader_context.username or self.reader_context.user_id
+        if reader_username == self.notification.author:
             raise RocketChatContractError(
                 "notification observation reader must be distinct from the notification author"
             )

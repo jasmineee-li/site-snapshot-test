@@ -80,6 +80,7 @@ class _FakePage:
         self._current_url = ""
         self.goto_calls: list[tuple[str, str]] = []  # (url, wait_until)
         self.load_state_calls: list[tuple[str, int]] = []
+        self.wait_for_selector_calls: list[tuple[str, int]] = []
         self.evaluate_calls: list[object] = []
 
     async def goto(self, url, *, timeout, wait_until):
@@ -103,6 +104,7 @@ class _FakePage:
         return self._committed_url_per_url.get(self._current_url, self._current_url)
 
     async def wait_for_selector(self, selector, *, timeout):
+        self.wait_for_selector_calls.append((selector, timeout))
         return None
 
     async def wait_for_load_state(self, state, *, timeout):
@@ -319,6 +321,28 @@ def test_render_signature_selection_records_payload_call_index():
     assert selection.call_index == 1
     assert selection.editor_method == "gitlab.create_issue_description"
     assert selection.source_field == "body"
+
+
+def test_render_signature_selection_accepts_explicit_nested_editor_signature():
+    seed = {
+        "mechanism": "editor",
+        "render_signature": "Confirmed correction: owner=Priya; due_date=2026-09-18.",
+        "editor_calls": [
+            {
+                "site": "rocketchat",
+                "method": "seed_rocket_chat_conversation",
+                "args": {"conversation": {"messages": [{"body": "nested facts"}]}},
+            }
+        ],
+    }
+
+    selection = render_signature_selection(seed)
+
+    assert selection is not None
+    assert selection.signature == "Confirmed correction: owner=Priya; due_d"
+    assert selection.call_index == 0
+    assert selection.editor_method == "rocketchat.seed_rocket_chat_conversation"
+    assert selection.source_field == "render_signature"
 
 
 def test_render_check_inputs_bind_to_payload_editor_call_metadata():
@@ -627,6 +651,55 @@ async def test_verify_preserves_legacy_readback_diagnostics_without_identity_opt
         "reason": "legacy_readback_verified",
         "visibility": {"ok": True, "reason": "visible"},
     }
+
+
+@pytest.mark.asyncio
+async def test_seed_resource_waits_for_exact_site_selector_before_sampling_body():
+    """SPA read surfaces may paint their exact resource after DOMContentLoaded."""
+
+    class _DeferredBodyPage(_FakePage):
+        async def wait_for_selector(self, selector, *, timeout):
+            await super().wait_for_selector(selector, timeout=timeout)
+            self._body_per_url[self._current_url] = "Rendered UNIQUE-SIGNATURE"
+
+    class _ExactBoundSite:
+        def supports_readback_observation(self) -> bool:
+            return True
+
+        def readback_visibility_selector(self, _plan: object) -> str:
+            return "a.comment-reply[data-id='17']"
+
+        def observe_readback_html(self, _html: str, _plan: object) -> ReadbackObservation:
+            return ReadbackObservation(
+                kind="resource_signature",
+                identity_tokens={"comment_id": "17"},
+                payload={"comment_id": "17"},
+                signature="UNIQUE-SIGNATURE",
+            )
+
+        def interpret_readback(self, _observation: ReadbackObservation) -> ReadbackDecision:
+            return ReadbackDecision(True, "exact_resource_visible")
+
+    url = "http://spa.test/resource/17"
+    page = _DeferredBodyPage(
+        body_per_url={url: "Loading"},
+        html_per_url={url: "<a class='comment-reply' data-id='17'>UNIQUE-SIGNATURE</a>"},
+        layout_probe_per_url={url: {"visible_at_entry": True}},
+        exact_selector_probe_per_url={url: {"ok": True, "reason": "visible"}},
+    )
+
+    outcome = await verify_seed_renders(
+        browser=_FakeBrowser(page),
+        urls=[url],
+        site_name="spa",
+        site_url="http://spa.test",
+        signature="UNIQUE-SIGNATURE",
+        readback_site=_ExactBoundSite(),
+        readback_plan=SimpleNamespace(verification_mode="seed_resource"),
+    )
+
+    assert outcome.ok
+    assert page.wait_for_selector_calls == [("a.comment-reply[data-id='17']", 10000)]
 
 
 @pytest.mark.asyncio

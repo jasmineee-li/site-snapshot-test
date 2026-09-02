@@ -23,6 +23,7 @@ import json
 import logging
 import re
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -259,9 +260,12 @@ def render_signature_selection(
     ``bio_text``), so feasibility verification works on any plan that
     targets a method whose body lives on a templated arg.
 
-    Returns None when no editor call carries a signature-bearing
-    field at all — caller treats that as render_unverified with a
-    clear "no signature available" message.
+    A single-call seed whose editor consumes nested structured facts may
+    declare ``render_signature`` at the seed boundary. Multi-call seeds must
+    continue to derive a call-local signature from arguments so attribution
+    cannot become ambiguous. Returns None when no editor call carries a
+    signature-bearing field at all — caller treats that as render_unverified
+    with a clear "no signature available" message.
     """
     if not isinstance(seed, dict):
         return None
@@ -279,6 +283,21 @@ def render_signature_selection(
     ]
     if not call_records:
         return None
+    explicit_signature = seed.get("render_signature")
+    if (
+        len(call_records) == 1
+        and isinstance(explicit_signature, str)
+        and explicit_signature.strip()
+    ):
+        signature = _stable_render_signature_text(explicit_signature.strip())
+        if signature:
+            index, method, _args = call_records[0]
+            return RenderSignatureSelection(
+                signature=signature,
+                call_index=index,
+                editor_method=method,
+                source_field="render_signature",
+            )
     preferred_methods: set[str] = set()
     provenance = metadata.get("read_surface_provenance") if isinstance(metadata, dict) else None
     if isinstance(provenance, dict):
@@ -1813,15 +1832,35 @@ async def verify_seed_renders(
                     and getattr(readback_plan, "verification_mode", None) == "seed_resource"
                     and callable(site_readback_observer)
                 )
+                visibility_selector: str | None = None
                 if site_seed_resource_readback:
-                    # Site-owned exact HTML observers need the server-rendered
-                    # body, not merely response headers. ``commit`` remains the
-                    # fast default for every legacy path.
+                    # Site-owned exact observers supply their own resource
+                    # readiness selector.  Waiting for that selector before
+                    # sampling body text is necessary for SPA surfaces whose
+                    # exact resource paints after DOMContentLoaded; the later
+                    # geometry probe remains the independent visibility proof.
                     try:
                         await page.wait_for_load_state(
                             "domcontentloaded", timeout=selector_timeout_ms
                         )
                     except Exception:
+                        pass
+                    selected = readback_site.readback_visibility_selector(readback_plan)
+                    if isinstance(selected, ReadbackFailure):
+                        errors[target] = (
+                            "site_readback_failed:"
+                            f"{selected.reason}:{selected.detail}"
+                        )
+                        continue
+                    visibility_selector = selected
+                    try:
+                        await page.wait_for_selector(
+                            visibility_selector, timeout=selector_timeout_ms
+                        )
+                    except Exception:
+                        # The exact geometry probe below owns the fail-closed
+                        # result.  Keep body sampling available for useful
+                        # diagnostics when readiness times out.
                         pass
                 body_text = await page.text_content("body") or ""
                 normalized = _normalize(body_text)
@@ -1836,14 +1875,8 @@ async def verify_seed_renders(
                         if not _same_committed_render_surface(target, getattr(page, "url", None)):
                             errors[target] = "site_readback_failed:redirected_read_surface"
                             continue
-                        visibility_selector = readback_site.readback_visibility_selector(
-                            readback_plan
-                        )
-                        if isinstance(visibility_selector, ReadbackFailure):
-                            errors[target] = (
-                                "site_readback_failed:"
-                                f"{visibility_selector.reason}:{visibility_selector.detail}"
-                            )
+                        if not isinstance(visibility_selector, str):
+                            errors[target] = "site_readback_failed:missing_visibility_selector"
                             continue
                         exact_layout_probe = await _exact_selector_layout_probe(
                             page, visibility_selector
@@ -1880,6 +1913,26 @@ async def verify_seed_renders(
                             errors[target] = "site_readback_failed:invalid_readback_observation"
                             continue
                         else:
+                            # ``page.content()`` proves exact DOM identity;
+                            # it cannot prove paint.  The selector geometry
+                            # probe above is the independent witness.  Carry
+                            # that witness into the Site-owned observation only
+                            # after it succeeds so an HTML-only adapter cannot
+                            # manufacture Painted Visibility.
+                            if not isinstance(observation.payload, Mapping):
+                                errors[target] = (
+                                    "site_readback_failed:malformed_readback_payload"
+                                )
+                                continue
+                            observed_payload = dict(observation.payload)
+                            observed_payload.setdefault("painted", True)
+                            observed_payload.setdefault("visible", True)
+                            observation = ReadbackObservation(
+                                kind=observation.kind,
+                                identity_tokens=observation.identity_tokens,
+                                payload=observed_payload,
+                                signature=observation.signature,
+                            )
                             decision = readback_site.interpret_readback(observation)
                             if not isinstance(decision, ReadbackDecision) or not decision.verified:
                                 reason = (

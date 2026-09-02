@@ -446,13 +446,53 @@ async def verify_feasibility(
             "phase 2c pre-flight: mixed benchmark metadata between tasks and instances: "
             f"tasks={task_benchmark!r}, instances={instance_benchmark!r}"
         )
+    benchmark_capabilities = get_benchmark_capabilities(task_benchmark)
     try:
-        capabilities = get_benchmark_capabilities(task_benchmark).require("phase_2_feasibility")
+        capabilities = benchmark_capabilities.require("phase_2_feasibility")
     except ValueError as exc:
-        raise RuntimeError(
-            f"phase 2c pre-flight: benchmark {task_benchmark!r} does not support "
-            "WARP Taskgen Phase 2c"
-        ) from exc
+        # A feature-local runtime composition may prove a bounded Phase 2
+        # contract even while the global Benchmark catalog remains disabled.
+        # The hook is explicit and fail-closed: it must admit the complete raw
+        # task/instance set before TAC can cross this compatibility gate.
+        admission_hook = (
+            getattr(runtime_composition, "phase_2_admission", None)
+            if runtime_composition is not None
+            else None
+        )
+        if not callable(admission_hook):
+            raise RuntimeError(
+                f"phase 2c pre-flight: benchmark {task_benchmark!r} does not support "
+                "WARP Taskgen Phase 2c"
+            ) from exc
+        try:
+            admission = admission_hook(raw, instances)
+        except Exception as admission_exc:
+            raise RuntimeError(
+                "phase 2c pre-flight: explicit runtime composition admission raised "
+                f"{admission_exc.__class__.__name__}: {admission_exc}"
+            ) from admission_exc
+        # Only the feature-owned typed result may open this compatibility
+        # gate.  A generic truthy callback must not become an undocumented
+        # Benchmark-capability bypass.
+        from warp_taskgen.runtime_composition import Phase2RuntimeAdmission
+
+        if not isinstance(admission, Phase2RuntimeAdmission):
+            raise RuntimeError(
+                "phase 2c pre-flight: explicit runtime composition returned an "
+                "unsupported admission result"
+            ) from exc
+        admitted = bool(
+            getattr(admission, "admitted", getattr(admission, "ok", False))
+        )
+        if not admitted:
+            reason = str(getattr(admission, "reason", "runtime composition rejected"))
+            raise RuntimeError(
+                "phase 2c pre-flight: explicit runtime composition admission rejected: "
+                + reason
+            ) from exc
+        # Preserve the canonical identity for downstream fingerprints and
+        # instance binding without pretending the global catalog supports TAC.
+        capabilities = benchmark_capabilities
     for instance in instances:
         instance["benchmark"] = capabilities.canonical_name
         if benchmark_root is not None:
