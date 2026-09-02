@@ -22,11 +22,20 @@ class MatchedCallPolicy:
     semantic_retries: int = 2
     transport_retries: int = 3
     temperature: float = 0.2
+    provider: str = "unconfigured"
+    runner: str = "unconfigured"
 
     def __post_init__(self) -> None:
         if not isinstance(self.model, str) or not self.model.strip():
             raise ValueError("matched call policy model must be non-empty")
         object.__setattr__(self, "model", self.model.strip())
+        for name in ("provider", "runner"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip() or len(value.strip()) > 128:
+                raise ValueError(
+                    f"matched call policy {name} must be a non-empty string of at most 128 characters"
+                )
+            object.__setattr__(self, name, value.strip())
         if type(self.max_tokens) is not int or not 1 <= self.max_tokens <= 256_000:
             raise ValueError("matched call policy max_tokens must be between 1 and 256000")
         for name in ("semantic_retries", "transport_retries"):
@@ -41,10 +50,16 @@ class MatchedCallPolicy:
             raise ValueError("matched call policy temperature must be between 0 and 1")
 
     @classmethod
-    def for_model(cls, model: str) -> MatchedCallPolicy:
+    def for_model(
+        cls,
+        model: str,
+        *,
+        provider: str = "unconfigured",
+        runner: str = "unconfigured",
+    ) -> MatchedCallPolicy:
         """Use the current TP diagnosis defaults for a given model identity."""
 
-        return cls(model=model)
+        return cls(model=model, provider=provider, runner=runner)
 
     @property
     def max_output_tokens(self) -> int:
@@ -55,6 +70,8 @@ class MatchedCallPolicy:
     def to_dict(self) -> dict[str, object]:
         return {
             "model": self.model,
+            "provider": self.provider,
+            "runner": self.runner,
             "max_tokens": self.max_tokens,
             "semantic_retries": self.semantic_retries,
             "transport_retries": self.transport_retries,

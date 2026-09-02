@@ -217,10 +217,6 @@ async def _run_arm(
         row["accounting"] = accounting.to_dict()
         return row
     row["proposal"] = {"status": proposal.status, "candidate": copy.deepcopy(proposal.candidate)}
-    if proposal.diagnostics is not None:
-        cast(dict[str, object], row["proposal"])["diagnostics"] = copy.deepcopy(
-            proposal.diagnostics
-        )
     if proposal.status == "inapplicable":
         row["status"] = "inapplicable"
         row["failure"] = _failure_text(proposal.failure, "rewrite_inapplicable")
@@ -271,8 +267,6 @@ async def _run_arm(
             "status": repair.status,
             "candidate": copy.deepcopy(repair.candidate),
         }
-        if repair.diagnostics is not None:
-            repair_record["diagnostics"] = copy.deepcopy(repair.diagnostics)
         if repair.status != "ok" or repair.candidate is None:
             repair_record["failure"] = _failure_text(repair.failure, "repair_failed")
             repairs.append(repair_record)

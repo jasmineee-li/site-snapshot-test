@@ -252,7 +252,13 @@ def usage_from_diagnostics(
     return sum_usage(usages, attempts=attempts)
 
 
-def _ordinary_diagnostics(request: MatchedAttemptRequest, *, model: str) -> dict[str, Any]:
+def _ordinary_diagnostics(
+    request: MatchedAttemptRequest,
+    *,
+    model: str,
+    provider: str,
+    runner: str,
+) -> dict[str, Any]:
     return {
         "phase": "phase_4",
         "label": "matched-rewrite-ordinary-critique",
@@ -260,7 +266,8 @@ def _ordinary_diagnostics(request: MatchedAttemptRequest, *, model: str) -> dict
         "site": request.baseline_task.get("site")
         if isinstance(request.baseline_task.get("site"), str)
         else None,
-        "provider": "anthropic",
+        "provider": provider,
+        "runner": runner,
         "mode": "messages",
         "response_model": "ordinary_critique",
         "model": model,
@@ -329,7 +336,12 @@ async def run_ordinary_critique(
     transport_attempts = 0
     max_attempts = max(1, policy.semantic_retries)
     last_failure = "ordinary_critique_parse_failure"
-    diagnostics = _ordinary_diagnostics(request, model=model)
+    diagnostics = _ordinary_diagnostics(
+        request,
+        model=model,
+        provider=policy.provider,
+        runner=policy.runner,
+    )
     started_at = time.monotonic()
 
     for semantic_attempt in range(1, max_attempts + 1):

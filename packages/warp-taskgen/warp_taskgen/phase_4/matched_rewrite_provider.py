@@ -134,6 +134,12 @@ class ExistingPhase4AttemptAdapter:
             return "matched_budget_total_cost_ceiling"
         return None
 
+    def _provider_identity_failure(self, request: MatchedAttemptRequest) -> str | None:
+        policy = self._call_policy(request)
+        if policy.provider == "unconfigured" or policy.runner == "unconfigured":
+            return "matched_provider_identity_unconfigured"
+        return None
+
     @staticmethod
     def _budget_failure_outcome(stage: str, reason: str) -> AttemptOutcome:
         usage = Usage.unavailable(reason)
@@ -146,11 +152,11 @@ class ExistingPhase4AttemptAdapter:
     def _record_budget(self, request: MatchedAttemptRequest, outcome: AttemptOutcome) -> None:
         usage = outcome.usage
         if not usage.available:
-            # Browser execution has a separate artifact accounting path. A
-            # missing model completion usage is unsafe for another provider
-            # call, so fail closed rather than guessing at spend.
-            if request.stage != "browser":
-                object.__setattr__(self, "_budget_usage_unknown", True)
+            # Browser execution has a separate artifact accounting path, but
+            # its unknown spend still makes the pair's total budget unknown.
+            # Fail closed rather than allowing another provider call on an
+            # unverifiable total.
+            object.__setattr__(self, "_budget_usage_unknown", True)
             return
         tokens = cast(int, usage.input_tokens) + cast(int, usage.output_tokens)
         self._budget_tokens[request.arm] = self._budget_tokens.get(request.arm, 0) + tokens
@@ -168,6 +174,9 @@ class ExistingPhase4AttemptAdapter:
         budget_failure = self._budget_failure(request)
         if budget_failure is not None:
             return self._budget_failure_outcome(request.stage, budget_failure)
+        identity_failure = self._provider_identity_failure(request)
+        if identity_failure is not None:
+            return self._budget_failure_outcome(request.stage, identity_failure)
         try:
             if request.stage == "tp_diagnosis":
                 outcome = await self._diagnose(request)
@@ -236,6 +245,9 @@ class ExistingPhase4AttemptAdapter:
             if isinstance(raw, dict)
             else None
         )
+        if diagnostics is not None:
+            diagnostics["provider"] = policy.provider
+            diagnostics["runner"] = policy.runner
         if status != "ok" or guidance is None:
             return DiagnosisOutcome(
                 status="failed",
@@ -318,6 +330,9 @@ class ExistingPhase4AttemptAdapter:
         marker = candidate.get("variant_status")
         if diagnostics is None and isinstance(marker, dict):
             diagnostics = _json_object(marker.get("api_diagnostics"))
+        if diagnostics is not None:
+            diagnostics["provider"] = policy.provider
+            diagnostics["runner"] = policy.runner
         usage = usage_from_diagnostics(
             diagnostics,
             model=policy.model,
