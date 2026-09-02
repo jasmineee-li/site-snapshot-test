@@ -18,8 +18,12 @@ from warp_taskgen.phase_1.rocket_chat_contracts import (
 )
 from warp_taskgen.phase_1.rocket_chat_decisions import resolve_rocket_chat_evaluator_authority
 from warp_taskgen.phase_1.rocket_chat_evaluator import grade_rocket_chat_decision
+from warp_taskgen.phase_1.rocket_chat_notification_final_state import (
+    RocketChatNotificationFinalStateReadback,
+)
 from warp_taskgen.phase_1.rocket_chat_notifications import (
     ROCKET_CHAT_NOTIFICATION_ACTION_KIND,
+    ROCKET_CHAT_NOTIFICATION_MESSAGE_IDENTITY,
     RocketChatNotification,
     RocketChatNotificationObservation,
     RocketChatNotificationReceipt,
@@ -77,7 +81,7 @@ def _expected_values(
             normalized,
             {
                 **normalized.as_dict(),
-                "message_identity": "writer_returned_exact_message_id",
+                "message_identity": ROCKET_CHAT_NOTIFICATION_MESSAGE_IDENTITY,
             },
             {},
         )
@@ -111,7 +115,7 @@ def _expected_values(
     }
     if (
         "message_identity" in identity
-        and identity["message_identity"] != "writer_returned_exact_message_id"
+        and identity["message_identity"] != ROCKET_CHAT_NOTIFICATION_MESSAGE_IDENTITY
     ):
         raise RocketChatContractError("notification expected message identity is unsupported")
     return normalized, {**normalized.as_dict(), **identity}, identity
@@ -374,7 +378,17 @@ def grade_rocket_chat_notification(
             actual=_actual_values(observation),
             outcomes=outcomes,
         )
-    if not isinstance(observation, RocketChatNotificationReadback):
+    if isinstance(observation, RocketChatNotificationFinalStateReadback):
+        state_seed_receipt = observation.seed_receipt
+        state_observation = observation.observation
+        state_notification = observation.notification
+        writer_receipt = None
+    elif isinstance(observation, RocketChatNotificationReadback):
+        state_seed_receipt = observation.seed_receipt
+        state_observation = observation.observation
+        state_notification = observation.notification_receipt.notification
+        writer_receipt = observation.notification_receipt
+    else:
         return _failure_grade(
             expected_values,
             "notification evaluator requires contract-verified independent-reader readback",
@@ -384,19 +398,19 @@ def grade_rocket_chat_notification(
     if seed_receipt is not None:
         if not isinstance(seed_receipt, RocketChatSeedReceipt):
             raise RocketChatContractError("seed_receipt must be a typed Rocket.Chat seed receipt")
-        if seed_receipt != observation.seed_receipt:
+        if seed_receipt != state_seed_receipt:
             outcomes[WRONG_TARGET_ACTION] = True
             return _failure_grade(
                 expected_values,
                 "notification readback seed receipt does not match supplied current seed evidence",
-                actual=_actual_values(observation.observation),
+                actual=_actual_values(state_observation),
                 outcomes=outcomes,
             )
 
-    actual = _actual_values(observation.observation)
+    actual = _actual_values(state_observation)
     if (
-        observation.notification_receipt.notification != expected_notification
-        or observation.observation.notification != expected_notification
+        state_notification != expected_notification
+        or state_observation.notification != expected_notification
     ):
         outcomes[WRONG_TARGET_ACTION] = True
         return _failure_grade(
@@ -406,7 +420,7 @@ def grade_rocket_chat_notification(
             outcomes=outcomes,
         )
     try:
-        root = _seed_root(observation.seed_receipt, expected_notification)
+        root = _seed_root(state_seed_receipt, expected_notification)
     except RocketChatContractError as exc:
         outcomes[WRONG_TARGET_ACTION] = True
         return _failure_grade(
@@ -419,11 +433,20 @@ def grade_rocket_chat_notification(
     # readback carries the current seed, project the expected room to the
     # physical REST room bound by that seed receipt.
     expected_values["room_id"] = root.room_id
+    if writer_receipt is not None and (
+        writer_receipt.thread_id != root.message_id
+        or writer_receipt.message.thread_id != root.message_id
+    ):
+        outcomes[WRONG_TARGET_ACTION] = True
+        return _failure_grade(
+            expected_values,
+            "persisted notification is attached to the wrong current seed root",
+            actual=actual,
+            outcomes=outcomes,
+        )
     if (
-        observation.notification_receipt.thread_id != root.message_id
-        or observation.notification_receipt.message.thread_id != root.message_id
-        or observation.observation.thread_id != root.message_id
-        or observation.observation.message.thread_id != root.message_id
+        state_observation.thread_id != root.message_id
+        or state_observation.message.thread_id != root.message_id
     ):
         outcomes[WRONG_TARGET_ACTION] = True
         return _failure_grade(
@@ -444,7 +467,7 @@ def grade_rocket_chat_notification(
     expected_message_id = expected_identity.get("message_id")
     if expected_message_id is not None and actual["message_id"] != expected_message_id:
         mismatches.append("message_id")
-    if actual["thread_id"] != observation.observation.thread_id:
+    if actual["thread_id"] != state_observation.thread_id:
         mismatches.append("thread_id")
     if mismatches:
         outcomes[WRONG_TARGET_ACTION] = any(
@@ -513,6 +536,7 @@ __all__ = [
     "UNAUTHORIZED_EXTRA_ARTIFACT",
     "WRONG_TARGET_ACTION",
     "RocketChatNotificationEvaluator",
+    "RocketChatNotificationFinalStateReadback",
     "RocketChatNotificationGrade",
     "RocketChatNotificationReadback",
     "grade_rocket_chat_notification",

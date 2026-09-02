@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -20,9 +21,11 @@ if TYPE_CHECKING:
 
 CLASSIFIEDS_LISTING_REPLY_POC = "classifieds_listing_reply_poc"
 ROCKET_CHAT_CONVERSATION_DECISION_POC = "rocket_chat_conversation_decision_poc"
+ROCKET_CHAT_CONVERSATION_NOTIFICATION_POC = "rocket_chat_conversation_notification_poc"
 RUNTIME_COMPOSITION_CHOICES = (
     CLASSIFIEDS_LISTING_REPLY_POC,
     ROCKET_CHAT_CONVERSATION_DECISION_POC,
+    ROCKET_CHAT_CONVERSATION_NOTIFICATION_POC,
 )
 _DEFAULT_ROCKET_CHAT_READBACK = object()
 
@@ -88,6 +91,18 @@ class RuntimeComposition:
     benchmark_capabilities: BenchmarkCapabilities | None = None
     reader_preflight: Callable[[Mapping[str, object]], object] | None = None
     phase_2_admission: Callable[[object, object], Phase2RuntimeAdmission] | None = None
+    reward_evidence_loader: (
+        Callable[
+            [
+                Mapping[str, object],
+                Mapping[str, object],
+                Mapping[str, object],
+                datetime,
+            ],
+            object,
+        ]
+        | None
+    ) = None
     strict_seed_cleanup: bool = False
 
     def __post_init__(self) -> None:
@@ -109,11 +124,15 @@ class RuntimeComposition:
         if self.benchmark_capabilities is not None and not isinstance(
             self.benchmark_capabilities, BenchmarkCapabilities
         ):
-            raise TypeError("runtime composition benchmark_capabilities must be BenchmarkCapabilities")
+            raise TypeError(
+                "runtime composition benchmark_capabilities must be BenchmarkCapabilities"
+            )
         if self.reader_preflight is not None and not callable(self.reader_preflight):
             raise TypeError("runtime composition reader_preflight must be callable")
         if self.phase_2_admission is not None and not callable(self.phase_2_admission):
             raise TypeError("runtime composition phase_2_admission must be callable")
+        if self.reward_evidence_loader is not None and not callable(self.reward_evidence_loader):
+            raise TypeError("runtime composition reward_evidence_loader must be callable")
         if not isinstance(self.strict_seed_cleanup, bool):
             raise TypeError("runtime composition strict_seed_cleanup must be a bool")
 
@@ -163,6 +182,57 @@ def rocket_chat_conversation_decision_poc(
     supplies the separate geometry witness needed for Painted Visibility.
     """
 
+    from warp_taskgen.phase_1.rocket_chat_contracts import ROCKET_CHAT_EVALUATOR_NAME
+
+    return _rocket_chat_conversation_poc(
+        name=ROCKET_CHAT_CONVERSATION_DECISION_POC,
+        evaluator_name=ROCKET_CHAT_EVALUATOR_NAME,
+        readback_adapter=readback_adapter,
+    )
+
+
+def rocket_chat_conversation_notification_poc(
+    *, readback_adapter: object = _DEFAULT_ROCKET_CHAT_READBACK
+) -> RuntimeComposition:
+    """Build the explicit TAC conversation-to-notification composition."""
+
+    from warp_taskgen.phase_1.rocket_chat_notifications import (
+        ROCKET_CHAT_NOTIFICATION_EVALUATOR_NAME,
+    )
+    from warp_taskgen.sites.rocketchat_notification_final_state import (
+        load_rocket_chat_notification_reward_evidence,
+    )
+
+    return _rocket_chat_conversation_poc(
+        name=ROCKET_CHAT_CONVERSATION_NOTIFICATION_POC,
+        evaluator_name=ROCKET_CHAT_NOTIFICATION_EVALUATOR_NAME,
+        readback_adapter=readback_adapter,
+        reward_evidence_loader=load_rocket_chat_notification_reward_evidence,
+        admission_checks=("persisted_notification_readback",),
+    )
+
+
+def _rocket_chat_conversation_poc(
+    *,
+    name: str,
+    evaluator_name: str,
+    readback_adapter: object,
+    reward_evidence_loader: (
+        Callable[
+            [
+                Mapping[str, object],
+                Mapping[str, object],
+                Mapping[str, object],
+                datetime,
+            ],
+            object,
+        ]
+        | None
+    ) = None,
+    admission_checks: tuple[str, ...] = (),
+) -> RuntimeComposition:
+    """Bind the shared concrete TAC runtime while keeping each family closed."""
+
     from warp_taskgen.benchmark_contracts import BenchmarkCapabilities
     from warp_taskgen.phase_2.phase_2c.policy import FeasibilityPolicyCatalog
     from warp_taskgen.seeding.site_contracts import SeedSiteRegistration, SeedSiteRegistry
@@ -182,7 +252,7 @@ def rocket_chat_conversation_decision_poc(
         readback_adapter = RocketChatThreadPanelReadbackAdapter()
     site_catalog = SiteCatalog((RocketChatRuntimeSite(readback_adapter=readback_adapter),))
     return RuntimeComposition(
-        name=ROCKET_CHAT_CONVERSATION_DECISION_POC,
+        name=name,
         site_catalog=site_catalog,
         seed_registry=SeedSiteRegistry.from_registrations(
             (SeedSiteRegistration(benchmark, site, RocketChatHttpEditor),)
@@ -212,7 +282,10 @@ def rocket_chat_conversation_decision_poc(
             instances,
             site_catalog=site_catalog,
             reader_preflight=preflight_rocket_chat_reader,
+            expected_evaluator=evaluator_name,
+            required_checks=admission_checks,
         ),
+        reward_evidence_loader=reward_evidence_loader,
         strict_seed_cleanup=True,
     )
 
@@ -230,9 +303,7 @@ def benchmark_capabilities_for_runtime(
 
     canonical = normalize_benchmark_name(benchmark)
     override = (
-        runtime_composition.benchmark_capabilities
-        if runtime_composition is not None
-        else None
+        runtime_composition.benchmark_capabilities if runtime_composition is not None else None
     )
     if override is not None and override.canonical_name == canonical:
         return override
@@ -253,6 +324,8 @@ def runtime_composition_for_name(name: object) -> RuntimeComposition | None:
         return classifieds_listing_reply_poc()
     if normalized == ROCKET_CHAT_CONVERSATION_DECISION_POC:
         return rocket_chat_conversation_decision_poc()
+    if normalized == ROCKET_CHAT_CONVERSATION_NOTIFICATION_POC:
+        return rocket_chat_conversation_notification_poc()
     raise ValueError(
         f"unknown runtime composition {name!r}; expected one of {RUNTIME_COMPOSITION_CHOICES!r}"
     )
@@ -261,6 +334,7 @@ def runtime_composition_for_name(name: object) -> RuntimeComposition | None:
 __all__ = [
     "CLASSIFIEDS_LISTING_REPLY_POC",
     "ROCKET_CHAT_CONVERSATION_DECISION_POC",
+    "ROCKET_CHAT_CONVERSATION_NOTIFICATION_POC",
     "RUNTIME_COMPOSITION_CHOICES",
     "Phase2RuntimeAdmission",
     "RequiredSeedCleanupError",
@@ -268,5 +342,6 @@ __all__ = [
     "benchmark_capabilities_for_runtime",
     "classifieds_listing_reply_poc",
     "rocket_chat_conversation_decision_poc",
+    "rocket_chat_conversation_notification_poc",
     "runtime_composition_for_name",
 ]

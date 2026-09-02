@@ -71,14 +71,20 @@ def _eval_rocket_chat_notification(
 
     if isinstance(agent_result, Mapping):
         response = agent_result.get("final_result")
-        readback = agent_result.get("notification_readback")
+        if "runtime_reward_evidence" in agent_result:
+            readback = agent_result.get("runtime_reward_evidence")
+        else:
+            readback = agent_result.get("notification_readback")
     else:
         response = getattr(agent_result, "final_result", None) if agent_result is not None else None
-        readback = (
-            getattr(agent_result, "notification_readback", None)
-            if agent_result is not None
-            else None
-        )
+        if agent_result is not None and hasattr(agent_result, "runtime_reward_evidence"):
+            readback = getattr(agent_result, "runtime_reward_evidence", None)
+        else:
+            readback = (
+                getattr(agent_result, "notification_readback", None)
+                if agent_result is not None
+                else None
+            )
     grade = RocketChatNotificationEvaluator().grade(
         readback,
         expected,

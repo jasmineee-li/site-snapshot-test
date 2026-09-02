@@ -8,7 +8,6 @@ Rocket.Chat feature.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -28,6 +27,7 @@ from warp_taskgen.phase_1.rocket_chat_notifications import (
     RocketChatNotificationReceipt,
     RocketChatNotificationWriter,
     derive_rocket_chat_notification,
+    validate_rocket_chat_notification_recipient,
 )
 from warp_taskgen.sites.rocketchat_runtime import (
     RocketChatHttpReader,
@@ -38,7 +38,6 @@ from warp_taskgen.sites.rocketchat_runtime import (
     _credentials,
 )
 
-_MENTION_USERNAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 _MAX_MESSAGE_LENGTH = 2000
 
 
@@ -47,11 +46,7 @@ def render_rocket_chat_notification_message(notification: RocketChatNotification
 
     if not isinstance(notification, RocketChatNotification):
         raise TypeError("notification message rendering requires a typed notification")
-    recipient = notification.recipient
-    if _MENTION_USERNAME_RE.fullmatch(recipient) is None:
-        raise RocketChatContractError(
-            "notification recipient cannot be encoded as a Rocket.Chat mention"
-        )
+    recipient = validate_rocket_chat_notification_recipient(notification.recipient)
     message = f"@{recipient} {notification.body}"
     if len(message) > _MAX_MESSAGE_LENGTH:
         raise RocketChatContractError("notification message exceeds the Rocket.Chat limit")
@@ -114,9 +109,14 @@ def _mention_usernames(row: Mapping[str, Any]) -> tuple[str, ...]:
     names: list[str] = []
     for item in raw:
         username = item.get("username") if isinstance(item, Mapping) else None
-        if not isinstance(username, str) or _MENTION_USERNAME_RE.fullmatch(username) is None:
+        if not isinstance(username, str):
             raise RocketChatTransportError("Rocket.Chat notification response has invalid mentions")
-        names.append(username)
+        try:
+            names.append(validate_rocket_chat_notification_recipient(username))
+        except RocketChatContractError as exc:
+            raise RocketChatTransportError(
+                "Rocket.Chat notification response has invalid mentions"
+            ) from exc
     return tuple(name for name in names if name)
 
 
@@ -146,14 +146,14 @@ def _notification_identity(
         raise RocketChatTransportError("Rocket.Chat notification response has the wrong thread")
     if author != notification.author:
         raise RocketChatTransportError("Rocket.Chat notification response has the wrong author")
-    expected_body = render_rocket_chat_notification_message(notification)
-    if body != expected_body:
-        raise RocketChatTransportError("Rocket.Chat notification response has the wrong body")
     mentions = _mention_usernames(row)
     if mentions != (notification.recipient,):
         raise RocketChatTransportError(
             "Rocket.Chat notification response does not carry exactly the intended recipient mention"
         )
+    expected_body = render_rocket_chat_notification_message(notification)
+    if body != expected_body:
+        raise RocketChatTransportError("Rocket.Chat notification response has the wrong body")
     return RocketChatMessageIdentity(
         benchmark=conversation.benchmark,
         site=conversation.site,

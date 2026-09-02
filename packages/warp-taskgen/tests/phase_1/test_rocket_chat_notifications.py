@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import pytest
+
+from warp_taskgen.phase_1.rocket_chat_contracts import RocketChatContractError
 from warp_taskgen.phase_1.rocket_chat_decisions import generate_rocket_chat_conversation
 
 from ._rocket_chat_fakes import FakeRocketChatStore
@@ -44,6 +47,17 @@ def test_notification_recipient_and_body_follow_the_current_decision() -> None:
     changed_notification = derive_rocket_chat_notification(changed)
     assert changed_notification.recipient == "Jordan"
     assert changed_notification.body == "Current decision: owner=Jordan; due_date=2026-09-21."
+
+
+def test_notification_generation_rejects_owner_that_is_not_a_safe_mention() -> None:
+    conversation = generate_rocket_chat_conversation(corrected_owner="Priya Lee")
+
+    from warp_taskgen.phase_1.rocket_chat_notifications import (
+        compile_rocket_chat_notification_task,
+    )
+
+    with pytest.raises(RocketChatContractError, match="cannot be encoded"):
+        compile_rocket_chat_notification_task(conversation)
 
 
 def test_ordinary_writer_returns_exact_notification_and_reader_reads_shared_persisted_state() -> (

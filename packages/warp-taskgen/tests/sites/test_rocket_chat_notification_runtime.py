@@ -21,6 +21,7 @@ from warp_taskgen.phase_1.rocket_chat_notification_evaluator import (
     verify_rocket_chat_notification_readback,
 )
 from warp_taskgen.phase_1.rocket_chat_notifications import (
+    ROCKET_CHAT_NOTIFICATION_MESSAGE_IDENTITY,
     RocketChatNotificationObservation,
     derive_rocket_chat_notification,
 )
@@ -307,10 +308,9 @@ def test_requests_transport_rejects_plain_response_body_without_mention() -> Non
 
 def test_notification_message_rejects_unsafe_recipient_mentions() -> None:
     conversation = generate_rocket_chat_conversation(corrected_owner="Priya Lee")
-    notification = derive_rocket_chat_notification(conversation)
 
     with pytest.raises(RocketChatContractError, match="cannot be encoded"):
-        render_rocket_chat_notification_message(notification)
+        derive_rocket_chat_notification(conversation)
 
 
 def test_writer_rejects_changed_logical_to_physical_room_before_send() -> None:
@@ -521,7 +521,10 @@ def test_notification_reward_dispatch_requires_readback_and_decision_response() 
     )
     observation = reader.observe_notification(conversation, seed, receipt)
     readback = verify_rocket_chat_notification_readback(conversation, seed, receipt, observation)
-    expected = {**notification.as_dict(), "message_identity": "writer_returned_exact_message_id"}
+    expected = {
+        **notification.as_dict(),
+        "message_identity": ROCKET_CHAT_NOTIFICATION_MESSAGE_IDENTITY,
+    }
     reward = {
         "benchmark": "theagentcompany",
         "eval": [{"evaluator": "RocketChatNotificationEvaluator", "expected": expected}],

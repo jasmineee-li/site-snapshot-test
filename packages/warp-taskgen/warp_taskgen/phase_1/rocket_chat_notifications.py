@@ -7,6 +7,7 @@ its exact identity contract; transports and readers are supplied by callers.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
@@ -37,6 +38,8 @@ ROCKET_CHAT_NOTIFICATION_ACTION_KIND = "send_notification"
 ROCKET_CHAT_NOTIFICATION_EVALUATOR_NAME = "RocketChatNotificationEvaluator"
 ROCKET_CHAT_NOTIFICATION_LOGICAL_KEY = "notification"
 ROCKET_CHAT_NOTIFICATION_BODY_PREFIX = "Current decision:"
+ROCKET_CHAT_NOTIFICATION_MESSAGE_IDENTITY = "independent_reader_discovered_exact_message_id"
+_MENTION_USERNAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 _NOTIFICATION_FIELDS = frozenset(
     "benchmark site room_id thread_key author recipient body decision".split()
 )
@@ -59,6 +62,17 @@ def render_rocket_chat_notification_body(decision: Mapping[str, object]) -> str:
     except KeyError as exc:
         raise RocketChatContractError("notification decision requires owner and due_date") from exc
     return f"{ROCKET_CHAT_NOTIFICATION_BODY_PREFIX} owner={owner}; due_date={due_date}."
+
+
+def validate_rocket_chat_notification_recipient(value: object) -> str:
+    """Return one recipient that can be encoded as an exact Rocket.Chat mention."""
+
+    recipient = _text(value, field="notification recipient", max_length=128)
+    if _MENTION_USERNAME_RE.fullmatch(recipient) is None:
+        raise RocketChatContractError(
+            "notification recipient cannot be encoded as a Rocket.Chat mention"
+        )
+    return recipient
 
 
 @dataclass(frozen=True)
@@ -87,7 +101,7 @@ class RocketChatNotification:
         object.__setattr__(
             self,
             "recipient",
-            _text(self.recipient, field="notification recipient", max_length=128),
+            validate_rocket_chat_notification_recipient(self.recipient),
         )
         object.__setattr__(
             self,
@@ -205,9 +219,13 @@ class RocketChatNotificationReceipt:
                 "notification receipt requires the typed current seed root identity"
             )
         if self.seed_root.benchmark != self.benchmark or self.seed_root.site != self.site:
-            raise RocketChatContractError("notification receipt seed root Benchmark/Site do not match")
+            raise RocketChatContractError(
+                "notification receipt seed root Benchmark/Site do not match"
+            )
         if self.seed_root.attempt_id != self.attempt_id:
-            raise RocketChatContractError("notification receipt seed root belongs to a different attempt")
+            raise RocketChatContractError(
+                "notification receipt seed root belongs to a different attempt"
+            )
         if self.seed_root.thread_id is not None:
             raise RocketChatContractError("notification receipt seed root must not be threaded")
         if not isinstance(self.current_message, RocketChatMessageIdentity):
@@ -356,7 +374,7 @@ def compile_rocket_chat_notification_task(
     authority = resolve_rocket_chat_evaluator_authority(conversation.benchmark)
     expected = {
         **notification.as_dict(),
-        "message_identity": "writer_returned_exact_message_id",
+        "message_identity": ROCKET_CHAT_NOTIFICATION_MESSAGE_IDENTITY,
     }
     task: dict[str, object] = {
         "benchmark": conversation.benchmark,
@@ -382,7 +400,7 @@ def compile_rocket_chat_notification_task(
             "recipient": notification.recipient,
             "author": notification.author,
             "ordinary_participant": True,
-            "message_identity": "writer_returned_exact_message_id",
+            "message_identity": ROCKET_CHAT_NOTIFICATION_MESSAGE_IDENTITY,
         },
         "reward_function": {
             "eval": [{"evaluator": ROCKET_CHAT_NOTIFICATION_EVALUATOR_NAME, "expected": expected}]
@@ -485,7 +503,7 @@ def validate_rocket_chat_notification_task(task: Mapping[str, object]) -> None:
         "recipient": notification.recipient,
         "author": notification.author,
         "ordinary_participant": True,
-        "message_identity": "writer_returned_exact_message_id",
+        "message_identity": ROCKET_CHAT_NOTIFICATION_MESSAGE_IDENTITY,
     }
     if dict(action_contract) != expected_action:
         raise RocketChatContractError("notification action contract is inconsistent")
@@ -504,7 +522,7 @@ def validate_rocket_chat_notification_task(task: Mapping[str, object]) -> None:
         raise RocketChatContractError("Rocket.Chat notification evaluator is unsupported")
     if evaluator["expected"] != {
         **notification.as_dict(),
-        "message_identity": "writer_returned_exact_message_id",
+        "message_identity": ROCKET_CHAT_NOTIFICATION_MESSAGE_IDENTITY,
     }:
         raise RocketChatContractError(
             "Rocket.Chat notification evaluator expected state is inconsistent"
@@ -537,6 +555,7 @@ __all__ = [
     "ROCKET_CHAT_NOTIFICATION_BODY_PREFIX",
     "ROCKET_CHAT_NOTIFICATION_EVALUATOR_NAME",
     "ROCKET_CHAT_NOTIFICATION_LOGICAL_KEY",
+    "ROCKET_CHAT_NOTIFICATION_MESSAGE_IDENTITY",
     "ROCKET_CHAT_NOTIFICATION_TASK_KIND",
     "RocketChatNotification",
     "RocketChatNotificationObservation",
@@ -546,5 +565,6 @@ __all__ = [
     "compile_rocket_chat_notification_task",
     "derive_rocket_chat_notification",
     "render_rocket_chat_notification_body",
+    "validate_rocket_chat_notification_recipient",
     "validate_rocket_chat_notification_task",
 ]
