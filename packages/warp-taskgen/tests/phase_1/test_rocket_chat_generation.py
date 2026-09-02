@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
+from warp_taskgen.phase_1.generated_workflows import host_compiled_evaluator_types
 from warp_taskgen.phase_1.novel_task_validation import (
     validate_generated_novel_tasks_detailed,
 )
@@ -22,11 +25,13 @@ from warp_taskgen.phase_1.rocket_chat_generation import (
     ROCKET_CHAT_NOTIFICATION_RUNTIME_COMPOSITION,
     compile_phase1_rocket_chat_decision_task,
     compile_phase1_rocket_chat_notification_task,
+    restore_phase1_rocket_chat_decision_task,
     validate_rocket_chat_generated_content,
 )
 from warp_taskgen.phase_1.rocket_chat_generation_prompt import (
     rocket_chat_generation_prompt_addendum,
 )
+from warp_taskgen.phases import phase_1_generate_new_tasks as phase_1_generation
 from warp_taskgen.phases.phase_1_generate_new_tasks import (
     _compile_phase1_feature_tasks,
     _compile_phase1_model_owned_features,
@@ -81,6 +86,9 @@ def _card(*, notification: bool = False, runtime: str | None = None) -> dict[str
     return {
         "id": "rocket_chat_notification" if notification else "rocket_chat_decision",
         "site": "rocketchat",
+        "capability_family": "external_navigation_review",
+        "benign_task_family_id": family,
+        "compatible_action_kinds": ["open_required_url"],
         "generation_contract": generation_contract,
     }
 
@@ -310,6 +318,19 @@ def test_missing_generated_content_fails_closed() -> None:
         compile_phase1_rocket_chat_decision_task(task, task_card=_card())
 
 
+def test_static_contract_cannot_be_relabelled_as_warp_generated() -> None:
+    card = _card()
+    compiled = compile_phase1_rocket_chat_decision_task(_task(), task_card=card)
+
+    with pytest.raises(ValueError, match="generated semantic content"):
+        compile_phase1_rocket_chat_decision_task(compiled, task_card=card)
+
+    restored = restore_phase1_rocket_chat_decision_task(compiled, task_card=card)
+    assert restored["task_provenance"]["rocket_chat_generation"]["content_source"] == (
+        "warp_generated"
+    )
+
+
 @pytest.mark.parametrize("notification", [False, True])
 def test_real_phase1_compile_validate_and_final_stamp_route(notification: bool) -> None:
     card = _card(notification=notification)
@@ -330,6 +351,7 @@ def test_real_phase1_compile_validate_and_final_stamp_route(notification: bool) 
         expected_task_count=1,
         route_contracts=route_contracts,
         task_card_plan=plan,
+        host_compiled_evaluator_types=host_compiled_evaluator_types(plan),
     )
     assert errors == []
 
@@ -341,6 +363,7 @@ def test_real_phase1_compile_validate_and_final_stamp_route(notification: bool) 
         expected_task_count=1,
         route_contracts=route_contracts,
         task_card_plan=plan,
+        host_compiled_evaluator_types=host_compiled_evaluator_types(plan),
     )
     assert errors == []
 
@@ -356,6 +379,87 @@ def test_real_phase1_compile_validate_and_final_stamp_route(notification: bool) 
     )
     assert stamped["benchmark"] == "theagentcompany"
     assert "generated_rocket_chat" not in stamped
+    assert stamped["capability_family"] == "external_navigation_review"
+    assert stamped["benign_task_family_id"] == card["benign_task_family_id"]
+    assert stamped["task_provenance"]["compatible_action_kinds"] == ["open_required_url"]
+
+
+def test_benchmark_evaluator_requires_an_authored_feature_opt_in() -> None:
+    card = _card()
+    plan = {"task_cards": [card]}
+    compiled = _compile_phase1_model_owned_features([_task()], task_card_plan=plan)
+    profile = {
+        "injection_surface": [],
+        "verification_capabilities": [{"eval_type": "RocketChatEvaluator"}],
+    }
+
+    _validated, errors = validate_generated_novel_tasks_detailed(
+        compiled,
+        site_name="rocketchat",
+        profile=profile,
+        expected_task_count=1,
+        route_contracts={"site": "rocketchat", "route_families": []},
+        task_card_plan=plan,
+    )
+
+    assert [error.code for error in errors] == ["UNSUPPORTED_EVALUATOR"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("notification", [False, True])
+async def test_site_generation_compiles_and_caches_one_complete_feature_row(
+    notification: bool,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    card = _card(notification=notification)
+    evaluator = "RocketChatNotificationEvaluator" if notification else "RocketChatEvaluator"
+    profile = {
+        "injection_surface": [],
+        "verification_capabilities": [{"eval_type": evaluator}],
+    }
+    profile_path = tmp_path / "BENCHMARK_PROFILE_rocketchat.json"
+    profile_path.write_text(json.dumps(profile))
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    sandbox = AsyncMock(
+        return_value={
+            phase_1_generation.NOVEL_TASK_OUTPUT_PATH: json.dumps(
+                [_task(notification=notification)]
+            ),
+            "_summary": None,
+        }
+    )
+    monkeypatch.setattr(phase_1_generation, "run_claude_in_sandbox", sandbox)
+
+    result = await phase_1_generation.generate_new_tasks_for_site(
+        site=phase_1_generation.EligibleSiteProfile(
+            site_name="rocketchat",
+            profile_path=profile_path,
+            profile=profile,
+        ),
+        benchmark_volume=object(),
+        output_dir=output_dir,
+        cache_fingerprint="rocket-chat-feature-test",
+        novel_tasks_per_site=1,
+        task_card_plan={"task_cards": [card]},
+    )
+
+    assert result.errors == []
+    assert len(result.benign_tasks) == 1
+    assert result.benign_tasks[0]["reward_function"]["eval"][0]["evaluator"] == evaluator
+    assert json.loads((output_dir / "novel_tasks_rocketchat.json").read_text()) == (
+        result.benign_tasks
+    )
+    assert sandbox.await_count == 1
+
+
+def test_generation_contract_rejects_a_noncanonical_thread_root() -> None:
+    card = _card()
+    card["generation_contract"]["thread_key"] = "decision-root"
+
+    with pytest.raises(ValueError, match="thread_key must be 'plan'"):
+        compile_phase1_rocket_chat_decision_task(_task(), task_card=card)
 
 
 def test_real_phase1_prompt_names_exact_notification_recipient() -> None:

@@ -33,8 +33,10 @@ from warp_taskgen.phase_2.rocket_chat_plans import (
     build_plans,
     enrich_plans,
     validate_generated_plans,
-    validate_materialized_task,
     validate_plan,
+)
+from warp_taskgen.phase_2.rocket_chat_plans import (
+    validate_materialized_task as _validate_materialized_task,
 )
 from warp_taskgen.phase_2.rocket_chat_seed import (
     _conversation_with_placeholder,
@@ -42,6 +44,7 @@ from warp_taskgen.phase_2.rocket_chat_seed import (
     materialize_seed_template,
     validate_rocket_chat_seed_template,
 )
+from warp_taskgen.phase_2.runtime_generation import PreparedPhase2Shard
 from warp_taskgen.runtime_composition import RuntimeComposition
 from warp_taskgen.sites.contracts import ResolvedTarget, TargetingFailure
 
@@ -249,6 +252,32 @@ def build_exposure_contracts(
     }
 
 
+def validate_materialized_task(
+    task: Mapping[str, Any],
+    *,
+    benign_task: Mapping[str, Any],
+    runtime_composition: RuntimeComposition | None,
+) -> str | None:
+    """Validate a final task against freshly reconstructed target/exposure facts."""
+
+    expected_resource = resolve_target_resource(benign_task, runtime_composition)
+    if task.get("benign_target_resource") != expected_resource:
+        return "Rocket.Chat benign target resource changed from its resolved parent"
+    expected_contract = build_exposure_contract(
+        task=benign_task,
+        benign_target_resource=expected_resource,
+        runtime_composition=runtime_composition,
+    )
+    if task.get("exposure_contract") != expected_contract:
+        return "Rocket.Chat exposure contract changed from its resolved parent"
+    return _validate_materialized_task(
+        task,
+        benign_task=benign_task,
+        exposure_contract=expected_contract,
+        runtime_composition=runtime_composition,
+    )
+
+
 def eligible_tasks(
     tasks: Sequence[dict[str, Any]],
     resources: Mapping[str, Mapping[str, Any]],
@@ -306,6 +335,104 @@ def eligible_tasks(
     return eligible, drops
 
 
+class RocketChatPhase2Generation:
+    """Deep feature implementation consumed by an explicit runtime composition."""
+
+    def applies_to(self, *, benchmark: object, site: object) -> bool:
+        return (
+            str(benchmark or "").strip().lower() == ROCKET_CHAT_BENCHMARK
+            and str(site or "").strip().lower() == ROCKET_CHAT_SITE
+        )
+
+    def prepare_shard(
+        self,
+        tasks: Sequence[Mapping[str, Any]],
+        runtime_composition: RuntimeComposition,
+    ) -> PreparedPhase2Shard:
+        expanded, resources = resolve_target_resources(tasks, runtime_composition)
+        contracts = build_exposure_contracts(
+            tasks=expanded,
+            benign_target_resources=resources,
+            runtime_composition=runtime_composition,
+        )
+        eligible, drops = eligible_tasks(
+            expanded,
+            resources,
+            contracts,
+            runtime_composition,
+        )
+        plans = build_plans(eligible, contracts, runtime_composition=runtime_composition)
+        for plan in plans:
+            benign_id = str(plan.get("benign_task_id") or "")
+            contract = contracts.get(benign_id)
+            if not isinstance(contract, Mapping):
+                raise ValueError(
+                    f"Rocket.Chat plan {plan.get('id', '?')!r} has no exposure contract"
+                )
+            plan["target_surface_id"] = str(contract.get("target_surface_id") or "")
+            plan["seed_template"] = materialize_seed_template(
+                contract,
+                runtime_composition=runtime_composition,
+            )
+            plan["delivery_mechanism"] = "editor"
+        return PreparedPhase2Shard(
+            tasks=eligible,
+            benign_target_resources=resources,
+            exposure_contracts=contracts,
+            eligibility_drops=drops,
+            plans=plans,
+        )
+
+    def validate_and_enrich_plans(
+        self,
+        plans: Sequence[dict[str, Any]],
+        benign_tasks: Sequence[dict[str, Any]],
+        *,
+        exposure_contracts: Mapping[str, Mapping[str, Any]],
+        runtime_composition: RuntimeComposition,
+    ) -> tuple[list[dict[str, Any]], list[str]]:
+        validated, errors = validate_generated_plans(
+            plans,
+            benign_tasks,
+            exposure_contracts=exposure_contracts,
+            runtime_composition=runtime_composition,
+        )
+        return enrich_plans(validated), errors
+
+    def validate_plan(
+        self,
+        plan: object,
+        *,
+        index: int,
+        benign_by_id: Mapping[str, Mapping[str, Any]],
+        exposure_contracts: Mapping[str, Mapping[str, Any]],
+        runtime_composition: RuntimeComposition,
+    ) -> str | None:
+        return validate_plan(
+            plan,
+            index=index,
+            benign_by_id=benign_by_id,
+            exposure_contracts=exposure_contracts,
+            runtime_composition=runtime_composition,
+        )
+
+    def validate_materialized_task(
+        self,
+        task: Mapping[str, Any],
+        *,
+        benign_task: Mapping[str, Any],
+        runtime_composition: RuntimeComposition,
+    ) -> str | None:
+        return validate_materialized_task(
+            task,
+            benign_task=benign_task,
+            runtime_composition=runtime_composition,
+        )
+
+
+ROCKET_CHAT_PHASE2_GENERATION = RocketChatPhase2Generation()
+
+
 def _ineligible_exposure(task_id: str, reason: str) -> dict[str, Any]:
     return {
         "contract_id": f"rocketchat:{task_id}:ineligible",
@@ -330,6 +457,8 @@ def _ineligible_exposure(task_id: str, reason: str) -> dict[str, Any]:
 
 
 __all__ = [
+    "ROCKET_CHAT_PHASE2_GENERATION",
+    "RocketChatPhase2Generation",
     "build_exposure_contract",
     "build_exposure_contracts",
     "build_plan",

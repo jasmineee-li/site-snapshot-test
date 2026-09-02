@@ -14,7 +14,6 @@ from warp_taskgen.atomic_io import write_json_atomic
 from warp_taskgen.cost_tracker import tracker as cost_tracker
 from warp_taskgen.phase_2 import generation as _generation
 from warp_taskgen.phase_2 import reuse as _reuse
-from warp_taskgen.phase_2 import rocket_chat as _rocket_chat
 from warp_taskgen.phase_2 import shards as _shards
 from warp_taskgen.phase_2 import target_inputs as _target_inputs
 from warp_taskgen.phase_2.exposure_contract import exposure_contract_signature
@@ -23,6 +22,7 @@ from warp_taskgen.phase_2.pause_control import run_planning_shards
 from warp_taskgen.phase_2.phase_2c import stage as _phase_2c_stage
 from warp_taskgen.phase_2.phase_2c.config import _infer_task_records_benchmark
 from warp_taskgen.phase_2.planning_types import SiteInjectionResult
+from warp_taskgen.phase_2.runtime_generation import generation_for_runtime
 from warp_taskgen.phase_2.text_fill.checkpoint_runner import (
     fill_plans_with_checkpoints,
     validate_unique_text_fill_task_ids,
@@ -626,33 +626,32 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 1
 
-    # The generic text-fill path materializes payloads for every site.  Before
-    # Phase 2c, re-check exact Rocket.Chat rows with the feature-owned typed
-    # validator so a newly filled task receives the same protection as a
-    # cached/reused task (the latter is also checked by ``reuse.py``).
+    # Before Phase 2c, give an explicit composition the same final-task check
+    # for newly filled rows that reuse applies to cached rows.
     if runtime_composition is not None:
         for filled_task in filled_tasks:
-            if not _rocket_chat.composition_supports_rocket_chat(
+            feature_generation = generation_for_runtime(
                 runtime_composition,
                 benchmark=filled_task.get("benchmark"),
                 site=filled_task.get("site"),
-            ):
+            )
+            if feature_generation is None:
                 continue
             benign_parent = benign_by_id.get(str(filled_task.get("benign_task_id") or ""))
             if benign_parent is None:
-                feature_error = "Rocket.Chat materialized task references an unknown benign parent"
+                feature_error = "composition-owned task references an unknown benign parent"
             else:
-                feature_error = _rocket_chat.validate_materialized_task(
+                feature_error = feature_generation.validate_materialized_task(
                     filled_task,
                     benign_task=benign_parent,
                     runtime_composition=runtime_composition,
                 )
             if feature_error is not None:
-                logger.error("Phase 2 Rocket.Chat materialization failed: %s", feature_error)
+                logger.error("Phase 2 composition materialization failed: %s", feature_error)
                 save_state(
                     "phase_2",
                     status="failed",
-                    reason="rocket_chat_materialization_invalid",
+                    reason="composition_materialization_invalid",
                     materialization_error=feature_error,
                     phase_2_stage="text_fill",
                     generation_failures=site_failures,

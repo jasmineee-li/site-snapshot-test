@@ -7,7 +7,6 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from warp_taskgen.phase_2 import rocket_chat as _rocket_chat
 from warp_taskgen.phase_2 import target_stage as _target_stage
 from warp_taskgen.phase_2.plan_validation import (
     _FINAL_STAGE_ONLY_FIELDS,
@@ -16,6 +15,7 @@ from warp_taskgen.phase_2.plan_validation import (
     _validate_adversarial_task_contract,
     _validate_generated_adversarial_task,
 )
+from warp_taskgen.phase_2.runtime_generation import generation_for_runtime
 from warp_taskgen.phase_2.text_fill.seed import (
     materialize_adversarial_seed,
     validate_seed_template_contract,
@@ -90,13 +90,14 @@ def _load_reusable_phase_2_plans(
         site_profile = site_profiles.get(str(plan.get("site", "")))
         if not isinstance(site_profile, dict):
             return None
-        if runtime_composition is not None and _rocket_chat.composition_supports_rocket_chat(
+        feature_generation = generation_for_runtime(
             runtime_composition,
             benchmark=plan.get("benchmark"),
             site=plan.get("site"),
-        ):
+        )
+        if feature_generation is not None:
             contract = plan.get("exposure_contract")
-            problem = _rocket_chat.validate_plan(
+            problem = feature_generation.validate_plan(
                 plan,
                 index=index,
                 benign_by_id=benign_by_id,
@@ -287,19 +288,19 @@ def _validate_reusable_phase_2_task(
     if not isinstance(site_profile, dict):
         return f"{task_name} references unknown site {task.get('site')!r}"
 
-    rc_runtime = runtime_composition is not None and _rocket_chat.composition_supports_rocket_chat(
+    feature_generation = generation_for_runtime(
         runtime_composition,
         benchmark=task.get("benchmark"),
         site=task.get("site"),
     )
-    if rc_runtime:
-        feature_problem = _rocket_chat.validate_materialized_task(
+    if feature_generation is not None:
+        feature_problem = feature_generation.validate_materialized_task(
             task,
             benign_task=benign_parent,
             runtime_composition=runtime_composition,
         )
         if feature_problem is not None:
-            return f"{task_name} violates Rocket.Chat task contract: {feature_problem}"
+            return f"{task_name} violates composition-owned task contract: {feature_problem}"
     else:
         violation = _validate_adversarial_task_contract(task, benign_parent, site_profile)
         if violation is not None:
@@ -318,7 +319,7 @@ def _validate_reusable_phase_2_task(
             )
         return None
 
-    if not rc_runtime:
+    if feature_generation is None:
         try:
             validate_seed_template_contract(task.get("seed_template"))
         except ValueError as exc:

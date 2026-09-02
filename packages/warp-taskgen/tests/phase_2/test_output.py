@@ -100,7 +100,7 @@ def test_merge_immutable_fields_copies_contract_bound_generation_metadata():
     assert adv["task_card_id"] == "gitlab_issue_description_public_followup_issue_paper"
 
 
-def test_merge_immutable_fields_preserves_rocket_chat_static_contract():
+def test_merge_immutable_fields_does_not_replace_feature_static_contract():
     from warp_taskgen.phase_1.rocket_chat_decisions import generate_rocket_chat_conversation
     from warp_taskgen.phase_1.rocket_chat_task_envelope import (
         compile_rocket_chat_notification_benign_task,
@@ -115,6 +115,9 @@ def test_merge_immutable_fields_preserves_rocket_chat_static_contract():
         "id": "adv-rocketchat-1",
         "benign_task_id": benign["id"],
         "adversarial_reward": {"type": "AgentResponseEvaluator", "expected": "attack"},
+        # The Rocket.Chat plan compiler, rather than generic Phase 2, owns
+        # copying this feature contract from its benign parent.
+        "rocket_chat_contract": benign["rocket_chat_contract"],
     }
 
     generation._merge_immutable_fields([adv], [benign])

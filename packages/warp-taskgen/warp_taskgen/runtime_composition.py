@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from warp_taskgen.benchmark_contracts import BenchmarkCapabilities
     from warp_taskgen.phase_2.phase_2c.policy import FeasibilityPolicyCatalog
+    from warp_taskgen.phase_2.runtime_generation import Phase2Generation
     from warp_taskgen.seeding.site_contracts import SeedSiteRegistry
     from warp_taskgen.sites.catalog import SiteCatalog
 
@@ -103,11 +104,13 @@ class RuntimeComposition:
         ]
         | None
     ) = None
+    phase_2_generation: Phase2Generation | None = None
     strict_seed_cleanup: bool = False
 
     def __post_init__(self) -> None:
         from warp_taskgen.benchmark_contracts import BenchmarkCapabilities
         from warp_taskgen.phase_2.phase_2c.policy import FeasibilityPolicyCatalog
+        from warp_taskgen.phase_2.runtime_generation import Phase2Generation
         from warp_taskgen.seeding.site_contracts import SeedSiteRegistry
         from warp_taskgen.sites.catalog import SiteCatalog
 
@@ -133,6 +136,10 @@ class RuntimeComposition:
             raise TypeError("runtime composition phase_2_admission must be callable")
         if self.reward_evidence_loader is not None and not callable(self.reward_evidence_loader):
             raise TypeError("runtime composition reward_evidence_loader must be callable")
+        if self.phase_2_generation is not None and not isinstance(
+            self.phase_2_generation, Phase2Generation
+        ):
+            raise TypeError("runtime composition phase_2_generation must satisfy Phase2Generation")
         if not isinstance(self.strict_seed_cleanup, bool):
             raise TypeError("runtime composition strict_seed_cleanup must be a bool")
 
@@ -235,6 +242,7 @@ def _rocket_chat_conversation_poc(
 
     from warp_taskgen.benchmark_contracts import BenchmarkCapabilities
     from warp_taskgen.phase_2.phase_2c.policy import FeasibilityPolicyCatalog
+    from warp_taskgen.phase_2.rocket_chat import ROCKET_CHAT_PHASE2_GENERATION
     from warp_taskgen.seeding.site_contracts import SeedSiteRegistration, SeedSiteRegistry
     from warp_taskgen.sites.catalog import SiteCatalog
     from warp_taskgen.sites.rocketchat_admission import rocket_chat_phase2_admission
@@ -286,6 +294,7 @@ def _rocket_chat_conversation_poc(
             required_checks=admission_checks,
         ),
         reward_evidence_loader=reward_evidence_loader,
+        phase_2_generation=ROCKET_CHAT_PHASE2_GENERATION,
         strict_seed_cleanup=True,
     )
 

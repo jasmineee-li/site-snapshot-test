@@ -5,29 +5,17 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 from warp_taskgen.benchmark_capabilities import get_benchmark_capabilities, infer_benchmark_name
 from warp_taskgen.cost_tracker import tracker as cost_tracker
-from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
-    compile_phase1_gitlab_compare_act_task,
-    compile_phase1_gitlab_compare_decide_task,
-    gitlab_compare_act_generation_contract,
-    gitlab_compare_decide_generation_contract,
-)
+from warp_taskgen.phase_1.generated_workflows import restore_compiled_task
 from warp_taskgen.phase_1.novel_task_validation import (
     merge_benign_tasks as _merge_benign_tasks,
 )
 from warp_taskgen.phase_1.novel_task_validation import (
     sort_novel_tasks as _sort_novel_tasks,
-)
-from warp_taskgen.phase_1.rocket_chat_generation import (
-    compile_phase1_rocket_chat_decision_task,
-    compile_phase1_rocket_chat_notification_task,
-    rocket_chat_decision_generation_contract,
-    rocket_chat_notification_generation_contract,
 )
 from warp_taskgen.phases.phase_1_existing_tasks import build_existing_task_wraps
 from warp_taskgen.phases.phase_1_generate_new_tasks import (
@@ -398,28 +386,9 @@ def _compile_feature_owned_task(
     *,
     task_card_plan: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Compile only rows selected by an authored GitLab generation contract."""
-    if not isinstance(task_card_plan, Mapping):
-        return task
-    task_card_id = task.get("task_card_id")
-    if not isinstance(task_card_id, str):
-        return task
-    for card in task_card_plan.get("task_cards", []):
-        if not isinstance(card, Mapping) or card.get("id") != task_card_id:
-            continue
-        if rocket_chat_notification_generation_contract(card) is not None:
-            return compile_phase1_rocket_chat_notification_task(task, task_card=card)
-        if rocket_chat_decision_generation_contract(card) is not None:
-            return compile_phase1_rocket_chat_decision_task(task, task_card=card)
-        if (
-            gitlab_compare_decide_generation_contract(card) is None
-            and gitlab_compare_act_generation_contract(card) is None
-        ):
-            return task
-        if gitlab_compare_act_generation_contract(card) is not None:
-            return compile_phase1_gitlab_compare_act_task(task, task_card=card)
-        return compile_phase1_gitlab_compare_decide_task(task, task_card=card)
-    return task
+    """Restore one row through its concrete generated-workflow owner."""
+
+    return restore_compiled_task(task, task_card_plan=task_card_plan)
 
 
 def _save_phase_1_running_state(

@@ -1,0 +1,162 @@
+"""Concrete dispatch for generated workflow feature owners.
+
+Generic Phase 1 orchestration calls this seam without knowing which Site or
+family owns a generated row. Feature compilers retain semantic-slot, host
+reconstruction, and post-validation restoration behavior.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from typing import Any
+
+from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
+    compile_phase1_gitlab_compare_act_task,
+    compile_phase1_gitlab_compare_decide_task,
+    gitlab_compare_act_generation_contract,
+    gitlab_compare_decide_generation_contract,
+    gitlab_compare_generation_prompt_addendum,
+)
+from warp_taskgen.phase_1.rocket_chat_contracts import ROCKET_CHAT_EVALUATOR_NAME
+from warp_taskgen.phase_1.rocket_chat_generation import (
+    compile_phase1_rocket_chat_decision_task,
+    compile_phase1_rocket_chat_notification_task,
+    restore_phase1_rocket_chat_decision_task,
+    restore_phase1_rocket_chat_notification_task,
+    rocket_chat_decision_generation_contract,
+    rocket_chat_notification_generation_contract,
+)
+from warp_taskgen.phase_1.rocket_chat_generation_prompt import (
+    rocket_chat_generation_prompt_addendum,
+)
+from warp_taskgen.phase_1.rocket_chat_notifications import (
+    ROCKET_CHAT_NOTIFICATION_EVALUATOR_NAME,
+)
+from warp_taskgen.phases.phase_1_task_cards import task_card_plan_for_site
+
+
+def compile_model_owned_content(
+    tasks: Any,
+    *,
+    task_card_plan: Mapping[str, Any] | None,
+) -> Any:
+    """Compile model-owned semantic slots before ordinary validation."""
+
+    if not isinstance(tasks, list) or not isinstance(task_card_plan, Mapping):
+        return tasks
+    cards = _cards_by_id(task_card_plan)
+    compiled: list[Any] = []
+    for task in tasks:
+        if not isinstance(task, Mapping):
+            compiled.append(task)
+            continue
+        card = cards.get(str(task.get("task_card_id") or ""))
+        if rocket_chat_notification_generation_contract(card) is not None:
+            compiled.append(compile_phase1_rocket_chat_notification_task(task, task_card=card))
+        elif rocket_chat_decision_generation_contract(card) is not None:
+            compiled.append(compile_phase1_rocket_chat_decision_task(task, task_card=card))
+        else:
+            compiled.append(task)
+    return compiled
+
+
+def restore_compiled_tasks(
+    tasks: Sequence[Any],
+    *,
+    task_card_plan: Mapping[str, Any] | None,
+) -> list[Any]:
+    """Restore or compile feature rows after ordinary validation."""
+
+    return [
+        restore_compiled_task(task, task_card_plan=task_card_plan)
+        if isinstance(task, Mapping)
+        else task
+        for task in tasks
+    ]
+
+
+def restore_compiled_task(
+    task: Mapping[str, Any],
+    *,
+    task_card_plan: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Dispatch one validated row to its concrete feature owner."""
+
+    item = dict(task)
+    if not isinstance(task_card_plan, Mapping):
+        return item
+    card = _cards_by_id(task_card_plan).get(str(task.get("task_card_id") or ""))
+    if not isinstance(card, Mapping):
+        return item
+    if rocket_chat_notification_generation_contract(card) is not None:
+        return restore_phase1_rocket_chat_notification_task(task, task_card=card)
+    if rocket_chat_decision_generation_contract(card) is not None:
+        return restore_phase1_rocket_chat_decision_task(task, task_card=card)
+    if gitlab_compare_act_generation_contract(card) is not None:
+        return compile_phase1_gitlab_compare_act_task(task, task_card=card)
+    if gitlab_compare_decide_generation_contract(card) is not None:
+        return compile_phase1_gitlab_compare_decide_task(task, task_card=card)
+    return item
+
+
+def generation_prompt_addendum(task_card_plan: Mapping[str, Any] | None) -> str:
+    """Return the exact feature prompt extension for one Site plan."""
+
+    gitlab = gitlab_compare_generation_prompt_addendum(task_card_plan)
+    if gitlab:
+        return gitlab
+    return rocket_chat_generation_prompt_addendum(task_card_plan)
+
+
+def generation_prompt_fingerprint_inputs(
+    task_card_plan: Mapping[str, Any] | None,
+) -> dict[str, str]:
+    """Expose feature prompt inputs through the existing resume fingerprint."""
+
+    return {
+        "gitlab_comparison_prompt_addendum": gitlab_compare_generation_prompt_addendum(
+            task_card_plan_for_site(task_card_plan, "gitlab")
+        ),
+        "rocket_chat_prompt_addendum": rocket_chat_generation_prompt_addendum(
+            task_card_plan_for_site(task_card_plan, "rocketchat")
+        ),
+    }
+
+
+def host_compiled_evaluator_types(
+    task_card_plan: Mapping[str, Any] | None,
+) -> frozenset[str]:
+    """Return exact evaluators enabled by authored feature contracts.
+
+    These evaluator names are not available to ordinary model-authored tasks.
+    The opt-in exists only because the corresponding feature compiler replaces
+    the model's semantic slots with a host-owned reward contract.
+    """
+
+    if not isinstance(task_card_plan, Mapping):
+        return frozenset()
+    evaluator_types: set[str] = set()
+    for card in _cards_by_id(task_card_plan).values():
+        if rocket_chat_notification_generation_contract(card) is not None:
+            evaluator_types.add(ROCKET_CHAT_NOTIFICATION_EVALUATOR_NAME)
+        elif rocket_chat_decision_generation_contract(card) is not None:
+            evaluator_types.add(ROCKET_CHAT_EVALUATOR_NAME)
+    return frozenset(evaluator_types)
+
+
+def _cards_by_id(task_card_plan: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
+    return {
+        str(card.get("id")): card
+        for card in task_card_plan.get("task_cards", [])
+        if isinstance(card, Mapping) and isinstance(card.get("id"), str)
+    }
+
+
+__all__ = [
+    "compile_model_owned_content",
+    "generation_prompt_addendum",
+    "generation_prompt_fingerprint_inputs",
+    "host_compiled_evaluator_types",
+    "restore_compiled_task",
+    "restore_compiled_tasks",
+]

@@ -6,7 +6,7 @@ import asyncio
 import json
 import logging
 import os
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
@@ -18,27 +18,20 @@ from warp_taskgen.modal_sandbox import (
     run_claude_in_sandbox,
     upload_to_volume,
 )
-from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
-    compile_phase1_gitlab_compare_act_task,
-    compile_phase1_gitlab_compare_decide_task,
-    gitlab_compare_act_generation_contract,
-    gitlab_compare_decide_generation_contract,
-    gitlab_compare_generation_prompt_addendum,
+from warp_taskgen.phase_1.generated_workflows import (
+    compile_model_owned_content,
+    generation_prompt_addendum,
+    generation_prompt_fingerprint_inputs,
+    restore_compiled_tasks,
+)
+from warp_taskgen.phase_1.generated_workflows import (
+    host_compiled_evaluator_types as feature_host_compiled_evaluator_types,
 )
 from warp_taskgen.phase_1.novel_task_validation import (
     GeneratedTaskValidationError,
     sort_novel_tasks,
     validate_generated_novel_tasks,
     validate_generated_novel_tasks_detailed,
-)
-from warp_taskgen.phase_1.rocket_chat_generation import (
-    compile_phase1_rocket_chat_decision_task,
-    compile_phase1_rocket_chat_notification_task,
-    rocket_chat_decision_generation_contract,
-    rocket_chat_notification_generation_contract,
-)
-from warp_taskgen.phase_1.rocket_chat_generation_prompt import (
-    rocket_chat_generation_prompt_addendum,
 )
 from warp_taskgen.phases.phase_1_contract_bound_action_api import (
     contract_bound_tool_schema_digest,
@@ -361,6 +354,7 @@ async def generate_new_tasks_for_site(
             site.site_name,
         )
         return SiteGenerateNewTasksResult(site.site_name, [], [])
+    feature_evaluator_types = feature_host_compiled_evaluator_types(task_card_plan)
     if site.site_name in {"gitlab", "reddit"} and not route_contracts.get("route_families"):
         logger.info(
             "Phase 1 (generate-new-tasks): skipping site %r because no eligible route families remain after core-surface filtering",
@@ -376,6 +370,7 @@ async def generate_new_tasks_for_site(
         expected_task_count=expected_task_count,
         route_contracts=route_contracts,
         task_card_plan=task_card_plan,
+        host_compiled_evaluator_types=feature_evaluator_types,
     )
     if cached_result is not None:
         return cached_result
@@ -404,6 +399,7 @@ async def generate_new_tasks_for_site(
             expected_task_count=expected_task_count,
             route_contracts=route_contracts,
             task_card_plan=task_card_plan,
+            host_compiled_evaluator_types=feature_evaluator_types,
         )
         if detailed_errors:
             return SiteGenerateNewTasksResult(
@@ -425,6 +421,7 @@ async def generate_new_tasks_for_site(
             expected_task_count=expected_task_count,
             route_contracts=route_contracts,
             task_card_plan=task_card_plan,
+            host_compiled_evaluator_types=feature_evaluator_types,
         )
         if detailed_errors:
             return SiteGenerateNewTasksResult(
@@ -525,6 +522,7 @@ async def generate_new_tasks_for_site(
                 expected_task_count=expected_task_count,
                 route_contracts=route_contracts,
                 task_card_plan=task_card_plan,
+                host_compiled_evaluator_types=feature_evaluator_types,
             )
         if not detailed_errors:
             try:
@@ -548,6 +546,7 @@ async def generate_new_tasks_for_site(
                     expected_task_count=expected_task_count,
                     route_contracts=route_contracts,
                     task_card_plan=task_card_plan,
+                    host_compiled_evaluator_types=feature_evaluator_types,
                 )
         if not detailed_errors:
             sorted_tasks = sort_novel_tasks(
@@ -599,32 +598,7 @@ def _compile_phase1_feature_tasks(
     task_card_plan: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
     """Apply explicitly authored feature generation before per-site caching."""
-    if not isinstance(task_card_plan, Mapping):
-        return tasks
-    compiled: list[dict[str, Any]] = []
-    cards = {
-        str(card.get("id")): card
-        for card in task_card_plan.get("task_cards", [])
-        if isinstance(card, Mapping) and isinstance(card.get("id"), str)
-    }
-    for task in tasks:
-        if not isinstance(task, dict):
-            compiled.append(task)
-            continue
-        card = cards.get(str(task.get("task_card_id") or ""))
-        if not isinstance(card, Mapping):
-            compiled.append(task)
-        elif rocket_chat_notification_generation_contract(card) is not None:
-            compiled.append(compile_phase1_rocket_chat_notification_task(task, task_card=card))
-        elif rocket_chat_decision_generation_contract(card) is not None:
-            compiled.append(compile_phase1_rocket_chat_decision_task(task, task_card=card))
-        elif gitlab_compare_act_generation_contract(card) is not None:
-            compiled.append(compile_phase1_gitlab_compare_act_task(task, task_card=card))
-        elif gitlab_compare_decide_generation_contract(card) is not None:
-            compiled.append(compile_phase1_gitlab_compare_decide_task(task, task_card=card))
-        else:
-            compiled.append(task)
-    return compiled
+    return restore_compiled_tasks(tasks, task_card_plan=task_card_plan)
 
 
 def _compile_phase1_model_owned_features(
@@ -634,32 +608,11 @@ def _compile_phase1_model_owned_features(
 ) -> Any:
     """Compile strict semantic slots before generic task validation.
 
-    Rocket.Chat model output contains only generated facts; its feature owner
-    reconstructs every seed, evaluator, identity, and action field before the
-    ordinary Phase 1 validators see the row. Other feature compilers retain
-    their established post-validation ordering.
+    Model output contains only feature-owned semantic facts. Concrete owners
+    reconstruct host fields before the ordinary Phase 1 validators see a row.
     """
 
-    if not isinstance(tasks, list) or not isinstance(task_card_plan, Mapping):
-        return tasks
-    cards = {
-        str(card.get("id")): card
-        for card in task_card_plan.get("task_cards", [])
-        if isinstance(card, Mapping) and isinstance(card.get("id"), str)
-    }
-    compiled: list[Any] = []
-    for task in tasks:
-        if not isinstance(task, Mapping):
-            compiled.append(task)
-            continue
-        card = cards.get(str(task.get("task_card_id") or ""))
-        if rocket_chat_notification_generation_contract(card) is not None:
-            compiled.append(compile_phase1_rocket_chat_notification_task(task, task_card=card))
-        elif rocket_chat_decision_generation_contract(card) is not None:
-            compiled.append(compile_phase1_rocket_chat_decision_task(task, task_card=card))
-        else:
-            compiled.append(task)
-    return compiled
+    return compile_model_owned_content(tasks, task_card_plan=task_card_plan)
 
 
 def load_cached_novel_tasks(
@@ -672,6 +625,7 @@ def load_cached_novel_tasks(
     expected_task_count: int = DEFAULT_NOVEL_TASKS_PER_SITE,
     route_contracts: dict[str, Any] | None = None,
     task_card_plan: dict[str, Any] | None = None,
+    host_compiled_evaluator_types: frozenset[str] = frozenset(),
 ) -> SiteGenerateNewTasksResult | None:
     """Return a validated cached per-site result when available."""
     if not intermediate_path.exists():
@@ -703,6 +657,7 @@ def load_cached_novel_tasks(
         expected_task_count=expected_task_count,
         route_contracts=route_contracts,
         task_card_plan=task_card_plan,
+        host_compiled_evaluator_types=host_compiled_evaluator_types,
     )
     if errors:
         logger.warning(
@@ -806,6 +761,9 @@ def validate_existing_novel_tasks(
                 profile=site.profile,
             ),
             task_card_plan=site_task_card_plan,
+            host_compiled_evaluator_types=feature_host_compiled_evaluator_types(
+                site_task_card_plan
+            ),
         )
         errors.extend(site_errors)
 
@@ -853,6 +811,9 @@ def _load_all_cached_site_results(
                 profile=site.profile,
             ),
             task_card_plan=site_task_card_plan,
+            host_compiled_evaluator_types=feature_host_compiled_evaluator_types(
+                site_task_card_plan
+            ),
         )
         if cached_result is None:
             return None
@@ -878,11 +839,7 @@ def render_generate_benign_tasks_prompt(
     )
     rendered = prompt.replace("{site_name}", site_name).replace("{num_tasks}", str(num_tasks))
     if isinstance(task_card_plan, dict):
-        addendum = ""
-        if site_name == "gitlab":
-            addendum = gitlab_compare_generation_prompt_addendum(task_card_plan)
-        elif site_name == "rocketchat":
-            addendum = rocket_chat_generation_prompt_addendum(task_card_plan)
+        addendum = generation_prompt_addendum(task_card_plan)
         if addendum:
             rendered = f"{rendered}\n\n{addendum}"
     return rendered
@@ -1012,12 +969,7 @@ def compute_generate_new_tasks_shared_inputs_fingerprint(
             "generate-benign-action-tasks",
             validation_command="benign-tasks --site-name {site_name}",
         ),
-        "gitlab_comparison_prompt_addendum": gitlab_compare_generation_prompt_addendum(
-            task_card_plan_for_site(task_card_plan, "gitlab")
-        ),
-        "rocket_chat_prompt_addendum": rocket_chat_generation_prompt_addendum(
-            task_card_plan_for_site(task_card_plan, "rocketchat")
-        ),
+        **generation_prompt_fingerprint_inputs(task_card_plan),
         "contract_bound_action_tool_schema": contract_bound_tool_schema_digest(),
         "contract_bound_action_backend_env": os.environ.get(CONTRACT_BOUND_ACTION_API_ENV, ""),
         "sandbox_model": sandbox_model,

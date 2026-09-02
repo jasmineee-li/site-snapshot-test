@@ -46,8 +46,17 @@ ROCKET_CHAT_GENERATION_CONTRACT_VERSION = 1
 _GENERATION_CONTRACT_KEY = "generation_contract"
 _TASK_PROVENANCE_KEY = "rocket_chat_generation"
 _PRESERVED_TASK_FIELDS = (
+    "id",
+    "origin",
+    "site",
+    "sites",
+    "instruction",
+    "start_urls",
     "route_id",
     "task_card_id",
+    "agent_context",
+    "benign_target_resource",
+    "benchmark",
 )
 _SAFE_TASK_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 
@@ -122,6 +131,26 @@ def compile_phase1_rocket_chat_notification_task(
     )
 
 
+def restore_phase1_rocket_chat_decision_task(
+    task: Mapping[str, Any],
+    *,
+    task_card: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Restore host provenance after ordinary validation canonicalizes it."""
+
+    return _restore_compiled_task(task, task_card=task_card, notification=False)
+
+
+def restore_phase1_rocket_chat_notification_task(
+    task: Mapping[str, Any],
+    *,
+    task_card: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Restore host provenance after ordinary validation canonicalizes it."""
+
+    return _restore_compiled_task(task, task_card=task_card, notification=True)
+
+
 def _compile_phase1_rocket_chat_task(
     task: Mapping[str, Any],
     *,
@@ -148,11 +177,9 @@ def _compile_phase1_rocket_chat_task(
     if source_sites not in (None, [ROCKET_CHAT_SITE]):
         raise ValueError("Rocket.Chat generation task sites must target rocketchat")
     if ROCKET_CHAT_GENERATED_CONTENT_KEY not in task:
-        if "rocket_chat_contract" not in task:
-            raise ValueError(
-                "Rocket.Chat task requires generated semantic content before host compilation"
-            )
-        return _restore_compiled_task(task, task_card=task_card, notification=notification)
+        raise ValueError(
+            "Rocket.Chat task requires generated semantic content before host compilation"
+        )
     task_id = _task_id(task.get("id"))
     content = RocketChatGeneratedContent.from_task(task)
     host = _host_contract(contract)
@@ -202,6 +229,9 @@ def _compile_phase1_rocket_chat_task(
     for field in _PRESERVED_TASK_FIELDS:
         if field in task:
             compiled[field] = copy.deepcopy(task[field])
+    for field in ("archetype_id", "capability_family", "benign_task_family_id"):
+        if field in task_card:
+            compiled[field] = copy.deepcopy(task_card[field])
     compiled["origin"] = "new_task"
     compiled["task_card_id"] = card_id
     _stamp_generation_provenance(
@@ -322,6 +352,9 @@ def _validate_contract(contract: Mapping[str, Any], *, notification: bool) -> No
         )
     if contract.get("benchmark") not in (None, ROCKET_CHAT_BENCHMARK, "TAC", "tac"):
         raise ValueError("Rocket.Chat generation contract benchmark must be TheAgentCompany")
+    host = _host_contract(contract)
+    if host.get("thread_key") != "plan":
+        raise ValueError("Rocket.Chat generation contract thread_key must be 'plan'")
 
 
 def _expected_runtime_composition(notification: bool) -> str:
@@ -523,6 +556,8 @@ __all__ = [
     "ROCKET_CHAT_NOTIFICATION_RUNTIME_COMPOSITION",
     "compile_phase1_rocket_chat_decision_task",
     "compile_phase1_rocket_chat_notification_task",
+    "restore_phase1_rocket_chat_decision_task",
+    "restore_phase1_rocket_chat_notification_task",
     "rocket_chat_decision_generation_contract",
     "rocket_chat_notification_generation_contract",
     "validate_rocket_chat_generated_content",

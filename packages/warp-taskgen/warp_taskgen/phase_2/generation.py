@@ -20,7 +20,6 @@ from warp_taskgen.phase_1.gitlab_compare_decide import (
 from warp_taskgen.phase_2 import eligibility as _eligibility
 from warp_taskgen.phase_2 import option_a as _option_a
 from warp_taskgen.phase_2 import plan_validation as _plan_validation
-from warp_taskgen.phase_2 import rocket_chat as _rocket_chat
 from warp_taskgen.phase_2 import runner_api as _runner_api
 from warp_taskgen.phase_2 import target_stage as _target_stage
 from warp_taskgen.phase_2.exposure_contract import materialize_seed_template_from_contract
@@ -30,6 +29,7 @@ from warp_taskgen.phase_2.output import (
 )
 from warp_taskgen.phase_2.pause_control import write_planning_shard_checkpoint
 from warp_taskgen.phase_2.planning_types import SiteInjectionResult
+from warp_taskgen.phase_2.runtime_generation import generation_for_runtime
 from warp_taskgen.phase_2.target_resolution.constants import (
     PHASE_2A_SYNTHETIC_PLACEHOLDERS as _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
 )
@@ -99,7 +99,7 @@ async def _generate_injections_for_site(
         if isinstance(site_profile_override, Mapping)
         else json.loads(profile_path.read_text())
     )
-    rocket_chat_runtime = _rocket_chat.composition_supports_rocket_chat(
+    feature_generation = generation_for_runtime(
         runtime_composition,
         benchmark=benchmark,
         site=site_name,
@@ -116,11 +116,19 @@ async def _generate_injections_for_site(
     # concrete per-item records via suffixed-ID clones. Absent an
     # instance, the offline L1/L2-only path mirrors today's behavior
     # exactly and the task count is preserved.
-    if rocket_chat_runtime:
-        site_tasks, benign_target_resources = _rocket_chat.resolve_target_resources(
-            site_tasks,
-            runtime_composition,
-        )
+    prepared_feature_shard = None
+    if feature_generation is not None:
+        try:
+            prepared_feature_shard = feature_generation.prepare_shard(
+                site_tasks,
+                runtime_composition,
+            )
+        except ValueError as exc:
+            return SiteInjectionResult(site_name, [], [f"feature planning failed: {exc}"])
+        site_tasks = prepared_feature_shard.tasks
+        benign_target_resources = prepared_feature_shard.benign_target_resources
+        exposure_contracts = prepared_feature_shard.exposure_contracts
+        eligibility_drops = prepared_feature_shard.eligibility_drops
     else:
         (
             site_tasks,
@@ -138,13 +146,7 @@ async def _generate_injections_for_site(
     # expansion actually happened.
     if any(_target_stage.L4_TASK_ID_SUFFIX in str(t.get("id", "")) for t in site_tasks):
         all_site_tasks = site_tasks
-    if rocket_chat_runtime:
-        exposure_contracts = _rocket_chat.build_exposure_contracts(
-            tasks=site_tasks,
-            benign_target_resources=benign_target_resources,
-            runtime_composition=runtime_composition,
-        )
-    else:
+    if feature_generation is None:
         exposure_contracts = _eligibility._build_exposure_contracts_for_shard(
             site_tasks=site_tasks,
             benign_target_resources=benign_target_resources,
@@ -158,14 +160,7 @@ async def _generate_injections_for_site(
             policy=action_policy or "default",
         )
     _eligibility._persist_exposure_contracts(site_name=site_name, contracts=exposure_contracts)
-    if rocket_chat_runtime:
-        site_tasks, eligibility_drops = _rocket_chat.eligible_tasks(
-            site_tasks,
-            benign_target_resources,
-            exposure_contracts,
-            runtime_composition,
-        )
-    else:
+    if feature_generation is None:
         site_tasks, eligibility_drops = _eligibility._phase_2a_eligible_tasks_for_benchmark(
             site_tasks,
             benign_target_resources,
@@ -194,20 +189,10 @@ async def _generate_injections_for_site(
                 exc,
             )
 
-    if rocket_chat_runtime:
-        # The exact RC composition owns a deterministic one-plan path. It is
-        # deliberately kept outside the generic WebArena strategy API so no
-        # model call, target fallback, or Phase 2a overgeneration can occur.
-        try:
-            adv_tasks = _rocket_chat.build_plans(
-                site_tasks,
-                exposure_contracts,
-                runtime_composition=runtime_composition,
-            )
-        except ValueError as exc:
-            return SiteInjectionResult(
-                site_name, [], [f"Rocket.Chat plan construction failed: {exc}"]
-            )
+    if prepared_feature_shard is not None:
+        # An explicit composition may own a deterministic plan path outside
+        # the ordinary model planner while preserving the same output contract.
+        adv_tasks = prepared_feature_shard.plans
     else:
         logger.info("Phase 2: launching injection API call %r (%d tasks)", label, len(site_tasks))
         sanitized_site_tasks = [_sanitize_task_for_output(task) for task in site_tasks]
@@ -234,17 +219,16 @@ async def _generate_injections_for_site(
             [],
             ["API path produced no adversarial plans"],
         )
-    try:
-        materialize_kwargs: dict[str, Any] = {
-            "exposure_contracts": exposure_contracts,
-            "benchmark": benchmark,
-            "benign_tasks": all_site_tasks,
-        }
-        if rocket_chat_runtime:
-            materialize_kwargs["runtime_composition"] = runtime_composition
-        _materialize_strategy_plans_from_exposure(adv_tasks, **materialize_kwargs)
-    except ValueError as exc:
-        return SiteInjectionResult(site_name, [], [f"exposure materialization failed: {exc}"])
+    if prepared_feature_shard is None:
+        try:
+            _materialize_strategy_plans_from_exposure(
+                adv_tasks,
+                exposure_contracts=exposure_contracts,
+                benchmark=benchmark,
+                benign_tasks=all_site_tasks,
+            )
+        except ValueError as exc:
+            return SiteInjectionResult(site_name, [], [f"exposure materialization failed: {exc}"])
 
     # Programmatically copy immutable fields from benign tasks instead of
     # relying on the LLM to reproduce them byte-for-byte.
@@ -257,8 +241,8 @@ async def _generate_injections_for_site(
     except ValueError as exc:
         return SiteInjectionResult(site_name, [], [f"host reward compilation failed: {exc}"])
 
-    if rocket_chat_runtime:
-        validated, errors = _rocket_chat.validate_generated_plans(
+    if feature_generation is not None:
+        enriched, errors = feature_generation.validate_and_enrich_plans(
             adv_tasks,
             all_site_tasks,
             exposure_contracts=exposure_contracts,
@@ -270,17 +254,10 @@ async def _generate_injections_for_site(
             all_site_tasks,
             site_profile,
         )
-    try:
-        if rocket_chat_runtime:
-            enriched = _materialize_validated_shard_tasks(
-                validated,
-                site_profile,
-                runtime_composition=runtime_composition,
-            )
-        else:
+        try:
             enriched = _materialize_validated_shard_tasks(validated, site_profile)
-    except ValueError as exc:
-        return SiteInjectionResult(site_name, [], [f"plan enrichment failed: {exc}"])
+        except ValueError as exc:
+            return SiteInjectionResult(site_name, [], [f"plan enrichment failed: {exc}"])
     enriched = _eligibility._select_balanced_subset(enriched, cell_targets)
     _target_stage._normalize_l4_benign_task_ids_in_place(enriched)
 
@@ -314,8 +291,6 @@ async def _generate_injections_for_site(
 def _materialize_validated_shard_tasks(
     validated: list[dict[str, Any]],
     site_profile: dict[str, Any],
-    *,
-    runtime_composition: RuntimeComposition | None = None,
 ) -> list[dict[str, Any]]:
     if not validated:
         return []
@@ -323,14 +298,7 @@ def _materialize_validated_shard_tasks(
     plan_tasks = [task for task in validated if "seed_template" in task]
     if not plan_tasks:
         return legacy_tasks
-    if runtime_composition is not None and _rocket_chat.composition_supports_rocket_chat(
-        runtime_composition,
-        benchmark=plan_tasks[0].get("benchmark"),
-        site=plan_tasks[0].get("site"),
-    ):
-        enriched_plans = _rocket_chat.enrich_plans(plan_tasks)
-    else:
-        enriched_plans = _enrich_adversarial_plans(plan_tasks, site_profile)
+    enriched_plans = _enrich_adversarial_plans(plan_tasks, site_profile)
     enriched_by_id = {str(task.get("id", "")): task for task in enriched_plans}
     materialized: list[dict[str, Any]] = []
     for task in validated:
@@ -389,7 +357,6 @@ def _merge_immutable_fields(
             "world",
             "comparison_contract",
             "comparison_act_contract",
-            "rocket_chat_contract",
         ):
             if field in benign_task:
                 value = json.loads(json.dumps(benign_task[field]))
@@ -528,7 +495,6 @@ def _materialize_strategy_plans_from_exposure(
     exposure_contracts: Mapping[str, Mapping[str, Any]],
     benchmark: str,
     benign_tasks: Iterable[Mapping[str, Any]] | None = None,
-    runtime_composition: RuntimeComposition | None = None,
 ) -> None:
     contracts_by_id = {
         str(contract.get("contract_id") or ""): contract for contract in exposure_contracts.values()
@@ -589,30 +555,13 @@ def _materialize_strategy_plans_from_exposure(
         plan["exposure_contract_id"] = str(contract.get("contract_id") or contract_id)
         plan["target_surface_id"] = str(contract.get("target_surface_id") or "")
         benign_seed = benign_seed_by_id.get(benign_id)
-        if runtime_composition is not None and _rocket_chat.composition_supports_rocket_chat(
-            runtime_composition,
+        seed_template = materialize_seed_template_from_contract(
+            contract,
             benchmark=benchmark,
-            site=contract.get("site"),
-        ):
-            seed_template = _rocket_chat.materialize_seed_template(
-                contract,
-                runtime_composition=runtime_composition,
-            )
-        else:
-            seed_template = materialize_seed_template_from_contract(
-                contract,
-                benchmark=benchmark,
-                benign_seed=benign_seed,
-            )
+            benign_seed=benign_seed,
+        )
         plan["seed_template"] = seed_template
-        if runtime_composition is not None and _rocket_chat.composition_supports_rocket_chat(
-            runtime_composition,
-            benchmark=benchmark,
-            site=contract.get("site"),
-        ):
-            plan["delivery_mechanism"] = "editor"
-        else:
-            plan["delivery_mechanism"] = _eligibility._seed_delivery_mechanism(seed_template)
+        plan["delivery_mechanism"] = _eligibility._seed_delivery_mechanism(seed_template)
 
 
 def _enrich_adversarial_plans(

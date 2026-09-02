@@ -99,6 +99,7 @@ def build_plan(
         # Phase 2b enrichment as well.
         "required_tokens": derive_required_tokens(plan_id),
         "task_provenance": provenance,
+        "rocket_chat_contract": copy.deepcopy(task.get("rocket_chat_contract")),
     }
 
 
@@ -320,6 +321,7 @@ def validate_materialized_task(
     task: Mapping[str, Any],
     *,
     benign_task: Mapping[str, Any],
+    exposure_contract: Mapping[str, Any],
     runtime_composition: RuntimeComposition | None,
 ) -> str | None:
     """Final Phase 2b check for the exact typed seed before Phase 2c."""
@@ -331,6 +333,41 @@ def validate_materialized_task(
     ):
         return "Rocket.Chat materialized task requires explicit runtime composition"
     try:
+        for field in (
+            "benchmark",
+            "site",
+            "sites",
+            "instruction",
+            "start_urls",
+            "data_seed",
+            "world",
+            "comparison_contract",
+        ):
+            if task.get(field) != benign_task.get(field):
+                return f"Rocket.Chat materialized task {field} changed from benign parent"
+        plan_view = {
+            key: copy.deepcopy(value)
+            for key, value in task.items()
+            if key
+            not in {
+                "payload_texts",
+                "selected_payload_index",
+                "payload_text_diagnostics",
+                "adversarial_data_seed",
+                "feasibility",
+                "read_surface_urls",
+                "read_surface_provenance",
+            }
+        }
+        plan_problem = validate_plan(
+            plan_view,
+            index=0,
+            benign_by_id={str(benign_task.get("id") or ""): benign_task},
+            exposure_contracts={str(benign_task.get("id") or ""): exposure_contract},
+            runtime_composition=runtime_composition,
+        )
+        if plan_problem is not None:
+            return plan_problem
         static = project_rocket_chat_static_contract(benign_task)
         validate_rocket_chat_cross_phase_task(task)
         validate_rocket_chat_seed_template(
