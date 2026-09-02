@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from types import MappingProxyType
 from typing import Any, Protocol
 from urllib.parse import urljoin, urlsplit
@@ -36,7 +36,6 @@ TAC_SOURCE_COMMIT = "98b68ef82a47690c316f42fddb05baafaab56851"
 ROCKET_CHAT_RUNTIME_COMPOSITION = "rocket_chat_conversation_decision_poc"
 ROCKET_CHAT_EDITOR_METHOD = "seed_rocket_chat_conversation"
 _ID_MAX = 128
-
 class RocketChatTransportError(RuntimeError):
     pass
 @dataclass(frozen=True)
@@ -65,7 +64,6 @@ class RocketChatAuthSession:
 class RocketChatTransport(Protocol):
     def login(self, credentials: RocketChatCredentials) -> RocketChatAuthSession: ...
     def channel_id(self, channel: str) -> str: ...
-
     def send_message(
         self, *, room_id: str, body: str, thread_id: str | None = None
     ) -> Mapping[str, Any]: ...
@@ -116,7 +114,6 @@ class RequestsRocketChatTransport:
         if self.timeout_s <= 0 or self.timeout_s > 120:
             raise RocketChatTransportError("Rocket.Chat transport timeout is out of bounds")
         self._auth_headers: dict[str, str] = {}
-
     def _request(
         self,
         method: str,
@@ -173,7 +170,6 @@ class RequestsRocketChatTransport:
             raise RocketChatTransportError("Rocket.Chat login response is missing authToken/userId")
         self._auth_headers = {"X-Auth-Token": token, "X-User-Id": user_id}
         return RocketChatAuthSession(user_id=user_id, username=credentials.username, session_id=f"rc-session-{user_id}")
-
     def channel_id(self, channel: str) -> str:
         channel = _identifier(channel, "channel")
         payload = self._request("GET", "/api/v1/channels.info", params={"roomName": channel})
@@ -183,7 +179,6 @@ class RequestsRocketChatTransport:
             data = payload.get("data")
             room = data.get("channel") if isinstance(data, Mapping) else None
         return _identifier(room.get("_id") if isinstance(room, Mapping) else None, "room id")
-
     def send_message(self, *, room_id: str, body: str, thread_id: str | None = None) -> Mapping[str, Any]:
         room_id = _identifier(room_id, "room id")
         if not isinstance(body, str) or not body.strip():
@@ -197,13 +192,12 @@ class RequestsRocketChatTransport:
         if not isinstance(result, Mapping):
             raise RocketChatTransportError("Rocket.Chat chat.sendMessage response is missing message")
         return result
-
     def history(self, *, room_id: str) -> Sequence[Mapping[str, Any]]:
         room_id = _identifier(room_id, "room id")
         payload = self._request(
             "GET",
             "/api/v1/channels.history",
-            params={"roomId": room_id, "showThreadMessages": True},
+            params={"roomId": room_id, "sort": '{"ts":1}', "showThreadMessages": True},
         )
         self._require_success(payload, "/api/v1/channels.history")
         messages = payload.get("messages")
@@ -253,7 +247,6 @@ class RocketChatHttpWriter:
         self.instance = dict(instance)
         self.transport = transport
         self.credentials = credentials or _credentials(self.instance, "writer")
-
     def seed_conversation(self, conversation: RocketChatConversation) -> RocketChatSeedReceipt:
         auth = self.transport.login(self.credentials)
         context = _context(auth, role="writer", username=conversation.writer_user)
@@ -280,13 +273,11 @@ class RocketChatHttpWriter:
             for key, item in identities.items()
         }
         return RocketChatSeedReceipt(conversation.benchmark, conversation.site, attempt_id, context, normalized)
-
 class RocketChatHttpReader:
     def __init__(self, instance: Mapping[str, Any], *, transport: RocketChatTransport, credentials: RocketChatCredentials | None = None) -> None:
         self.instance = dict(instance)
         self.transport = transport
         self.credentials = credentials or _credentials(self.instance, "reader")
-
     def observe(self, conversation: RocketChatConversation, receipt: RocketChatSeedReceipt) -> RocketChatObservation | RocketChatObservationFailure:
         try:
             if not isinstance(conversation, RocketChatConversation):
@@ -311,6 +302,9 @@ class RocketChatHttpReader:
                     if message_id in by_id:
                         return RocketChatObservationFailure("ambiguous_message_identity", "history returned duplicate message IDs")
                     by_id[message_id] = row
+            expected_ids = [receipt.messages[fact.logical_key].message_id for fact in conversation.messages if fact.logical_key in receipt.messages]
+            if all(message_id in by_id for message_id in expected_ids) and [row.get("_id") for row in rows if row.get("_id") in expected_ids] != expected_ids:
+                return RocketChatObservationFailure("message_order_mismatch", "history did not expose receipt IDs in conversation order")
             observed: dict[str, RocketChatMessageIdentity] = {}
             for fact in conversation.messages:
                 expected = receipt.messages.get(fact.logical_key)
@@ -337,14 +331,12 @@ class RocketChatHttpReader:
             )
         except (RocketChatContractError, RocketChatTransportError) as exc:
             return RocketChatObservationFailure("reader_transport_failed", str(exc))
-
 @dataclass(frozen=True)
 class RocketChatReaderPreflight:
     ok: bool
     reason: str | None = None
     detail: str = ""
     browser_context_kwargs: Mapping[str, Any] = MappingProxyType({})
-
     def __post_init__(self) -> None:
         if self.ok and self.reason is not None:
             raise ValueError("successful Rocket.Chat preflight cannot have a reason")
@@ -385,15 +377,21 @@ def preflight_rocket_chat_reader(instance: Mapping[str, Any]) -> RocketChatReade
     return RocketChatReaderPreflight(False, "reader_auth_unsupported", f"unsupported reader_auth type {auth_type!r}")
 
 class RocketChatRuntimeSite(RocketChatSite):
+    """Source-only TAC Site wiring; browser checks remain body-signature based."""
+
     def build_read_surface_plan(self, *, seed_result: EditorSeedResult, signature: str, origin: str) -> ReadSurfaceVerificationPlan | ReadSurfacePlanFailure:
         required = ("room_id", "room_name", "thread_id", "plan_message_id", "update_message_id", "correction_message_id", "reader_user_id", "reader_auth_context_id")
         missing = [key for key in required if seed_result.write_tokens.get(key) in (None, "")]
         if missing:
             return ReadSurfacePlanFailure("rocketchat", "missing_message_identity", "Rocket.Chat readback requires " + ", ".join(missing))
-        return build_read_surface_plan(
+        plan = build_read_surface_plan(
             site="rocketchat", seed_result=seed_result, signature=signature, origin=origin,
             identity_keys=("attempt_id", *required, "plan_body_sha256", "update_body_sha256", "correction_body_sha256"),
         )
+        if isinstance(plan, ReadSurfaceVerificationPlan):
+            # IDs document REST only; no DOM observer means body text, not exact painted identity.
+            return replace(plan, verification_mode="body_text")
+        return plan
 
 @dataclass(frozen=True)
 class RocketChatFeasibilityPolicy:
@@ -468,7 +466,7 @@ class RocketChatHttpEditor:
             _origin(instance), requests.Session()
         )
         self._reader_closed = False
-        self._seeded = False
+        self._mutation_possible = False
 
     @classmethod
     def probe_base_state(cls, instance: dict[str, Any]) -> None:
@@ -499,8 +497,9 @@ class RocketChatHttpEditor:
         if not isinstance(expected, Mapping):
             raise ValueError("Rocket.Chat seed conversation expected_decision is required")
         typed = _validate_conversation(conversation, RocketChatDecision.from_mapping(expected))
+        # Arm strict cleanup before the first writer POST, which may mutate before returning.
+        self._mutation_possible = True
         receipt = RocketChatHttpWriter(self.instance, transport=self.transport).seed_conversation(typed)
-        self._seeded = True
         observation = RocketChatHttpReader(
             self.instance, transport=self.reader_transport
         ).observe(typed, receipt)
@@ -532,7 +531,7 @@ class RocketChatHttpEditor:
 
     def cleanup(self) -> None:
         self._close_reader_transport()
-        if self._seeded:
+        if self._mutation_possible:
             raise RuntimeError("Rocket.Chat cleanup requires an explicit disposable TAC reset/admin seam; ordinary writer credentials are not used for reset")
 
     def _close_reader_transport(self) -> None:

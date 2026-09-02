@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from warp_taskgen.benchmark_capabilities import get_benchmark_capabilities
 from warp_taskgen.runtime_composition import (
     CLASSIFIEDS_LISTING_REPLY_POC,
     ROCKET_CHAT_CONVERSATION_DECISION_POC,
@@ -31,6 +32,10 @@ def test_rocket_chat_runtime_composition_is_explicit_and_non_default() -> None:
     assert composition.feasibility_policy_catalog.get("theagentcompany", "rocketchat") is not None
     assert composition.strict_seed_cleanup is True
     assert runtime_composition_for_name(ROCKET_CHAT_CONVERSATION_DECISION_POC).name == composition.name
+    capabilities = get_benchmark_capabilities("theagentcompany")
+    assert capabilities.supports("phase_2_generation") is False
+    assert capabilities.supports("phase_2_feasibility") is False
+    assert capabilities.supports("phase_4_execution") is False
 
 
 def test_runtime_composition_defaults_to_none_and_unknown_fails_closed() -> None:

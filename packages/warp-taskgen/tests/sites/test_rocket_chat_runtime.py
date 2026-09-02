@@ -8,10 +8,16 @@ from typing import Any
 
 import pytest
 
+from warp_taskgen import seeding
 from warp_taskgen.phase_1.rocket_chat_contracts import RocketChatObservationFailure
 from warp_taskgen.phase_1.rocket_chat_decisions import generate_rocket_chat_conversation
 from warp_taskgen.rewards import run_reward_function
-from warp_taskgen.seeding.site_contracts import EditorSeedResult
+from warp_taskgen.runtime_composition import RequiredSeedCleanupError
+from warp_taskgen.seeding.site_contracts import (
+    EditorSeedResult,
+    SeedSiteRegistration,
+    SeedSiteRegistry,
+)
 from warp_taskgen.sites.catalog import SiteCatalog
 from warp_taskgen.sites.rocketchat_runtime import (
     RequestsRocketChatTransport,
@@ -73,6 +79,14 @@ class FakeRocketChatTransport:
         self.closed = True
 
 
+class FailingAfterFirstWriteTransport(FakeRocketChatTransport):
+    def send_message(self, *, room_id: str, body: str, thread_id: str | None = None):
+        row = super().send_message(room_id=room_id, body=body, thread_id=thread_id)
+        if len(self.rows) == 1:
+            raise RocketChatTransportError("writer failed after first POST")
+        return row
+
+
 def _instance() -> dict[str, object]:
     return {
         "site_url": "http://rocketchat.test",
@@ -125,6 +139,41 @@ def test_http_writer_and_fresh_reader_bind_exact_rest_identities() -> None:
     }
 
 
+def test_reader_ignores_ambient_history_rows_when_order_is_chronological() -> None:
+    conversation = generate_rocket_chat_conversation()
+    transport = FakeRocketChatTransport()
+    receipt = RocketChatHttpWriter(_instance(), transport=transport).seed_conversation(conversation)
+    transport.rows.insert(
+        1,
+        {
+            "_id": "ambient-message",
+            "rid": receipt.messages["plan"].room_id,
+            "msg": "unrelated ambient message",
+            "u": {"username": "other-user"},
+        },
+    )
+
+    observation = RocketChatHttpReader(_instance(), transport=transport).observe(
+        conversation, receipt
+    )
+
+    assert not isinstance(observation, RocketChatObservationFailure)
+
+
+def test_reader_rejects_swapped_receipt_rows_even_when_all_ids_are_present() -> None:
+    conversation = generate_rocket_chat_conversation()
+    transport = FakeRocketChatTransport()
+    receipt = RocketChatHttpWriter(_instance(), transport=transport).seed_conversation(conversation)
+    transport.rows[:] = [transport.rows[1], transport.rows[0], transport.rows[2]]
+
+    observation = RocketChatHttpReader(_instance(), transport=transport).observe(
+        conversation, receipt
+    )
+
+    assert isinstance(observation, RocketChatObservationFailure)
+    assert observation.reason == "message_order_mismatch"
+
+
 @pytest.mark.parametrize(
     "mutator,reason",
     (
@@ -164,7 +213,7 @@ def test_reader_rejects_reused_writer_context_and_missing_reader_credentials() -
     assert result.reason == "missing_reader_auth"
 
 
-def test_runtime_site_requires_all_message_ids_for_exact_read_surface_planning() -> None:
+def test_runtime_site_requires_all_message_ids_for_rest_identity_planning() -> None:
     conversation = generate_rocket_chat_conversation()
     transport = FakeRocketChatTransport()
     receipt = RocketChatHttpWriter(_instance(), transport=transport).seed_conversation(conversation)
@@ -174,7 +223,7 @@ def test_runtime_site_requires_all_message_ids_for_exact_read_surface_planning()
     plan = site.read_surface_plan(
         seed_result=_seed_result(receipt), signature="Confirmed correction"
     )
-    assert plan.verification_mode == "seed_resource"
+    assert plan.verification_mode == "body_text"
     assert plan.identity_tokens["correction_message_id"] == receipt.messages["correction"].message_id
     broken_tokens = dict(_seed_result(receipt).write_tokens)
     broken_tokens.pop("update_message_id")
@@ -256,7 +305,11 @@ def test_requests_transport_uses_rocket_chat_rest_shapes_and_physical_room() -> 
     assert send["json"] == {
         "message": {"rid": "physical-room-001", "msg": "hello", "tmid": "message-0"}
     }
-    assert history["params"] == {"roomId": "physical-room-001", "showThreadMessages": True}
+    assert history["params"] == {
+        "roomId": "physical-room-001",
+        "sort": '{"ts":1}',
+        "showThreadMessages": True,
+    }
     assert history["headers"] == {"X-Auth-Token": "secret", "X-User-Id": "uid-planner"}
 
 
@@ -301,6 +354,53 @@ def test_editor_fails_closed_when_independent_reader_cannot_observe_seed() -> No
             conversation={**conversation.as_dict(), "expected_decision": conversation.expected_decision.as_dict()}
         )
     assert reader_transport.closed is True
+
+
+def test_partial_writer_post_arms_strict_cleanup_and_closes_reader() -> None:
+    conversation = generate_rocket_chat_conversation()
+    writer_transport = FailingAfterFirstWriteTransport()
+    reader_transport = FakeRocketChatTransport(username="reviewer", rows=writer_transport.rows)
+
+    def editor_factory(instance, session):
+        return RocketChatHttpEditor(
+            instance,
+            session,
+            transport=writer_transport,
+            reader_transport=reader_transport,
+        )
+
+    registry = SeedSiteRegistry.from_registrations(
+        (SeedSiteRegistration("theagentcompany", "rocketchat", editor_factory),)
+    )
+    seed = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "theagentcompany",
+                "site": "rocketchat",
+                "method": "seed_rocket_chat_conversation",
+                "args": {
+                    "conversation": {
+                        **conversation.as_dict(),
+                        "expected_decision": conversation.expected_decision.as_dict(),
+                    }
+                },
+            }
+        ],
+    }
+
+    with pytest.raises(RequiredSeedCleanupError) as raised:
+        seeding.apply_data_seed(
+            seed,
+            {**_instance(), "site_name": "rocketchat", "benchmark": "theagentcompany"},
+            seed_registry=registry,
+            strict_cleanup=True,
+        )
+
+    assert len(writer_transport.rows) == 1
+    assert reader_transport.closed is True
+    assert isinstance(raised.value.primary_error, RocketChatTransportError)
+    assert "reset/admin seam" in str(raised.value.cleanup_error)
 
 
 def test_warp_local_rocket_chat_evaluator_dispatches_exact_decision() -> None:

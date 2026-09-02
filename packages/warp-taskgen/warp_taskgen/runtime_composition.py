@@ -106,13 +106,13 @@ def classifieds_listing_reply_poc() -> RuntimeComposition:
 
 
 def rocket_chat_conversation_decision_poc() -> RuntimeComposition:
-    """Build the explicit, non-default TAC Rocket.Chat decision composition.
+    """Build explicit, non-admitted TAC source wiring for seam tests.
 
     The composition is intentionally separate from the static Site catalog:
-    selecting it is an operator opt-in and does not reopen Rocket.Chat as a
-    default WARP carrier.  Its writer cleanup remains strict and therefore
-    fails closed until a disposable TAC reset/admin seam is supplied by the
-    deployment caller.
+    selecting it does not reopen Rocket.Chat as a default WARP carrier.  TAC's
+    benchmark capability gates remain source-only, so Phase 2/4 reject this
+    composition until a host reset owner and exact painted readback exist.
+    Writer cleanup remains strict and fails closed without reset/admin input.
     """
 
     from warp_taskgen.phase_2.phase_2c.policy import FeasibilityPolicyCatalog

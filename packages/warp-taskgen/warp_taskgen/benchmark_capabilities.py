@@ -106,19 +106,11 @@ _CAPABILITIES: dict[str, BenchmarkCapabilities] = {
         canonical_name="theagentcompany",
         default_runner="browser_use",
         supported_runners=("browser_use",),
-        # TAC remains an explicit experimental transfer path; these gates
-        # describe only the opt-in Rocket.Chat runtime composition. It is not
-        # added to the default Site/carrier catalog.
-        capabilities=frozenset(
-            {
-                "phase_1_generation",
-                "phase_2_generation",
-                "phase_2_feasibility",
-                "phase_4_execution",
-                "warp_evaluation",
-            }
-        ),
-        phase_4_mode="worldsim_v5",
+        # TAC remains source-only.  The named Rocket.Chat composition is
+        # intentionally constructible for seam tests, but is not admitted to
+        # Phase 2/4 until a host reset owner and exact painted readback exist.
+        capabilities=frozenset({"phase_1_generation", "warp_evaluation"}),
+        phase_4_mode="unsupported",
         evaluator_authorities=("warp_local_task_idless",),
     ),
 }
