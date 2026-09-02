@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -421,8 +422,14 @@ async def _run_render_check(
             render_diagnostics = dict(render_diagnostics or {})
             render_diagnostics["reader_preflight"] = reader_metadata()
         # The reader contract is deliberately anonymous and fresh.  Do not
-        # resolve the writer's benign storage state on this path.
-        browser_context_kwargs = {}
+        # resolve the writer's benign storage state on this path. A
+        # feature-owned authenticated reader may provide its own explicitly
+        # declared browser context (for example reader storage-state or
+        # headers); never fall back to the writer context.
+        raw_reader_context = getattr(reader_result, "browser_context_kwargs", {})
+        browser_context_kwargs = (
+            dict(raw_reader_context) if isinstance(raw_reader_context, Mapping) else {}
+        )
     else:
         browser_context_kwargs, auth_error = resolve_benign_browser_context_auth_fn(instance)
         if auth_error is not None:
