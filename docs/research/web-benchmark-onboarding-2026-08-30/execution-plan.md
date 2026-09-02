@@ -4,11 +4,11 @@ Planning date: **2026-09-01 (America/New_York)**. Research baseline:
 **2026-08-30**. Source baseline: `origin/main` at
 `5c45a32fdc3c509db2a9435849df7edf8c6eeb45`.
 
-Execution update: **2026-09-02 (America/New_York)**. E1's production source
-path and no-model disposable-host proof are complete; model-driven evaluation
-and the remaining E2–E7 work are still pending.
+Execution update: **2026-09-02 (America/New_York)**. E1/E2 production source
+paths and no-model disposable-host proofs are complete; model-driven evaluation
+and the remaining E3–E7 work are still pending.
 
-Status: **source implementation complete; scientific execution pending**.
+Status: **source and transfer smokes complete; scientific execution pending**.
 The source tickets under parent issue #192 are closed; PRs #199–#204 and
 #206–#208 are merged, and live-proof issue #205 is closed. This
 plan owns the remaining path from tested software to paper-eligible evidence.
@@ -28,22 +28,21 @@ publication authority.
 | Claim area | Evidence now | What it does not establish |
 | --- | --- | --- |
 | GitLab comparison | Generated compare-and-decide/act source, strict current-attempt binding, exact grading, green CI, and one externally reported serialized r8a source/evaluator smoke with fresh authenticated render, one selected-issue note, readback, cleanup and reset. | A locally retained runtime bundle, model-driven browser-agent performance, task-family rates, or corpus breadth. |
-| Rocket.Chat transfer | Typed decision/notification families plus an opt-in production decision composition. One serialized no-model smoke on pinned TAC commit `98b68ef82a47690c316f42fddb05baafaab56851` and Rocket.Chat 5.3 proved separate ordinary writer/reader identities, exact root/reply IDs and bodies, the deep thread-panel read surface, finite positive/negative grading, terminal reset, zero final history and marker absence. | Model-driven browser-agent performance, notification persistence/action grading, corpus breadth, or TAC-wide/general cross-Benchmark support. |
+| Rocket.Chat transfer | Typed decision/notification families plus opt-in production compositions. Serialized no-model E1/E2 smokes on pinned TAC commit `98b68ef82a47690c316f42fddb05baafaab56851` and Rocket.Chat 5.3 proved separate ordinary writer/reader identities, exact conversation and notification IDs/bodies/threads, finite and final-state grading, terminal reset, zero final history and marker absence. E1 supplied the deep thread-panel browser proof; E2 supplied ordinary notification persistence and independent exact readback. | Model-driven browser-agent performance, corpus breadth, live NPC behavior, or TAC-wide/general cross-Benchmark support. |
 | Existing-family volume | A read-only funnel projection that preserves authoritative statuses and labels missing counts unavailable. | Any newly generated, admitted or evaluated task volume. The tracked released corpus remains 50 unique tasks. |
 | Matched rewriting | A study-only one-opportunity contract, deterministic provider tests, retained failures/accounting and resume identity, with the default iterator unchanged. | A real model/browser pair, treatment effect, token use, or cost. |
 | Paper | Accepted research framing and implementation plan. | Updated corpus, transfer, matched-study results, tables, limitations, or submission. |
 
 The counterfactual is simple: if the implementation had already delivered the
 paper result, current artifacts would contain new candidate/admitted/evaluated
-counts, a TAC live trace and reset result, and measured paired rewrite rows.
-They do not.
+counts and measured paired rewrite rows. They do not.
 
 ## 2. Execution dependency tree
 
 ```text
 Merged source baseline (PRs #199–#204, #206–#208; issue #205)
-├─ E1. Rocket.Chat decision live slice
-│  └─ E2. Rocket.Chat notification live slice
+├─ E1. Rocket.Chat decision live slice [complete]
+│  └─ E2. Rocket.Chat notification live slice [complete]
 ├─ E3. Generate and admit the expanded task bank
 │  └─ E4. Evaluate the frozen expanded bank [also needs E1/E2 for TAC rows]
 ├─ E5. Execute one real matched-rewrite pair
@@ -115,6 +114,18 @@ scope. Run one serialized sandbox smoke and reset.
 Extend E1's executable composition only with the final-state/action capability
 consumed by notification. E2 is the gate for admitting and evaluating the TAC
 notification rows in E3/E4.
+
+Result recorded 2026-09-02: the no-model E2 smoke used the pinned fixture's
+golden `project-graphdb` room and externally supplied ordinary fixture
+credentials. WARP generated the plan, update, decisive correction, due date and
+marker; the author, reader and recipient roles were bound to distinct fixture
+identities. The ordinary writer persisted one derived notification;
+the distinct ordinary reader verified its exact current room, root/thread,
+message ID, author, recipient mention and body; WARP-local final-state grading
+passed. Cleanup, explicit terminal reset and final marker/message absence all
+passed through the existing JUnit property surface. This smoke reused E1's
+browser-exposure proof rather than repeating it, ran no model or NPC, and did
+not create a new evidence format.
 
 ### E3 — Generate and admit the expanded task bank
 
