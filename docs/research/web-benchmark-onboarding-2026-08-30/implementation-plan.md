@@ -1,9 +1,20 @@
 # WARP benchmark expansion: implementation and development plan
 
 Planning date: **2026-08-31 (America/New_York)**. Research baseline: **2026-08-30**.
-Status: **architecture choices accepted; implementation-ready for approval**. The accepted
+Status at the planning baseline: **architecture choices accepted; implementation-ready for approval**. The accepted
 research choices in [the main report, sections 12–13](../web-benchmark-onboarding-2026-08-30.md#12-agreed-decisions-scoring-generated-structure-and-the-first-transfer-result)
 remain authoritative. This plan does not authorize implementation or execution.
+
+**Post-implementation update, 2026-09-01:** parent issue #192 is closed; source
+PRs #199–#204 and #206–#208 are merged, and live-proof issue #205 is closed.
+GitLab comparison has one externally reported bounded r8a source/evaluator
+smoke without a locally retained runtime bundle; Rocket.Chat, volume expansion
+and matched rewriting remain source/test evidence without the paper-required
+runtime results. Continue with the focused
+[execution and evidence plan](execution-plan.md), tracked by parent issue
+[#209](https://github.com/jasmineee-li/warp/issues/209). Historical future-tense text
+below records the accepted design and should not be read as current source
+status.
 
 Source inspection used the existing `research/web-benchmark-onboarding-2026-08-30`
 worktree at `4f3df62e2a471703a7cf44020bf295cd282f9d4e`. Existing research and
