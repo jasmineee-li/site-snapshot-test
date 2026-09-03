@@ -941,14 +941,11 @@ def _validate_generation_count_action_counts(
             continue
         action_kinds = card_action_kinds(card)
         if len(action_kinds) > 1:
-            positive_requested = any(int(action_counts.get(kind, 0)) > 0 for kind in action_kinds)
-            if positive_requested:
-                raise ValueError(
-                    "generation_count/action_counts conflict: task card "
-                    f"{card_id!r} maps one quota to multiple action kinds "
-                    f"{list(action_kinds)!r}"
-                )
-            continue
+            raise ValueError(
+                "generation_count/action_counts conflict: multi-action task card "
+                f"{card_id!r} maps one quota to multiple action kinds "
+                f"{list(action_kinds)!r}; action_counts cannot disambiguate it"
+            )
         if len(action_kinds) == 1:
             expected_by_action[action_kinds[0]] = expected_by_action.get(action_kinds[0], 0) + count
 

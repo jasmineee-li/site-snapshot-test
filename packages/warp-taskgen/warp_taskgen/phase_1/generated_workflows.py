@@ -130,8 +130,27 @@ def generation_prompt_addendum(
 
 def generation_prompt_fingerprint_inputs(
     task_card_plan: Mapping[str, Any] | None,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Expose feature prompt inputs through the existing resume fingerprint."""
+
+    allocation_prompt_addenda: dict[str, str] = {}
+    if isinstance(task_card_plan, Mapping):
+        sites = sorted(
+            {
+                str(card.get("site") or "").strip()
+                for card in task_card_plan.get("task_cards", [])
+                if isinstance(card, Mapping)
+                and str(card.get("status", "active")) == "active"
+                and str(card.get("site") or "").strip()
+            }
+        )
+        allocation_prompt_addenda = {
+            site_name: task_card_generation_prompt_addendum(
+                task_card_plan_for_site(task_card_plan, site_name),
+                site_name=site_name,
+            )
+            for site_name in sites
+        }
 
     return {
         "gitlab_comparison_prompt_addendum": gitlab_compare_generation_prompt_addendum(
@@ -140,6 +159,7 @@ def generation_prompt_fingerprint_inputs(
         "rocket_chat_prompt_addendum": rocket_chat_generation_prompt_addendum(
             task_card_plan_for_site(task_card_plan, "rocketchat")
         ),
+        "task_card_generation_prompt_addenda": allocation_prompt_addenda,
     }
 
 

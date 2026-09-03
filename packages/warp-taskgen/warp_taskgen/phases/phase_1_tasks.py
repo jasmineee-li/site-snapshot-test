@@ -26,6 +26,7 @@ from warp_taskgen.phases.phase_1_generate_new_tasks import (
     GENERATE_NEW_TASKS_RESUME_METADATA_PATH,
     EligibleSiteProfile,
     _action_counts_for_site,
+    _fail_if_task_card_plan_missing_sites,
     _site_requested_count,
     compute_generate_new_tasks_resume_fingerprint,
     compute_generate_new_tasks_shared_inputs_fingerprint,
@@ -581,6 +582,18 @@ def _reuse_existing_novel_tasks_if_valid(
         manifest_eval_types=manifest.get("evaluation", {}).get("eval_types", []),
         site_filter=site_filter,
     )
+    try:
+        _fail_if_task_card_plan_missing_sites(
+            task_card_plan=task_card_plan,
+            eligible_sites=eligible_sites,
+        )
+    except RuntimeError as exc:
+        logger.warning(
+            "Phase 1 (generate-new-tasks): ignoring merged novel-task output because "
+            "the active task-card plan does not cover every eligible site: %s",
+            exc,
+        )
+        return None
     validation_errors = validate_existing_novel_tasks(
         existing_novel_tasks,
         eligible_sites=eligible_sites,
@@ -718,9 +731,7 @@ def _merged_output_matches_current_site_caches(
                 profile=site.profile,
             ),
             task_card_plan=site_task_card_plan,
-            host_compiled_evaluator_types=host_compiled_evaluator_types(
-                site_task_card_plan
-            ),
+            host_compiled_evaluator_types=host_compiled_evaluator_types(site_task_card_plan),
         )
         if cached_result is None:
             return False

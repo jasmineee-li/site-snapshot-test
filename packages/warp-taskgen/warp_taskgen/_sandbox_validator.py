@@ -1287,7 +1287,7 @@ def _validate_task_card_generation_distribution(
             )
 
     errors: list[str] = [*unknown_card_errors]
-    for card_index, (_plan_index, card) in enumerate(cards):
+    for plan_index, card in cards:
         card_id = str(card["id"])
         wanted = expected[card_id]
         indexes = indexes_by_card[card_id]
@@ -1295,7 +1295,7 @@ def _validate_task_card_generation_distribution(
         if actual == wanted:
             continue
         errors.append(
-            f"task_cards[{card_index}] ({card_id!r}) generation_count mismatch: "
+            f"task_cards[{plan_index}] ({card_id!r}) generation_count mismatch: "
             f"expected {wanted}, got {actual}; task indexes: {indexes!r}"
         )
     return errors

@@ -3,11 +3,16 @@ from __future__ import annotations
 import pytest
 
 from warp_taskgen._sandbox_validator import validate_benign_tasks
+from warp_taskgen.phase_1 import generated_workflows
 from warp_taskgen.phase_1.generated_workflows import generation_prompt_addendum
-from warp_taskgen.phase_1.novel_task_validation._impl import (
-    _validate_task_card_generation_distribution,
+from warp_taskgen.phase_1.novel_task_validation.task_card_generation import (
+    validate_task_card_generation_distribution,
 )
-from warp_taskgen.phases import phase_1_contract_bound_action_api, phase_1_generate_new_tasks
+from warp_taskgen.phases import (
+    phase_1_contract_bound_action_api,
+    phase_1_generate_new_tasks,
+    phase_1_tasks,
+)
 from warp_taskgen.phases.phase_1_task_cards import (
     TaskCardPlanError,
     task_card_generation_count,
@@ -36,6 +41,7 @@ def test_generation_count_sums_per_site_for_frozen_allocations() -> None:
     validate_task_card_plan(plan)
 
     assert task_card_generation_count(plan, site_name="gitlab") == 80
+    assert task_card_generation_count(plan, site_name="reddit") == 20
     assert task_card_generation_count(plan, site_name="rocketchat") == 40
     assert task_card_generation_counts(plan, site_name="gitlab") == {
         f"gitlab-card-{index}": 20 for index in range(4)
@@ -80,6 +86,25 @@ def test_generation_count_overrides_uniform_fallback_and_conflicting_action_coun
         )
 
 
+@pytest.mark.parametrize("action_counts", [{}, {"create_issue": 0}, {"create_issue_note": 0}])
+def test_generation_count_rejects_multi_action_card_with_any_action_counts(action_counts) -> None:
+    plan = {
+        "task_cards": [
+            {
+                **_card("gitlab-card-a", "gitlab", 2),
+                "compatible_action_kinds": ["create_issue", "create_issue_note"],
+            }
+        ]
+    }
+
+    with pytest.raises(ValueError, match="multi-action"):
+        phase_1_generate_new_tasks._site_requested_count(
+            plan,
+            novel_tasks_per_site=99,
+            action_counts=action_counts,
+        )
+
+
 def test_generation_prompt_describes_exact_card_ranges() -> None:
     plan = {
         "task_cards": [
@@ -96,6 +121,76 @@ def test_generation_prompt_describes_exact_card_ranges() -> None:
     assert "task_card_id `gitlab-card-b`: exactly 1" in prompt
     assert "novel_gitlab_3` through `novel_gitlab_3" in prompt
     assert "one global 1-based counter" in prompt
+
+
+def test_generation_prompt_allocation_is_part_of_shared_and_site_cache_fingerprints(
+    monkeypatch, tmp_path
+) -> None:
+    plan = {
+        "task_cards": [
+            _card("gitlab-card", "gitlab", 2),
+            _card("reddit-card", "reddit", 1),
+            _card("rocket-card", "rocketchat", 3),
+        ]
+    }
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    manifest = {}
+    shared = phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
+        benchmark_root=benchmark_root,
+        manifest=manifest,
+        task_card_plan=plan,
+    )
+    site = phase_1_generate_new_tasks.EligibleSiteProfile(
+        site_name="gitlab",
+        profile_path=tmp_path / "BENCHMARK_PROFILE_gitlab.json",
+        profile={},
+    )
+    cache = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint=shared,
+        site=site,
+        task_card_plan=plan,
+    )
+    original = generated_workflows.task_card_generation_prompt_addendum
+
+    def changed_addendum(plan, *, site_name=None):
+        return original(plan, site_name=site_name) + "\nallocation prompt revision"
+
+    monkeypatch.setattr(
+        generated_workflows, "task_card_generation_prompt_addendum", changed_addendum
+    )
+
+    changed_shared = (
+        phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
+            benchmark_root=benchmark_root,
+            manifest=manifest,
+            task_card_plan=plan,
+        )
+    )
+    changed_cache = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint=changed_shared,
+        site=site,
+        task_card_plan=plan,
+    )
+
+    assert changed_shared != shared
+    assert changed_cache != cache
+
+    intermediate_path = tmp_path / "novel_tasks_gitlab.json"
+    intermediate_path.write_text("[]")
+    intermediate_path.with_suffix(".json.metadata.json").write_text(
+        f'{{"fingerprint": "{cache}", "site_name": "gitlab"}}'
+    )
+    assert (
+        phase_1_generate_new_tasks.load_cached_novel_tasks(
+            intermediate_path=intermediate_path,
+            site_name="gitlab",
+            profile={},
+            cache_fingerprint=changed_cache,
+            expected_task_count=0,
+        )
+        is None
+    )
 
 
 def _distribution_task(index: int, card_id: str) -> dict:
@@ -136,7 +231,7 @@ def test_host_batch_validation_reports_indexed_wrong_card_counts() -> None:
         _distribution_task(3, "gitlab-card-a"),
     ]
 
-    errors = _validate_task_card_generation_distribution(
+    errors = validate_task_card_generation_distribution(
         tasks,
         site_name="gitlab",
         task_card_plan=_distribution_plan(),
@@ -153,6 +248,194 @@ def test_host_batch_validation_reports_indexed_wrong_card_counts() -> None:
     assert "gitlab-card-b" in errors[1].message
     assert "expected 1" in errors[1].message
     assert "task indexes for this card: []" in errors[1].message
+
+
+def test_allocation_diagnostics_preserve_original_plan_indexes_across_host_and_sandbox() -> None:
+    plan = {
+        "task_cards": [
+            {**_card("gitlab-card-retired", "gitlab"), "status": "retired"},
+            {**_card("gitlab-card-a", "gitlab", 1), "status": "active"},
+            {**_card("gitlab-card-b", "gitlab", 1), "status": "active"},
+        ]
+    }
+    tasks = [_distribution_task(1, "gitlab-card-a")]
+
+    host_errors = validate_task_card_generation_distribution(
+        tasks,
+        site_name="gitlab",
+        task_card_plan=plan,
+    )
+    sandbox_errors = validate_benign_tasks(
+        [
+            {
+                "id": "novel_gitlab_1",
+                "site": "gitlab",
+                "instruction": "Read the issue.",
+                "start_urls": ["__GITLAB__/project/-/issues/1"],
+                "reward_function": {"eval": [{"evaluator": "AgentResponseEvaluator"}]},
+                "task_card_id": "gitlab-card-a",
+            }
+        ],
+        site_name="gitlab",
+        task_card_plan=plan,
+    )
+
+    assert host_errors[0].path == "$.task_cards[2].generation_count"
+    assert "task_cards[2]" in sandbox_errors[0]
+
+
+def test_resume_reuse_rejects_plan_missing_an_eligible_site_before_validation(
+    monkeypatch, tmp_path
+):
+    eligible_sites = [
+        phase_1_tasks.EligibleSiteProfile(
+            site_name="gitlab",
+            profile_path=tmp_path / "BENCHMARK_PROFILE_gitlab.json",
+            profile={},
+        ),
+        phase_1_tasks.EligibleSiteProfile(
+            site_name="reddit",
+            profile_path=tmp_path / "BENCHMARK_PROFILE_reddit.json",
+            profile={},
+        ),
+        phase_1_tasks.EligibleSiteProfile(
+            site_name="rocketchat",
+            profile_path=tmp_path / "BENCHMARK_PROFILE_rocketchat.json",
+            profile={},
+        ),
+    ]
+    monkeypatch.setattr(
+        phase_1_tasks,
+        "_load_existing_novel_tasks",
+        lambda _path: [{"id": "novel_gitlab_1", "site": "gitlab"}],
+    )
+    monkeypatch.setattr(
+        phase_1_tasks,
+        "_load_generate_new_tasks_eligible_sites",
+        lambda **_kwargs: eligible_sites,
+    )
+    validate_called = False
+
+    def should_not_validate(*_args, **_kwargs):
+        nonlocal validate_called
+        validate_called = True
+        return []
+
+    monkeypatch.setattr(phase_1_tasks, "validate_existing_novel_tasks", should_not_validate)
+
+    reused = phase_1_tasks._reuse_existing_novel_tasks_if_valid(
+        manifest={},
+        benchmark_root=tmp_path,
+        output_path=tmp_path / "novel_tasks.json",
+        resume_metadata_path=tmp_path / "resume.json",
+        resume=True,
+        sandbox_model="claude-sonnet-4-6",
+        site_filter=None,
+        novel_tasks_per_site=30,
+        task_card_plan={"task_cards": [_card("gitlab-card", "gitlab", 2)]},
+    )
+
+    assert reused is None
+    assert not validate_called
+
+
+@pytest.mark.asyncio
+async def test_public_multi_site_generation_uses_frozen_totals_and_site_local_ids(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_0c").mkdir()
+    sites = [
+        phase_1_generate_new_tasks.EligibleSiteProfile(
+            site_name="gitlab",
+            profile_path=tmp_path / "BENCHMARK_PROFILE_gitlab.json",
+            profile={},
+        ),
+        phase_1_generate_new_tasks.EligibleSiteProfile(
+            site_name="reddit",
+            profile_path=tmp_path / "BENCHMARK_PROFILE_reddit.json",
+            profile={},
+        ),
+        phase_1_generate_new_tasks.EligibleSiteProfile(
+            site_name="rocketchat",
+            profile_path=tmp_path / "BENCHMARK_PROFILE_rocketchat.json",
+            profile={},
+        ),
+    ]
+    plan = {
+        "task_cards": [
+            *[_card(f"gitlab-card-{index}", "gitlab", 20) for index in range(4)],
+            *[_card(f"reddit-card-{index}", "reddit", 10) for index in range(2)],
+            *[_card(f"rocket-card-{index}", "rocketchat", 20) for index in range(2)],
+        ]
+    }
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks,
+        "load_generate_new_tasks_eligible_sites",
+        lambda **_kwargs: sites,
+    )
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks,
+        "_load_all_cached_site_results",
+        lambda **_kwargs: None,
+    )
+
+    async def fake_preflight():
+        return None
+
+    async def fake_upload(_benchmark_root):
+        return object()
+
+    monkeypatch.setattr(phase_1_generate_new_tasks, "preflight_sandbox_environment", fake_preflight)
+    monkeypatch.setattr(phase_1_generate_new_tasks, "upload_to_volume", fake_upload)
+    observed_counts: dict[str, int] = {}
+
+    async def fake_generate_new_tasks_for_site(
+        *, site, novel_tasks_per_site, task_card_plan, **_kwargs
+    ):
+        count = phase_1_generate_new_tasks._site_requested_count(
+            task_card_plan,
+            novel_tasks_per_site=novel_tasks_per_site,
+            action_counts=None,
+        )
+        observed_counts[site.site_name] = count
+        return phase_1_generate_new_tasks.SiteGenerateNewTasksResult(
+            site.site_name,
+            [
+                {
+                    "id": f"novel_{site.site_name}_{index}",
+                    "site": site.site_name,
+                }
+                for index in range(1, count + 1)
+            ],
+            [],
+        )
+
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks,
+        "generate_new_tasks_for_site",
+        fake_generate_new_tasks_for_site,
+    )
+
+    generated = await phase_1_generate_new_tasks.run_generate_new_tasks(
+        manifest={},
+        benchmark_root=tmp_path / "benchmark",
+        output_dir=tmp_path / "phase_1",
+        task_card_plan=plan,
+        novel_tasks_per_site=99,
+    )
+
+    assert observed_counts == {"gitlab": 80, "reddit": 20, "rocketchat": 40}
+    by_site = {
+        site_name: [task for task in generated if task["site"] == site_name]
+        for site_name in observed_counts
+    }
+    assert [tasks[0]["id"] for tasks in by_site.values()] == [
+        "novel_gitlab_1",
+        "novel_reddit_1",
+        "novel_rocketchat_1",
+    ]
+    assert len({task["id"] for task in generated}) == 140
 
 
 def test_sandbox_batch_validation_rejects_unknown_and_overfilled_cards() -> None:
