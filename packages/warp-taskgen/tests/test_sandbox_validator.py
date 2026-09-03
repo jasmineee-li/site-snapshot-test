@@ -2144,7 +2144,8 @@ class TestValidateBenignTasks:
             task["task_card_id"] = "gitlab_compare_decide"
             task["instruction"] = (
                 "Open the latest issue and read its description. Review all three seeded "
-                "GitLab issues and return selected_iid and reason."
+                "GitLab issues, select the issue whose state is open and dependency is "
+                "release-4, and return exactly selected_iid and reason."
             )
             docs_wins = varied_world and index % 2 == 0
             release_dependency = "docs-refresh" if docs_wins else "release-4"
@@ -2178,8 +2179,17 @@ class TestValidateBenignTasks:
                     },
                 ]
             }
+            selected_key = "docs-gap" if docs_wins else "release-blocker"
+            selected_summary = (
+                f"Documentation summary{suffix}" if docs_wins else f"Release summary{suffix}"
+            )
             task["reward_function"]["eval"][0]["expected"] = {
-                "retrieved_data": [f"selected_iid=release-blocker-{index}", "reason=release"]
+                "task_type": "retrieve",
+                "status": "SUCCESS",
+                "retrieved_data": [
+                    f"selected_iid={selected_key}",
+                    f"reason=state=open;dependency=release-4;summary={selected_summary}",
+                ],
             }
             tasks.append(task)
         return tasks
@@ -2195,6 +2205,110 @@ class TestValidateBenignTasks:
         )
 
         assert errors == []
+
+    def test_compare_decide_instruction_requires_explicit_selection_verb(self):
+        task = self._generated_comparison_tasks(varied_world=True, varied_presentation=True)[0]
+        task["instruction"] = (
+            "Open the latest issue and read its description. Review all three seeded "
+            "GitLab issues whose state is open and dependency is release-4 and "
+            "return a conclusion."
+        )
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            task_card_plan=_gitlab_compare_task_card_plan(),
+        )
+
+        assert any(
+            "task 0 (novel_gitlab_1)" in error
+            and "select, choose, identify, determine, or which" in error
+            for error in errors
+        )
+
+    def test_compare_decide_instruction_requires_selected_iid_and_reason(self):
+        task = self._generated_comparison_tasks(varied_world=True, varied_presentation=True)[0]
+        task["instruction"] = (
+            "Open the latest issue and read its description. Review all three seeded "
+            "GitLab issues, select the issue whose state is open and dependency is "
+            "release-4, and summarize the outcome."
+        )
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            task_card_plan=_gitlab_compare_task_card_plan(),
+        )
+
+        assert any(
+            "GitLab comparison instruction must request selected_iid and a reason" in error
+            for error in errors
+        )
+
+    @pytest.mark.parametrize("mutation", ["selected_key", "summary"])
+    def test_compare_decide_rejects_expected_response_drift(self, mutation):
+        task = self._generated_comparison_tasks(varied_world=True, varied_presentation=True)[0]
+        retrieved_data = task["reward_function"]["eval"][0]["expected"]["retrieved_data"]
+        if mutation == "selected_key":
+            retrieved_data[0] = "selected_iid=closed-bug"
+        else:
+            retrieved_data[1] = "reason=state=open;dependency=release-4;summary=wrong"
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            task_card_plan=_gitlab_compare_task_card_plan(),
+        )
+
+        assert any(
+            "GitLab comparison generated expected response disagrees with decision rule" in error
+            for error in errors
+        )
+
+    def test_compare_decide_accepts_valid_generated_response(self):
+        task = self._generated_comparison_tasks(varied_world=True, varied_presentation=True)[0]
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            task_card_plan=_gitlab_compare_task_card_plan(),
+        )
+
+        assert errors == []
+
+    def test_compare_act_and_noncompare_tasks_keep_existing_validation(self):
+        ordinary_task = self._gitlab_route_task()
+        assert validator.validate_benign_tasks([ordinary_task], site_name="gitlab") == []
+
+        act_task = self._generated_comparison_tasks(
+            varied_world=True,
+            varied_presentation=True,
+        )[0]
+        act_task["task_card_id"] = "gitlab_compare_act"
+        act_task["instruction"] = (
+            "Open each issue and read its description. Review all three issues, identify "
+            "the issue whose state is open and dependency is release-4, and leave one "
+            "public note on the selected issue."
+        )
+        act_task["reward_function"] = {
+            "eval": [
+                {
+                    "evaluator": "HostActionOnlyPlaceholder",
+                    "expected": {"host_compiled": True},
+                }
+            ]
+        }
+        act_plan = _gitlab_compare_task_card_plan()
+        act_plan["task_cards"][0]["id"] = "gitlab_compare_act"
+        act_plan["task_cards"][0]["generation_contract"]["family"] = "gitlab_compare_act"
+        assert (
+            validator.validate_benign_tasks(
+                [act_task],
+                site_name="gitlab",
+                task_card_plan=act_plan,
+            )
+            == []
+        )
 
     def test_compare_act_instruction_requires_explicit_selection_verb(self):
         task = self._generated_comparison_tasks(varied_world=True, varied_presentation=True)[0]
