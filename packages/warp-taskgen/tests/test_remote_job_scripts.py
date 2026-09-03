@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import shutil
 import signal
 import subprocess
@@ -9,6 +10,8 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+
+import pytest
 
 
 def _base_env(repo_root: Path, tmp_path: Path) -> dict[str, str]:
@@ -1343,6 +1346,229 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
     assert (job_dir / "stderr.log").exists()
     assert (job_dir / "pid").exists()
     assert (job_dir / "pgid").exists()
+
+
+def test_explicit_state_dir_wins_over_inherited_aliases_and_status_root(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    remote_dir.mkdir(parents=True)
+    _install_remote_process_group_helper(remote_dir)
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    _write_fake_ssh(fakebin)
+
+    observed_path = remote_dir / "observed-env.json"
+    child_code = (
+        "import json, os; names = ['WARP_TASKGEN_' + 'STATE_DIR', 'WORLDSIM_' + 'STATE_DIR', "
+        "'WARP_TASKGEN_REMOTE_' + 'STATE_DIR_EXPLICIT']; "
+        "json.dump({name: os.environ.get(name) for name in names}, "
+        f"open({str(observed_path)!r}, 'w'))"
+    )
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+    env["WARP_TASKGEN_STATE_DIR"] = "logs/inherited-canonical"
+    env["WORLDSIM_STATE_DIR"] = "logs/inherited-legacy"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--name",
+            "explicit state authority",
+            "--state-dir",
+            "logs/explicit",
+            "--expected-output",
+            "logs/explicit/phase_1/benign_tasks.json",
+            "--",
+            sys.executable,
+            "-c",
+            child_code,
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    for _ in range(40):
+        if observed_path.exists():
+            break
+        time.sleep(0.05)
+    assert observed_path.exists(), (
+        "remote child did not record its environment; "
+        f"launcher stdout:\n{completed.stdout}\nlauncher stderr:\n{completed.stderr}"
+    )
+    observed = json.loads(observed_path.read_text(encoding="utf-8"))
+    assert observed == {
+        "WARP_TASKGEN_STATE_DIR": "logs/explicit",
+        "WORLDSIM_STATE_DIR": "logs/explicit",
+        "WARP_TASKGEN_REMOTE_STATE_DIR_EXPLICIT": "1",
+    }
+
+    job_id = next(
+        line.split("=", 1)[1]
+        for line in completed.stdout.splitlines()
+        if line.startswith("job_id=")
+    )
+    job_dir = remote_dir / "logs" / "remote_jobs" / job_id
+    metadata = json.loads((job_dir / "metadata.json").read_text(encoding="utf-8"))
+    assert metadata["state_dir"] == "logs/explicit"
+
+    status = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_status.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--job-id",
+            job_id,
+            "--json",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert status.returncode == 0, status.stderr
+    payload = json.loads(status.stdout)
+    assert payload["run_state_dir"] == str((remote_dir / "logs/explicit").resolve())
+
+
+def _marker_child_command(marker: Path, executable: str) -> str:
+    return shlex.join([executable, "-c", f"open({str(marker)!r}, 'w').write('launched')"])
+
+
+@pytest.mark.parametrize(
+    ("label", "command_builder", "alias"),
+    [
+        (
+            "direct",
+            lambda marker, alias, executable: [
+                f"{alias}=logs/inline",
+                executable,
+                "-c",
+                f"open({str(marker)!r}, 'w').write('launched')",
+            ],
+            "WARP_TASKGEN_STATE_DIR",
+        ),
+        (
+            "env",
+            lambda marker, alias, executable: [
+                "env",
+                f"{alias}=logs/inline",
+                executable,
+                "-c",
+                f"open({str(marker)!r}, 'w').write('launched')",
+            ],
+            "WORLDSIM_STATE_DIR",
+        ),
+        (
+            "export",
+            lambda marker, alias, executable: [
+                "bash",
+                "-lc",
+                f"export {alias}=logs/inline; {_marker_child_command(marker, executable)}",
+            ],
+            "WARP_TASKGEN_STATE_DIR",
+        ),
+        (
+            "unset",
+            lambda marker, alias, executable: [
+                "bash",
+                "-lc",
+                f"unset {alias}; {_marker_child_command(marker, executable)}",
+            ],
+            "WORLDSIM_STATE_DIR",
+        ),
+        (
+            "double-quoted",
+            lambda marker, alias, executable: [
+                f'{alias.split("STATE_DIR", 1)[0]}"STATE_DIR"=logs/inline',
+                executable,
+                "-c",
+                f"open({str(marker)!r}, 'w').write('launched')",
+            ],
+            "WARP_TASKGEN_STATE_DIR",
+        ),
+        (
+            "single-quoted",
+            lambda marker, alias, executable: [
+                f"{alias.split('STATE_DIR', 1)[0]}'STATE_DIR'=logs/inline",
+                executable,
+                "-c",
+                f"open({str(marker)!r}, 'w').write('launched')",
+            ],
+            "WORLDSIM_STATE_DIR",
+        ),
+        (
+            "backslash-escaped",
+            lambda marker, alias, executable: [
+                f"{alias.split('STATE_DIR', 1)[0]}\\STATE_DIR=logs/inline",
+                executable,
+                "-c",
+                f"open({str(marker)!r}, 'w').write('launched')",
+            ],
+            "WARP_TASKGEN_STATE_DIR",
+        ),
+    ],
+)
+def test_explicit_state_dir_rejects_inline_alias_before_child_launch(
+    tmp_path: Path,
+    label: str,
+    command_builder,
+    alias: str,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    remote_dir.mkdir(parents=True)
+    _install_remote_process_group_helper(remote_dir)
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    _write_fake_ssh(fakebin)
+    marker = remote_dir / f"{label}-child-launched"
+    command = command_builder(marker, alias, sys.executable)
+
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--name",
+            f"inline state conflict {label}",
+            "--state-dir",
+            "logs/explicit",
+            "--",
+            *command,
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode != 0
+    assert "--state-dir" in completed.stderr
+    assert alias in completed.stderr
+    assert "inline" in completed.stderr
+    assert not marker.exists()
+    metadata_paths = list((remote_dir / "logs" / "remote_jobs").glob("*/metadata.json"))
+    assert metadata_paths == []
 
 
 def test_start_auto_wraps_uv_command_in_login_shell(tmp_path: Path) -> None:

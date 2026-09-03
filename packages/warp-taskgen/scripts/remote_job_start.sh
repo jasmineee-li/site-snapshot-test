@@ -219,6 +219,14 @@ if state_dir_mode == "set":
     else:
         state_dir = state_dir_value
 
+if state_dir_mode == "set" and command_sets_inline_state_dir(argv):
+    raise SystemExit(
+        "remote job state-dir authority guard blocked this command: "
+        f"--state-dir {state_dir!r} is explicit, but the command contains an inline "
+        "WARP_TASKGEN_STATE_DIR or WORLDSIM_STATE_DIR setting. Remove the inline "
+        "setting and let --state-dir own the Run root."
+    )
+
 if (
     advertise_host
     and orchestrator_host
@@ -323,7 +331,8 @@ env["WORLDSIM_ADVERTISE_HOST"] = {advertise_host!r}
 env["WORLDSIM_ORCHESTRATOR_HOST"] = {orchestrator_host!r}
 if state_dir:
     env["WORLDSIM_STATE_DIR"] = state_dir
-    env.setdefault("WARP_TASKGEN_STATE_DIR", state_dir)
+    env["WARP_TASKGEN_STATE_DIR"] = state_dir
+    env["WARP_TASKGEN_REMOTE_STATE_DIR_EXPLICIT"] = "1"
 
 stdout = open(job_dir / "stdout.log", "ab", buffering=0)
 stderr = open(job_dir / "stderr.log", "ab", buffering=0)

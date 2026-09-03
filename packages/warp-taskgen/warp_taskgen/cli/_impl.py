@@ -39,15 +39,40 @@ from warp_taskgen.phases.phase_1_task_cards import task_capability_profile_choic
 from warp_taskgen.runners import available_runners
 from warp_taskgen.runtime_composition import RUNTIME_COMPOSITION_CHOICES
 
-load_dotenv(override=True)  # override=True: .env values win over empty-string shell vars.
-
 logger = logging.getLogger(__name__)
 
 DEFAULT_AGENT_MODEL = "claude-sonnet-4-6"
 DEFAULT_SANDBOX_MODEL = "claude-sonnet-4-6"
 AGENT_PROVIDER_CHOICES = ("google", "openai", "anthropic", "openrouter")
+_STATE_DIR_ENV = "WARP_TASKGEN_STATE_DIR"
+_LEGACY_STATE_DIR_ENV = "WORLDSIM_STATE_DIR"
+_REMOTE_EXPLICIT_STATE_DIR_ENV = "WARP_TASKGEN_REMOTE_STATE_DIR_EXPLICIT"
 _PHASE4_ASYNC_SHUTDOWN_TIMEOUT_ENV = "WORLDSIM_PHASE4_ASYNC_SHUTDOWN_TIMEOUT_S"
 _PHASE4_ASYNC_SHUTDOWN_TIMEOUT_DEFAULT_S = 10.0
+
+
+def _load_dotenv_preserving_remote_state_dir() -> None:
+    """Load dotenv while retaining a remote wrapper's explicit state root."""
+    explicit_marker = os.environ.get(_REMOTE_EXPLICIT_STATE_DIR_ENV)
+    explicit_state_dir = os.environ.get(_STATE_DIR_ENV)
+    explicit_legacy_state_dir = os.environ.get(_LEGACY_STATE_DIR_ENV)
+
+    # Keep the existing dotenv precedence for every ordinary setting. Remote
+    # launchers mark the two aliases as an explicit pair so only that pair is
+    # restored after dotenv has loaded.
+    load_dotenv(override=True)
+
+    if (
+        explicit_marker == "1"
+        and explicit_state_dir
+        and explicit_state_dir == explicit_legacy_state_dir
+    ):
+        os.environ[_STATE_DIR_ENV] = explicit_state_dir
+        os.environ[_LEGACY_STATE_DIR_ENV] = explicit_state_dir
+        os.environ.pop(_REMOTE_EXPLICIT_STATE_DIR_ENV, None)
+
+
+_load_dotenv_preserving_remote_state_dir()
 
 
 def _normalize_compat_env_aliases() -> None:
