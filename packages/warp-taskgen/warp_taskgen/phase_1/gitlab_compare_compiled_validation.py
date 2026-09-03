@@ -7,6 +7,7 @@ from typing import Any
 
 from warp_taskgen.phase_1.gitlab_compare_decide import (
     expected_gitlab_compare_decide_response,
+    is_feature_default_world,
     select_gitlab_record,
 )
 from warp_taskgen.phase_1.gitlab_compare_decide_content import (
@@ -123,6 +124,13 @@ def _validate_host_compiled_task(
         raise ValueError("GitLab comparison world decisive record disagrees with the decision rule")
     if task.get("world") != world.as_mapping():
         raise ValueError("GitLab comparison host output world is not canonical")
+    expected_content_source = (
+        "feature_default" if is_feature_default_world(world) else "warp_generated"
+    )
+    if comparison_contract.get("content_source") != expected_content_source:
+        raise ValueError(
+            "GitLab comparison host output content source does not match the canonical world"
+        )
     record_keys = [record.logical_record_key for record in world.records]
     expected_contract = {
         "benchmark": world.benchmark,

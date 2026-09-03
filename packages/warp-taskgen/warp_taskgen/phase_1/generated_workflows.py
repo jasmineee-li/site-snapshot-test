@@ -19,6 +19,7 @@ from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
     gitlab_compare_act_generation_contract,
     gitlab_compare_decide_generation_contract,
     gitlab_compare_generation_prompt_addendum,
+    gitlab_compare_semantic_key,
 )
 from warp_taskgen.phase_1.rocket_chat_contracts import ROCKET_CHAT_EVALUATOR_NAME
 from warp_taskgen.phase_1.rocket_chat_generation import (
@@ -183,6 +184,33 @@ def owns_host_action_contract(task_card: Mapping[str, Any] | None) -> bool:
     return gitlab_compare_act_generation_contract(task_card) is not None
 
 
+def stable_answer_diversity_key(
+    task: Mapping[str, Any],
+    *,
+    task_card_index: Mapping[str, Mapping[str, Any]] | None,
+) -> tuple[str, tuple[tuple[str, str], ...]] | None:
+    """Return a feature-owned semantic key beyond generic answer shape.
+
+    Generated GitLab comparison rows carry a host-owned exact response contract;
+    their diversity is represented by the feature's canonical worlds instead of
+    the generic binary answer-shape families.  Only an active card and a
+    canonical host-compiled row may use this seam.  Invalid or copied rows
+    return ``None`` and remain on the ordinary validation path.
+    """
+
+    if not isinstance(task_card_index, Mapping):
+        return None
+    card_id = task.get("task_card_id")
+    if not isinstance(card_id, str):
+        return None
+    card = task_card_index.get(card_id)
+    if not isinstance(card, Mapping):
+        return None
+    if gitlab_compare_decide_generation_contract(card) is None:
+        return None
+    return gitlab_compare_semantic_key(task, task_card_id=card_id)
+
+
 def _cards_by_id(task_card_plan: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
     return {
         str(card.get("id")): card
@@ -199,5 +227,6 @@ __all__ = [
     "owns_host_action_contract",
     "restore_compiled_task",
     "restore_compiled_tasks",
+    "stable_answer_diversity_key",
     "validated_host_action_contract",
 ]

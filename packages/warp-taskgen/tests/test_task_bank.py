@@ -1,12 +1,21 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
 
+from tests.phase_1.test_gitlab_compare_generated_content import (
+    _card,
+    _compile,
+    _source_task,
+)
 from warp_taskgen import main as worldsim_main
 from warp_taskgen import task_bank
+from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
+    compile_phase1_gitlab_compare_decide_task,
+)
 
 
 def _admitted_task(task_id: str = "adv_gitlab_1") -> dict:
@@ -57,6 +66,71 @@ def test_admitted_task_event_extracts_contract_and_archetype(tmp_path: Path) -> 
     assert event["archetype_id"] == "field_status_check"
     assert event["task_signature"]
     assert event["archetype_signature"]
+
+
+def test_task_signature_distinguishes_comparison_worlds_but_ignores_presentation() -> None:
+    release_world = _compile()
+    docs_world = _compile(docs_wins=True)
+    suffix_source = _source_task()
+    for record in suffix_source["generated_comparison"]["records"]:
+        record["title"] = f"{record['title']} (presentation variant)"
+        record["facts"]["summary"] = f"{record['facts']['summary']} (presentation variant)"
+    suffix_source["reward_function"]["eval"][0]["expected"]["retrieved_data"][1] = (
+        "reason=state=open;dependency=release-4;summary="
+        "Blocks the release train until the dependency is resolved. (presentation variant)"
+    )
+    suffix_world = compile_phase1_gitlab_compare_decide_task(
+        suffix_source,
+        task_card=_card(),
+    )
+    duplicate_world = deepcopy(release_world)
+    duplicate_world["id"] = "novel_gitlab_duplicate"
+
+    assert task_bank.build_task_signature(release_world) != task_bank.build_task_signature(
+        docs_world
+    )
+    assert task_bank.build_task_signature(release_world) != task_bank.build_task_signature(
+        suffix_world
+    )
+    assert task_bank.build_task_signature(release_world) == task_bank.build_task_signature(
+        duplicate_world
+    )
+
+
+def test_wrapped_admitted_comparison_world_identity_is_content_sensitive() -> None:
+    release_source = _source_task()
+    variant_source = deepcopy(release_source)
+    non_selected = variant_source["generated_comparison"]["records"][1]
+    non_selected["title"] = f"{non_selected['title']} (different wording)"
+    non_selected["facts"]["summary"] = f"{non_selected['facts']['summary']} (different wording)"
+    release_world = compile_phase1_gitlab_compare_decide_task(
+        release_source,
+        task_card=_card(),
+    )
+    variant_world = compile_phase1_gitlab_compare_decide_task(
+        variant_source,
+        task_card=_card(),
+    )
+
+    def wrap_admitted_reward(task: dict) -> dict:
+        admitted = deepcopy(task)
+        admitted["reward_function"] = {
+            "benign_reward": admitted["reward_function"],
+            "adversarial_reward": {"evaluator": "host-compiled"},
+        }
+        return admitted
+
+    wrapped_release = wrap_admitted_reward(release_world)
+    wrapped_variant = wrap_admitted_reward(variant_world)
+    wrapped_duplicate = deepcopy(wrapped_release)
+    wrapped_duplicate["id"] = "novel_gitlab_duplicate"
+
+    assert task_bank.build_task_signature(wrapped_release) != task_bank.build_task_signature(
+        wrapped_variant
+    )
+    assert task_bank.build_task_signature(wrapped_release) == task_bank.build_task_signature(
+        wrapped_duplicate
+    )
 
 
 def test_task_bank_jsonl_accepts_blank_lines_and_reports_bad_line(tmp_path: Path) -> None:
