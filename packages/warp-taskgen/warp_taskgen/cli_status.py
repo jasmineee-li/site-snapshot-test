@@ -196,6 +196,17 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
 
             payload["pipeline_state"] = _redact_state_for_status(state)
 
+            if (
+                state.get("step") == "phase_1"
+                and state.get("status") in {"running", "failed"}
+                and state.get("generate_novel")
+            ):
+                from warp_taskgen.phase_1.resume_status import inspect_phase1_generation_resume
+
+                phase1_generation = inspect_phase1_generation_resume(run_root, state)
+                if phase1_generation is not None:
+                    payload["phase1_generation"] = phase1_generation
+
             try:
                 run_definition = define_run(state)
                 resume_plan = plan_resume(run_definition, state, run_root=run_root)
@@ -442,6 +453,54 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
     history = payload.get("transition_history")
     if isinstance(history, list) and history:
         lines.append(f"Run-control history: {len(history)} advisory event(s)")
+
+    phase1_generation = payload.get("phase1_generation")
+    if isinstance(phase1_generation, dict):
+        environment_binding = phase1_generation.get("environment_binding")
+        if isinstance(environment_binding, dict):
+            lines.append(
+                "Phase 1 cache identity (advisory): "
+                f"{environment_binding.get('name', 'unknown')}="
+                f"{environment_binding.get('current', 'unknown')} "
+                f"normalized_value={environment_binding.get('normalized_value', 'unknown')} "
+                "persisted_in_run_definition="
+                f"{str(bool(environment_binding.get('persisted_in_run_definition'))).lower()}"
+            )
+        if phase1_generation.get("status") == "inspected":
+            lines.append(
+                "Phase 1 generation (advisory): "
+                f"reusable={phase1_generation.get('reusable_tasks', 0)}/"
+                f"{phase1_generation.get('requested_tasks', 0)} "
+                f"remaining={phase1_generation.get('remaining_tasks', 0)} "
+                f"source={phase1_generation.get('reuse_source', 'unknown')}"
+            )
+            for site in phase1_generation.get("sites", []):
+                if not isinstance(site, dict):
+                    continue
+                lines.append(
+                    "  "
+                    f"{site.get('site', 'unknown')}: "
+                    f"{site.get('cache_status', 'unknown')} "
+                    f"({site.get('reason_code', 'unknown')}) "
+                    f"reusable={site.get('reusable_tasks', 0)}/"
+                    f"{site.get('requested_tasks', 0)}"
+                )
+        else:
+            lines.append(
+                "Phase 1 generation (advisory): unavailable "
+                f"({phase1_generation.get('reason_code', 'unknown')})"
+            )
+        merged_output = phase1_generation.get("merged_output")
+        if isinstance(merged_output, dict):
+            lines.append(
+                "  merged_output="
+                f"{merged_output.get('status', 'unknown')} "
+                f"({merged_output.get('reason_code', 'unknown')})"
+            )
+        if phase1_generation.get("resume_blocker"):
+            lines.append(f"  resume_blocker={phase1_generation['resume_blocker']}")
+        lines.append(f"  resume={phase1_generation.get('resume_command', 'unavailable')}")
+        lines.append(f"  caution={phase1_generation.get('resume_caveat', 'unavailable')}")
 
     progress = payload.get("phase4_progress")
     if isinstance(progress, dict):

@@ -170,6 +170,17 @@ does not create a child or alter the source root. `status --json` places
 run-control details under `run_control`; its checkpoint counts and transition
 history are advisory and must not be used as checkpoint acceptance evidence.
 
+For a crash-only Phase 1 generation run, `status` also applies the current
+Phase 1 fingerprints and validators to each complete site cache. It reports
+reusable versus remaining task counts and a reason for missing, stale, or
+invalid caches without calling a model, network service, or writer. The
+aggregate first honors a valid merged output with matching resume metadata,
+then falls back to the complete per-site caches exactly as Phase 1 resume does.
+The `WORLDSIM_PHASE1_CONTRACT_BOUND_API` value affects cache identity but is not
+persisted in the Run Definition, so restore the original setting before
+trusting the displayed reuse count. Confirm that the earlier process or Remote
+Job has stopped before using the displayed resume command.
+
 To drain and stop one registered Remote Job, use the explicit graceful option:
 
 ```bash
