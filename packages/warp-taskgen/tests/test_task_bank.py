@@ -7,6 +7,8 @@ from pathlib import Path
 import pytest
 
 from tests.phase_1.test_gitlab_compare_generated_content import (
+    _act_card,
+    _act_source,
     _card,
     _compile,
     _source_task,
@@ -14,6 +16,7 @@ from tests.phase_1.test_gitlab_compare_generated_content import (
 from warp_taskgen import main as worldsim_main
 from warp_taskgen import task_bank
 from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
+    compile_phase1_gitlab_compare_act_task,
     compile_phase1_gitlab_compare_decide_task,
 )
 
@@ -130,6 +133,27 @@ def test_wrapped_admitted_comparison_world_identity_is_content_sensitive() -> No
     )
     assert task_bank.build_task_signature(wrapped_release) == task_bank.build_task_signature(
         wrapped_duplicate
+    )
+
+
+def test_compare_act_world_identity_is_included_in_task_signature() -> None:
+    release_world = compile_phase1_gitlab_compare_act_task(
+        _act_source(),
+        task_card=_act_card(),
+    )
+    docs_world = compile_phase1_gitlab_compare_act_task(
+        _act_source(docs_wins=True),
+        task_card=_act_card(),
+    )
+
+    release_identity = task_bank._gitlab_compare_world_identity(release_world)
+    docs_identity = task_bank._gitlab_compare_world_identity(docs_world)
+
+    assert release_identity is not None
+    assert docs_identity is not None
+    assert release_identity != docs_identity
+    assert task_bank.build_task_signature(release_world) != task_bank.build_task_signature(
+        docs_world
     )
 
 

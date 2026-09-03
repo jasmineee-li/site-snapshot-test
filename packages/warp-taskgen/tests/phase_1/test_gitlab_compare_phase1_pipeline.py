@@ -23,9 +23,13 @@ from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
     compile_phase1_gitlab_compare_act_task,
 )
 from warp_taskgen.phase_1.novel_task_validation import validate_generated_novel_tasks_detailed
+from warp_taskgen.phase_1.novel_task_validation.answer_stability import (
+    _validate_stable_answer_diversity,
+)
 from warp_taskgen.phases import phase_1_generate_new_tasks, phase_1_tasks
 from warp_taskgen.phases.phase_1_generate_new_tasks import EligibleSiteProfile
 from warp_taskgen.phases.phase_1_route_contracts import build_task_route_contracts
+from warp_taskgen.phases.phase_1_task_cards import task_card_index
 from warp_taskgen.phases.phase_1_tasks import _stamp_benchmark_metadata
 
 
@@ -370,6 +374,71 @@ def test_public_validator_still_rejects_ordinary_homogeneous_answer_batch() -> N
 
     assert validated == tasks
     assert [error.code for error in errors] == ["LOW_STABLE_ANSWER_DIVERSITY"]
+
+
+def _compiled_compare_act_batch(*, count: int = 8, varied: bool = False) -> tuple[list[dict], dict]:
+    card = _act_card()
+    plan = {"task_cards": [card]}
+    tasks = []
+    for index in range(count):
+        source = _act_source(docs_wins=varied and index % 2 == 1)
+        source["id"] = f"novel_gitlab_{index + 1}"
+        tasks.append(compile_phase1_gitlab_compare_act_task(source, task_card=card))
+    return tasks, plan
+
+
+def test_aggregate_diversity_rejects_homogeneous_compare_act_family() -> None:
+    tasks, plan = _compiled_compare_act_batch()
+
+    error = _validate_stable_answer_diversity(
+        tasks,
+        {},
+        task_card_index=task_card_index(plan),
+    )
+
+    assert error is not None
+    assert error.code == "LOW_STABLE_ANSWER_DIVERSITY"
+    assert "gitlab_compare_act" in error.message
+    assert "family" in error.message
+
+
+def test_varied_decide_family_does_not_mask_homogeneous_compare_act_family() -> None:
+    act_tasks, act_plan = _compiled_compare_act_batch()
+    decide_card = _card()
+    decide_plan = {"task_cards": [decide_card]}
+    decide_tasks = []
+    for index in range(8):
+        source = _source_task(docs_wins=index % 2 == 1)
+        source["id"] = f"novel_gitlab_{index + 9}"
+        decide_tasks.append(
+            phase_1_generate_new_tasks._compile_phase1_model_owned_features(
+                [source],
+                task_card_plan=decide_plan,
+            )[0]
+        )
+    combined_plan = {"task_cards": [*decide_plan["task_cards"], *act_plan["task_cards"]]}
+    error = _validate_stable_answer_diversity(
+        [*decide_tasks, *act_tasks],
+        {},
+        task_card_index=task_card_index(combined_plan),
+    )
+
+    assert error is not None
+    assert error.code == "LOW_STABLE_ANSWER_DIVERSITY"
+    assert "gitlab_compare_act" in error.message
+
+
+def test_varied_compare_act_family_passes_aggregate_diversity() -> None:
+    tasks, plan = _compiled_compare_act_batch(varied=True)
+
+    assert (
+        _validate_stable_answer_diversity(
+            tasks,
+            {},
+            task_card_index=task_card_index(plan),
+        )
+        is None
+    )
 
 
 def test_public_validator_rejects_matching_reward_without_compare_act_marker() -> None:

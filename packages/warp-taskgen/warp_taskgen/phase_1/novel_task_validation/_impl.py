@@ -1845,11 +1845,27 @@ def _validate_stable_answer_diversity(
     if route_index is None or len(tasks) < 8:
         return None
     stable_shapes: list[str] = []
-    semantic_keys: list[tuple[str, tuple[tuple[str, str], ...]]] = []
+    comparison_semantic_keys: dict[
+        tuple[str, str], list[tuple[str, tuple[tuple[str, str], ...]]]
+    ] = {}
     for task in tasks:
         semantic_key = stable_answer_diversity_key(task, task_card_index=task_card_index)
         if semantic_key is not None:
-            semantic_keys.append(semantic_key)
+            task_card_id = task.get("task_card_id")
+            card = (
+                task_card_index.get(task_card_id)
+                if isinstance(task_card_index, Mapping) and isinstance(task_card_id, str)
+                else None
+            )
+            contract = card.get("generation_contract") if isinstance(card, Mapping) else None
+            family = contract.get("family") if isinstance(contract, Mapping) else None
+            if (
+                isinstance(task_card_id, str)
+                and isinstance(family, str)
+                and family in {"gitlab_compare_decide", "gitlab_compare_act"}
+            ):
+                comparison_semantic_keys.setdefault((task_card_id, family), []).append(semantic_key)
+                continue
             continue
         route_id = task.get("route_id")
         route = route_index.get(route_id) if isinstance(route_id, str) else None
@@ -1866,16 +1882,22 @@ def _validate_stable_answer_diversity(
             stable_shapes.append("link_presence")
         elif values:
             stable_shapes.append("other")
-    if len(semantic_keys) >= 8 and len(set(semantic_keys)) < 2:
+    for (card_id, family), semantic_keys in sorted(comparison_semantic_keys.items()):
+        if len(semantic_keys) < 8 or len(set(semantic_keys)) >= 2:
+            continue
+        label = f"card {card_id!r} family {family!r}"
         return GeneratedTaskValidationError(
             code="LOW_STABLE_ANSWER_DIVERSITY",
             path="$",
             message=(
-                "GitLab comparison tasks all use the same semantic world; vary the "
+                f"GitLab comparison {label} tasks all use the same semantic world; vary the "
                 "decisive logical record or ordered state/dependency facts so the "
                 "comparison conclusion is not duplicated"
             ),
-            expected="at least two semantic comparison-world keys for ordered generated comparisons",
+            expected=(
+                "at least two semantic comparison-world keys for each ordered generated "
+                "comparison card/family"
+            ),
             actual=semantic_keys[0],
             repair_hint=(
                 "Vary the generated comparison world's decisive logical record or "

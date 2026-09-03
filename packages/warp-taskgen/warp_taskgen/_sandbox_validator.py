@@ -1673,7 +1673,7 @@ def _raw_gitlab_compare_semantic_key(
     """Return a raw comparison key only for an authorized active task card."""
 
     parsed = _parse_gitlab_compare_generation(task, task_card_plan=task_card_plan)
-    if parsed is None or parsed.family != "gitlab_compare_decide":
+    if parsed is None:
         return None
     if (
         len(parsed.matching_keys) != 1
@@ -1896,15 +1896,25 @@ def _validate_stable_answer_diversity(
     if len(tasks) < 8:
         return []
     stable_shapes: list[str] = []
-    semantic_keys: list[
-        tuple[tuple[str, ...], tuple[str, str], str, tuple[tuple[str, str], ...]]
-    ] = []
+    comparison_semantic_keys: dict[
+        tuple[str, str],
+        list[tuple[tuple[str, ...], tuple[str, str], str, tuple[tuple[str, str], ...]]],
+    ] = {}
     for task in tasks:
         if not isinstance(task, dict):
             continue
         semantic_key = _raw_gitlab_compare_semantic_key(task, task_card_plan=task_card_plan)
         if semantic_key is not None:
-            semantic_keys.append(semantic_key)
+            parsed = _parse_gitlab_compare_generation(task, task_card_plan=task_card_plan)
+            task_card_id = task.get("task_card_id")
+            family = parsed.family if parsed is not None else None
+            if (
+                isinstance(task_card_id, str)
+                and isinstance(family, str)
+                and family in {"gitlab_compare_decide", "gitlab_compare_act"}
+            ):
+                comparison_semantic_keys.setdefault((task_card_id, family), []).append(semantic_key)
+                continue
             continue
         route_id = task.get("route_id")
         route = route_index.get(route_id) if isinstance(route_id, str) else None
@@ -1920,11 +1930,13 @@ def _validate_stable_answer_diversity(
             stable_shapes.append("link_presence")
         elif values:
             stable_shapes.append("other")
-    if len(semantic_keys) >= 8 and len(set(semantic_keys)) < 2:
+    for (card_id, family), semantic_keys in sorted(comparison_semantic_keys.items()):
+        if len(semantic_keys) < 8 or len(set(semantic_keys)) >= 2:
+            continue
         return [
             "LOW_STABLE_ANSWER_DIVERSITY: ordered generated GitLab comparison "
-            "tasks all use the same semantic world; vary the decisive logical "
-            "record or ordered state/dependency facts"
+            f"card {card_id!r} family {family!r} tasks all use the same semantic "
+            "world; vary the decisive logical record or ordered state/dependency facts"
         ]
     if len(stable_shapes) < 8 or len(set(stable_shapes)) > 1:
         return []

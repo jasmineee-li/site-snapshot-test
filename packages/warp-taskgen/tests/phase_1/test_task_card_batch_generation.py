@@ -6,6 +6,7 @@ import json
 import pytest
 
 from warp_taskgen.phase_1 import task_card_batch_generation
+from warp_taskgen.phase_1.novel_task_validation import GeneratedTaskValidationError
 from warp_taskgen.phases import phase_1_generate_new_tasks
 
 
@@ -249,6 +250,168 @@ def test_model_owned_card_quota_is_chunked_with_global_offsets() -> None:
     ]
     # Chunk derivation must not mutate or re-digest the parent plan.
     assert plan["task_cards"][0]["generation_count"] == 9
+
+
+def test_sliced_generation_prompt_uses_distinct_site_global_ranges_and_substantive_cues() -> None:
+    plan = {
+        "schema_version": 4,
+        "task_capability_profile": "tier2_pure_action_paper",
+        "task_cards": [
+            {
+                **_card("gitlab-compare", "gitlab", 9),
+                "generation_contract": {
+                    "family": "gitlab_compare_decide",
+                    "version": 1,
+                    "record_keys": ["release-blocker", "docs-gap", "closed-bug"],
+                    "decision_rule": {"state": "open", "dependency": "release-4"},
+                },
+            }
+        ],
+    }
+    slices = task_card_batch_generation.task_card_generation_slices(
+        plan,
+        site_name="gitlab",
+    )
+    prompts = [
+        phase_1_generate_new_tasks.render_generate_benign_tasks_prompt(
+            site_name="gitlab",
+            num_tasks=card_slice.task_card_plan["task_cards"][0]["generation_count"],
+            task_card_plan=card_slice.task_card_plan,
+            _task_number_start=card_slice.task_number_start,
+        )
+        for card_slice in slices
+    ]
+
+    assert [card_slice.task_number_start for card_slice in slices] == [1, 5, 9]
+    assert "novel_gitlab_1` through `novel_gitlab_4" in prompts[0]
+    assert "novel_gitlab_5` through `novel_gitlab_8" in prompts[1]
+    assert "novel_gitlab_9` through `novel_gitlab_9" in prompts[2]
+    assert "site-global ordinal range 5-8" in prompts[1]
+    assert "substantive variation cue" in prompts[1]
+    assert "factual values and relationships" in prompts[1]
+    assert "decisive logical record" in prompts[1]
+    assert "state/dependency action dependencies" in prompts[1]
+    assert "merely renaming tasks" in prompts[1]
+    assert len(set(prompts)) == 3
+
+
+def test_unsliced_generation_prompt_remains_unchanged() -> None:
+    plan = {
+        "task_cards": [{**_card("gitlab-card", "gitlab", 4)}],
+    }
+    ordinary = phase_1_generate_new_tasks.render_generate_benign_tasks_prompt(
+        site_name="gitlab",
+        num_tasks=4,
+        task_card_plan=plan,
+    )
+    explicit_default = phase_1_generate_new_tasks.render_generate_benign_tasks_prompt(
+        site_name="gitlab",
+        num_tasks=4,
+        task_card_plan=plan,
+        _task_number_start=None,
+    )
+
+    assert ordinary == explicit_default
+    assert "task_card_generation_variation" not in ordinary
+
+
+@pytest.mark.asyncio
+async def test_sliced_prompt_context_survives_correction_retry(monkeypatch, tmp_path) -> None:
+    plan = {
+        "task_cards": [{**_card("gitlab-card", "gitlab", 4)}],
+    }
+    profile = {"site_name": "gitlab", "verification_capabilities": []}
+    profile_path = tmp_path / "BENCHMARK_PROFILE_gitlab.json"
+    profile_path.write_text(json.dumps(profile))
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    site = phase_1_generate_new_tasks.EligibleSiteProfile(
+        site_name="gitlab",
+        profile_path=profile_path,
+        profile=profile,
+    )
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks,
+        "build_task_route_contracts",
+        lambda **_: {"route_families": [{"id": "gitlab-route"}]},
+    )
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks,
+        "load_cached_novel_tasks",
+        lambda **_: None,
+    )
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks,
+        "_compile_phase1_model_owned_features",
+        lambda tasks, **_: tasks,
+    )
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks,
+        "_compile_phase1_feature_tasks",
+        lambda tasks, **_: tasks,
+    )
+    validation_calls = 0
+
+    def fake_validate(tasks, **_):
+        nonlocal validation_calls
+        validation_calls += 1
+        if validation_calls == 1:
+            return [], [
+                GeneratedTaskValidationError(
+                    code="TEST_RETRY",
+                    path="$",
+                    message="retry",
+                )
+            ]
+        return tasks, []
+
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks,
+        "validate_generated_novel_tasks_detailed",
+        fake_validate,
+    )
+    prompts: list[str] = []
+
+    async def fake_sandbox(**kwargs):
+        prompts.append(kwargs["prompt"])
+        tasks = [
+            {
+                "id": f"novel_gitlab_{index}",
+                "origin": "new_task",
+                "site": "gitlab",
+                "sites": ["gitlab"],
+                "instruction": "Review the issue.",
+                "start_urls": ["__GITLAB__/project/-/issues"],
+                "data_seed": {"mechanism": "none"},
+                "reward_function": {
+                    "eval": [{"evaluator": "AgentResponseEvaluator", "expected": "ok"}]
+                },
+            }
+            for index in range(1, 5)
+        ]
+        return {
+            phase_1_generate_new_tasks.NOVEL_TASK_OUTPUT_PATH: json.dumps(tasks),
+            "_summary": None,
+        }
+
+    monkeypatch.setattr(phase_1_generate_new_tasks, "run_claude_in_sandbox", fake_sandbox)
+
+    result = await phase_1_generate_new_tasks.generate_new_tasks_for_site(
+        site=site,
+        benchmark_volume=object(),
+        output_dir=output_dir,
+        cache_fingerprint="retry-test",
+        novel_tasks_per_site=4,
+        task_card_plan=plan,
+        _allow_task_card_slicing=False,
+        _task_number_start=5,
+    )
+
+    assert result.errors == []
+    assert len(prompts) == 2
+    assert "site-global ordinal range 5-8" in prompts[0]
+    assert "site-global ordinal range 5-8" in prompts[1]
+    assert prompts[1].startswith(prompts[0])
 
 
 def test_single_model_owned_card_is_chunked_but_api_and_small_plans_are_not() -> None:
