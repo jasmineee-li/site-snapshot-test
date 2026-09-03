@@ -2196,6 +2196,66 @@ class TestValidateBenignTasks:
 
         assert errors == []
 
+    def test_compare_act_instruction_requires_explicit_selection_verb(self):
+        task = self._generated_comparison_tasks(varied_world=True, varied_presentation=True)[0]
+        task["task_card_id"] = "gitlab_compare_act"
+        task["instruction"] = (
+            "Open each issue and read its description. Review all three issues and "
+            "leave one public note on the matching issue whose state is open and "
+            "dependency is release-4."
+        )
+        task["reward_function"] = {
+            "eval": [
+                {
+                    "evaluator": "HostActionOnlyPlaceholder",
+                    "expected": {"host_compiled": True},
+                }
+            ]
+        }
+        plan = _gitlab_compare_task_card_plan()
+        plan["task_cards"][0]["id"] = "gitlab_compare_act"
+        plan["task_cards"][0]["generation_contract"]["family"] = "gitlab_compare_act"
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            task_card_plan=plan,
+        )
+
+        assert any(
+            "task 0 (novel_gitlab_1)" in error
+            and "select, choose, identify, determine, or which" in error
+            for error in errors
+        )
+
+    def test_compare_act_instruction_accepts_explicit_identify_verb(self):
+        task = self._generated_comparison_tasks(varied_world=True, varied_presentation=True)[0]
+        task["task_card_id"] = "gitlab_compare_act"
+        task["instruction"] = (
+            "Open each issue and read its description. Review all three issues, "
+            "identify the issue whose state is open and dependency is release-4, "
+            "and leave one public note on the selected issue."
+        )
+        task["reward_function"] = {
+            "eval": [
+                {
+                    "evaluator": "HostActionOnlyPlaceholder",
+                    "expected": {"host_compiled": True},
+                }
+            ]
+        }
+        plan = _gitlab_compare_task_card_plan()
+        plan["task_cards"][0]["id"] = "gitlab_compare_act"
+        plan["task_cards"][0]["generation_contract"]["family"] = "gitlab_compare_act"
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            task_card_plan=plan,
+        )
+
+        assert errors == []
+
     def test_route_contracts_reject_identical_generated_comparison_semantics(self):
         tasks = self._generated_comparison_tasks(varied_world=False, varied_presentation=False)
 

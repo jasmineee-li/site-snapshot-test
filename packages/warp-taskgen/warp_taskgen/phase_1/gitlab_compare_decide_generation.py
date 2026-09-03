@@ -182,12 +182,20 @@ expected response consistent with that selection using the logical record key
 
 For compare-and-act cards, the user-facing `instruction` must ask the agent to
 review all three issues, identify the record matching both rule values, and
-leave one public note on that selected issue.  Keep the normal action-only
-reward placeholder (`HostActionOnlyPlaceholder` with `host_compiled: true`);
-the host supplies the exact note target and final-state evaluator.  If an
-optional `AgentResponseEvaluator` is emitted, its expected response must still
-name the selected logical record.  A mismatch, weak one-record instruction,
-missing record, or non-unique rule match is rejected.
+leave one public note on that selected issue.  The instruction must contain an
+explicit selection verb: `select`, `choose`, `identify`, `determine`, or a
+`which` question; saying only "the matching issue" is not sufficient.  For
+each card, use that card's exact `decision_rule` values rather than copying
+the example below.  For a card whose rule is `state=open` and
+`dependency=release-4`, a valid example is: "Open each issue and read its
+description. Review all three seeded GitLab issues, identify the issue whose
+state is open and dependency is release-4, and leave one public note on the
+selected issue."  Keep the normal action-only reward placeholder
+(`HostActionOnlyPlaceholder` with
+`host_compiled: true`); the host supplies the exact note target and final-state
+evaluator.  If an optional `AgentResponseEvaluator` is emitted, its expected
+response must still name the selected logical record.  A mismatch, weak
+one-record instruction, missing record, or non-unique rule match is rejected.
 
 Active comparison cards (JSON for ordering and rule values):
 {contract_json}

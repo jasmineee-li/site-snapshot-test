@@ -403,6 +403,10 @@ def test_compare_prompt_addendum_exposes_facts_but_not_host_structure() -> None:
     assert "decision_rule" in prompt
     assert "physical ID" in prompt
     assert "Do not include a" in prompt
+    assert "select`, `choose`, `identify`, `determine`, or a" in prompt
+    assert "use that card's exact `decision_rule` values" in prompt
+    assert "a valid example is:" in prompt
+    assert "state is open and dependency is release-4" in prompt
 
 
 def test_compare_prompt_and_pre_feature_cache_identity_are_not_reused(

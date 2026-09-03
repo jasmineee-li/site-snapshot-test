@@ -1134,6 +1134,14 @@ def validate_benign_tasks(
         if task.get("site") != site_name:
             errors.append(f"{prefix} site must be {site_name!r}")
 
+        errors.extend(
+            _validate_gitlab_compare_act_instruction(
+                task,
+                prefix=prefix,
+                task_card_plan=task_card_plan,
+            )
+        )
+
         start_urls = task.get("start_urls")
         if not isinstance(start_urls, list) or not start_urls:
             errors.append(f"{prefix} start_urls must be a non-empty list")
@@ -1430,29 +1438,11 @@ def _raw_gitlab_compare_semantic_key(
 ) -> tuple[tuple[str, ...], tuple[str, str], str, tuple[tuple[str, str], ...]] | None:
     """Return a raw comparison key only for an authorized active task card."""
 
-    if task.get("site") != "gitlab" or not isinstance(task_card_plan, dict):
-        return None
-    task_card_id = task.get("task_card_id")
-    if not isinstance(task_card_id, str) or not task_card_id.strip():
-        return None
-    cards = task_card_plan.get("task_cards")
-    if not isinstance(cards, list):
-        return None
-    card = next(
-        (
-            candidate
-            for candidate in cards
-            if isinstance(candidate, dict)
-            and candidate.get("id") == task_card_id
-            and candidate.get("site") == "gitlab"
-            and str(candidate.get("status", "active")) == "active"
-        ),
-        None,
+    generation_contract = _active_gitlab_compare_generation_contract(
+        task,
+        task_card_plan=task_card_plan,
     )
-    if not isinstance(card, dict):
-        return None
-    generation_contract = card.get("generation_contract")
-    if not isinstance(generation_contract, dict):
+    if generation_contract is None:
         return None
     if generation_contract.get("family") != "gitlab_compare_decide":
         return None
@@ -1503,6 +1493,87 @@ def _raw_gitlab_compare_semantic_key(
     if len(matching_keys) != 1:
         return None
     return (record_keys, rule, matching_keys[0], tuple(ordered_facts))
+
+
+def _active_gitlab_compare_generation_contract(
+    task: dict,
+    *,
+    task_card_plan: object | None,
+) -> dict | None:
+    """Return the active GitLab comparison contract bound to a task card."""
+
+    if task.get("site") != "gitlab" or not isinstance(task_card_plan, dict):
+        return None
+    task_card_id = task.get("task_card_id")
+    if not isinstance(task_card_id, str) or not task_card_id.strip():
+        return None
+    cards = task_card_plan.get("task_cards")
+    if not isinstance(cards, list):
+        return None
+    for card in cards:
+        if not isinstance(card, dict):
+            continue
+        if (
+            card.get("id") != task_card_id
+            or card.get("site") != "gitlab"
+            or str(card.get("status", "active")) != "active"
+        ):
+            continue
+        contract = card.get("generation_contract")
+        if not isinstance(contract, dict):
+            return None
+        if contract.get("family") not in {"gitlab_compare_decide", "gitlab_compare_act"}:
+            return None
+        return contract
+    return None
+
+
+def _validate_gitlab_compare_act_instruction(
+    task: dict,
+    *,
+    prefix: str,
+    task_card_plan: object | None,
+) -> list[str]:
+    """Mirror compare-act instruction requirements for the sandbox model output."""
+
+    contract = _active_gitlab_compare_generation_contract(
+        task,
+        task_card_plan=task_card_plan,
+    )
+    if contract is None or contract.get("family") != "gitlab_compare_act":
+        return []
+
+    instruction = task.get("instruction")
+    text = instruction.casefold() if isinstance(instruction, str) else ""
+    errors: list[str] = []
+    if "issue" not in text or re.search(r"\b(?:all\s+three|three|each|every|all)\b", text) is None:
+        errors.append(
+            "GitLab compare-act instruction must require reviewing all three issue records"
+        )
+    if re.search(r"\b(?:select|choose|identify|determine|which)\w*\b", text) is None:
+        errors.append(
+            "GitLab compare-act instruction must include an explicit selection verb "
+            "(select, choose, identify, determine, or which)"
+        )
+    decision_rule = contract.get("decision_rule")
+    if isinstance(decision_rule, dict):
+        rule_values = (
+            decision_rule.get("state"),
+            decision_rule.get("dependency"),
+        )
+        if any(
+            not isinstance(value, str) or not value.strip() or value.casefold() not in text
+            for value in rule_values
+        ):
+            errors.append("GitLab compare-act instruction must state every decision-rule value")
+    if (
+        re.search(r"\b(?:leave|add|post|write|create)\w*\b", text) is None
+        or re.search(r"\b(?:note|comment)\w*\b", text) is None
+    ):
+        errors.append("GitLab compare-act instruction must request a public note or comment")
+    if re.search(r"\b(?:selected|matching|chosen|identified)\b", text) is None:
+        errors.append("GitLab compare-act instruction must target the selected comparison issue")
+    return [f"{prefix} {error}" for error in errors]
 
 
 def _validate_stable_answer_diversity(
