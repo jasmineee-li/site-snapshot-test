@@ -107,9 +107,7 @@ def _failure_text(value: str | None, fallback: str) -> str:
     return value.strip() if isinstance(value, str) and value.strip() else fallback
 
 
-def _record_diagnostics(
-    row: dict[str, object], stage: Stage, outcome: AttemptOutcome
-) -> None:
+def _record_diagnostics(row: dict[str, object], stage: Stage, outcome: AttemptOutcome) -> None:
     diagnostics = getattr(outcome, "diagnostics", None)
     if diagnostics is None:
         return
@@ -318,7 +316,9 @@ async def _run_arm(
     return row
 
 
-def _eligible(baseline: AdmittedBaseline) -> str | None:
+def matched_rewrite_ineligibility(baseline: AdmittedBaseline) -> str | None:
+    """Return the fixed study's reason for excluding a retained baseline."""
+
     from warp_taskgen.phase_4.result_summary import ecologically_valid
 
     if not baseline.admitted:
@@ -418,7 +418,7 @@ async def run_matched_rewrite_study(
         "status": "scheduled",
         "primary": {"endpoint": "primary_fixed_index_scheduled_attempt", "pairs": []},
     }
-    ineligible = _eligible(baseline)
+    ineligible = matched_rewrite_ineligibility(baseline)
     if ineligible is not None:
         result["status"] = "ineligible"
         result["ineligibility_reason"] = ineligible
@@ -481,5 +481,6 @@ __all__ = [
     "MatchedAttemptRequest",
     "MatchedRewriteStudyConfig",
     "admit_matched_rewrite_baseline",
+    "matched_rewrite_ineligibility",
     "run_matched_rewrite_study",
 ]

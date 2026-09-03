@@ -63,13 +63,25 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "warp_taskgen.phase_4.matched_rewrite_study",
         "MatchedRewriteStudyConfig",
     ),
+    "MatchedRewriteRunRequest": (
+        "warp_taskgen.phase_4.matched_rewrite_run",
+        "MatchedRewriteRunRequest",
+    ),
     "admit_matched_rewrite_baseline": (
         "warp_taskgen.phase_4.matched_rewrite_study",
         "admit_matched_rewrite_baseline",
     ),
+    "matched_rewrite_ineligibility": (
+        "warp_taskgen.phase_4.matched_rewrite_study",
+        "matched_rewrite_ineligibility",
+    ),
     "run_matched_rewrite_study": (
         "warp_taskgen.phase_4.matched_rewrite_study",
         "run_matched_rewrite_study",
+    ),
+    "run_retained_matched_rewrite": (
+        "warp_taskgen.phase_4.matched_rewrite_run",
+        "run_retained_matched_rewrite",
     ),
 }
 

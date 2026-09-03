@@ -92,6 +92,7 @@ def test_existing_adapter_ordinary_critique_is_typed_and_neutral(tmp_path, monke
             agent_factory=lambda: object(),
             task_dir_root=tmp_path,
             host_client=client,
+            host_provider="anthropic",
         )
     )
     adapter.bind(baseline.binding)
@@ -183,6 +184,7 @@ def test_existing_adapter_passes_matched_policy_to_tp_and_rewrite(monkeypatch, t
             agent_factory=lambda: object(),
             task_dir_root=tmp_path,
             host_client=object(),
+            host_provider="anthropic",
         )
     )
     adapter.bind(baseline.binding)
@@ -279,6 +281,7 @@ def test_existing_adapter_requires_budget_before_call(tmp_path):
             agent_factory=lambda: object(),
             task_dir_root=tmp_path,
             host_client=SimpleNamespace(messages=SimpleNamespace(create=create)),
+            host_provider="anthropic",
         )
     )
     adapter.bind(baseline.binding)
@@ -320,6 +323,7 @@ def test_existing_adapter_rejects_unconfigured_provider_identity(tmp_path):
             agent_factory=lambda: object(),
             task_dir_root=tmp_path,
             host_client=SimpleNamespace(messages=SimpleNamespace(create=create)),
+            host_provider="anthropic",
         )
     )
     adapter.bind(baseline.binding)
@@ -329,6 +333,97 @@ def test_existing_adapter_rejects_unconfigured_provider_identity(tmp_path):
     assert outcome.failure == "matched_provider_identity_unconfigured"
     assert outcome.usage.unavailable_reason == "matched_provider_identity_unconfigured"
     assert calls == 0
+
+
+def test_existing_adapter_rejects_injected_client_provider_mismatch(tmp_path):
+    baseline = _baseline()
+    config = study.MatchedRewriteStudyConfig(
+        call_policy=MatchedCallPolicy(
+            model="sandbox-model",
+            provider="openrouter",
+            runner="messages",
+        ),
+        budget=MatchedStudyBudget(
+            per_arm_max_tokens=10_000,
+            total_max_tokens=20_000,
+            per_arm_max_cost_usd=10.0,
+            total_max_cost_usd=20.0,
+        ),
+    )
+    adapter = ExistingPhase4AttemptAdapter(
+        Phase4Runtime(
+            primary_instance=object(),
+            all_instances=(),
+            agent_factory=lambda: object(),
+            task_dir_root=tmp_path,
+            host_client=object(),
+            host_provider="anthropic",
+        )
+    )
+    adapter.bind(baseline.binding)
+
+    outcome = asyncio.run(
+        adapter.run(
+            study._request(
+                baseline,
+                config,
+                arm="ordinary",
+                stage="ordinary_critique",
+            )
+        )
+    )
+
+    assert outcome.failure == "matched_provider_identity_mismatch"
+
+
+def test_existing_adapter_rejects_default_client_transport_mismatch(
+    tmp_path, monkeypatch
+):
+    baseline = _baseline()
+    config = study.MatchedRewriteStudyConfig(
+        call_policy=MatchedCallPolicy(
+            model="sandbox-model",
+            provider="openrouter",
+            runner="messages",
+        ),
+        budget=MatchedStudyBudget(
+            per_arm_max_tokens=10_000,
+            total_max_tokens=20_000,
+            per_arm_max_cost_usd=10.0,
+            total_max_cost_usd=20.0,
+        ),
+    )
+    from warp_taskgen.phase_4 import matched_rewrite_provider as provider_module
+
+    monkeypatch.setattr(provider_module, "resolved_messages_provider", lambda: "anthropic")
+    monkeypatch.setattr(
+        provider_module,
+        "get_client",
+        lambda: pytest.fail("transport mismatch must fail before client construction"),
+    )
+    adapter = ExistingPhase4AttemptAdapter(
+        Phase4Runtime(
+            primary_instance=object(),
+            all_instances=(),
+            agent_factory=lambda: object(),
+            task_dir_root=tmp_path,
+            host_provider="openrouter",
+        )
+    )
+    adapter.bind(baseline.binding)
+
+    outcome = asyncio.run(
+        adapter.run(
+            study._request(
+                baseline,
+                config,
+                arm="ordinary",
+                stage="ordinary_critique",
+            )
+        )
+    )
+
+    assert outcome.failure == "matched_provider_transport_mismatch"
 
 
 def test_existing_adapter_blocks_after_browser_usage_is_unavailable(tmp_path):
@@ -360,6 +455,7 @@ def test_existing_adapter_blocks_after_browser_usage_is_unavailable(tmp_path):
             agent_factory=lambda: object(),
             task_dir_root=tmp_path,
             host_client=SimpleNamespace(messages=SimpleNamespace(create=create)),
+            host_provider="anthropic",
         )
     )
     adapter.bind(baseline.binding)
@@ -423,6 +519,7 @@ def test_existing_adapter_blocks_next_call_at_known_token_ceiling(tmp_path):
             agent_factory=lambda: object(),
             task_dir_root=tmp_path,
             host_client=SimpleNamespace(messages=SimpleNamespace(create=create)),
+            host_provider="anthropic",
         )
     )
     adapter.bind(baseline.binding)

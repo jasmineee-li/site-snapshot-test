@@ -9,6 +9,7 @@ from typing import cast
 from warp_taskgen.phase_4.anthropic_client import (
     classify_api_exception,
     get_client,
+    resolved_messages_provider,
 )
 from warp_taskgen.phase_4.matched_rewrite_contracts import (
     AttemptOutcome,
@@ -138,6 +139,12 @@ class ExistingPhase4AttemptAdapter:
         policy = self._call_policy(request)
         if policy.provider == "unconfigured" or policy.runner == "unconfigured":
             return "matched_provider_identity_unconfigured"
+        if policy.runner != "messages":
+            return "matched_provider_runner_mismatch"
+        if self.runtime.host_provider != policy.provider:
+            return "matched_provider_identity_mismatch"
+        if self.runtime.host_client is None and resolved_messages_provider() != policy.provider:
+            return "matched_provider_transport_mismatch"
         return None
 
     @staticmethod

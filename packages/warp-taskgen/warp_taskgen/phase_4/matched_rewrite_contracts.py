@@ -455,6 +455,10 @@ class Phase4Runtime:
     browser_worker_semaphore: object | None = None
     runtime_composition: object | None = None
     host_client: object | None = None
+    # Resolved, non-secret identity of ``host_client``. Callers that inject a
+    # client must bind this alongside it; the default client is also checked
+    # against its resolved auth path before any request is sent.
+    host_provider: str | None = None
     browser_model: str | None = None
     browser_provider: str | None = None
     browser_runner: str = "agentlab"
