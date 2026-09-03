@@ -160,6 +160,7 @@ def select_action_task_contracts(
 
     generation_counts = []
     for card, action_kind, generation_count in card_action_pairs:
+        card_id = str(card.get("id") or "").strip()
         if (
             action_counts is not None
             and not has_generation_counts
