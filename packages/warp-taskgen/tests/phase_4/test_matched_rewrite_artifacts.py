@@ -48,6 +48,8 @@ def _runtime(tmp_path: Path) -> Phase4Runtime:
         all_instances=(),
         agent_factory=lambda: object(),
         task_dir_root=tmp_path,
+        host_client=object(),
+        host_provider="openrouter",
         browser_runner="agentlab",
     )
 

@@ -35,6 +35,7 @@ from anthropic import (
 logger = logging.getLogger(__name__)
 
 _client: AsyncAnthropic | None = None
+_client_provider: str | None = None
 _SDK_MAX_RETRIES = 0
 _TEMPERATURE_UNSUPPORTED_MODEL_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"^claude-opus-4[.-]7(?:$|[-:.])", re.IGNORECASE),
@@ -95,6 +96,19 @@ def _resolved_auth_path() -> str | None:
         return "oauth"
     if _nonempty("ANTHROPIC_API_KEY"):
         return "anthropic_api"
+    return None
+
+
+def resolved_messages_provider() -> str | None:
+    """Return the non-secret provider identity selected for Messages calls."""
+
+    if _client is not None:
+        return _client_provider
+    auth_path = _resolved_auth_path()
+    if auth_path == "openrouter":
+        return "openrouter"
+    if auth_path in {"oauth", "anthropic_api"}:
+        return "anthropic"
     return None
 
 
@@ -194,10 +208,11 @@ def _resolve_auth() -> tuple[str, dict[str, Any]]:
 
 def get_client() -> AsyncAnthropic:
     """Return the lazy-initialized shared `AsyncAnthropic` client."""
-    global _client
+    global _client, _client_provider
     if _client is None:
-        _, kwargs = _resolve_auth()
+        auth_path, kwargs = _resolve_auth()
         _client = AsyncAnthropic(**kwargs)
+        _client_provider = "openrouter" if auth_path == "openrouter" else "anthropic"
     return _client
 
 
@@ -207,8 +222,9 @@ def reset_client_for_tests() -> None:
     Tests that monkeypatch env vars after module import need this to avoid
     a stale client bound to the previous auth config.
     """
-    global _client
+    global _client, _client_provider
     _client = None
+    _client_provider = None
 
 
 async def preflight_check(*, sandbox_model: str = "claude-sonnet-4-6") -> tuple[bool, str | None]:

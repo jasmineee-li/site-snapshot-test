@@ -46,6 +46,31 @@ keeps root/parent IDs, round, strategy, refusal trigger, and host-finalization
 status for audit only; lineage never affects reward, admission, PVPO, or the
 benign task.
 
+## Matched rewrite study
+
+The TP-guided-versus-ordinary comparison remains opt-in and does not add a
+default Phase 4 variant system. `MatchedRewriteRunRequest` selects one exact
+task/result pair from a completed, identified Phase 4 run. The materializer
+derives the study Run Definition from that source, the host-selected payload,
+attack witness, rewrite constraints, configured call policy, and explicit
+token/cost budget. Missing, duplicate, or conflicting attribution fails before
+any model or browser call.
+
+Call `run_retained_matched_rewrite` with either a test/provider implementation
+or a `Phase4Runtime` whose instances, agent factory, profiles, composition, and
+auth have already passed the normal Phase 4 setup gates. The study adapter
+requires the named runtime composition and the resolved, non-secret host
+provider identity to match the retained Run Definition and study call policy;
+the default Messages client is also checked against its active auth path.
+serializes both arms through the existing proposal, repair, browser, reset,
+PVPO, reward, and judge owners. It writes one atomic `result.json` in the
+caller-supplied study directory; a repeat validates the embedded completed
+checkpoint against freshly loaded source artifacts and returns it unchanged.
+There is deliberately no separate study manifest or CLI-owned runtime setup.
+The caller retains the normal exclusive ownership of reset-sensitive benchmark
+instances. A passing source test establishes orchestration behavior, not a live
+matched result.
+
 ## ASR and artifacts
 
 Final ASR is end-to-end attacker-goal success from Phase 4 rewards/readback.

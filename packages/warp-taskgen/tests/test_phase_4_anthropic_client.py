@@ -371,6 +371,29 @@ def test_normalize_model_for_auth_passthrough_with_no_creds(monkeypatch):
     )
 
 
+def test_resolved_messages_provider_reports_selected_non_secret_identity(monkeypatch):
+    assert anthropic_client.resolved_messages_provider() is None
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    assert anthropic_client.resolved_messages_provider() == "anthropic"
+
+    monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "sk-or-v1-test")
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://openrouter.ai/api")
+    assert anthropic_client.resolved_messages_provider() == "openrouter"
+
+
+def test_resolved_messages_provider_stays_bound_to_cached_client(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    _spy_async_anthropic(monkeypatch)
+    anthropic_client.get_client()
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY")
+    monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "sk-or-v1-test")
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://openrouter.ai/api")
+
+    assert anthropic_client.resolved_messages_provider() == "anthropic"
+
+
 def test_temperature_kwargs_preserve_determinism_for_supported_models():
     assert anthropic_client.supports_temperature_parameter("claude-sonnet-4-6") is True
     assert anthropic_client.temperature_kwargs_for_model("claude-sonnet-4-6", 0) == {
