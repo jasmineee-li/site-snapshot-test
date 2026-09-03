@@ -417,12 +417,13 @@ async def test_contract_bound_batch_uses_one_local_id_counter(monkeypatch) -> No
         route_contracts=route_contracts,
         profile={},
         requested_count=3,
+        task_number_start=7,
     )
 
     assert [task["id"] for task in tasks] == [
-        "novel_gitlab_1",
-        "novel_gitlab_2",
-        "novel_gitlab_3",
+        "novel_gitlab_7",
+        "novel_gitlab_8",
+        "novel_gitlab_9",
     ]
     assert len({task["id"] for task in tasks}) == 3
     assert [task["task_card_id"] for task in tasks] == [

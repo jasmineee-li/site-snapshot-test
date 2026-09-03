@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import tempfile
 from collections.abc import Iterable
 from dataclasses import dataclass
 from hashlib import sha256
@@ -22,6 +23,7 @@ from warp_taskgen.phase_1.generated_workflows import (
     compile_model_owned_content,
     generation_prompt_addendum,
     generation_prompt_fingerprint_inputs,
+    owns_model_generated_content,
     restore_compiled_tasks,
 )
 from warp_taskgen.phase_1.generated_workflows import (
@@ -32,6 +34,13 @@ from warp_taskgen.phase_1.novel_task_validation import (
     sort_novel_tasks,
     validate_generated_novel_tasks,
     validate_generated_novel_tasks_detailed,
+)
+from warp_taskgen.phase_1.task_card_batch_generation import (
+    CardSliceResult,
+    TaskCardGenerationSlice,
+    collect_card_slices,
+    rekey_sandbox_task_ids,
+    task_card_generation_slices,
 )
 from warp_taskgen.phases.phase_1_contract_bound_action_api import (
     contract_bound_tool_schema_digest,
@@ -332,6 +341,9 @@ async def generate_new_tasks_for_site(
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
     action_counts: dict[str, int] | None = None,
     task_card_plan: dict[str, Any] | None = None,
+    _allow_task_card_slicing: bool = True,
+    _write_site_cache: bool = True,
+    _task_number_start: int | None = None,
 ) -> SiteGenerateNewTasksResult:
     """Generate and validate novel tasks for one site."""
     intermediate_path = output_dir / f"novel_tasks_{site.site_name}.json"
@@ -376,20 +388,45 @@ async def generate_new_tasks_for_site(
     if cached_result is not None:
         return cached_result
 
+    card_slices = task_card_generation_slices(
+        task_card_plan,
+        site_name=site.site_name,
+    )
+    if _allow_task_card_slicing and card_slices:
+        return await _generate_new_tasks_for_site_card_slices(
+            site=site,
+            benchmark_volume=benchmark_volume,
+            output_dir=output_dir,
+            cache_fingerprint=cache_fingerprint,
+            sandbox_model=sandbox_model,
+            novel_tasks_per_site=novel_tasks_per_site,
+            action_counts=action_counts,
+            task_card_plan=task_card_plan,
+            card_slices=card_slices,
+            route_contracts=route_contracts,
+            feature_evaluator_types=feature_evaluator_types,
+            write_site_cache=_write_site_cache,
+        )
+
     if _use_contract_bound_action_api(task_card_plan):
         logger.info(
             "Phase 1 (generate-new-tasks): launching contract-bound API backend for site %r",
             site.site_name,
         )
         try:
+            api_kwargs: dict[str, Any] = {
+                "site_name": site.site_name,
+                "task_card_plan": task_card_plan or {},
+                "route_contracts": route_contracts,
+                "profile": site.profile,
+                "requested_count": expected_task_count,
+                "action_counts": action_counts,
+                "sandbox_model": sandbox_model,
+            }
+            if _task_number_start is not None:
+                api_kwargs["task_number_start"] = _task_number_start
             generated_tasks = await generate_contract_bound_action_tasks_api(
-                site_name=site.site_name,
-                task_card_plan=task_card_plan or {},
-                route_contracts=route_contracts,
-                profile=site.profile,
-                requested_count=expected_task_count,
-                action_counts=action_counts,
-                sandbox_model=sandbox_model,
+                **api_kwargs,
             )
         except ValueError as exc:
             return SiteGenerateNewTasksResult(site.site_name, [], [str(exc)])
@@ -433,12 +470,13 @@ async def generate_new_tasks_for_site(
         sorted_tasks = sort_novel_tasks(
             _attach_agent_context_to_tasks(validated_tasks, agent_context)
         )
-        intermediate_path.write_text(json.dumps(sorted_tasks, indent=2))
-        _write_site_cache_metadata(
-            _site_cache_metadata_path(intermediate_path),
-            fingerprint=cache_fingerprint,
-            site_name=site.site_name,
-        )
+        if _write_site_cache:
+            intermediate_path.write_text(json.dumps(sorted_tasks, indent=2))
+            _write_site_cache_metadata(
+                _site_cache_metadata_path(intermediate_path),
+                fingerprint=cache_fingerprint,
+                site_name=site.site_name,
+            )
         logger.info(
             "Phase 1 (generate-new-tasks): site %r contract-bound API completed",
             site.site_name,
@@ -501,6 +539,15 @@ async def generate_new_tasks_for_site(
         generated_tasks = (
             _stamp_new_task_origin(raw_tasks) if isinstance(raw_tasks, list) else raw_tasks
         )
+        if isinstance(generated_tasks, list) and _task_number_start is not None:
+            try:
+                generated_tasks = rekey_sandbox_task_ids(
+                    generated_tasks,
+                    site_name=site.site_name,
+                    task_number_start=_task_number_start,
+                )
+            except ValueError as exc:
+                return SiteGenerateNewTasksResult(site.site_name, [], [str(exc)])
         try:
             generated_tasks = _compile_phase1_model_owned_features(
                 generated_tasks,
@@ -553,12 +600,13 @@ async def generate_new_tasks_for_site(
             sorted_tasks = sort_novel_tasks(
                 _attach_agent_context_to_tasks(validated_tasks, agent_context)
             )
-            intermediate_path.write_text(json.dumps(sorted_tasks, indent=2))
-            _write_site_cache_metadata(
-                _site_cache_metadata_path(intermediate_path),
-                fingerprint=cache_fingerprint,
-                site_name=site.site_name,
-            )
+            if _write_site_cache:
+                intermediate_path.write_text(json.dumps(sorted_tasks, indent=2))
+                _write_site_cache_metadata(
+                    _site_cache_metadata_path(intermediate_path),
+                    fingerprint=cache_fingerprint,
+                    site_name=site.site_name,
+                )
             logger.info("Phase 1 (generate-new-tasks): site %r sandbox completed", site.site_name)
             return SiteGenerateNewTasksResult(site.site_name, sorted_tasks, [])
 
@@ -580,6 +628,80 @@ async def generate_new_tasks_for_site(
         [],
         last_errors or ["sandbox produced no novel tasks"],
     )
+
+
+async def _generate_new_tasks_for_site_card_slices(
+    *,
+    site: EligibleSiteProfile,
+    benchmark_volume: Any | None,
+    output_dir: Path,
+    cache_fingerprint: str,
+    sandbox_model: str,
+    novel_tasks_per_site: int,
+    action_counts: dict[str, int] | None,
+    task_card_plan: dict[str, Any],
+    card_slices: tuple[TaskCardGenerationSlice, ...],
+    route_contracts: dict[str, Any],
+    feature_evaluator_types: frozenset[str],
+    write_site_cache: bool,
+) -> SiteGenerateNewTasksResult:
+    """Generate explicit card slices, then promote one validated site batch."""
+
+    async def generate_slice(
+        card_slice: TaskCardGenerationSlice,
+        index: int,
+    ) -> CardSliceResult:
+        # Child calls need isolated prompt/route files, but their temporary
+        # outputs are never promoted as caches or manifests.
+        with tempfile.TemporaryDirectory(
+            prefix=f".phase1-card-{index + 1}-",
+            dir=output_dir,
+        ) as temporary_dir:
+            result = await generate_new_tasks_for_site(
+                site=site,
+                benchmark_volume=benchmark_volume,
+                output_dir=Path(temporary_dir),
+                cache_fingerprint=cache_fingerprint,
+                sandbox_model=sandbox_model,
+                novel_tasks_per_site=novel_tasks_per_site,
+                action_counts=(
+                    None
+                    if task_card_generation_counts(card_slice.task_card_plan) is not None
+                    else _action_counts_for_site(card_slice.task_card_plan, action_counts)
+                ),
+                task_card_plan=card_slice.task_card_plan,
+                _allow_task_card_slicing=False,
+                _write_site_cache=False,
+                _task_number_start=card_slice.task_number_start,
+            )
+            return CardSliceResult(result.benign_tasks, result.errors)
+
+    expected_task_count = _site_requested_count(
+        task_card_plan,
+        novel_tasks_per_site=novel_tasks_per_site,
+        action_counts=action_counts,
+    )
+    batch = await collect_card_slices(
+        card_slices=card_slices,
+        generate_slice=generate_slice,
+        expected_task_count=expected_task_count,
+        site_name=site.site_name,
+        profile=site.profile,
+        route_contracts=route_contracts,
+        task_card_plan=task_card_plan,
+        host_compiled_evaluator_types=feature_evaluator_types,
+    )
+    if batch.errors:
+        return SiteGenerateNewTasksResult(site.site_name, [], batch.errors)
+    if write_site_cache:
+        intermediate_path = output_dir / f"novel_tasks_{site.site_name}.json"
+        intermediate_path.write_text(json.dumps(batch.benign_tasks, indent=2))
+        _write_site_cache_metadata(
+            _site_cache_metadata_path(intermediate_path),
+            fingerprint=cache_fingerprint,
+            site_name=site.site_name,
+        )
+    return SiteGenerateNewTasksResult(site.site_name, batch.benign_tasks, [])
 
 
 def _stamp_new_task_origin(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -847,7 +969,7 @@ def render_generate_benign_tasks_prompt(
 
 
 def _task_card_plan_is_host_action_only(task_card_plan: dict[str, Any] | None) -> bool:
-    """Return whether every active task card is action-only utility."""
+    """Return whether every active card is plain host-action utility work."""
     if not isinstance(task_card_plan, dict):
         return False
     active_cards = [
@@ -856,7 +978,9 @@ def _task_card_plan_is_host_action_only(task_card_plan: dict[str, Any] | None) -
         if isinstance(card, dict) and str(card.get("status", "active")) == "active"
     ]
     return bool(active_cards) and all(
-        card_benign_reward_shape(card) == "host_action_only" for card in active_cards
+        card_benign_reward_shape(card) == "host_action_only"
+        and not owns_model_generated_content(card)
+        for card in active_cards
     )
 
 
