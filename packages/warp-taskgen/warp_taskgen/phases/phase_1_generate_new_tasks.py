@@ -44,6 +44,7 @@ from warp_taskgen.phases.phase_1_route_contracts import (
 from warp_taskgen.phases.phase_1_task_cards import (
     card_action_kinds,
     card_benign_reward_shape,
+    task_card_generation_counts,
     task_card_plan_digest,
     task_card_plan_for_site,
 )
@@ -839,7 +840,7 @@ def render_generate_benign_tasks_prompt(
     )
     rendered = prompt.replace("{site_name}", site_name).replace("{num_tasks}", str(num_tasks))
     if isinstance(task_card_plan, dict):
-        addendum = generation_prompt_addendum(task_card_plan)
+        addendum = generation_prompt_addendum(task_card_plan, site_name=site_name)
         if addendum:
             rendered = f"{rendered}\n\n{addendum}"
     return rendered
@@ -906,9 +907,62 @@ def _site_requested_count(
     novel_tasks_per_site: int,
     action_counts: dict[str, int] | None,
 ) -> int:
+    generation_counts = task_card_generation_counts(task_card_plan)
+    if generation_counts is not None:
+        _validate_generation_count_action_counts(
+            task_card_plan=task_card_plan,
+            action_counts=action_counts,
+        )
+        return sum(generation_counts.values())
     if action_counts is None:
         return novel_tasks_per_site
     return sum(_action_counts_for_site(task_card_plan, action_counts).values())
+
+
+def _validate_generation_count_action_counts(
+    *,
+    task_card_plan: dict[str, Any] | None,
+    action_counts: dict[str, int] | None,
+) -> None:
+    """Fail closed when explicit action counts disagree with card quotas."""
+    if action_counts is None:
+        return
+    generation_counts = task_card_generation_counts(task_card_plan)
+    if generation_counts is None:
+        return
+
+    expected_by_action: dict[str, int] = {}
+    for card in (task_card_plan or {}).get("task_cards", []):
+        if not isinstance(card, dict) or str(card.get("status", "active")) != "active":
+            continue
+        card_id = str(card.get("id") or "")
+        count = generation_counts.get(card_id)
+        if count is None:
+            continue
+        action_kinds = card_action_kinds(card)
+        if len(action_kinds) > 1:
+            positive_requested = any(int(action_counts.get(kind, 0)) > 0 for kind in action_kinds)
+            if positive_requested:
+                raise ValueError(
+                    "generation_count/action_counts conflict: task card "
+                    f"{card_id!r} maps one quota to multiple action kinds "
+                    f"{list(action_kinds)!r}"
+                )
+            continue
+        if len(action_kinds) == 1:
+            expected_by_action[action_kinds[0]] = expected_by_action.get(action_kinds[0], 0) + count
+
+    conflicts: list[str] = []
+    for action_kind, expected in sorted(expected_by_action.items()):
+        actual = int(action_counts.get(action_kind, 0))
+        if actual != expected:
+            conflicts.append(f"{action_kind}: generation_count={expected}, action_counts={actual}")
+    if conflicts:
+        raise ValueError(
+            "generation_count/action_counts conflict for active task cards: "
+            + "; ".join(conflicts)
+            + ". Remove action_counts or make each action-kind total match its card quotas."
+        )
 
 
 def _normalize_action_counts(action_counts: dict[str, int] | None) -> dict[str, int] | None:

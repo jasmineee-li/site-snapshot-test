@@ -1101,6 +1101,13 @@ def validate_benign_tasks(
 
     if not data:
         errors.append("benign tasks array is empty")
+        errors.extend(
+            _validate_task_card_generation_distribution(
+                data,
+                site_name=site_name,
+                task_card_plan=task_card_plan,
+            )
+        )
         return errors
 
     _REQUIRED_FIELDS = ("id", "site", "instruction", "start_urls", "reward_function")
@@ -1192,6 +1199,14 @@ def validate_benign_tasks(
                 _validate_route_contract_alignment(task, prefix=prefix, route_index=route_index)
             )
 
+    errors.extend(
+        _validate_task_card_generation_distribution(
+            data,
+            site_name=site_name,
+            task_card_plan=task_card_plan,
+        )
+    )
+
     if route_index and not errors:
         errors.extend(
             _validate_stable_answer_diversity(
@@ -1201,6 +1216,88 @@ def validate_benign_tasks(
             )
         )
 
+    return errors
+
+
+def _validate_task_card_generation_distribution(
+    data: list[object],
+    *,
+    site_name: str,
+    task_card_plan: object | None,
+) -> list[str]:
+    """Check exact active-card quotas in the sandbox's stdlib-only validator."""
+    if not isinstance(task_card_plan, dict):
+        return []
+    cards = [
+        (index, card)
+        for index, card in enumerate(task_card_plan.get("task_cards", []))
+        if isinstance(card, dict)
+        and str(card.get("status", "active")) == "active"
+        and card.get("site") == site_name
+    ]
+    if not cards:
+        return []
+    declared = ["generation_count" in card for _index, card in cards]
+    if not any(declared):
+        return []
+    if not all(declared):
+        missing = [
+            f"task_cards[{index}] ({card.get('id')!r})"
+            for (index, card), has_count in zip(cards, declared, strict=True)
+            if not has_count
+        ]
+        return [
+            "task-card generation_count contract is incomplete for "
+            f"site {site_name!r}; missing on {', '.join(missing)}"
+        ]
+
+    expected: dict[str, int] = {}
+    diagnostics: list[str] = []
+    for index, card in cards:
+        card_id = card.get("id")
+        count = card.get("generation_count")
+        if not isinstance(card_id, str) or not card_id.strip():
+            diagnostics.append(f"task_cards[{index}].id must be a non-empty string")
+        if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
+            diagnostics.append(
+                f"task_cards[{index}].generation_count must be a positive integer; actual={count!r}"
+            )
+            continue
+        if isinstance(card_id, str) and card_id.strip():
+            expected[card_id] = count
+    if diagnostics:
+        return diagnostics
+
+    indexes_by_card: dict[str, list[int]] = {card_id: [] for card_id in expected}
+    unknown_card_errors: list[str] = []
+    for index, task in enumerate(data):
+        if not isinstance(task, dict):
+            continue
+        card_id = task.get("task_card_id")
+        if isinstance(card_id, str) and card_id in indexes_by_card:
+            indexes_by_card[card_id].append(index)
+        elif not isinstance(card_id, str) or not card_id.strip():
+            unknown_card_errors.append(
+                f"task[{index}].task_card_id is required for generation_count allocation"
+            )
+        else:
+            unknown_card_errors.append(
+                f"task[{index}].task_card_id {card_id!r} is not an active card for "
+                f"site {site_name!r}; expected one of {sorted(indexes_by_card)!r}"
+            )
+
+    errors: list[str] = [*unknown_card_errors]
+    for card_index, (_plan_index, card) in enumerate(cards):
+        card_id = str(card["id"])
+        wanted = expected[card_id]
+        indexes = indexes_by_card[card_id]
+        actual = len(indexes)
+        if actual == wanted:
+            continue
+        errors.append(
+            f"task_cards[{card_index}] ({card_id!r}) generation_count mismatch: "
+            f"expected {wanted}, got {actual}; task indexes: {indexes!r}"
+        )
     return errors
 
 

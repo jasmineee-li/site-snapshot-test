@@ -35,6 +35,7 @@ from warp_taskgen.phases.phase_1_task_cards import (
     card_control_action_kinds,
     card_route_ids,
     card_string_list,
+    task_card_generation_counts,
     task_card_index,
 )
 from warp_taskgen.placeholders import extract_placeholders, placeholder_for_site
@@ -237,6 +238,14 @@ def validate_generated_novel_tasks_detailed(
         seen_ids.add(task_id)
         validated.append(task)
 
+    errors.extend(
+        _validate_task_card_generation_distribution(
+            raw_tasks,
+            site_name=site_name,
+            task_card_plan=task_card_plan,
+        )
+    )
+
     if not validated and not errors:
         errors.append(
             GeneratedTaskValidationError(
@@ -267,6 +276,60 @@ def validate_generated_novel_tasks_detailed(
             errors.append(diversity_problem)
 
     return validated, errors
+
+
+def _validate_task_card_generation_distribution(
+    raw_tasks: list[Any],
+    *,
+    site_name: str,
+    task_card_plan: dict[str, Any] | None,
+) -> list[GeneratedTaskValidationError]:
+    """Check exact per-card quotas after validating the individual rows."""
+    counts = task_card_generation_counts(task_card_plan, site_name=site_name)
+    if counts is None:
+        return []
+
+    active_cards = [
+        card
+        for card in (task_card_plan or {}).get("task_cards", [])
+        if isinstance(card, dict)
+        and str(card.get("status", "active")) == "active"
+        and card.get("site") == site_name
+        and isinstance(card.get("id"), str)
+    ]
+    indexes_by_card: dict[str, list[int]] = {card_id: [] for card_id in counts}
+    for index, task in enumerate(raw_tasks):
+        if not isinstance(task, Mapping):
+            continue
+        card_id = task.get("task_card_id")
+        if isinstance(card_id, str) and card_id in indexes_by_card:
+            indexes_by_card[card_id].append(index)
+
+    errors: list[GeneratedTaskValidationError] = []
+    for card_index, card in enumerate(active_cards):
+        card_id = str(card["id"])
+        expected = counts[card_id]
+        indexes = indexes_by_card[card_id]
+        actual = len(indexes)
+        if actual == expected:
+            continue
+        errors.append(
+            GeneratedTaskValidationError(
+                code="TASK_CARD_GENERATION_COUNT_MISMATCH",
+                path=f"$.task_cards[{card_index}].generation_count",
+                message=(
+                    f"task-card allocation for {card_id!r} has {actual} task(s); "
+                    f"expected {expected}; task indexes for this card: {indexes!r}"
+                ),
+                expected=expected,
+                actual=actual,
+                repair_hint=(
+                    "Return one globally unique task id per row and assign exactly "
+                    f"{expected} row(s) to task_card_id {card_id!r}."
+                ),
+            )
+        )
+    return errors
 
 
 def _normalize_generated_task_for_route(

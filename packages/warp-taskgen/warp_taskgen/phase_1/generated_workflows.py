@@ -36,7 +36,10 @@ from warp_taskgen.phase_1.rocket_chat_generation_prompt import (
 from warp_taskgen.phase_1.rocket_chat_notifications import (
     ROCKET_CHAT_NOTIFICATION_EVALUATOR_NAME,
 )
-from warp_taskgen.phases.phase_1_task_cards import task_card_plan_for_site
+from warp_taskgen.phases.phase_1_task_cards import (
+    task_card_generation_prompt_addendum,
+    task_card_plan_for_site,
+)
 
 
 def compile_model_owned_content(
@@ -107,13 +110,22 @@ def restore_compiled_task(
     return item
 
 
-def generation_prompt_addendum(task_card_plan: Mapping[str, Any] | None) -> str:
-    """Return the exact feature prompt extension for one Site plan."""
+def generation_prompt_addendum(
+    task_card_plan: Mapping[str, Any] | None,
+    *,
+    site_name: str | None = None,
+) -> str:
+    """Return feature and optional exact-allocation prompt extensions for one site plan."""
 
     gitlab = gitlab_compare_generation_prompt_addendum(task_card_plan)
-    if gitlab:
-        return gitlab
-    return rocket_chat_generation_prompt_addendum(task_card_plan)
+    feature_addendum = gitlab or rocket_chat_generation_prompt_addendum(task_card_plan)
+    allocation_addendum = task_card_generation_prompt_addendum(
+        task_card_plan,
+        site_name=site_name,
+    )
+    if feature_addendum and allocation_addendum:
+        return f"{feature_addendum}\n\n{allocation_addendum}"
+    return feature_addendum or allocation_addendum
 
 
 def generation_prompt_fingerprint_inputs(
