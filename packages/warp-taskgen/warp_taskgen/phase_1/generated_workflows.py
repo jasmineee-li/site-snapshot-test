@@ -114,14 +114,21 @@ def generation_prompt_addendum(
     task_card_plan: Mapping[str, Any] | None,
     *,
     site_name: str | None = None,
+    _task_number_start: int | None = None,
 ) -> str:
-    """Return feature and optional exact-allocation prompt extensions for one site plan."""
+    """Return feature and optional exact-allocation prompt extensions for one site plan.
+
+    ``_task_number_start`` is private sliced-generation context.  It is passed
+    only to the allocation addendum so resume fingerprints and parent-plan
+    metadata remain unchanged.
+    """
 
     gitlab = gitlab_compare_generation_prompt_addendum(task_card_plan)
     feature_addendum = gitlab or rocket_chat_generation_prompt_addendum(task_card_plan)
     allocation_addendum = task_card_generation_prompt_addendum(
         task_card_plan,
         site_name=site_name,
+        _task_number_start=_task_number_start,
     )
     if feature_addendum and allocation_addendum:
         return f"{feature_addendum}\n\n{allocation_addendum}"
@@ -252,9 +259,16 @@ def stable_answer_diversity_key(
     card = task_card_index.get(card_id)
     if not isinstance(card, Mapping):
         return None
-    if gitlab_compare_decide_generation_contract(card) is None:
+    contract = gitlab_compare_decide_generation_contract(card)
+    if contract is None:
+        contract = gitlab_compare_act_generation_contract(card)
+    if contract is None:
         return None
-    return gitlab_compare_semantic_key(task, task_card_id=card_id)
+    return gitlab_compare_semantic_key(
+        task,
+        task_card_id=card_id,
+        act=contract.get("family") == "gitlab_compare_act",
+    )
 
 
 def _cards_by_id(task_card_plan: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:

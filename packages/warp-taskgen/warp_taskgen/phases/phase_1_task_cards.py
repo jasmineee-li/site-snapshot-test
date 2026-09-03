@@ -402,8 +402,15 @@ def task_card_generation_prompt_addendum(
     plan: Mapping[str, Any] | None,
     *,
     site_name: str | None = None,
+    _task_number_start: int | None = None,
 ) -> str:
-    """Describe an exact per-card allocation to the Phase 1 model."""
+    """Describe an exact per-card allocation to the Phase 1 model.
+
+    ``_task_number_start`` is internal context for sliced generation.  The
+    ordinary (unsliced) prompt keeps its historical 1-based allocation, while
+    a slice receives its site-global ordinal range as a substantive variation
+    cue.
+    """
     if not isinstance(plan, Mapping):
         return ""
     selected_site = site_name
@@ -418,8 +425,18 @@ def task_card_generation_prompt_addendum(
     if not active_cards or counts is None:
         return ""
     site_name = selected_site or str(active_cards[0].get("site") or "site")
+    if _task_number_start is None:
+        task_number_start = 1
+    elif (
+        isinstance(_task_number_start, bool)
+        or not isinstance(_task_number_start, int)
+        or _task_number_start < 1
+    ):
+        raise ValueError("_task_number_start must be a positive integer")
+    else:
+        task_number_start = _task_number_start
     total = sum(counts.values())
-    next_id = 1
+    next_id = task_number_start
     lines: list[str] = []
     for card in active_cards:
         card_id = str(card.get("id") or "")
@@ -430,17 +447,32 @@ def task_card_generation_prompt_addendum(
             f"(`novel_{site_name}_{next_id}` through `novel_{site_name}_{end_id}`)"
         )
         next_id = end_id + 1
-    return "\n".join(
-        [
-            "<task_card_generation_allocation>",
-            f"Generate exactly {total} tasks in this one response; do not split the "
-            "allocation across runs or restart the id counter per card.",
-            *lines,
-            "Use each listed task_card_id exactly as written. IDs must be unique "
-            f"within this response and use one global 1-based counter for {site_name}.",
-            "</task_card_generation_allocation>",
-        ]
-    )
+    allocation_lines = [
+        "<task_card_generation_allocation>",
+        f"Generate exactly {total} tasks in this one response; do not split the "
+        "allocation across runs or restart the id counter per card.",
+        *lines,
+        "Use each listed task_card_id exactly as written. IDs must be unique "
+        f"within this response and use one global 1-based counter for {site_name}.",
+        "</task_card_generation_allocation>",
+    ]
+    if _task_number_start is not None:
+        end_ordinal = task_number_start + total - 1
+        allocation_lines.extend(
+            [
+                "",
+                "<task_card_generation_variation>",
+                f"This is the site-global ordinal range {task_number_start}-{end_ordinal} "
+                f"for {site_name}, not an independent batch.",
+                "Use each task ordinal as a substantive variation cue: vary factual "
+                "values and relationships, evidence or summaries, the decisive logical "
+                "record, and any state/dependency action dependencies across tasks.",
+                "Do not satisfy variation by merely renaming tasks, changing IDs, or "
+                "rewriting equivalent prose; preserve the authored workflow contract.",
+                "</task_card_generation_variation>",
+            ]
+        )
+    return "\n".join(allocation_lines)
 
 
 def card_route_ids(card: dict[str, Any]) -> set[str]:

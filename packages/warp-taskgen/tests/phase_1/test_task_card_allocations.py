@@ -183,3 +183,98 @@ def test_generation_prompt_allocation_is_part_of_shared_and_site_cache_fingerpri
         )
         is None
     )
+
+
+def test_site_cache_fingerprint_keeps_default_and_api_payloads_unchanged(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    site = phase_1_generate_new_tasks.EligibleSiteProfile(
+        site_name="gitlab",
+        profile_path=tmp_path / "BENCHMARK_PROFILE_gitlab.json",
+        profile={},
+    )
+    original_digest = phase_1_generate_new_tasks._stable_json_digest
+    captured: list[dict] = []
+
+    def capture(payload):
+        captured.append(payload)
+        return original_digest(payload)
+
+    monkeypatch.setattr(phase_1_generate_new_tasks, "_stable_json_digest", capture)
+    default = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint="default-shared",
+        site=site,
+    )
+    api_plan = {
+        "task_cards": [
+            {
+                **_card("gitlab-api", "gitlab", 9),
+                "benign_reward_shape": "host_action_only",
+                "compatible_action_kinds": ["create_issue"],
+            }
+        ]
+    }
+    api = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint="api-shared",
+        site=site,
+        task_card_plan=api_plan,
+    )
+
+    assert default and api
+    assert all(
+        payload["cache_schema_version"] == 8
+        and "sliced_model_prompt_context_version" not in payload
+        for payload in captured
+    )
+
+
+def test_site_cache_fingerprint_discriminates_sliced_model_prompts_deterministically(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    site = phase_1_generate_new_tasks.EligibleSiteProfile(
+        site_name="gitlab",
+        profile_path=tmp_path / "BENCHMARK_PROFILE_gitlab.json",
+        profile={},
+    )
+    plan = {
+        "task_cards": [
+            {
+                **_card("gitlab-compare", "gitlab", 9),
+                "generation_contract": {
+                    "family": "gitlab_compare_decide",
+                    "version": 1,
+                    "record_keys": ["release-blocker", "docs-gap", "closed-bug"],
+                    "decision_rule": {"state": "open", "dependency": "release-4"},
+                },
+            }
+        ]
+    }
+    original_digest = phase_1_generate_new_tasks._stable_json_digest
+    captured: list[dict] = []
+
+    def capture(payload):
+        captured.append(payload)
+        return original_digest(payload)
+
+    monkeypatch.setattr(phase_1_generate_new_tasks, "_stable_json_digest", capture)
+    first = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint="sliced-shared",
+        site=site,
+        task_card_plan=plan,
+    )
+    second = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint="sliced-shared",
+        site=site,
+        task_card_plan=plan,
+    )
+
+    assert first == second
+    assert captured[-1]["sliced_model_prompt_context_version"] == 1
+    without_discriminator = {
+        key: value
+        for key, value in captured[-1].items()
+        if key != "sliced_model_prompt_context_version"
+    }
+    assert first != original_digest(without_discriminator)

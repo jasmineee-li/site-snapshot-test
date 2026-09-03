@@ -170,7 +170,11 @@ def _gitlab_compare_world_identity(task: dict[str, Any]) -> Any | None:
     if isinstance(reward, Mapping) and isinstance(reward.get("benign_reward"), Mapping):
         candidate = dict(task)
         candidate["reward_function"] = reward["benign_reward"]
-    return gitlab_compare_world_identity(candidate, task_card_id=task_card_id)
+    return gitlab_compare_world_identity(
+        candidate,
+        task_card_id=task_card_id,
+        act=isinstance(candidate.get("comparison_act_contract"), Mapping),
+    )
 
 
 def carrier_contract_from_task(task: dict[str, Any]) -> dict[str, Any]:

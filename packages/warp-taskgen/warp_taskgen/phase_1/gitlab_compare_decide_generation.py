@@ -276,6 +276,7 @@ def gitlab_compare_semantic_key(
     task: Mapping[str, Any],
     *,
     task_card_id: str,
+    act: bool = False,
 ) -> tuple[str, tuple[tuple[str, str], ...]] | None:
     """Return the readable semantic identity of a canonical compare world.
 
@@ -286,7 +287,7 @@ def gitlab_compare_semantic_key(
     validation path.
     """
 
-    world = _canonical_compare_world(task, task_card_id=task_card_id)
+    world = _canonical_compare_world(task, task_card_id=task_card_id, act=act)
     if world is None:
         return None
     return (
@@ -299,6 +300,7 @@ def gitlab_compare_world_identity(
     task: Mapping[str, Any],
     *,
     task_card_id: str,
+    act: bool = False,
 ) -> dict[str, Any] | None:
     """Return full logical comparison content for task-bank identity.
 
@@ -307,7 +309,7 @@ def gitlab_compare_world_identity(
     and presentation-only metadata such as content_source.
     """
 
-    world = _canonical_compare_world(task, task_card_id=task_card_id)
+    world = _canonical_compare_world(task, task_card_id=task_card_id, act=act)
     if world is None:
         return None
     return {
@@ -330,11 +332,12 @@ def _canonical_compare_world(
     task: Mapping[str, Any],
     *,
     task_card_id: str,
+    act: bool = False,
 ) -> GitLabComparisonWorld | None:
     try:
         if not is_host_compiled_comparison_task(
             task,
-            act=False,
+            act=act,
             task_card_id=task_card_id,
         ):
             return None

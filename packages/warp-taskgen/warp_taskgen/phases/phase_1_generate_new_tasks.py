@@ -7,7 +7,7 @@ import json
 import logging
 import os
 import tempfile
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
@@ -497,6 +497,7 @@ async def generate_new_tasks_for_site(
         site_name=site.site_name,
         num_tasks=expected_task_count,
         task_card_plan=task_card_plan,
+        _task_number_start=_task_number_start,
     )
     prompt = base_prompt
     last_errors: list[str] = []
@@ -949,8 +950,13 @@ def render_generate_benign_tasks_prompt(
     site_name: str,
     num_tasks: int,
     task_card_plan: dict[str, Any] | None = None,
+    _task_number_start: int | None = None,
 ) -> str:
-    """Render the generate-new-tasks prompt without interpreting literal example braces."""
+    """Render the generate-new-tasks prompt without interpreting literal example braces.
+
+    ``_task_number_start`` is private context used by card-sliced generation;
+    ordinary callers continue to receive the historical prompt unchanged.
+    """
     prompt_name = (
         "generate-benign-action-tasks"
         if _task_card_plan_is_host_action_only(task_card_plan)
@@ -962,7 +968,11 @@ def render_generate_benign_tasks_prompt(
     )
     rendered = prompt.replace("{site_name}", site_name).replace("{num_tasks}", str(num_tasks))
     if isinstance(task_card_plan, dict):
-        addendum = generation_prompt_addendum(task_card_plan, site_name=site_name)
+        addendum = generation_prompt_addendum(
+            task_card_plan,
+            site_name=site_name,
+            _task_number_start=_task_number_start,
+        )
         if addendum:
             rendered = f"{rendered}\n\n{addendum}"
     return rendered
@@ -1168,6 +1178,7 @@ def compute_site_cache_fingerprint(
     if agent_context_path.exists():
         agent_context_digest = sha256(agent_context_path.read_bytes()).hexdigest()
 
+    site_task_card_plan = task_card_plan_for_site(task_card_plan, site.site_name)
     payload = {
         "cache_schema_version": GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION,
         "shared_inputs_fingerprint": shared_inputs_fingerprint,
@@ -1180,15 +1191,33 @@ def compute_site_cache_fingerprint(
         "task_count": novel_tasks_per_site,
         "action_counts": _normalize_action_counts(
             _action_counts_for_site(
-                task_card_plan_for_site(task_card_plan, site.site_name),
+                site_task_card_plan,
                 action_counts,
             )
         ),
-        "task_card_plan_digest": task_card_plan_digest(
-            task_card_plan_for_site(task_card_plan, site.site_name)
-        ),
+        "task_card_plan_digest": task_card_plan_digest(site_task_card_plan),
     }
+    if _uses_sliced_model_prompt(site_task_card_plan, site_name=site.site_name):
+        # The sliced prompt carries a site-global ordinal range and substantive
+        # variation cues.  Keep the global cache schema and unaffected cache
+        # payloads stable; only these model-owned slices need invalidation.
+        payload["sliced_model_prompt_context_version"] = 1
     return _stable_json_digest(payload)
+
+
+def _uses_sliced_model_prompt(
+    task_card_plan: Mapping[str, Any] | None,
+    *,
+    site_name: str,
+) -> bool:
+    """Return whether this site plan emits a model-owned sliced prompt."""
+
+    return any(
+        owns_model_generated_content(card)
+        for card_slice in task_card_generation_slices(task_card_plan, site_name=site_name)
+        for card in card_slice.task_card_plan.get("task_cards", [])
+        if isinstance(card, Mapping)
+    )
 
 
 def _load_site_agent_context(
