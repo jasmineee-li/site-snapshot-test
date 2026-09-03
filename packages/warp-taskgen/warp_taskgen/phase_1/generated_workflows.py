@@ -10,6 +10,9 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from warp_taskgen.phase_1.gitlab_compare_compiled_validation import (
+    is_host_compiled_comparison_task,
+)
 from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
     compile_phase1_gitlab_compare_act_task,
     compile_phase1_gitlab_compare_decide_task,
@@ -55,6 +58,10 @@ def compile_model_owned_content(
             compiled.append(compile_phase1_rocket_chat_notification_task(task, task_card=card))
         elif rocket_chat_decision_generation_contract(card) is not None:
             compiled.append(compile_phase1_rocket_chat_decision_task(task, task_card=card))
+        elif gitlab_compare_act_generation_contract(card) is not None:
+            compiled.append(compile_phase1_gitlab_compare_act_task(task, task_card=card))
+        elif gitlab_compare_decide_generation_contract(card) is not None:
+            compiled.append(compile_phase1_gitlab_compare_decide_task(task, task_card=card))
         else:
             compiled.append(task)
     return compiled
@@ -144,6 +151,38 @@ def host_compiled_evaluator_types(
     return frozenset(evaluator_types)
 
 
+def validated_host_action_contract(
+    task: Mapping[str, Any],
+    *,
+    task_card: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Return feature-owned action provenance after canonical revalidation."""
+
+    if gitlab_compare_act_generation_contract(task_card) is None:
+        return None
+    card_id = str(task_card.get("id") or "")
+    if not card_id or not isinstance(task.get("comparison_act_contract"), Mapping):
+        return None
+    try:
+        if not is_host_compiled_comparison_task(
+            task,
+            act=True,
+            task_card_id=card_id,
+        ):
+            return None
+    except (TypeError, ValueError):
+        return None
+    provenance = task.get("task_provenance")
+    contract = provenance.get("benign_action_contract") if isinstance(provenance, Mapping) else None
+    return dict(contract) if isinstance(contract, Mapping) else None
+
+
+def owns_host_action_contract(task_card: Mapping[str, Any] | None) -> bool:
+    """Return whether a generated-workflow feature owns this card's action reward."""
+
+    return gitlab_compare_act_generation_contract(task_card) is not None
+
+
 def _cards_by_id(task_card_plan: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
     return {
         str(card.get("id")): card
@@ -157,6 +196,8 @@ __all__ = [
     "generation_prompt_addendum",
     "generation_prompt_fingerprint_inputs",
     "host_compiled_evaluator_types",
+    "owns_host_action_contract",
     "restore_compiled_task",
     "restore_compiled_tasks",
+    "validated_host_action_contract",
 ]

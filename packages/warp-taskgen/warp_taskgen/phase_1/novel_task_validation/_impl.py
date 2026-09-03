@@ -19,6 +19,10 @@ from warp_taskgen.adversarial_actions.capability_contracts import (
 from warp_taskgen.adversarial_actions.scenario_templates import (
     scenario_template_from_mapping,
 )
+from warp_taskgen.phase_1.generated_workflows import (
+    owns_host_action_contract,
+    validated_host_action_contract,
+)
 from warp_taskgen.phase_2.exposure_contract import build_exposure_contract
 from warp_taskgen.phase_2.target_resolution.constants import _REDDIT_COMMENT_VISUAL_REGION_RE
 from warp_taskgen.phase_2.target_resolution.runner import derive_benign_target_resource
@@ -274,27 +278,31 @@ def _normalize_generated_task_for_route(
     if not isinstance(route, dict):
         return task
 
-    normalized = copy.deepcopy(task)
-    seed = normalized.get("data_seed")
-    if not isinstance(seed, dict) or seed.get("mechanism") != "editor":
-        return normalized
-    calls = seed.get("editor_calls")
-    if not isinstance(calls, list):
-        return normalized
-
     editor_arg_templates = route.get("editor_arg_templates")
     if not isinstance(editor_arg_templates, dict):
-        return normalized
-    for call in calls:
-        if not isinstance(call, dict):
+        return copy.deepcopy(task)
+
+    normalized = copy.deepcopy(task)
+    # Benign and adversarial seeds describe the same route-bound fixture. Keep
+    # route canonicalization symmetric so later host-compiled checks cannot
+    # reject a pair that differs only because one side skipped normalization.
+    for seed_key in ("data_seed", "adversarial_data_seed"):
+        seed = normalized.get(seed_key)
+        if not isinstance(seed, dict) or seed.get("mechanism") != "editor":
             continue
-        method = str(call.get("method") or "")
-        args = call.get("args")
-        if not isinstance(args, dict):
+        calls = seed.get("editor_calls")
+        if not isinstance(calls, list):
             continue
-        template_args = editor_arg_templates.get(method)
-        if isinstance(template_args, dict):
-            _apply_route_editor_arg_template(args, template_args)
+        for call in calls:
+            if not isinstance(call, dict):
+                continue
+            method = str(call.get("method") or "")
+            args = call.get("args")
+            if not isinstance(args, dict):
+                continue
+            template_args = editor_arg_templates.get(method)
+            if isinstance(template_args, dict):
+                _apply_route_editor_arg_template(args, template_args)
     return normalized
 
 
@@ -444,7 +452,17 @@ def validate_generated_novel_task(
                 expected=placeholder,
                 actual=sorted(tokens),
             )
+    preserved_benign_action_contract = _preserved_host_compiled_action_contract(
+        task,
+        task_card_index=task_card_index,
+    )
     _strip_model_authored_host_metadata(task)
+    if preserved_benign_action_contract is not None:
+        # Keep only the contract that the feature compiler already proved. The
+        # ordinary model-authored provenance remains stripped below.
+        task["task_provenance"] = {
+            "benign_action_contract": copy.deepcopy(preserved_benign_action_contract)
+        }
     if route_index is not None:
         route_problem = _validate_route_contract_alignment(
             task,
@@ -464,6 +482,7 @@ def validate_generated_novel_task(
             site_name=site_name,
             card_index=task_card_index,
             route_index=route_index,
+            preserved_benign_action_contract=preserved_benign_action_contract,
         )
         if card_problem is not None:
             return card_problem
@@ -1154,6 +1173,7 @@ def _validate_task_card_alignment(
     site_name: str,
     card_index: dict[str, dict[str, Any]],
     route_index: dict[str, dict[str, Any]] | None,
+    preserved_benign_action_contract: Mapping[str, Any] | None = None,
 ) -> GeneratedTaskValidationError | None:
     card_id = task.get("task_card_id")
     if not isinstance(card_id, str) or not card_id.strip():
@@ -1296,34 +1316,77 @@ def _validate_task_card_alignment(
                     "or answer-exactly final labels."
                 ),
             )
-    benign_action_problem = apply_benign_action_contract(task, card)
-    if benign_action_problem is not None:
+    if preserved_benign_action_contract is not None:
+        task["task_provenance"]["benign_action_contract"] = copy.deepcopy(
+            dict(preserved_benign_action_contract)
+        )
+    feature_owns_action_contract = (
+        reward_shape == BENIGN_REWARD_HOST_ACTION_ONLY and owns_host_action_contract(card)
+    )
+    if feature_owns_action_contract and preserved_benign_action_contract is None:
         return _field_error(
             index,
-            "TASK_CARD_BENIGN_ACTION_EVIDENCE_INVALID",
-            "task_card_id",
-            benign_action_problem,
-            actual=card_id,
-            repair_hint=(
-                "Use a task card/action pair whose benign public action can be "
-                "compiled to deterministic request evidence."
-            ),
+            "TASK_CARD_FEATURE_ACTION_REWARD_INVALID",
+            "reward_function.eval",
+            "generated-workflow action reward is missing or not canonical",
+            actual=task.get("reward_function"),
+            repair_hint="Return the authored feature's model-output contract for host compilation.",
         )
-    if reward_shape == BENIGN_REWARD_HOST_ACTION_ONLY:
-        finalize_problem = finalize_host_action_only_benign_reward(task)
-        if finalize_problem is not None:
+    feature_compiled_action_only = (
+        feature_owns_action_contract and preserved_benign_action_contract is not None
+    )
+    if not feature_compiled_action_only:
+        benign_action_problem = apply_benign_action_contract(task, card)
+        if benign_action_problem is not None:
             return _field_error(
                 index,
-                "TASK_CARD_HOST_ACTION_ONLY_REWARD_INVALID",
-                "reward_function.eval",
-                finalize_problem,
-                actual=task.get("reward_function"),
+                "TASK_CARD_BENIGN_ACTION_EVIDENCE_INVALID",
+                "task_card_id",
+                benign_action_problem,
+                actual=card_id,
                 repair_hint=(
-                    "Use an action-only task card with host-compiled benign action "
-                    "evidence so the reward can be finalized by the host."
+                    "Use a task card/action pair whose benign public action can be "
+                    "compiled to deterministic request evidence."
                 ),
             )
+        if reward_shape == BENIGN_REWARD_HOST_ACTION_ONLY:
+            finalize_problem = finalize_host_action_only_benign_reward(task)
+            if finalize_problem is not None:
+                return _field_error(
+                    index,
+                    "TASK_CARD_HOST_ACTION_ONLY_REWARD_INVALID",
+                    "reward_function.eval",
+                    finalize_problem,
+                    actual=task.get("reward_function"),
+                    repair_hint=(
+                        "Use an action-only task card with host-compiled benign action "
+                        "evidence so the reward can be finalized by the host."
+                    ),
+                )
     return None
+
+
+def _preserved_host_compiled_action_contract(
+    task: Mapping[str, Any],
+    *,
+    task_card_index: dict[str, dict[str, Any]] | None,
+) -> Mapping[str, Any] | None:
+    """Return a feature contract only after the comparison owner revalidates it.
+
+    A generated row may carry a final-state evaluator before generic Phase 1
+    validation.  Preserve its benign-action provenance only for an explicitly
+    opted-in compare-and-act card and only when the feature's own canonical
+    validator accepts the complete host output.  Raw model rows therefore do
+    not gain a profile bypass merely by copying a reward and provenance shape.
+    """
+
+    card_id = task.get("task_card_id")
+    if not isinstance(card_id, str) or not isinstance(task_card_index, Mapping):
+        return None
+    task_card = task_card_index.get(card_id)
+    if not isinstance(task_card, Mapping):
+        return None
+    return validated_host_action_contract(task, task_card=task_card)
 
 
 def _strip_model_authored_host_metadata(task: dict[str, Any]) -> None:

@@ -166,9 +166,12 @@ def _world_from_compiled_task(task: Mapping[str, Any]) -> GitLabComparisonWorld:
         raise ValueError("GitLab comparison task must include a world")
     raw_records = world.get("records")
     record_items = raw_records if isinstance(raw_records, list) else []
+    decision_rule = world.get("decision_rule", DEFAULT_DECISION_RULE)
+    if not isinstance(decision_rule, Mapping):
+        raise ValueError("GitLab comparison world decision_rule must be an object")
     return GitLabComparisonWorld(
         records=tuple(_record_from_world_mapping(record) for record in record_items),
-        decision_rule=world.get("decision_rule", DEFAULT_DECISION_RULE),
+        decision_rule=decision_rule,
         decisive_record_key=str(world.get("decisive_record_key") or ""),
         benchmark=str(world.get("benchmark") or "webarena_verified"),
         site=str(world.get("site") or "gitlab"),

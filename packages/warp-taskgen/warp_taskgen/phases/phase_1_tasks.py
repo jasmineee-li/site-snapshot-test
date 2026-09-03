@@ -10,7 +10,10 @@ from typing import Any
 
 from warp_taskgen.benchmark_capabilities import get_benchmark_capabilities, infer_benchmark_name
 from warp_taskgen.cost_tracker import tracker as cost_tracker
-from warp_taskgen.phase_1.generated_workflows import restore_compiled_task
+from warp_taskgen.phase_1.generated_workflows import (
+    host_compiled_evaluator_types,
+    restore_compiled_task,
+)
 from warp_taskgen.phase_1.novel_task_validation import (
     merge_benign_tasks as _merge_benign_tasks,
 )
@@ -22,6 +25,8 @@ from warp_taskgen.phases.phase_1_generate_new_tasks import (
     DEFAULT_NOVEL_TASKS_PER_SITE,
     GENERATE_NEW_TASKS_RESUME_METADATA_PATH,
     EligibleSiteProfile,
+    _action_counts_for_site,
+    _site_requested_count,
     compute_generate_new_tasks_resume_fingerprint,
     compute_generate_new_tasks_shared_inputs_fingerprint,
     compute_site_cache_fingerprint,
@@ -37,9 +42,11 @@ from warp_taskgen.phases.phase_1_generate_new_tasks import (
 from warp_taskgen.phases.phase_1_generate_new_tasks import (
     load_generate_new_tasks_eligible_sites as _load_generate_new_tasks_eligible_sites,
 )
+from warp_taskgen.phases.phase_1_route_contracts import build_task_route_contracts
 from warp_taskgen.phases.phase_1_task_cards import (
     load_or_compile_task_card_plan,
     task_card_plan_digest,
+    task_card_plan_for_site,
 )
 from warp_taskgen.state import get_state_dir, save_state
 
@@ -63,8 +70,9 @@ async def run(args: argparse.Namespace) -> int:
     task_card_plan_arg = getattr(args, "task_card_plan", None)
     task_card_plan_path = Path(task_card_plan_arg) if task_card_plan_arg else None
     task_capability_profile = getattr(args, "task_capability_profile", None)
+    phase_1_action_counts = getattr(args, "phase_1_action_counts", None)
     try:
-        action_counts = _parse_phase_1_action_counts(getattr(args, "phase_1_action_counts", None))
+        action_counts = _parse_phase_1_action_counts(phase_1_action_counts)
     except ValueError as exc:
         logger.error("Phase 1 action-count gate failed: %s", exc)
         return 1
@@ -86,6 +94,9 @@ async def run(args: argparse.Namespace) -> int:
             sandbox_model=sandbox_model,
             sites=sites_filter_raw,
             novel_tasks_per_site=novel_tasks_per_site,
+            task_card_plan_path=task_card_plan_path,
+            task_capability_profile=task_capability_profile,
+            phase_1_action_counts=phase_1_action_counts,
             error=str(exc),
         )
         return 1
@@ -101,6 +112,9 @@ async def run(args: argparse.Namespace) -> int:
             sandbox_model=sandbox_model,
             sites=sites_filter_raw,
             novel_tasks_per_site=novel_tasks_per_site,
+            task_card_plan_path=task_card_plan_path,
+            task_capability_profile=task_capability_profile,
+            phase_1_action_counts=phase_1_action_counts,
         )
         return 1
     try:
@@ -124,6 +138,7 @@ async def run(args: argparse.Namespace) -> int:
             task_card_plan_path=task_card_plan_path,
             task_capability_profile=task_capability_profile,
             task_card_plan_digest_value=None,
+            phase_1_action_counts=phase_1_action_counts,
             error=str(exc),
         )
         return 1
@@ -148,6 +163,7 @@ async def run(args: argparse.Namespace) -> int:
             task_card_plan_path=task_card_plan_path,
             task_capability_profile=task_capability_profile,
             task_card_plan_digest_value=task_card_digest,
+            phase_1_action_counts=phase_1_action_counts,
         )
         return 1
     try:
@@ -165,6 +181,7 @@ async def run(args: argparse.Namespace) -> int:
             task_card_plan_path=task_card_plan_path,
             task_capability_profile=task_capability_profile,
             task_card_plan_digest_value=task_card_digest,
+            phase_1_action_counts=phase_1_action_counts,
             error=str(exc),
         )
         return 1
@@ -183,6 +200,7 @@ async def run(args: argparse.Namespace) -> int:
         task_card_plan_path=task_card_plan_path,
         task_capability_profile=task_capability_profile,
         task_card_plan_digest_value=task_card_digest,
+        phase_1_action_counts=phase_1_action_counts,
     )
 
     profiles_dir = get_state_dir() / "phase_0c"
@@ -205,6 +223,7 @@ async def run(args: argparse.Namespace) -> int:
             task_card_plan_path=task_card_plan_path,
             task_capability_profile=task_capability_profile,
             task_card_plan_digest_value=task_card_digest,
+            phase_1_action_counts=phase_1_action_counts,
         )
         return 1
 
@@ -225,6 +244,11 @@ async def run(args: argparse.Namespace) -> int:
             site_filter=sites_filter,
             novel_tasks_per_site=novel_tasks_per_site,
             task_card_plan=task_card_plan,
+            sites=sites_filter_raw,
+            task_card_plan_path=task_card_plan_path,
+            task_capability_profile=task_capability_profile,
+            task_card_plan_digest_value=task_card_digest,
+            phase_1_action_counts=phase_1_action_counts,
             action_counts=action_counts,
         )
         if novel_tasks is None:
@@ -403,6 +427,7 @@ def _save_phase_1_running_state(
     task_card_plan_path: Path | None = None,
     task_capability_profile: str | None = None,
     task_card_plan_digest_value: str | None = None,
+    phase_1_action_counts: str | None = None,
 ) -> None:
     """Persist the start of Phase 1 for resume support."""
     save_state(
@@ -418,6 +443,7 @@ def _save_phase_1_running_state(
         task_card_plan_path=str(task_card_plan_path) if task_card_plan_path else None,
         task_capability_profile=task_capability_profile,
         task_card_plan_digest=task_card_plan_digest_value,
+        phase_1_action_counts=phase_1_action_counts,
     )
 
 
@@ -433,6 +459,7 @@ def _save_phase_1_failure_state(
     task_card_plan_path: Path | None = None,
     task_capability_profile: str | None = None,
     task_card_plan_digest_value: str | None = None,
+    phase_1_action_counts: str | None = None,
     existing_task_count: int | None = None,
     error: str | None = None,
 ) -> None:
@@ -447,6 +474,7 @@ def _save_phase_1_failure_state(
         "task_card_plan_path": str(task_card_plan_path) if task_card_plan_path else None,
         "task_capability_profile": task_capability_profile,
         "task_card_plan_digest": task_card_plan_digest_value,
+        "phase_1_action_counts": phase_1_action_counts,
     }
     if sites is not None:
         payload["sites"] = sites
@@ -473,6 +501,11 @@ async def _maybe_generate_new_tasks(
     site_filter: set[str] | None,
     novel_tasks_per_site: int,
     task_card_plan: dict[str, Any] | None,
+    sites: str | None = None,
+    task_card_plan_path: Path | None = None,
+    task_capability_profile: str | None = None,
+    task_card_plan_digest_value: str | None = None,
+    phase_1_action_counts: str | None = None,
     action_counts: dict[str, int] | None = None,
 ) -> list[dict[str, Any]] | None:
     """Return generate-new-tasks output, reusing merged output when already present."""
@@ -510,7 +543,12 @@ async def _maybe_generate_new_tasks(
             manifest_path=manifest_path,
             generate_novel=True,
             sandbox_model=sandbox_model,
+            sites=sites,
             novel_tasks_per_site=novel_tasks_per_site,
+            task_card_plan_path=task_card_plan_path,
+            task_capability_profile=task_capability_profile,
+            task_card_plan_digest_value=task_card_plan_digest_value,
+            phase_1_action_counts=phase_1_action_counts,
             existing_task_count=existing_task_count,
         )
         logger.error("Phase 1 (generate-new-tasks) failed: %s", exc)
@@ -655,6 +693,14 @@ def _merged_output_matches_current_site_caches(
 ) -> bool:
     cached_tasks: list[dict[str, Any]] = []
     for site in eligible_sites:
+        site_task_card_plan = task_card_plan_for_site(task_card_plan, site.site_name)
+        site_expected_count = _site_requested_count(
+            site_task_card_plan,
+            novel_tasks_per_site=novel_tasks_per_site,
+            action_counts=_action_counts_for_site(site_task_card_plan, action_counts),
+        )
+        if site_expected_count <= 0:
+            continue
         cached_result = _load_cached_novel_tasks(
             intermediate_path=output_dir / f"novel_tasks_{site.site_name}.json",
             site_name=site.site_name,
@@ -666,8 +712,15 @@ def _merged_output_matches_current_site_caches(
                 task_card_plan=task_card_plan,
                 action_counts=action_counts,
             ),
-            expected_task_count=novel_tasks_per_site,
-            task_card_plan=task_card_plan,
+            expected_task_count=site_expected_count,
+            route_contracts=build_task_route_contracts(
+                site_name=site.site_name,
+                profile=site.profile,
+            ),
+            task_card_plan=site_task_card_plan,
+            host_compiled_evaluator_types=host_compiled_evaluator_types(
+                site_task_card_plan
+            ),
         )
         if cached_result is None:
             return False
