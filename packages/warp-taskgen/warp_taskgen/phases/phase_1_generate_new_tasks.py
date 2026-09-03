@@ -95,6 +95,15 @@ class SiteGenerateNewTasksResult:
     errors: list[str]
 
 
+@dataclass(frozen=True)
+class SiteCacheInspection:
+    """Read-only explanation of one Phase 1 site-cache decision."""
+
+    status: str
+    reason_code: str
+    result: SiteGenerateNewTasksResult | None = None
+
+
 async def run_generate_new_tasks(
     *,
     manifest: dict[str, Any],
@@ -752,27 +761,65 @@ def load_cached_novel_tasks(
     host_compiled_evaluator_types: frozenset[str] = frozenset(),
 ) -> SiteGenerateNewTasksResult | None:
     """Return a validated cached per-site result when available."""
-    if not intermediate_path.exists():
-        return None
-
-    metadata = _load_site_cache_metadata(_site_cache_metadata_path(intermediate_path))
-    if metadata.get("fingerprint") != cache_fingerprint:
-        logger.warning(
-            "Phase 1 (generate-new-tasks): ignoring cached tasks for site %r because cache metadata does not match current inputs",
+    inspection = inspect_cached_novel_tasks(
+        intermediate_path=intermediate_path,
+        site_name=site_name,
+        profile=profile,
+        cache_fingerprint=cache_fingerprint,
+        expected_agent_context=expected_agent_context,
+        expected_task_count=expected_task_count,
+        route_contracts=route_contracts,
+        task_card_plan=task_card_plan,
+        host_compiled_evaluator_types=host_compiled_evaluator_types,
+    )
+    if inspection.result is not None:
+        logger.info(
+            "Phase 1 (generate-new-tasks): reusing %d cached novel tasks for site %r",
+            len(inspection.result.benign_tasks),
             site_name,
         )
-        return None
+        return inspection.result
+    if inspection.status != "missing":
+        logger.warning(
+            "Phase 1 (generate-new-tasks): ignoring cached tasks for site %r (%s)",
+            site_name,
+            inspection.reason_code,
+        )
+    return None
+
+
+def inspect_cached_novel_tasks(
+    *,
+    intermediate_path: Path,
+    site_name: str,
+    profile: dict[str, Any],
+    cache_fingerprint: str,
+    expected_agent_context: dict[str, Any] | None = None,
+    expected_task_count: int = DEFAULT_NOVEL_TASKS_PER_SITE,
+    route_contracts: dict[str, Any] | None = None,
+    task_card_plan: dict[str, Any] | None = None,
+    host_compiled_evaluator_types: frozenset[str] = frozenset(),
+) -> SiteCacheInspection:
+    """Inspect a site cache with the same checks used before runtime reuse."""
+    if not intermediate_path.exists():
+        return SiteCacheInspection("missing", "cache_artifact_missing")
+
+    metadata_path = _site_cache_metadata_path(intermediate_path)
+    if not metadata_path.exists():
+        return SiteCacheInspection("stale", "cache_metadata_missing")
+    try:
+        metadata = json.loads(metadata_path.read_text())
+    except json.JSONDecodeError:
+        return SiteCacheInspection("invalid", "cache_metadata_invalid")
+    if not isinstance(metadata, dict):
+        return SiteCacheInspection("invalid", "cache_metadata_invalid")
+    if metadata.get("fingerprint") != cache_fingerprint:
+        return SiteCacheInspection("stale", "cache_fingerprint_mismatch")
 
     try:
         cached_tasks = json.loads(intermediate_path.read_text())
-    except json.JSONDecodeError as exc:
-        logger.warning(
-            "Phase 1 (generate-new-tasks): ignoring invalid cached tasks for site %r at %s: %s",
-            site_name,
-            intermediate_path,
-            exc,
-        )
-        return None
+    except json.JSONDecodeError:
+        return SiteCacheInspection("invalid", "cache_artifact_invalid_json")
 
     validated_cached, errors = validate_generated_novel_tasks(
         cached_tasks,
@@ -784,27 +831,17 @@ def load_cached_novel_tasks(
         host_compiled_evaluator_types=host_compiled_evaluator_types,
     )
     if errors:
-        logger.warning(
-            "Phase 1 (generate-new-tasks): ignoring invalid cached tasks for site %r: %s",
-            site_name,
-            "; ".join(errors),
-        )
-        return None
+        return SiteCacheInspection("invalid", "cache_task_validation_failed")
     if expected_agent_context is not None and any(
         task.get("agent_context") != expected_agent_context for task in validated_cached
     ):
-        logger.warning(
-            "Phase 1 (generate-new-tasks): ignoring cached tasks for site %r because embedded agent context is missing or stale",
-            site_name,
-        )
-        return None
+        return SiteCacheInspection("stale", "embedded_agent_context_mismatch")
 
-    logger.info(
-        "Phase 1 (generate-new-tasks): reusing %d cached novel tasks for site %r",
-        len(validated_cached),
-        site_name,
+    return SiteCacheInspection(
+        "reusable",
+        "cache_valid",
+        SiteGenerateNewTasksResult(site_name, validated_cached, []),
     )
-    return SiteGenerateNewTasksResult(site_name, validated_cached, [])
 
 
 def load_existing_novel_tasks(output_path: Path) -> list[dict[str, Any]] | None:
@@ -1302,20 +1339,6 @@ def _write_site_cache_metadata(metadata_path: Path, *, fingerprint: str, site_na
             indent=2,
         )
     )
-
-
-def _load_site_cache_metadata(metadata_path: Path) -> dict[str, Any]:
-    if not metadata_path.exists():
-        return {}
-    try:
-        payload = json.loads(metadata_path.read_text())
-    except json.JSONDecodeError:
-        logger.warning(
-            "Phase 1 (generate-new-tasks): ignoring invalid site-cache metadata at %s",
-            metadata_path,
-        )
-        return {}
-    return payload if isinstance(payload, dict) else {}
 
 
 def _stable_json_digest(value: Any) -> str:

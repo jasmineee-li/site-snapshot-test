@@ -473,6 +473,22 @@ route or accept checkpoints. Phase 2 SIGINT/SIGTERM handling begins after the
 Phase 2 run lock is owned; pre-lock delivery and SIGKILL retain
 crash-compatible `running` semantics.
 
+For crash-only Phase 1 novel-task generation, `status` additionally exposes a
+feature-owned, read-only `phase1_generation` projection. It recomputes the
+current shared and per-site cache identities and applies the same profile,
+route, task-card, agent-context, and task validators used by runtime cache
+reuse. Each complete site cache is reported as reusable, missing, stale,
+invalid, or unavailable, with aggregate reusable and remaining task counts.
+The aggregate honors runtime precedence: a valid merged output with matching
+resume metadata makes all requested novel-task rows reusable even if a
+redundant per-site cache is absent; otherwise the site-cache verdicts determine
+the reusable count.
+The projection is advisory: it does not add slice checkpoints, change the
+Resume Plan, call model or network boundaries, or write Run Artifacts. The
+contract-bound Phase 1 backend environment setting remains an unpersisted
+cache-identity input, so status reports whether it is currently set and warns
+operators to restore the original context before resuming.
+
 ### CLI Flags
 
 `warp_taskgen.main` exposes core pipeline subcommands `phase <id>`, `resume`, and `rescore-phase-3`, plus operator utilities including `pause`, `trace`, `preflight`, `status`, `inspect`, `agentlab`, and `task-bank`. The `resume` subcommand mirrors every pipeline flag below so that a crashed run can be restarted with either the saved values or an override. `resume` reads the saved step from `logs/pipeline_state.json`, applies the lifecycle logic from the State Persistence section, and then dispatches exactly as if you had typed `phase <id>` with the stored arguments.
