@@ -553,3 +553,38 @@ portfolio is an independent marketplace-breadth lane. ST-WebAgentBench remains
 comparison-only and generated SuiteCRM remains conditional research. This link
 makes the decision discoverable; it does not create a specification, ticket
 DAG, integration, corpus row, experimental Run, or paper result.
+
+## 19. E3 provider-blocked development plan accepted 2026-09-03
+
+The research baseline remains **2026-08-30**; the planning date for this update
+is **2026-09-03 (America/New_York)**. `origin/main` at `46b8fc3a` includes the
+read-only Phase 1 resume inspection delivered by PR #239. With the retained
+Run 15 contract-bound API setting restored, it identifies 20 reusable Postmill
+rows out of the frozen 100-row non-TAC request and 80 missing GitLab rows. The
+40 Rocket.Chat rows have not been generated, Phase 2 has not started, and no
+Phase 2c row has been admitted. Earlier run fragments remain diagnostics rather
+than a substitute bank.
+
+The user accepted the focused provider-independent recommendations after two
+source/online-research rounds with three bounded `gpt-5.6-luna`/`max`
+subagents. The accepted choices are: current-constraint cache compatibility;
+same-filesystem cooperating-process Phase 1 ownership; observed-cost
+lower-bound durability with no automatic run cap; targeted explicit
+remote-state-root authority without global dotenv changes; no automatic
+OpenRouter readiness probe; and stage-ordered Phase 2a, 2b, then 2c checkpoint
+visibility through the existing read-only status surface.
+
+The [E3 DX research note](web-benchmark-onboarding-2026-08-30/dx-vertical-slices-online-research-2026-09-03.md)
+records the concrete failure each slice prevents, its narrow owner, tests and
+non-goals. The [execution plan](web-benchmark-onboarding-2026-08-30/execution-plan.md#e3-provider-independent-development-slices)
+owns delivery order and ticket contracts. Agent-development guidance from
+Factory, OpenAI and Anthropic supports WARP's existing short router, path-owned
+guides, focused tests, split acceptance lanes and isolated worktrees. It does
+not justify a new readiness score, dashboard, orchestration layer, instruction
+tree, manifest, global hook framework, or third-party evidence upload.
+
+These decisions authorize the already approved source-ticket/PR delivery loop.
+They do not claim a working provider route, generate or admit a task, run a
+browser/model benchmark, change shared infrastructure, edit the paper, or turn
+the accepted `$3,000` operational backpressure value into a hard automatic
+spend cap. No further architecture question remains before the source slices.
