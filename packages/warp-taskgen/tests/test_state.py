@@ -9,6 +9,7 @@ import pytest
 from warp_taskgen import main as worldsim_main
 from warp_taskgen.browser_use_agent import AgentResult
 from warp_taskgen.eval_worker_pool import load_completed_results
+from warp_taskgen.phases import phase_1_tasks
 from warp_taskgen.resume_metadata import RESULT_FINGERPRINT_KEY
 from warp_taskgen.run_transition import resolve_run_request
 from warp_taskgen.state import bind_run_definition, get_state_dir, load_state, save_state
@@ -769,6 +770,85 @@ def test_dispatch_resume_retries_failed_checkpoint(monkeypatch, tmp_path):
     assert captured["phase"] == "4"
     assert captured["agent_model"] == "gpt-5.4"
     assert not stale_pause_marker.exists()
+
+
+def test_phase_1_failed_generation_retry_and_resume_preserve_task_profile(
+    monkeypatch,
+    tmp_path,
+):
+    """A failed Phase 1 generation can be retried through the identified CLI run."""
+    from warp_taskgen.cli import _impl as cli_impl
+
+    monkeypatch.chdir(tmp_path)
+    state_dir = tmp_path / "run"
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(state_dir))
+
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    (benchmark_root / "tasks.json").write_text(
+        json.dumps([{"task_id": "seed", "sites": ["reddit"], "instruction": "seed"}])
+    )
+    manifest_path = state_dir / "phase_0a" / "BENCHMARK_MANIFEST.json"
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "WebArena Verified",
+                "benchmark_codebase": str(benchmark_root),
+                "evaluation": {
+                    "task_definition_paths": ["tasks.json"],
+                    "eval_types": ["NetworkEventEvaluator", "AgentResponseEvaluator"],
+                },
+            }
+        )
+    )
+
+    async def fail_generation(**kwargs):
+        raise RuntimeError("api unavailable")
+
+    monkeypatch.setattr(phase_1_tasks, "run_generate_new_tasks", fail_generation)
+    phase_args = Namespace(
+        command="phase",
+        phase="1",
+        benchmark=benchmark_root,
+        config=manifest_path,
+        generate_novel=True,
+        novel_tasks_per_site=1,
+        sandbox_model="claude-sonnet-4-6",
+        task_capability_profile="tier2_pure_action_paper",
+        phase_1_action_counts="create_post=1",
+        sites="reddit",
+    )
+
+    # The initial generation fails after writing its identified checkpoint.
+    # Calling through the compatibility facade also restores the implementation
+    # hook if a preceding facade test replaced it while exercising resume.
+    assert worldsim_main._dispatch_phase(phase_args) == 1
+    state = load_state()
+    assert state is not None
+    assert state["reason"] == "new_task_generation_failed"
+    assert state["task_capability_profile"] == "tier2_pure_action_paper"
+    assert state["phase_1_action_counts"] == "create_post=1"
+
+    # An identical explicit retry must reach Phase 1 again, not fail identity
+    # validation because the failed checkpoint dropped the profile.
+    assert worldsim_main._dispatch_phase(phase_args) == 1
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["task_capability_profile"] = args.task_capability_profile
+        captured["phase_1_action_counts"] = args.phase_1_action_counts
+        return 0
+
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    assert cli_impl._dispatch_resume(Namespace()) == 0
+    assert captured == {
+        "phase": "1",
+        "task_capability_profile": "tier2_pure_action_paper",
+        "phase_1_action_counts": "create_post=1",
+    }
 
 
 @pytest.mark.parametrize("status", ["paused", "interrupted"])
