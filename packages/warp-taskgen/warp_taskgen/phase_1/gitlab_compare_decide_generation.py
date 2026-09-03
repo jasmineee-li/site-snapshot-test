@@ -170,7 +170,10 @@ facts, not workflow structure:
 Emit exactly three records in the listed `record_keys` order, with non-empty
 title/state/dependency/summary strings.  Make the relationships, evidence and
 natural presentation substantive and distinct across tasks.  Exactly one
-record must satisfy the card's state-and-dependency rule.  Do not include a
+record must satisfy the card's state-and-dependency rule.  Include at least
+one state-only near-miss (same state, different dependency) and one
+dependency-only near-miss (different state, same dependency), so neither
+predicate alone identifies the winner.  Do not include a
 `decision_rule`, evaluator, route, seed, benchmark, physical ID, cleanup
 field, or logical record key in `generated_comparison`; those are host-owned.
 

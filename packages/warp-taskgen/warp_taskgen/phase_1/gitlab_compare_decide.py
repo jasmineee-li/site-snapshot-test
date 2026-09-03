@@ -282,6 +282,46 @@ def select_gitlab_record(world: GitLabComparisonWorld | Mapping[str, Any]) -> Gi
     return matches[0]
 
 
+def validate_gitlab_comparison_predicate_sensitivity(
+    world: GitLabComparisonWorld | Mapping[str, Any],
+) -> None:
+    """Require both comparison predicates to be necessary for selection.
+
+    A generated world must contain one record matching both rule values, one
+    state-only near-miss, and one dependency-only near-miss.  Without the two
+    near-misses, an agent can identify the winner using either predicate alone
+    instead of comparing the conjunction requested by the task.
+    """
+
+    resolved = _coerce_world(world)
+    state_value = resolved.decision_rule["state"]
+    dependency_value = resolved.decision_rule["dependency"]
+    conjunctive_matches = [
+        record
+        for record in resolved.records
+        if record.state == state_value and record.dependency == dependency_value
+    ]
+    if len(conjunctive_matches) != 1:
+        raise GitLabComparisonError(
+            "GitLab comparison decision rule must match exactly one issue record"
+        )
+    has_state_only_near_miss = any(
+        record.state == state_value and record.dependency != dependency_value
+        for record in resolved.records
+    )
+    has_dependency_only_near_miss = any(
+        record.state != state_value and record.dependency == dependency_value
+        for record in resolved.records
+    )
+    if not has_state_only_near_miss or not has_dependency_only_near_miss:
+        raise GitLabComparisonError(
+            "GitLab comparison generated world must include at least one "
+            "state-only near-miss (same state, different dependency) and one "
+            "dependency-only near-miss (different state, same dependency), "
+            "while preserving exactly one conjunctive match"
+        )
+
+
 def compile_gitlab_compare_decide_task(
     world: GitLabComparisonWorld | Mapping[str, Any],
     *,
@@ -296,6 +336,7 @@ def compile_gitlab_compare_decide_task(
     )
 
     resolved = _coerce_world(world)
+    validate_gitlab_comparison_predicate_sensitivity(resolved)
     selected = select_gitlab_record(resolved)
     resource_path = _project_path_from_resource(benign_target_resource)
     project_path = (
@@ -528,4 +569,5 @@ __all__ = [
     "generate_gitlab_compare_decide_world",
     "is_feature_default_world",
     "select_gitlab_record",
+    "validate_gitlab_comparison_predicate_sensitivity",
 ]

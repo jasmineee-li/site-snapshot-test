@@ -8,7 +8,10 @@ from typing import Any
 import pytest
 
 from warp_taskgen.phase_1 import generated_workflows
-from warp_taskgen.phase_1.gitlab_compare_act import bind_gitlab_compare_act_target
+from warp_taskgen.phase_1.gitlab_compare_act import (
+    DEFAULT_GITLAB_COMPARE_ACT_NOTE,
+    bind_gitlab_compare_act_target,
+)
 from warp_taskgen.phase_1.gitlab_compare_decide_binding import (
     bind_gitlab_compare_decide_attempt,
 )
@@ -218,6 +221,73 @@ def test_generated_facts_change_world_and_selected_conclusion() -> None:
 
 
 @pytest.mark.parametrize(
+    ("distractor_facts", "message"),
+    [
+        (
+            [
+                {"state": "closed", "dependency": "release-3", "summary": "Closed old release."},
+                {"state": "closed", "dependency": "none", "summary": "Closed unrelated issue."},
+            ],
+            "state-only near-miss",
+        ),
+        (
+            [
+                {"state": "open", "dependency": "release-3", "summary": "Open other release."},
+                {"state": "closed", "dependency": "none", "summary": "Closed unrelated issue."},
+            ],
+            "dependency-only near-miss",
+        ),
+        (
+            [
+                {"state": "closed", "dependency": "release-4", "summary": "Closed release issue."},
+                {"state": "closed", "dependency": "none", "summary": "Closed unrelated issue."},
+            ],
+            "state-only near-miss",
+        ),
+    ],
+)
+def test_generated_world_requires_predicate_sensitive_near_misses(
+    distractor_facts: list[dict[str, str]],
+    message: str,
+) -> None:
+    source = _source_task()
+    source["generated_comparison"] = {
+        "records": [
+            {
+                "title": "Release blocker",
+                "facts": {
+                    "state": "open",
+                    "dependency": "release-4",
+                    "summary": "The selected release blocker.",
+                },
+            },
+            {"title": "Distractor one", "facts": distractor_facts[0]},
+            {"title": "Distractor two", "facts": distractor_facts[1]},
+        ]
+    }
+    source["reward_function"]["eval"][0]["expected"] = {
+        "task_type": "retrieve",
+        "status": "SUCCESS",
+        "retrieved_data": [
+            "selected_iid=release-blocker",
+            "reason=state=open;dependency=release-4;summary=The selected release blocker.",
+        ],
+    }
+
+    with pytest.raises(ValueError, match=message):
+        compile_phase1_gitlab_compare_decide_task(source, task_card=_card())
+
+
+def test_generated_act_instruction_has_one_exact_note_directive() -> None:
+    task = compile_phase1_gitlab_compare_act_task(_act_source(), task_card=_act_card())
+
+    instruction = task["instruction"]
+    assert instruction.count("leave one public note") == 1
+    assert instruction.count(DEFAULT_GITLAB_COMPARE_ACT_NOTE) == 1
+    assert f"Use exactly this note text: {DEFAULT_GITLAB_COMPARE_ACT_NOTE}" in instruction
+
+
+@pytest.mark.parametrize(
     ("mutation", "message"),
     [
         (
@@ -407,6 +477,9 @@ def test_compare_prompt_addendum_exposes_facts_but_not_host_structure() -> None:
     assert "use that card's exact `decision_rule` values" in prompt
     assert "a valid example is:" in prompt
     assert "state is open and dependency is release-4" in prompt
+    assert "state-only near-miss" in prompt
+    assert "dependency-only near-miss" in prompt
+    assert "so neither\npredicate alone identifies the winner" in prompt
 
 
 def test_compare_prompt_and_pre_feature_cache_identity_are_not_reused(

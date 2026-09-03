@@ -7,6 +7,7 @@ note contract; it does not resolve arbitrary model-authored targets.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
@@ -200,6 +201,12 @@ def _act_instruction(instruction: object, body: str) -> str:
         if isinstance(instruction, str)
         else "Review all three seeded issues."
     )
+    if re.search(
+        r"\b(?:leave|add|post|write|create)\w*\b.{0,120}\b(?:note|comment)\w*\b",
+        prefix,
+        flags=re.IGNORECASE,
+    ):
+        return f"{prefix} Use exactly this note text: {body}"
     return (
         f"{prefix} Then leave one public note on the selected issue, using exactly this note text: "
         f"{body}"

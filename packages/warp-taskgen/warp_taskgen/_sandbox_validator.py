@@ -1492,7 +1492,83 @@ def _raw_gitlab_compare_semantic_key(
     ]
     if len(matching_keys) != 1:
         return None
+    has_state_only_near_miss = any(
+        state == rule[0] and dependency != rule[1] for state, dependency in ordered_facts
+    )
+    has_dependency_only_near_miss = any(
+        state != rule[0] and dependency == rule[1] for state, dependency in ordered_facts
+    )
+    if not has_state_only_near_miss or not has_dependency_only_near_miss:
+        return None
     return (record_keys, rule, matching_keys[0], tuple(ordered_facts))
+
+
+def _validate_gitlab_compare_predicate_sensitivity(
+    task: dict,
+    *,
+    prefix: str,
+    contract: dict,
+) -> list[str]:
+    """Mirror the host requirement that both comparison predicates matter."""
+
+    generated = task.get("generated_comparison")
+    if not isinstance(generated, dict):
+        return []
+    raw_record_keys = contract.get("record_keys")
+    decision_rule = contract.get("decision_rule")
+    raw_records = generated.get("records")
+    if (
+        not isinstance(raw_record_keys, list)
+        or len(raw_record_keys) != 3
+        or not isinstance(decision_rule, dict)
+        or not isinstance(raw_records, list)
+        or len(raw_records) != len(raw_record_keys)
+    ):
+        return []
+    rule_values = (decision_rule.get("state"), decision_rule.get("dependency"))
+    if not all(isinstance(value, str) and value.strip() for value in rule_values):
+        return []
+    ordered_facts: list[tuple[str, str]] = []
+    for record in raw_records:
+        if not isinstance(record, dict):
+            return []
+        facts = record.get("facts")
+        if not isinstance(facts, dict):
+            return []
+        state = facts.get("state")
+        dependency = facts.get("dependency")
+        if not all(isinstance(value, str) and value.strip() for value in (state, dependency)):
+            return []
+        ordered_facts.append((state.strip(), dependency.strip()))
+
+    state_value, dependency_value = (value.strip() for value in rule_values)
+    conjunctive_matches = [
+        facts for facts in ordered_facts if facts == (state_value, dependency_value)
+    ]
+    label = (
+        "GitLab compare-act"
+        if contract.get("family") == "gitlab_compare_act"
+        else "GitLab comparison"
+    )
+    errors: list[str] = []
+    if len(conjunctive_matches) != 1:
+        errors.append(f"{label} generated world must preserve exactly one conjunctive match")
+    has_state_only_near_miss = any(
+        state == state_value and dependency != dependency_value
+        for state, dependency in ordered_facts
+    )
+    has_dependency_only_near_miss = any(
+        state != state_value and dependency == dependency_value
+        for state, dependency in ordered_facts
+    )
+    if not has_state_only_near_miss or not has_dependency_only_near_miss:
+        errors.append(
+            f"{label} generated world must include at least one state-only near-miss "
+            "(same state, different dependency) and one dependency-only near-miss "
+            "(different state, same dependency), while preserving exactly one "
+            "conjunctive match"
+        )
+    return [f"{prefix} {error}" for error in errors]
 
 
 def _raw_gitlab_compare_expected_response(
@@ -1589,6 +1665,11 @@ def _validate_gitlab_compare_instruction(
     instruction = task.get("instruction")
     text = instruction.casefold() if isinstance(instruction, str) else ""
     label = "GitLab compare-act" if family == "gitlab_compare_act" else "GitLab comparison"
+    predicate_errors = _validate_gitlab_compare_predicate_sensitivity(
+        task,
+        prefix=prefix,
+        contract=contract,
+    )
     errors: list[str] = []
     if "issue" not in text or re.search(r"\b(?:all\s+three|three|each|every|all)\b", text) is None:
         errors.append(f"{label} instruction must require reviewing all three issue records")
@@ -1634,7 +1715,7 @@ def _validate_gitlab_compare_instruction(
                     errors.append(
                         "GitLab comparison generated expected response disagrees with decision rule"
                     )
-    return [f"{prefix} {error}" for error in errors]
+    return [*predicate_errors, *[f"{prefix} {error}" for error in errors]]
 
 
 def _validate_stable_answer_diversity(

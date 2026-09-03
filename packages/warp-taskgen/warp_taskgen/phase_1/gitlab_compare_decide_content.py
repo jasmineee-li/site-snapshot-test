@@ -24,6 +24,7 @@ from warp_taskgen.phase_1.gitlab_compare_decide import (
     generate_gitlab_compare_decide_world,
     is_feature_default_world,
     select_gitlab_record,
+    validate_gitlab_comparison_predicate_sensitivity,
 )
 
 GENERATED_COMPARISON_CONTENT_KEY = "generated_comparison"
@@ -130,6 +131,7 @@ def world_for_phase1_task(
             decision_dependency=decision_rule["dependency"],
             method=method,
         )
+        validate_gitlab_comparison_predicate_sensitivity(world)
         content_source = "feature_default" if is_feature_default_world(world) else "warp_generated"
         return world, content_source, record_keys
     candidate_world = GitLabComparisonWorld(
@@ -138,6 +140,7 @@ def world_for_phase1_task(
         decisive_record_key=generated.records[0].logical_record_key,
         method=method,
     )
+    validate_gitlab_comparison_predicate_sensitivity(candidate_world)
     selected = select_gitlab_record(candidate_world)
     world = GitLabComparisonWorld(
         records=generated.records,
