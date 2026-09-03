@@ -170,7 +170,10 @@ facts, not workflow structure:
 Emit exactly three records in the listed `record_keys` order, with non-empty
 title/state/dependency/summary strings.  Make the relationships, evidence and
 natural presentation substantive and distinct across tasks.  Exactly one
-record must satisfy the card's state-and-dependency rule.  Do not include a
+record must satisfy the card's state-and-dependency rule.  Include at least
+one state-only near-miss (same state, different dependency) and one
+dependency-only near-miss (different state, same dependency), so neither
+predicate alone identifies the winner.  Do not include a
 `decision_rule`, evaluator, route, seed, benchmark, physical ID, cleanup
 field, or logical record key in `generated_comparison`; those are host-owned.
 
@@ -184,8 +187,11 @@ For compare-and-act cards, the user-facing `instruction` must ask the agent to
 review all three issues, identify the record matching both rule values, and
 leave one public note on that selected issue.  The instruction must contain an
 explicit selection verb: `select`, `choose`, `identify`, `determine`, or a
-`which` question; saying only "the matching issue" is not sufficient.  For
-each card, use that card's exact `decision_rule` values rather than copying
+`which` question; saying only "the matching issue" is not sufficient.  Use
+exactly one note-action directive; do not author a competing exact note body
+because the host appends the canonical witness text.  If the model leaves out
+the note action, the host adds one canonical action.  For each card, use that card's exact `decision_rule` values
+rather than copying
 the example below.  For a card whose rule is `state=open` and
 `dependency=release-4`, a valid example is: "Open each issue and read its
 description. Review all three seeded GitLab issues, identify the issue whose

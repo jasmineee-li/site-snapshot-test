@@ -23,6 +23,7 @@ import json
 import re
 import sys
 import urllib.parse
+from dataclasses import dataclass
 from pathlib import Path
 
 _CORE_SURFACE_ALIASES: dict[str, dict[str, str]] = {
@@ -1431,12 +1432,86 @@ def _validate_link_presence_stability(task: dict, *, prefix: str, guidance: dict
     return []
 
 
-def _raw_gitlab_compare_semantic_key(
+@dataclass(frozen=True)
+class _GitLabCompareParsed:
+    """One parsed comparison payload shared by sandbox diagnostics."""
+
+    family: str
+    record_keys: tuple[str, ...]
+    rule: tuple[str, str]
+    ordered_facts: tuple[tuple[str, str], ...]
+
+    @property
+    def matching_keys(self) -> tuple[str, ...]:
+        return tuple(
+            record_key
+            for record_key, facts in zip(self.record_keys, self.ordered_facts, strict=True)
+            if facts == self.rule
+        )
+
+    @property
+    def has_state_only_near_miss(self) -> bool:
+        return any(
+            state == self.rule[0] and dependency != self.rule[1]
+            for state, dependency in self.ordered_facts
+        )
+
+    @property
+    def has_dependency_only_near_miss(self) -> bool:
+        return any(
+            state != self.rule[0] and dependency == self.rule[1]
+            for state, dependency in self.ordered_facts
+        )
+
+
+_GITLAB_COMPARE_NOTE_ACTION_CLAUSE_RE = re.compile(r"[^.!?;\n]+", re.IGNORECASE | re.DOTALL)
+_GITLAB_COMPARE_NOTE_TOKEN_RE = re.compile(r"\b(?:public\s+)?(?:note|comment)s?\b", re.IGNORECASE)
+_GITLAB_COMPARE_NOTE_ACTION_VERB_RE = re.compile(
+    r"\b(?:leave|left|add|post|writ\w*|creat\w*)\b", re.IGNORECASE
+)
+_GITLAB_COMPARE_EXACT_NOTE_TEXT_RE = re.compile(
+    r"\b(?:use|using|with)\s+(?:the\s+)?exact(?:ly)?\s+"
+    r"(?:this\s+)?(?:public\s+)?(?:note\s+)?text\b\s*"
+    r"(?::|=|\bis\b)?\s*(?P<text>[^\n]+)",
+    re.IGNORECASE,
+)
+
+
+def _parse_gitlab_compare_act_instruction(
+    instruction: object,
+) -> tuple[int, tuple[str, ...]]:
+    """Parse note actions with the same bounded grammar as the feature host."""
+
+    if not isinstance(instruction, str):
+        return 0, ()
+    note_action_count = sum(
+        len(_GITLAB_COMPARE_NOTE_ACTION_VERB_RE.findall(clause.group(0)))
+        for clause in _GITLAB_COMPARE_NOTE_ACTION_CLAUSE_RE.finditer(instruction)
+        if _GITLAB_COMPARE_NOTE_TOKEN_RE.search(clause.group(0)) is not None
+    )
+    exact_note_texts = tuple(
+        _normalize_gitlab_compare_exact_note_text(match.group("text"))
+        for match in _GITLAB_COMPARE_EXACT_NOTE_TEXT_RE.finditer(instruction)
+    )
+    return note_action_count, exact_note_texts
+
+
+def _normalize_gitlab_compare_exact_note_text(value: str) -> str:
+    text = value.strip()
+    if len(text) >= 2 and text[0] in {'"', "'", "`"}:
+        closing = text.rfind(text[0])
+        trailing = text[closing + 1 :].strip()
+        if closing > 0 and not trailing.strip(".,;!? "):
+            text = text[1:closing].strip()
+    return text
+
+
+def _parse_gitlab_compare_generation(
     task: dict,
     *,
     task_card_plan: object | None,
-) -> tuple[tuple[str, ...], tuple[str, str], str, tuple[tuple[str, str], ...]] | None:
-    """Return a raw comparison key only for an authorized active task card."""
+) -> _GitLabCompareParsed | None:
+    """Parse authorized generated comparison facts once for all checks."""
 
     generation_contract = _active_gitlab_compare_generation_contract(
         task,
@@ -1444,7 +1519,8 @@ def _raw_gitlab_compare_semantic_key(
     )
     if generation_contract is None:
         return None
-    if generation_contract.get("family") != "gitlab_compare_decide":
+    family = generation_contract.get("family")
+    if family not in {"gitlab_compare_decide", "gitlab_compare_act"}:
         return None
 
     raw_record_keys = generation_contract.get("record_keys")
@@ -1463,7 +1539,6 @@ def _raw_gitlab_compare_semantic_key(
     dependency = decision_rule.get("dependency")
     if not all(isinstance(value, str) and value.strip() for value in (state, dependency)):
         return None
-    rule = (state.strip(), dependency.strip())
 
     generated = task.get("generated_comparison")
     if not isinstance(generated, dict):
@@ -1485,27 +1560,90 @@ def _raw_gitlab_compare_semantic_key(
         ):
             return None
         ordered_facts.append((raw_state.strip(), raw_dependency.strip()))
-    matching_keys = [
-        record_key
-        for record_key, facts in zip(record_keys, ordered_facts, strict=True)
-        if facts == rule
-    ]
-    if len(matching_keys) != 1:
+    return _GitLabCompareParsed(
+        family=family,
+        record_keys=record_keys,
+        rule=(state.strip(), dependency.strip()),
+        ordered_facts=tuple(ordered_facts),
+    )
+
+
+def _raw_gitlab_compare_semantic_key(
+    task: dict,
+    *,
+    task_card_plan: object | None,
+) -> tuple[tuple[str, ...], tuple[str, str], str, tuple[tuple[str, str], ...]] | None:
+    """Return a raw comparison key only for an authorized active task card."""
+
+    parsed = _parse_gitlab_compare_generation(task, task_card_plan=task_card_plan)
+    if parsed is None or parsed.family != "gitlab_compare_decide":
         return None
-    return (record_keys, rule, matching_keys[0], tuple(ordered_facts))
+    if (
+        len(parsed.matching_keys) != 1
+        or not parsed.has_state_only_near_miss
+        or not parsed.has_dependency_only_near_miss
+    ):
+        return None
+    return (
+        parsed.record_keys,
+        parsed.rule,
+        parsed.matching_keys[0],
+        parsed.ordered_facts,
+    )
+
+
+def _validate_gitlab_compare_predicate_sensitivity(
+    task: dict,
+    *,
+    prefix: str,
+    contract: dict,
+    parsed: _GitLabCompareParsed | None = None,
+) -> list[str]:
+    """Mirror the host requirement that both comparison predicates matter."""
+
+    if parsed is None:
+        parsed = _parse_gitlab_compare_generation(task, task_card_plan=None)
+    if parsed is None:
+        return []
+    label = (
+        "GitLab compare-act"
+        if contract.get("family") == "gitlab_compare_act"
+        else "GitLab comparison"
+    )
+    errors: list[str] = []
+    if len(parsed.matching_keys) != 1:
+        errors.append(f"{label} generated world must preserve exactly one conjunctive match")
+    if not parsed.has_state_only_near_miss or not parsed.has_dependency_only_near_miss:
+        errors.append(
+            f"{label} generated world must include at least one state-only near-miss "
+            "(same state, different dependency) and one dependency-only near-miss "
+            "(different state, same dependency), while preserving exactly one "
+            "conjunctive match"
+        )
+    return [f"{prefix} {error}" for error in errors]
 
 
 def _raw_gitlab_compare_expected_response(
     task: dict,
     *,
     task_card_plan: object | None,
+    parsed: _GitLabCompareParsed | None = None,
 ) -> dict | None:
     """Derive the host's exact logical response from valid generated facts."""
 
-    semantic_key = _raw_gitlab_compare_semantic_key(task, task_card_plan=task_card_plan)
-    if semantic_key is None:
+    if parsed is None:
+        parsed = _parse_gitlab_compare_generation(task, task_card_plan=task_card_plan)
+    if (
+        parsed is None
+        or parsed.family != "gitlab_compare_decide"
+        or len(parsed.matching_keys) != 1
+        or not parsed.has_state_only_near_miss
+        or not parsed.has_dependency_only_near_miss
+    ):
         return None
-    record_keys, rule, selected_key, _ = semantic_key
+    record_keys = parsed.record_keys
+    rule = parsed.rule
+    selected_key = parsed.matching_keys[0]
     generated = task.get("generated_comparison")
     raw_records = generated.get("records") if isinstance(generated, dict) else None
     if not isinstance(raw_records, list):
@@ -1589,6 +1727,13 @@ def _validate_gitlab_compare_instruction(
     instruction = task.get("instruction")
     text = instruction.casefold() if isinstance(instruction, str) else ""
     label = "GitLab compare-act" if family == "gitlab_compare_act" else "GitLab comparison"
+    parsed = _parse_gitlab_compare_generation(task, task_card_plan=task_card_plan)
+    predicate_errors = _validate_gitlab_compare_predicate_sensitivity(
+        task,
+        prefix=prefix,
+        contract=contract,
+        parsed=parsed,
+    )
     errors: list[str] = []
     if "issue" not in text or re.search(r"\b(?:all\s+three|three|each|every|all)\b", text) is None:
         errors.append(f"{label} instruction must require reviewing all three issue records")
@@ -1609,12 +1754,19 @@ def _validate_gitlab_compare_instruction(
         ):
             errors.append(f"{label} instruction must state every decision-rule value")
     if family == "gitlab_compare_act":
-        if (
-            re.search(r"\b(?:leave|add|post|write|create)\w*\b", text) is None
-            or re.search(r"\b(?:note|comment)\w*\b", text) is None
+        note_action_count, exact_note_texts = _parse_gitlab_compare_act_instruction(instruction)
+        if note_action_count > 1:
+            errors.append(
+                "GitLab compare-act instruction must contain exactly one note-action directive"
+            )
+        expected_note = "Reviewed the selected issue and confirmed the release dependency."
+        if len(exact_note_texts) > 1 or any(
+            note_text != expected_note for note_text in exact_note_texts
         ):
-            errors.append("GitLab compare-act instruction must request a public note or comment")
-        if re.search(r"\b(?:selected|matching|chosen|identified)\b", text) is None:
+            errors.append(
+                "GitLab compare-act instruction exact note text must match host-generated note"
+            )
+        if re.search(r"\b(?:selected|matching|chosen|identified|identify)\b", text) is None:
             errors.append(
                 "GitLab compare-act instruction must target the selected comparison issue"
             )
@@ -1624,6 +1776,7 @@ def _validate_gitlab_compare_instruction(
         expected = _raw_gitlab_compare_expected_response(
             task,
             task_card_plan=task_card_plan,
+            parsed=parsed,
         )
         if expected is not None:
             reward = task.get("reward_function")
@@ -1634,7 +1787,7 @@ def _validate_gitlab_compare_instruction(
                     errors.append(
                         "GitLab comparison generated expected response disagrees with decision rule"
                     )
-    return [f"{prefix} {error}" for error in errors]
+    return [*predicate_errors, *[f"{prefix} {error}" for error in errors]]
 
 
 def _validate_stable_answer_diversity(

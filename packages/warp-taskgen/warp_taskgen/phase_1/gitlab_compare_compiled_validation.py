@@ -9,6 +9,7 @@ from warp_taskgen.phase_1.gitlab_compare_decide import (
     expected_gitlab_compare_decide_response,
     is_feature_default_world,
     select_gitlab_record,
+    validate_gitlab_comparison_predicate_sensitivity,
 )
 from warp_taskgen.phase_1.gitlab_compare_decide_content import (
     GENERATED_COMPARISON_CONTENT_KEY,
@@ -62,6 +63,7 @@ def validate_gitlab_compare_decide_task(
     if not isinstance(world, Mapping):
         raise ValueError("GitLab comparison task must include a world")
     resolved = _world_from_compiled_task(task)
+    validate_gitlab_comparison_predicate_sensitivity(resolved)
     selected = select_gitlab_record(resolved)
     contract = task.get("comparison_contract")
     if not isinstance(contract, Mapping):
@@ -119,6 +121,7 @@ def _validate_host_compiled_task(
     if task.get("task_card_id") != task_card_id:
         raise ValueError("GitLab comparison host output has the wrong task-card identity")
     world = _world_from_compiled_task(task)
+    validate_gitlab_comparison_predicate_sensitivity(world)
     selected = select_gitlab_record(world)
     if world.decisive_record_key != selected.logical_record_key:
         raise ValueError("GitLab comparison world decisive record disagrees with the decision rule")

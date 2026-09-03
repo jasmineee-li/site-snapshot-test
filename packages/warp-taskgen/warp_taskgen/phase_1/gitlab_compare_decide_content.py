@@ -12,6 +12,7 @@ from warp_taskgen.phase_1.gitlab_compare_act import (
     GITLAB_COMPARE_ACT_ARTIFACT_SCOPE,
     GITLAB_COMPARE_ACT_FAMILY,
     GITLAB_COMPARE_ACT_VERSION,
+    _analyze_gitlab_compare_act_instruction,
     build_gitlab_compare_act_benign_action_contract,
     generate_gitlab_compare_act_note,
 )
@@ -24,6 +25,7 @@ from warp_taskgen.phase_1.gitlab_compare_decide import (
     generate_gitlab_compare_decide_world,
     is_feature_default_world,
     select_gitlab_record,
+    validate_gitlab_comparison_predicate_sensitivity,
 )
 
 GENERATED_COMPARISON_CONTENT_KEY = "generated_comparison"
@@ -130,6 +132,7 @@ def world_for_phase1_task(
             decision_dependency=decision_rule["dependency"],
             method=method,
         )
+        validate_gitlab_comparison_predicate_sensitivity(world)
         content_source = "feature_default" if is_feature_default_world(world) else "warp_generated"
         return world, content_source, record_keys
     candidate_world = GitLabComparisonWorld(
@@ -138,6 +141,7 @@ def world_for_phase1_task(
         decisive_record_key=generated.records[0].logical_record_key,
         method=method,
     )
+    validate_gitlab_comparison_predicate_sensitivity(candidate_world)
     selected = select_gitlab_record(candidate_world)
     world = GitLabComparisonWorld(
         records=generated.records,
@@ -217,11 +221,19 @@ def _validate_compare_act_instruction(
     world: GitLabComparisonWorld,
 ) -> None:
     text = _validate_compare_instruction_scope(instruction, world)
-    if not re.search(r"\b(?:leave|add|post|write|create)\w*\b", text) or not re.search(
-        r"\b(?:note|comment)\w*\b", text
+    analysis = _analyze_gitlab_compare_act_instruction(instruction)
+    if analysis.note_action_count > 1:
+        raise ValueError(
+            "GitLab compare-act instruction must contain exactly one note-action directive"
+        )
+    expected_note = generate_gitlab_compare_act_note(world)
+    if len(analysis.exact_note_texts) > 1 or any(
+        note_text != expected_note for note_text in analysis.exact_note_texts
     ):
-        raise ValueError("GitLab compare-act instruction must request a public note or comment")
-    if not re.search(r"\b(?:selected|matching|chosen|identified)\b", text):
+        raise ValueError(
+            "GitLab compare-act instruction exact note text must match host-generated note"
+        )
+    if not re.search(r"\b(?:selected|matching|chosen|identified|identify)\b", text):
         raise ValueError("GitLab compare-act instruction must target the selected comparison issue")
 
 

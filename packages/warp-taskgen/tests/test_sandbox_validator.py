@@ -2276,6 +2276,66 @@ class TestValidateBenignTasks:
 
         assert errors == []
 
+    def test_compare_decide_requires_predicate_sensitive_generated_world(self):
+        task = self._generated_comparison_tasks(varied_world=True, varied_presentation=True)[0]
+        task["generated_comparison"]["records"][1]["facts"] = {
+            "state": "closed",
+            "dependency": "release-3",
+            "summary": "Closed old release.",
+        }
+        task["generated_comparison"]["records"][2]["facts"] = {
+            "state": "closed",
+            "dependency": "none",
+            "summary": "Closed unrelated issue.",
+        }
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            task_card_plan=_gitlab_compare_task_card_plan(),
+        )
+
+        assert any("state-only near-miss" in error for error in errors)
+        assert any("dependency-only near-miss" in error for error in errors)
+
+    def test_compare_act_requires_predicate_sensitive_generated_world(self):
+        task = self._generated_comparison_tasks(varied_world=True, varied_presentation=True)[0]
+        task["task_card_id"] = "gitlab_compare_act"
+        task["instruction"] = (
+            "Open each issue and read its description. Review all three issues, identify "
+            "the issue whose state is open and dependency is release-4, and leave one "
+            "public note on the selected issue."
+        )
+        task["reward_function"] = {
+            "eval": [
+                {
+                    "evaluator": "HostActionOnlyPlaceholder",
+                    "expected": {"host_compiled": True},
+                }
+            ]
+        }
+        task["generated_comparison"]["records"][1]["facts"] = {
+            "state": "closed",
+            "dependency": "release-3",
+            "summary": "Closed old release.",
+        }
+        task["generated_comparison"]["records"][2]["facts"] = {
+            "state": "closed",
+            "dependency": "none",
+            "summary": "Closed unrelated issue.",
+        }
+        act_plan = _gitlab_compare_task_card_plan(family="gitlab_compare_act")
+        act_plan["task_cards"][0]["id"] = "gitlab_compare_act"
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            task_card_plan=act_plan,
+        )
+
+        assert any("state-only near-miss" in error for error in errors)
+        assert any("dependency-only near-miss" in error for error in errors)
+
     def test_compare_act_and_noncompare_tasks_keep_existing_validation(self):
         ordinary_task = self._gitlab_route_task()
         assert validator.validate_benign_tasks([ordinary_task], site_name="gitlab") == []
@@ -2369,6 +2429,101 @@ class TestValidateBenignTasks:
         )
 
         assert errors == []
+
+    def test_compare_act_instruction_accepts_reversed_note_action_order(self):
+        task = self._generated_comparison_tasks(varied_world=True, varied_presentation=True)[0]
+        task["task_card_id"] = "gitlab_compare_act"
+        task["instruction"] = (
+            "Open each issue and read its description. Review all three issues, identify "
+            "the issue whose state is open and dependency is release-4; on the selected "
+            "issue, the public note should be created."
+        )
+        task["reward_function"] = {
+            "eval": [
+                {
+                    "evaluator": "HostActionOnlyPlaceholder",
+                    "expected": {"host_compiled": True},
+                }
+            ]
+        }
+        plan = _gitlab_compare_task_card_plan(family="gitlab_compare_act")
+        plan["task_cards"][0]["id"] = "gitlab_compare_act"
+
+        assert (
+            validator.validate_benign_tasks(
+                [task],
+                site_name="gitlab",
+                task_card_plan=plan,
+            )
+            == []
+        )
+
+    @pytest.mark.parametrize(
+        ("suffix", "message"),
+        [
+            (
+                " Leave one public note on the selected issue and add another public note there.",
+                "exactly one note-action",
+            ),
+            (
+                " Use exactly this note text: A conflicting model-authored note.",
+                "exact note text",
+            ),
+        ],
+    )
+    def test_compare_act_instruction_rejects_ambiguous_note_directives(self, suffix, message):
+        task = self._generated_comparison_tasks(varied_world=True, varied_presentation=True)[0]
+        task["task_card_id"] = "gitlab_compare_act"
+        task["instruction"] = (
+            "Open each issue and read its description. Review all three issues, identify "
+            "the issue whose state is open and dependency is release-4, and leave one "
+            "public note on the selected issue." + suffix
+        )
+        task["reward_function"] = {
+            "eval": [
+                {
+                    "evaluator": "HostActionOnlyPlaceholder",
+                    "expected": {"host_compiled": True},
+                }
+            ]
+        }
+        plan = _gitlab_compare_task_card_plan(family="gitlab_compare_act")
+        plan["task_cards"][0]["id"] = "gitlab_compare_act"
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            task_card_plan=plan,
+        )
+
+        assert any(message in error for error in errors)
+
+    def test_compare_act_instruction_without_note_action_is_host_canonicalizable(self):
+        task = self._generated_comparison_tasks(varied_world=True, varied_presentation=True)[0]
+        task["task_card_id"] = "gitlab_compare_act"
+        task["instruction"] = (
+            "Open each issue and read its description. Review all three issues, identify "
+            "the issue whose state is open and dependency is release-4, on the selected issue."
+        )
+        task["reward_function"] = {
+            "eval": [
+                {
+                    "evaluator": "HostActionOnlyPlaceholder",
+                    "expected": {"host_compiled": True},
+                }
+            ]
+        }
+        plan = _gitlab_compare_task_card_plan(family="gitlab_compare_act")
+        plan["task_cards"][0]["id"] = "gitlab_compare_act"
+
+        assert (
+            validator.validate_benign_tasks(
+                [task],
+                site_name="gitlab",
+                task_card_plan=plan,
+            )
+            == []
+        )
 
     def test_route_contracts_reject_identical_generated_comparison_semantics(self):
         tasks = self._generated_comparison_tasks(varied_world=False, varied_presentation=False)
