@@ -216,6 +216,20 @@ def owns_host_action_contract(task_card: Mapping[str, Any] | None) -> bool:
     return gitlab_compare_act_generation_contract(task_card) is not None
 
 
+def owns_model_generated_content(task_card: Mapping[str, Any] | None) -> bool:
+    """Return whether a feature owns semantic content generation for a card."""
+
+    return any(
+        contract(task_card) is not None
+        for contract in (
+            rocket_chat_notification_generation_contract,
+            rocket_chat_decision_generation_contract,
+            gitlab_compare_act_generation_contract,
+            gitlab_compare_decide_generation_contract,
+        )
+    )
+
+
 def stable_answer_diversity_key(
     task: Mapping[str, Any],
     *,
@@ -257,6 +271,7 @@ __all__ = [
     "generation_prompt_fingerprint_inputs",
     "host_compiled_evaluator_types",
     "owns_host_action_contract",
+    "owns_model_generated_content",
     "restore_compiled_task",
     "restore_compiled_tasks",
     "stable_answer_diversity_key",

@@ -234,8 +234,16 @@ async def generate_contract_bound_action_tasks_api(
     requested_count: int,
     action_counts: Mapping[str, int] | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
+    task_number_start: int = 1,
 ) -> list[dict[str, Any]]:
     """Generate and compile host-action-only tasks for one site."""
+
+    if (
+        isinstance(task_number_start, bool)
+        or not isinstance(task_number_start, int)
+        or task_number_start < 1
+    ):
+        raise ValueError("task_number_start must be a positive integer")
 
     contracts = select_action_task_contracts(
         site_name=site_name,
@@ -248,7 +256,7 @@ async def generate_contract_bound_action_tasks_api(
         _filter_contract_to_validated_anchors(contract, profile=profile) for contract in contracts
     ]
     compiled: list[dict[str, Any]] = []
-    next_index = 1
+    next_index = task_number_start
     for contract in contracts:
         slots = await _generate_slots_for_contract(
             contract=contract,
