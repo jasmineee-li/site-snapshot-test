@@ -274,6 +274,9 @@ def _act_instruction(instruction: object, body: str) -> str:
     if analysis.note_action_count == 1 and analysis.exact_note_texts == (body,):
         # Recompiling a host-compiled task must not grow another witness.
         return prefix
+    if analysis.note_action_count == 0 and analysis.exact_note_texts == (body,):
+        # Preserve one model-supplied matching witness while adding only its action.
+        return f"{prefix}\nThen leave one public note on the selected issue."
     if analysis.note_action_count == 1:
         return f"{prefix} Use exactly this note text: {body}"
     return (

@@ -373,6 +373,22 @@ def test_generated_act_instruction_without_note_action_gets_one_canonical_action
     assert task["instruction"].count(DEFAULT_GITLAB_COMPARE_ACT_NOTE) == 1
 
 
+def test_generated_act_instruction_preserves_matching_exact_text_without_action() -> None:
+    source = _act_source()
+    source["instruction"] = (
+        "Review all three seeded GitLab issues, identify the issue whose state is open "
+        "and dependency is release-4, on the selected issue. Use exactly this note text: "
+        f"{DEFAULT_GITLAB_COMPARE_ACT_NOTE}"
+    )
+
+    task = compile_phase1_gitlab_compare_act_task(source, task_card=_act_card())
+    recompiled = compile_gitlab_compare_act_task(task)
+
+    assert task["instruction"].count("Then leave one public note") == 1
+    assert task["instruction"].count(DEFAULT_GITLAB_COMPARE_ACT_NOTE) == 1
+    assert recompiled["instruction"] == task["instruction"]
+
+
 def test_generated_act_instruction_does_not_duplicate_on_recompile() -> None:
     task = compile_phase1_gitlab_compare_act_task(_act_source(), task_card=_act_card())
 
