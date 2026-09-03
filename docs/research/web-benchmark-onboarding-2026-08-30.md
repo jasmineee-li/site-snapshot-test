@@ -542,3 +542,14 @@ or a broad notification framework. The E2 smoke reused E1's established
 browser-exposure boundary and did not independently repeat the painted-browser
 proof. No model call, paper edit or new evidence format was part of this smoke.
 The next critical path is E3's frozen expanded-bank generation and admission.
+
+## 18. Accepted follow-on planning recorded 2026-09-02
+
+The accepted [follow-on planning record](benchmark-followons-2026-09-01.md)
+selects Plane-only multi-record triage and selective updates as the next
+specification after the current evidence program. GitLab-to-Plane remains the
+main later cross-Site claim, while a generated VisualWebArena Classifieds
+portfolio is an independent marketplace-breadth lane. ST-WebAgentBench remains
+comparison-only and generated SuiteCRM remains conditional research. This link
+makes the decision discoverable; it does not create a specification, ticket
+DAG, integration, corpus row, experimental Run, or paper result.
