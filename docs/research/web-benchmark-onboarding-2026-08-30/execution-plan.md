@@ -8,6 +8,14 @@ Execution update: **2026-09-02 (America/New_York)**. E1/E2 production source
 paths and no-model disposable-host proofs are complete; model-driven evaluation
 and the remaining E3–E7 work are still pending.
 
+Provider-blocked development update: **2026-09-03 (America/New_York)**. E3 has
+20 currently reusable Phase 1 rows out of the frozen 140-row target. The missing
+80 non-TAC rows are blocked on the frozen Sonnet provider route; the 40
+Rocket.Chat rows have not been generated. Provider-independent source work is
+now split into narrow cache, ownership, cost, remote-root, and stage-specific
+checkpoint-visibility slices described below. This work improves safe resume
+and operator legibility; it does not create, admit, or evaluate a task.
+
 Status: **source and transfer smokes complete; scientific execution pending**.
 The source tickets under parent issue #192 are closed; PRs #199–#204 and
 #206–#208 are merged, and live-proof issue #205 is closed. This
@@ -144,6 +152,53 @@ candidate corpus sizes. The selected size must be substantially larger than
 the released 50-task bank and must include every accepted workflow family; it
 is chosen before admission outcomes and is not reduced to successful attacks.
 
+The accepted pre-generation choice is exactly 140 WARP-generated rows: 20 in
+each of seven families. The retained Run 15 currently has 20 reusable Postmill
+rows and no GitLab aggregate or site cache. Earlier partial and failed runs are
+diagnostics rather than a bank because their IDs, source versions, or task
+semantics differ. Resume must therefore regenerate the missing 80 non-TAC rows
+inside the retained Run rather than concatenate earlier outputs. Phase 2 has not
+started, and no Phase 2c row is admitted.
+
+#### E3 provider-independent development slices
+
+These slices address concrete failures observed during E3 while preserving its
+generation, admission, provenance, and safety contracts:
+
+1. Include contract-bound diversity salt and normalized forbidden references
+   in the existing Phase 1 cache identity only for consumers that read them.
+2. Give Phase 1 CLI execution one same-filesystem cooperating-process owner per
+   state root, without claiming a distributed lock or changing direct Python
+   callers.
+3. Persist every returned paid-call cost observation before later validation,
+   expose known and unknown observations as a lower bound, and fail closed on a
+   malformed ledger before another paid Phase 1 dispatch.
+4. Make an explicit remote-wrapper state root authoritative across inherited
+   environment and dotenv loading without changing global credential
+   precedence.
+5. Extend the existing read-only status surface in three stage-ordered slices:
+   Phase 2a planning, Phase 2b text fill, then Phase 2c feasibility. Each owner
+   applies its existing checkpoint validator and reports compatible, pending,
+   stale/malformed, or `not_inspected`; status never grants reuse.
+
+| Source slice | Tracking issue | Dependency |
+| --- | --- | --- |
+| Contract-bound Phase 1 cache identity | [#240](https://github.com/jasmineee-li/warp/issues/240) | independent; blocks another paid Phase 1 resume |
+| Explicit remote state-root authority | [#241](https://github.com/jasmineee-li/warp/issues/241) | independent; joins the Phase 1 lock before another remote run |
+| Phase 1 single-owner CLI lifecycle | [#242](https://github.com/jasmineee-li/warp/issues/242) | independent; joins remote-root authority |
+| Observed Phase 1 cost durability and status | [#243](https://github.com/jasmineee-li/warp/issues/243) | #240 |
+| Phase 2a planning checkpoint status | [#244](https://github.com/jasmineee-li/warp/issues/244) | #243 |
+| Phase 2b text-fill checkpoint status | [#245](https://github.com/jasmineee-li/warp/issues/245) | #244 |
+| Phase 2c feasibility checkpoint status | [#246](https://github.com/jasmineee-li/warp/issues/246) | #245 |
+
+Cache identity, Phase 1 ownership, and remote-root authority may develop in
+parallel. Cost durability stacks after cache identity because both touch Phase
+1 generation callers. Phase 2a, 2b, and 2c visibility then stack in order on the
+shared status formatter. The focused
+[research note](dx-vertical-slices-online-research-2026-09-03.md) records the
+source findings, primary-source guidance, counterfactuals, and explicit
+non-goals.
+
 ### E4 — Evaluate the frozen expanded bank
 
 Run the admitted bank through the ordinary Phase 4 path on isolated benchmark
@@ -197,6 +252,15 @@ separate short-lived worktrees from current `origin/main`; dependent PRs land
 to `main` rather than remaining indefinitely stacked. Review is bounded to two
 passes. Runtime work uses separate state directories and existing Run
 Artifacts, not another manifest or attestation layer.
+
+For these E3 support slices, the issue itself is the compact agent execution
+contract. It names the owning seam, the failure prevented, one positive and one
+counterfactual test, the exact focused and shipping commands, the existing
+inspectable status or artifact, the offline/live evidence boundary, and the
+condition for escalation. This is issue content rather than a new checked-in
+schema. New diagnostics identify the failed invariant, relevant path or state
+root, and next safe command where one exists; human and JSON status retain the
+same explicit unknown or blocked state.
 
 ## 5. Inputs still required before external execution
 
