@@ -211,6 +211,138 @@ def test_task_card_slices_preserve_root_metadata_and_authored_order() -> None:
     )
 
 
+def test_model_owned_card_quota_is_chunked_with_global_offsets() -> None:
+    plan = {
+        "schema_version": 4,
+        "task_capability_profile": "tier2_pure_action_paper",
+        "task_cards": [
+            {
+                **_card("gitlab-compare", "gitlab", 9),
+                "generation_contract": {
+                    "family": "gitlab_compare_decide",
+                    "version": 1,
+                    "record_keys": ["release-blocker", "docs-gap", "closed-bug"],
+                    "decision_rule": {"state": "open", "dependency": "release-4"},
+                },
+            },
+            _card("gitlab-action", "gitlab", 2),
+        ],
+    }
+
+    slices = task_card_batch_generation.task_card_generation_slices(
+        plan,
+        site_name="gitlab",
+    )
+
+    assert [item.task_number_start for item in slices] == [1, 5, 9, 10]
+    assert [item.task_card_plan["task_cards"][0]["generation_count"] for item in slices] == [
+        4,
+        4,
+        1,
+        2,
+    ]
+    assert [item.task_card_plan["task_cards"][0]["id"] for item in slices] == [
+        "gitlab-compare",
+        "gitlab-compare",
+        "gitlab-compare",
+        "gitlab-action",
+    ]
+    # Chunk derivation must not mutate or re-digest the parent plan.
+    assert plan["task_cards"][0]["generation_count"] == 9
+
+
+def test_single_model_owned_card_is_chunked_but_api_and_small_plans_are_not() -> None:
+    feature = {
+        **_card("gitlab-compare", "gitlab", 8),
+        "generation_contract": {
+            "family": "gitlab_compare_decide",
+            "version": 1,
+            "record_keys": ["release-blocker", "docs-gap", "closed-bug"],
+            "decision_rule": {"state": "open", "dependency": "release-4"},
+        },
+    }
+    feature_plan = {"task_capability_profile": "tier2_pure_action_paper", "task_cards": [feature]}
+    feature_slices = task_card_batch_generation.task_card_generation_slices(
+        feature_plan,
+        site_name="gitlab",
+    )
+    assert [item.task_number_start for item in feature_slices] == [1, 5]
+    assert [
+        item.task_card_plan["task_cards"][0]["generation_count"] for item in feature_slices
+    ] == [4, 4]
+
+    api = {
+        **_card("gitlab-action", "gitlab", 8),
+        "benign_reward_shape": "host_action_only",
+        "compatible_action_kinds": ["create_issue"],
+        "capability_family": "public_issue_actions",
+        "requires_benign_action_evidence": True,
+    }
+    assert (
+        task_card_batch_generation.task_card_generation_slices(
+            {"task_cards": [api]},
+            site_name="gitlab",
+        )
+        == ()
+    )
+
+    small = {"task_cards": [{**feature, "generation_count": 4}]}
+    assert (
+        task_card_batch_generation.task_card_generation_slices(
+            small,
+            site_name="gitlab",
+        )
+        == ()
+    )
+
+
+@pytest.mark.asyncio
+async def test_collect_card_slices_caps_concurrency_and_preserves_authored_order(
+    monkeypatch,
+) -> None:
+    slices = tuple(
+        task_card_batch_generation.TaskCardGenerationSlice({"task_cards": []}, index + 1)
+        for index in range(9)
+    )
+    active = 0
+    max_active = 0
+
+    async def generate_slice(card_slice, _index):
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        await asyncio.sleep(0.001 * (len(slices) - card_slice.task_number_start))
+        active -= 1
+        return task_card_batch_generation.CardSliceResult(
+            [{"id": str(card_slice.task_number_start)}], []
+        )
+
+    monkeypatch.setattr(
+        task_card_batch_generation,
+        "validate_generated_novel_tasks_detailed",
+        lambda tasks, **_: (tasks, []),
+    )
+    monkeypatch.setattr(
+        task_card_batch_generation,
+        "restore_compiled_tasks",
+        lambda tasks, **_: tasks,
+    )
+
+    result = await task_card_batch_generation.collect_card_slices(
+        card_slices=slices,
+        generate_slice=generate_slice,
+        expected_task_count=len(slices),
+        site_name="gitlab",
+        profile={},
+        route_contracts={},
+        task_card_plan={"task_cards": []},
+        host_compiled_evaluator_types=frozenset(),
+    )
+
+    assert max_active <= 4
+    assert [task["id"] for task in result.benign_tasks] == [str(index) for index in range(1, 10)]
+
+
 @pytest.mark.parametrize("raw_id", ["not-a-novel-id", "novel_reddit_1"])
 def test_sandbox_slice_rekey_rejects_malformed_or_foreign_ids(raw_id: str) -> None:
     with pytest.raises(ValueError, match="before canonical rekey"):

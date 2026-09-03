@@ -13,7 +13,10 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from warp_taskgen.phase_1.generated_workflows import restore_compiled_tasks
+from warp_taskgen.phase_1.generated_workflows import (
+    owns_model_generated_content,
+    restore_compiled_tasks,
+)
 from warp_taskgen.phase_1.novel_task_validation import (
     sort_novel_tasks,
     validate_generated_novel_tasks_detailed,
@@ -47,6 +50,15 @@ class CardBatchResult:
 
 CardSliceGenerator = Callable[[TaskCardGenerationSlice, int], Awaitable[CardSliceResult]]
 
+# Model-owned feature rows carry a complete world/conversation object. Keep
+# each model request small enough for the sandbox while retaining the authored
+# per-card quota in the parent plan.
+MAX_MODEL_TASKS_PER_SLICE = 4
+
+# This is intentionally local to card batching. The shared API/sandbox
+# concurrency controls have different ownership and must not be changed here.
+MAX_CARD_SLICE_CONCURRENCY = 4
+
 
 def task_card_generation_slices(
     task_card_plan: Mapping[str, Any] | None,
@@ -65,7 +77,18 @@ def task_card_generation_slices(
         and str(card.get("status", "active")) == "active"
         and str(card.get("site") or "").strip() == site_name
     ]
-    if len(active_cards) <= 1:
+    # Card-level isolation remains necessary for multi-card plans so each
+    # backend receives only its own card. A single model-owned card is split
+    # only when its authored quota exceeds the local feature request bound;
+    # small and legacy plans retain their direct generation path.
+    should_isolate_cards = len(active_cards) > 1
+    should_chunk_model_cards = any(
+        owns_model_generated_content(card)
+        and (count := counts.get(str(card.get("id") or ""))) is not None
+        and count > MAX_MODEL_TASKS_PER_SLICE
+        for card in active_cards
+    )
+    if not should_isolate_cards and not should_chunk_model_cards:
         return ()
 
     root_metadata = {key: value for key, value in task_card_plan.items() if key != "task_cards"}
@@ -78,15 +101,30 @@ def task_card_generation_slices(
             # Validated plans cannot reach this branch.  Direct callers retain
             # the legacy path rather than guessing an allocation.
             return ()
-        sliced_plan = dict(root_metadata)
-        sliced_plan["task_cards"] = [dict(card)]
-        slices.append(
-            TaskCardGenerationSlice(
-                task_card_plan=sliced_plan,
-                task_number_start=task_number_start,
+        chunk_counts = (
+            tuple(
+                min(MAX_MODEL_TASKS_PER_SLICE, count - offset)
+                for offset in range(0, count, MAX_MODEL_TASKS_PER_SLICE)
             )
+            if owns_model_generated_content(card)
+            else (count,)
         )
-        task_number_start += count
+        for chunk_count in chunk_counts:
+            sliced_card = dict(card)
+            # Keep the parent card untouched. Derived plans expose only the
+            # chunk quota to the child validator/prompt; aggregate validation
+            # below always receives the original plan.
+            if chunk_count != count:
+                sliced_card["generation_count"] = chunk_count
+            sliced_plan = dict(root_metadata)
+            sliced_plan["task_cards"] = [sliced_card]
+            slices.append(
+                TaskCardGenerationSlice(
+                    task_card_plan=sliced_plan,
+                    task_number_start=task_number_start,
+                )
+            )
+            task_number_start += chunk_count
     return tuple(slices)
 
 
@@ -134,10 +172,30 @@ async def collect_card_slices(
 ) -> CardBatchResult:
     """Run card callbacks concurrently and apply unchanged site validation."""
 
-    results = await asyncio.gather(
-        *[generate_slice(card_slice, index) for index, card_slice in enumerate(card_slices)],
-        return_exceptions=True,
-    )
+    semaphore = asyncio.Semaphore(MAX_CARD_SLICE_CONCURRENCY)
+
+    async def run_bounded(
+        card_slice: TaskCardGenerationSlice,
+        index: int,
+    ) -> CardSliceResult:
+        async with semaphore:
+            return await generate_slice(card_slice, index)
+
+    slice_tasks = [
+        asyncio.create_task(run_bounded(card_slice, index))
+        for index, card_slice in enumerate(card_slices)
+    ]
+    try:
+        results = await asyncio.gather(*slice_tasks, return_exceptions=True)
+    except BaseException:
+        # The parent cancellation/error boundary owns all admitted children.
+        # Cancel waiters as well as active slices, then await every task before
+        # propagating so no sandbox/API work survives this batch.
+        for task in slice_tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*slice_tasks, return_exceptions=True)
+        raise
     generated_tasks: list[dict[str, Any]] = []
     failures: list[str] = []
     fatal_error: BaseException | None = None
@@ -191,6 +249,8 @@ async def collect_card_slices(
 
 
 __all__ = [
+    "MAX_CARD_SLICE_CONCURRENCY",
+    "MAX_MODEL_TASKS_PER_SLICE",
     "CardBatchResult",
     "CardSliceGenerator",
     "CardSliceResult",
