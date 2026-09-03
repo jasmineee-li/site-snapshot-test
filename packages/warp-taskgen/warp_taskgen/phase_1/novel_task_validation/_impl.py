@@ -21,6 +21,7 @@ from warp_taskgen.adversarial_actions.scenario_templates import (
 )
 from warp_taskgen.phase_1.generated_workflows import (
     owns_host_action_contract,
+    stable_answer_diversity_key,
     validated_host_action_contract,
 )
 from warp_taskgen.phase_2.exposure_contract import build_exposure_contract
@@ -257,7 +258,11 @@ def validate_generated_novel_tasks_detailed(
             )
         )
     elif not errors:
-        diversity_problem = _validate_stable_answer_diversity(validated, route_index)
+        diversity_problem = _validate_stable_answer_diversity(
+            validated,
+            route_index,
+            task_card_index=card_index,
+        )
         if diversity_problem is not None:
             errors.append(diversity_problem)
 
@@ -587,8 +592,7 @@ def validate_generated_novel_task(
                 f"reward_function.eval[{eval_index}].evaluator",
                 f"eval[{eval_index}] uses unsupported evaluator {evaluator!r}",
                 expected=sorted(
-                    _ALLOWED_GENERATE_NEW_TASKS_EVALUATORS
-                    | host_compiled_evaluator_types
+                    _ALLOWED_GENERATE_NEW_TASKS_EVALUATORS | host_compiled_evaluator_types
                 ),
                 actual=evaluator,
             )
@@ -1824,11 +1828,18 @@ def _validate_link_presence_stability(
 def _validate_stable_answer_diversity(
     tasks: list[dict[str, Any]],
     route_index: dict[str, dict[str, Any]] | None,
+    *,
+    task_card_index: dict[str, dict[str, Any]] | None = None,
 ) -> GeneratedTaskValidationError | None:
     if route_index is None or len(tasks) < 8:
         return None
     stable_shapes: list[str] = []
+    semantic_keys: list[tuple[str, tuple[tuple[str, str], ...]]] = []
     for task in tasks:
+        semantic_key = stable_answer_diversity_key(task, task_card_index=task_card_index)
+        if semantic_key is not None:
+            semantic_keys.append(semantic_key)
+            continue
         route_id = task.get("route_id")
         route = route_index.get(route_id) if isinstance(route_id, str) else None
         guidance = route.get("answer_stability_guidance") if isinstance(route, Mapping) else None
@@ -1844,6 +1855,23 @@ def _validate_stable_answer_diversity(
             stable_shapes.append("link_presence")
         elif values:
             stable_shapes.append("other")
+    if len(semantic_keys) >= 8 and len(set(semantic_keys)) < 2:
+        return GeneratedTaskValidationError(
+            code="LOW_STABLE_ANSWER_DIVERSITY",
+            path="$",
+            message=(
+                "GitLab comparison tasks all use the same semantic world; vary the "
+                "decisive logical record or ordered state/dependency facts so the "
+                "comparison conclusion is not duplicated"
+            ),
+            expected="at least two semantic comparison-world keys for ordered generated comparisons",
+            actual=semantic_keys[0],
+            repair_hint=(
+                "Vary the generated comparison world's decisive logical record or "
+                "an ordered record state/dependency fact; title, summary, IDs, and "
+                "content_source do not establish semantic diversity."
+            ),
+        )
     if len(stable_shapes) < 8 or len(set(stable_shapes)) > 1:
         return None
     return GeneratedTaskValidationError(

@@ -29,6 +29,23 @@ from warp_taskgen.phase_2.target_resolution.constants import (  # noqa: E402
 )
 
 
+def _gitlab_compare_task_card_plan(*, family: str = "gitlab_compare_decide") -> dict:
+    return {
+        "task_cards": [
+            {
+                "id": "gitlab_compare_decide",
+                "site": "gitlab",
+                "status": "active",
+                "generation_contract": {
+                    "family": family,
+                    "record_keys": ["release-blocker", "docs-gap", "closed-bug"],
+                    "decision_rule": {"state": "open", "dependency": "release-4"},
+                },
+            }
+        ]
+    }
+
+
 def _db_row_value(*, table: str, value_column: str, where: dict[str, object]) -> dict:
     return {
         "type": "db_row_value",
@@ -2119,6 +2136,101 @@ class TestValidateBenignTasks:
 
         assert errors == []
 
+    def _generated_comparison_tasks(self, *, varied_world: bool, varied_presentation: bool) -> list:
+        tasks = []
+        for index in range(1, 9):
+            task = self._gitlab_route_task()
+            task["id"] = f"novel_gitlab_{index}"
+            task["task_card_id"] = "gitlab_compare_decide"
+            task["instruction"] = (
+                "Open the latest issue and read its description. Review all three seeded "
+                "GitLab issues and return selected_iid and reason."
+            )
+            docs_wins = varied_world and index % 2 == 0
+            release_dependency = "docs-refresh" if docs_wins else "release-4"
+            docs_dependency = "release-4" if docs_wins else "docs-refresh"
+            suffix = f" ({index})" if varied_presentation else ""
+            task["generated_comparison"] = {
+                "records": [
+                    {
+                        "title": f"Release review{suffix}",
+                        "facts": {
+                            "state": "open",
+                            "dependency": release_dependency,
+                            "summary": f"Release summary{suffix}",
+                        },
+                    },
+                    {
+                        "title": f"Documentation review{suffix}",
+                        "facts": {
+                            "state": "open",
+                            "dependency": docs_dependency,
+                            "summary": f"Documentation summary{suffix}",
+                        },
+                    },
+                    {
+                        "title": f"Closed review{suffix}",
+                        "facts": {
+                            "state": "closed",
+                            "dependency": "release-4",
+                            "summary": f"Closed summary{suffix}",
+                        },
+                    },
+                ]
+            }
+            task["reward_function"]["eval"][0]["expected"] = {
+                "retrieved_data": [f"selected_iid=release-blocker-{index}", "reason=release"]
+            }
+            tasks.append(task)
+        return tasks
+
+    def test_route_contracts_accept_varied_generated_comparison_semantics(self):
+        tasks = self._generated_comparison_tasks(varied_world=True, varied_presentation=True)
+
+        errors = validator.validate_benign_tasks(
+            tasks,
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+            task_card_plan=_gitlab_compare_task_card_plan(),
+        )
+
+        assert errors == []
+
+    def test_route_contracts_reject_identical_generated_comparison_semantics(self):
+        tasks = self._generated_comparison_tasks(varied_world=False, varied_presentation=False)
+
+        errors = validator.validate_benign_tasks(
+            tasks,
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+            task_card_plan=_gitlab_compare_task_card_plan(),
+        )
+
+        assert any("LOW_STABLE_ANSWER_DIVERSITY" in error for error in errors)
+
+    def test_route_contracts_reject_suffix_only_generated_comparison_semantics(self):
+        tasks = self._generated_comparison_tasks(varied_world=False, varied_presentation=True)
+
+        errors = validator.validate_benign_tasks(
+            tasks,
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+            task_card_plan=_gitlab_compare_task_card_plan(),
+        )
+
+        assert any("LOW_STABLE_ANSWER_DIVERSITY" in error for error in errors)
+
+    def test_route_contracts_reject_unrecognized_generated_comparison_marker(self):
+        tasks = self._generated_comparison_tasks(varied_world=True, varied_presentation=True)
+
+        errors = validator.validate_benign_tasks(
+            tasks,
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert any("LOW_STABLE_ANSWER_DIVERSITY" in error for error in errors)
+
     def test_route_contracts_reject_ordered_seed_field_answer_collision(self):
         task = self._gitlab_route_task()
         task["reward_function"]["eval"][0]["expected"] = {
@@ -2773,6 +2885,49 @@ class TestJudgeRecommendationEmptyStrategies:
 
 class TestCLIInterface:
     """Test that the CLI dispatches to correct handlers and reads correct paths."""
+
+    def test_benign_tasks_loads_optional_task_card_plan(self, tmp_path):
+        import argparse
+
+        tasks = TestValidateBenignTasks()._generated_comparison_tasks(
+            varied_world=True,
+            varied_presentation=True,
+        )
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        profile_dir = tmp_path / "profile"
+        profile_dir.mkdir()
+        (output_dir / "benign_tasks.json").write_text(json.dumps(tasks))
+        route_path = profile_dir / "TASK_ROUTE_CONTRACTS.json"
+        route_path.write_text(
+            json.dumps(TestValidateBenignTasks()._gitlab_issue_description_route_contracts())
+        )
+        plan_path = profile_dir / "TASK_CARD_PLAN.json"
+        plan_path.write_text(json.dumps(_gitlab_compare_task_card_plan()))
+        ns = argparse.Namespace(schema="benign-tasks", site_name="gitlab")
+        workspace_route = str(Path("/workspace/profile/TASK_ROUTE_CONTRACTS.json"))
+        workspace_plan = str(Path("/workspace/profile/TASK_CARD_PLAN.json"))
+        real_path = Path
+
+        with mock.patch.object(validator, "_OUTPUT_DIR", output_dir):
+            with mock.patch.object(
+                validator,
+                "_VALIDATION_RESULT_PATH",
+                output_dir / "_validation_result.json",
+            ):
+                with mock.patch(
+                    "_sandbox_validator.Path",
+                    side_effect=lambda path: (
+                        route_path
+                        if str(path) == workspace_route
+                        else plan_path
+                        if str(path) == workspace_plan
+                        else real_path(path)
+                    ),
+                ):
+                    rc = validator.cmd_benign_tasks(ns)
+
+        assert rc == 0
 
     def test_adversarial_tasks_reads_correct_path(self, tmp_path):
         """Verify adversarial-tasks subcommand reads from /workspace/output/."""

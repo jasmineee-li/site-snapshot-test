@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
@@ -128,6 +129,9 @@ def build_task_signature(task: dict[str, Any]) -> str:
         "task_archetype": provenance.get("task_archetype"),
         "archetype_id": provenance.get("archetype_id"),
     }
+    comparison_identity = _gitlab_compare_world_identity(task)
+    if comparison_identity is not None:
+        payload["gitlab_compare_world_identity"] = comparison_identity
     return short_digest(payload)
 
 
@@ -147,6 +151,26 @@ def build_archetype_signature(task: dict[str, Any]) -> str:
 def task_provenance(task: dict[str, Any]) -> dict[str, Any]:
     value = task.get("task_provenance")
     return dict(value) if isinstance(value, dict) else {}
+
+
+def _gitlab_compare_world_identity(task: dict[str, Any]) -> Any | None:
+    """Return full canonical comparison-world identity for task-bank signatures."""
+
+    if task.get("site") != "gitlab":
+        return None
+    task_card_id = task.get("task_card_id")
+    if not isinstance(task_card_id, str) or not task_card_id.strip():
+        return None
+    from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
+        gitlab_compare_world_identity,
+    )
+
+    candidate = task
+    reward = task.get("reward_function")
+    if isinstance(reward, Mapping) and isinstance(reward.get("benign_reward"), Mapping):
+        candidate = dict(task)
+        candidate["reward_function"] = reward["benign_reward"]
+    return gitlab_compare_world_identity(candidate, task_card_id=task_card_id)
 
 
 def carrier_contract_from_task(task: dict[str, Any]) -> dict[str, Any]:

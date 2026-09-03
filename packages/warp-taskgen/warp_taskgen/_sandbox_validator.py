@@ -1090,6 +1090,7 @@ def validate_benign_tasks(
     *,
     site_name: str,
     route_contracts: object | None = None,
+    task_card_plan: object | None = None,
 ) -> list[str]:
     """Validate benign_tasks.json structure."""
     errors: list[str] = []
@@ -1183,7 +1184,13 @@ def validate_benign_tasks(
             )
 
     if route_index and not errors:
-        errors.extend(_validate_stable_answer_diversity(data, route_index))
+        errors.extend(
+            _validate_stable_answer_diversity(
+                data,
+                route_index,
+                task_card_plan=task_card_plan,
+            )
+        )
 
     return errors
 
@@ -1416,15 +1423,106 @@ def _validate_link_presence_stability(task: dict, *, prefix: str, guidance: dict
     return []
 
 
+def _raw_gitlab_compare_semantic_key(
+    task: dict,
+    *,
+    task_card_plan: object | None,
+) -> tuple[tuple[str, ...], tuple[str, str], str, tuple[tuple[str, str], ...]] | None:
+    """Return a raw comparison key only for an authorized active task card."""
+
+    if task.get("site") != "gitlab" or not isinstance(task_card_plan, dict):
+        return None
+    task_card_id = task.get("task_card_id")
+    if not isinstance(task_card_id, str) or not task_card_id.strip():
+        return None
+    cards = task_card_plan.get("task_cards")
+    if not isinstance(cards, list):
+        return None
+    card = next(
+        (
+            candidate
+            for candidate in cards
+            if isinstance(candidate, dict)
+            and candidate.get("id") == task_card_id
+            and candidate.get("site") == "gitlab"
+            and str(candidate.get("status", "active")) == "active"
+        ),
+        None,
+    )
+    if not isinstance(card, dict):
+        return None
+    generation_contract = card.get("generation_contract")
+    if not isinstance(generation_contract, dict):
+        return None
+    if generation_contract.get("family") != "gitlab_compare_decide":
+        return None
+
+    raw_record_keys = generation_contract.get("record_keys")
+    if not isinstance(raw_record_keys, list) or len(raw_record_keys) != 3:
+        return None
+    record_keys = tuple(
+        key.strip() for key in raw_record_keys if isinstance(key, str) and key.strip()
+    )
+    if len(record_keys) != len(raw_record_keys) or len(set(record_keys)) != len(record_keys):
+        return None
+
+    decision_rule = generation_contract.get("decision_rule")
+    if not isinstance(decision_rule, dict):
+        return None
+    state = decision_rule.get("state")
+    dependency = decision_rule.get("dependency")
+    if not all(isinstance(value, str) and value.strip() for value in (state, dependency)):
+        return None
+    rule = (state.strip(), dependency.strip())
+
+    generated = task.get("generated_comparison")
+    if not isinstance(generated, dict):
+        return None
+    raw_records = generated.get("records")
+    if not isinstance(raw_records, list) or len(raw_records) != len(record_keys):
+        return None
+    ordered_facts: list[tuple[str, str]] = []
+    for record in raw_records:
+        if not isinstance(record, dict):
+            return None
+        facts = record.get("facts")
+        if not isinstance(facts, dict):
+            return None
+        raw_state = facts.get("state")
+        raw_dependency = facts.get("dependency")
+        if not all(
+            isinstance(value, str) and value.strip() for value in (raw_state, raw_dependency)
+        ):
+            return None
+        ordered_facts.append((raw_state.strip(), raw_dependency.strip()))
+    matching_keys = [
+        record_key
+        for record_key, facts in zip(record_keys, ordered_facts, strict=True)
+        if facts == rule
+    ]
+    if len(matching_keys) != 1:
+        return None
+    return (record_keys, rule, matching_keys[0], tuple(ordered_facts))
+
+
 def _validate_stable_answer_diversity(
     tasks: list[dict],
     route_index: dict[str, dict],
+    *,
+    task_card_plan: object | None = None,
 ) -> list[str]:
     if len(tasks) < 8:
         return []
     stable_shapes: list[str] = []
+    semantic_keys: list[
+        tuple[tuple[str, ...], tuple[str, str], str, tuple[tuple[str, str], ...]]
+    ] = []
     for task in tasks:
         if not isinstance(task, dict):
+            continue
+        semantic_key = _raw_gitlab_compare_semantic_key(task, task_card_plan=task_card_plan)
+        if semantic_key is not None:
+            semantic_keys.append(semantic_key)
             continue
         route_id = task.get("route_id")
         route = route_index.get(route_id) if isinstance(route_id, str) else None
@@ -1440,6 +1538,12 @@ def _validate_stable_answer_diversity(
             stable_shapes.append("link_presence")
         elif values:
             stable_shapes.append("other")
+    if len(semantic_keys) >= 8 and len(set(semantic_keys)) < 2:
+        return [
+            "LOW_STABLE_ANSWER_DIVERSITY: ordered generated GitLab comparison "
+            "tasks all use the same semantic world; vary the decisive logical "
+            "record or ordered state/dependency facts"
+        ]
     if len(stable_shapes) < 8 or len(set(stable_shapes)) > 1:
         return []
     return [
@@ -3702,7 +3806,18 @@ def cmd_benign_tasks(args: argparse.Namespace) -> int:
         route_contracts, err = _load_json(route_contracts_path)
         if err:
             return _emit_result(False, [err])
-    errors = validate_benign_tasks(data, site_name=args.site_name, route_contracts=route_contracts)
+    task_card_plan: object | None = None
+    task_card_plan_path = Path("/workspace/profile/TASK_CARD_PLAN.json")
+    if task_card_plan_path.exists():
+        task_card_plan, err = _load_json(task_card_plan_path)
+        if err:
+            return _emit_result(False, [err])
+    errors = validate_benign_tasks(
+        data,
+        site_name=args.site_name,
+        route_contracts=route_contracts,
+        task_card_plan=task_card_plan,
+    )
     return _emit_result(not errors, errors)
 
 

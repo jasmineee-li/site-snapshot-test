@@ -247,6 +247,26 @@ def generate_gitlab_compare_decide_world(
     )
 
 
+def is_feature_default_world(world: GitLabComparisonWorld | Mapping[str, Any]) -> bool:
+    """Return whether a world is exactly reconstructable from feature defaults."""
+
+    try:
+        resolved = _coerce_world(world)
+        if tuple(record.logical_record_key for record in resolved.records) != DEFAULT_RECORD_KEYS:
+            return False
+        decision_rule = dict(resolved.decision_rule)
+        if decision_rule.get("state") != DEFAULT_DECISION_RULE["state"]:
+            return False
+        reconstructed = generate_gitlab_compare_decide_world(
+            decisive_record_key=resolved.decisive_record_key,
+            decision_dependency=decision_rule["dependency"],
+            method=resolved.method,
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
+    return resolved.as_mapping() == reconstructed.as_mapping()
+
+
 def select_gitlab_record(world: GitLabComparisonWorld | Mapping[str, Any]) -> GitLabIssueRecord:
     """Select the unique candidate matching the generated decision rule."""
     resolved = _coerce_world(world)
@@ -323,7 +343,9 @@ def compile_gitlab_compare_decide_task(
             "site": resolved.site,
             "method": resolved.method,
             "resource_kind": resolved.resource_kind,
-            "expected_logical_record_keys": [record.logical_record_key for record in resolved.records],
+            "expected_logical_record_keys": [
+                record.logical_record_key for record in resolved.records
+            ],
             "selected_logical_record_key": selected.logical_record_key,
             "decision_rule": dict(resolved.decision_rule),
         },
@@ -433,7 +455,9 @@ def _expected_response(world: GitLabComparisonWorld, *, selected_iid: str) -> di
     }
 
 
-def _world_from_task_or_world(value: GitLabComparisonWorld | Mapping[str, Any]) -> GitLabComparisonWorld:
+def _world_from_task_or_world(
+    value: GitLabComparisonWorld | Mapping[str, Any],
+) -> GitLabComparisonWorld:
     if isinstance(value, GitLabComparisonWorld):
         return value
     if not isinstance(value, Mapping):
@@ -477,7 +501,9 @@ def _coerce_record(value: GitLabIssueRecord | Mapping[str, Any]) -> GitLabIssueR
     facts = value.get("facts")
     facts_mapping = facts if isinstance(facts, Mapping) else value
     return GitLabIssueRecord(
-        logical_record_key=str(value.get("logical_record_key") or value.get("logicalAlias") or "").strip(),
+        logical_record_key=str(
+            value.get("logical_record_key") or value.get("logicalAlias") or ""
+        ).strip(),
         title=str(value.get("title") or value.get("name") or "").strip(),
         state=str(facts_mapping.get("state") or facts_mapping.get("status") or "").strip(),
         dependency=str(facts_mapping.get("dependency") or "").strip(),
@@ -500,5 +526,6 @@ __all__ = [
     "compile_gitlab_compare_decide_task",
     "expected_gitlab_compare_decide_response",
     "generate_gitlab_compare_decide_world",
+    "is_feature_default_world",
     "select_gitlab_record",
 ]

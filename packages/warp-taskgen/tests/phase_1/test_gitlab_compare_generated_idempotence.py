@@ -12,6 +12,11 @@ from tests.phase_1.test_gitlab_compare_generated_content import (
     _act_source,
     _card,
     _compile,
+    _source_task,
+)
+from warp_taskgen.phase_1.gitlab_compare_decide import (
+    expected_gitlab_compare_decide_response,
+    generate_gitlab_compare_decide_world,
 )
 from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
     compile_phase1_gitlab_compare_act_task,
@@ -63,6 +68,70 @@ def test_phase1_metadata_stamp_is_idempotent_for_generated_world() -> None:
     assert stamped_act["comparison_act_contract"]["target_logical_record_key"] == "docs-gap"
     assert stamped_act["task_provenance"]["benign_action_contract"] == expected_action_provenance
     validate_gitlab_compare_decide_task(stamped_act, require_instruction=False)
+
+
+def test_phase1_content_source_matches_canonical_world() -> None:
+    default_source = _source_task()
+    default_source.pop("generated_comparison")
+    default = compile_phase1_gitlab_compare_decide_task(default_source, task_card=_card())
+
+    generated_default_source = _source_task()
+    canonical_world = generate_gitlab_compare_decide_world()
+    generated_default_source["generated_comparison"] = {
+        "records": [
+            {"title": record.title, "facts": dict(record.facts)}
+            for record in canonical_world.records
+        ]
+    }
+    generated_default_source["reward_function"]["eval"][0]["expected"] = (
+        expected_gitlab_compare_decide_response(canonical_world)
+    )
+    generated_default = compile_phase1_gitlab_compare_decide_task(
+        generated_default_source,
+        task_card=_card(),
+    )
+    generated = _compile()
+
+    assert default["comparison_contract"]["content_source"] == "feature_default"
+    assert generated_default["comparison_contract"]["content_source"] == "feature_default"
+    assert generated["comparison_contract"]["content_source"] == "warp_generated"
+    assert compile_phase1_gitlab_compare_decide_task(default, task_card=_card()) == default
+    assert (
+        compile_phase1_gitlab_compare_decide_task(generated_default, task_card=_card())
+        == generated_default
+    )
+    assert compile_phase1_gitlab_compare_decide_task(generated, task_card=_card()) == generated
+
+
+@pytest.mark.parametrize(
+    ("source", "replacement"),
+    [
+        ("feature_default", "warp_generated"),
+        ("warp_generated", "feature_default"),
+    ],
+)
+def test_host_compiled_content_source_relabels_are_rejected(
+    source: str,
+    replacement: str,
+) -> None:
+    task = (
+        _compile()
+        if source == "warp_generated"
+        else compile_phase1_gitlab_compare_decide_task(
+            _source_task_without_generated_content(),
+            task_card=_card(),
+        )
+    )
+    task["comparison_contract"]["content_source"] = replacement
+
+    with pytest.raises(ValueError, match="content source"):
+        compile_phase1_gitlab_compare_decide_task(task, task_card=_card())
+
+
+def _source_task_without_generated_content() -> dict[str, Any]:
+    source = _source_task()
+    source.pop("generated_comparison")
+    return source
 
 
 @pytest.mark.parametrize(

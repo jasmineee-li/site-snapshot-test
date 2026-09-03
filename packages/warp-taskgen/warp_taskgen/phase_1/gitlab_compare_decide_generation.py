@@ -37,6 +37,7 @@ from warp_taskgen.phase_1.gitlab_compare_decide_content import (
     _validate_compare_act_instruction,
     _validate_compare_act_model_reward,
     _validate_compare_decide_instruction,
+    _world_from_compiled_task,
     world_for_phase1_task,
 )
 
@@ -257,6 +258,77 @@ def compile_phase1_gitlab_compare_act_task(
     )
 
 
+def gitlab_compare_semantic_key(
+    task: Mapping[str, Any],
+    *,
+    task_card_id: str,
+) -> tuple[str, tuple[tuple[str, str], ...]] | None:
+    """Return the readable semantic identity of a canonical compare world.
+
+    The key intentionally excludes physical IDs, titles, summaries, and the
+    content source.  It retains the selected logical record and the ordered
+    state/dependency facts that determine the comparison conclusion.  Invalid
+    or copied output returns ``None`` so callers keep the ordinary fail-closed
+    validation path.
+    """
+
+    world = _canonical_compare_world(task, task_card_id=task_card_id)
+    if world is None:
+        return None
+    return (
+        world.decisive_record_key,
+        tuple((record.state, record.dependency) for record in world.records),
+    )
+
+
+def gitlab_compare_world_identity(
+    task: Mapping[str, Any],
+    *,
+    task_card_id: str,
+) -> dict[str, Any] | None:
+    """Return full logical comparison content for task-bank identity.
+
+    Unlike gitlab_compare_semantic_key, this identity retains every canonical
+    logical record fact, including title and summary. It excludes physical IDs
+    and presentation-only metadata such as content_source.
+    """
+
+    world = _canonical_compare_world(task, task_card_id=task_card_id)
+    if world is None:
+        return None
+    return {
+        "records": [
+            {
+                "logical_record_key": record.logical_record_key,
+                "title": record.title,
+                "state": record.state,
+                "dependency": record.dependency,
+                "summary": record.summary,
+            }
+            for record in world.records
+        ],
+        "decision_rule": dict(world.decision_rule),
+        "decisive_record_key": world.decisive_record_key,
+    }
+
+
+def _canonical_compare_world(
+    task: Mapping[str, Any],
+    *,
+    task_card_id: str,
+) -> GitLabComparisonWorld | None:
+    try:
+        if not is_host_compiled_comparison_task(
+            task,
+            act=False,
+            task_card_id=task_card_id,
+        ):
+            return None
+        return _world_from_compiled_task(task)
+    except (TypeError, ValueError):
+        return None
+
+
 def _expected_task_card_id(
     task: Mapping[str, Any],
     task_card: Mapping[str, Any],
@@ -444,5 +516,7 @@ __all__ = [
     "gitlab_compare_act_generation_contract",
     "gitlab_compare_decide_generation_contract",
     "gitlab_compare_generation_prompt_addendum",
+    "gitlab_compare_semantic_key",
+    "gitlab_compare_world_identity",
     "validate_gitlab_compare_decide_task",
 ]
