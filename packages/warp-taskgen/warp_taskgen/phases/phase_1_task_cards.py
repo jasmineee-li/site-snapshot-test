@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Mapping
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,9 @@ from warp_taskgen.adversarial_actions.scenario_templates import validate_scenari
 
 class TaskCardPlanError(ValueError):
     """Raised when a task-card plan is malformed."""
+
+
+GENERATION_COUNT_FIELD = "generation_count"
 
 
 def load_or_compile_task_card_plan(
@@ -80,6 +84,7 @@ def validate_task_card_plan(plan: Any) -> None:
     if not isinstance(cards, list) or not cards:
         raise TaskCardPlanError("task-card plan must include non-empty task_cards array")
     seen: set[str] = set()
+    active_cards_by_site: dict[str, list[tuple[int, dict[str, Any]]]] = {}
     for index, card in enumerate(cards):
         if not isinstance(card, dict):
             raise TaskCardPlanError(f"task_cards[{index}] must be an object")
@@ -92,6 +97,18 @@ def validate_task_card_plan(plan: Any) -> None:
         site = card.get("site")
         if not isinstance(site, str) or not site.strip():
             raise TaskCardPlanError(f"task_cards[{index}].site must be a non-empty string")
+        if str(card.get("status", "active")) == "active":
+            active_cards_by_site.setdefault(site, []).append((index, card))
+            if GENERATION_COUNT_FIELD in card:
+                generation_count = card[GENERATION_COUNT_FIELD]
+                if (
+                    isinstance(generation_count, bool)
+                    or not isinstance(generation_count, int)
+                    or generation_count <= 0
+                ):
+                    raise TaskCardPlanError(
+                        f"task_cards[{index}].{GENERATION_COUNT_FIELD} must be a positive integer"
+                    )
         route_ids = card.get("route_ids", card.get("route_id"))
         if route_ids is not None:
             values = [route_ids] if isinstance(route_ids, str) else route_ids
@@ -268,6 +285,24 @@ def validate_task_card_plan(plan: Any) -> None:
                         f"task_cards[{index}].{key} contains invalid regex {pattern!r}: {exc}"
                     ) from exc
 
+    for site, active_cards in active_cards_by_site.items():
+        declared = [(index, card) for index, card in active_cards if GENERATION_COUNT_FIELD in card]
+        if not declared or len(declared) == len(active_cards):
+            continue
+        missing = [
+            f"task_cards[{index}] ({card.get('id')!r})"
+            for index, card in active_cards
+            if GENERATION_COUNT_FIELD not in card
+        ]
+        declared_summary = ", ".join(
+            f"{card.get('id')!r}={card[GENERATION_COUNT_FIELD]}" for _index, card in declared
+        )
+        raise TaskCardPlanError(
+            f"active task cards for site {site!r} must all declare "
+            f"{GENERATION_COUNT_FIELD} when any card uses it; missing on "
+            f"{', '.join(missing)} (declared: {declared_summary})"
+        )
+
 
 def task_card_plan_digest(plan: dict[str, Any] | None) -> str | None:
     if plan is None:
@@ -308,6 +343,104 @@ def task_card_index(plan: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
         and isinstance(card.get("id"), str)
         and str(card.get("status", "active")) == "active"
     }
+
+
+def card_generation_count(card: Mapping[str, Any]) -> int | None:
+    """Return an authored positive per-card generation count when present."""
+    value = card.get(GENERATION_COUNT_FIELD)
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        return None
+    return value
+
+
+def task_card_generation_counts(
+    plan: Mapping[str, Any] | None,
+    *,
+    site_name: str | None = None,
+) -> dict[str, int] | None:
+    """Return exact active-card allocations, or ``None`` for legacy plans.
+
+    A plan only opts into exact card allocation when at least one active card
+    declares ``generation_count``.  Validation normally guarantees that every
+    active card for the selected site declares a positive count; malformed
+    direct callers receive ``None`` so the legacy fallback remains intact.
+    """
+    if not isinstance(plan, Mapping):
+        return None
+    cards = [
+        card
+        for card in plan.get("task_cards", [])
+        if isinstance(card, Mapping)
+        and str(card.get("status", "active")) == "active"
+        and (site_name is None or card.get("site") == site_name)
+    ]
+    if not cards or not any(GENERATION_COUNT_FIELD in card for card in cards):
+        return None
+    counts: dict[str, int] = {}
+    for card in cards:
+        card_id = card.get("id")
+        count = card_generation_count(card)
+        if not isinstance(card_id, str) or not card_id.strip() or count is None:
+            return None
+        counts[card_id] = count
+    return counts
+
+
+def task_card_generation_count(
+    plan: Mapping[str, Any] | None,
+    *,
+    site_name: str,
+) -> int | None:
+    """Return the exact active-card total for one site, if opted in."""
+    counts = task_card_generation_counts(plan, site_name=site_name)
+    return sum(counts.values()) if counts is not None else None
+
+
+def task_card_generation_prompt_addendum(
+    plan: Mapping[str, Any] | None,
+    *,
+    site_name: str | None = None,
+) -> str:
+    """Describe an exact per-card allocation to the Phase 1 model."""
+    if not isinstance(plan, Mapping):
+        return ""
+    selected_site = site_name
+    active_cards = [
+        card
+        for card in plan.get("task_cards", [])
+        if isinstance(card, Mapping)
+        and str(card.get("status", "active")) == "active"
+        and (site_name is None or card.get("site") == site_name)
+    ]
+    counts = task_card_generation_counts(plan, site_name=selected_site)
+    if not active_cards or counts is None:
+        return ""
+    site_name = selected_site or str(active_cards[0].get("site") or "site")
+    total = sum(counts.values())
+    next_id = 1
+    lines: list[str] = []
+    for card in active_cards:
+        card_id = str(card.get("id") or "")
+        count = counts[card_id]
+        end_id = next_id + count - 1
+        lines.append(
+            f"- task_card_id `{card_id}`: exactly {count} task(s) "
+            f"(`novel_{site_name}_{next_id}` through `novel_{site_name}_{end_id}`)"
+        )
+        next_id = end_id + 1
+    return "\n".join(
+        [
+            "<task_card_generation_allocation>",
+            f"Generate exactly {total} tasks in this one response; do not split the "
+            "allocation across runs or restart the id counter per card.",
+            *lines,
+            "Use each listed task_card_id exactly as written. IDs must be unique "
+            f"within this response and use one global 1-based counter for {site_name}.",
+            "</task_card_generation_allocation>",
+        ]
+    )
 
 
 def card_route_ids(card: dict[str, Any]) -> set[str]:

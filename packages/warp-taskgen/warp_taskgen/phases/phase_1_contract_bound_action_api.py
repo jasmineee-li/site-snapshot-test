@@ -33,6 +33,7 @@ from warp_taskgen.phase_4.concurrency import get_api_semaphore
 from warp_taskgen.phases.phase_1_task_cards import (
     card_action_kinds,
     card_benign_reward_shape,
+    card_generation_count,
     card_route_ids,
 )
 
@@ -104,6 +105,7 @@ def select_action_task_contracts(
     route_index = _route_index(route_contracts)
     selected: list[tuple[Mapping[str, Any], Mapping[str, Any], str, str]] = []
     requested_action_counts = dict(action_counts or {})
+    card_action_pairs: list[tuple[Mapping[str, Any], str, int | None]] = []
     for card in active_cards:
         card_id = str(card.get("id") or "").strip()
         action_kinds = sorted(card_action_kinds(card))
@@ -112,7 +114,58 @@ def select_action_task_contracts(
                 f"task card {card_id!r} must declare exactly one compatible action kind"
             )
         action_kind = action_kinds[0]
-        if action_counts is not None and int(requested_action_counts.get(action_kind, 0)) <= 0:
+        card_action_pairs.append((card, action_kind, card_generation_count(dict(card))))
+
+    generation_counts = [count for _card, _kind, count in card_action_pairs]
+    has_generation_counts = any(count is not None for count in generation_counts)
+    if has_generation_counts and not all(count is not None for count in generation_counts):
+        missing = [
+            str(card.get("id") or "")
+            for card, _action_kind, count in card_action_pairs
+            if count is None
+        ]
+        raise ValueError(
+            "generation_count allocation requires every selected task card to declare "
+            f"a positive count; missing for {missing!r}"
+        )
+
+    available_action_kinds = {action_kind for _card, action_kind, _count in card_action_pairs}
+    if action_counts is not None:
+        requested_unavailable = sorted(
+            kind
+            for kind, count in action_counts.items()
+            if count > 0 and kind not in available_action_kinds
+        )
+        if requested_unavailable:
+            raise ValueError(
+                f"requested action kind(s) unavailable for site {site_name!r}: "
+                + ", ".join(requested_unavailable)
+            )
+
+    if has_generation_counts and action_counts is not None:
+        expected_by_action: dict[str, int] = {}
+        for _card, action_kind, count in card_action_pairs:
+            assert count is not None
+            expected_by_action[action_kind] = expected_by_action.get(action_kind, 0) + count
+        conflicts = [
+            f"{kind}: generation_count={expected}, action_counts={int(action_counts.get(kind, 0))}"
+            for kind, expected in sorted(expected_by_action.items())
+            if int(action_counts.get(kind, 0)) != expected
+        ]
+        if conflicts:
+            raise ValueError(
+                "generation_count/action_counts conflict for active task cards: "
+                + "; ".join(conflicts)
+            )
+
+    generation_counts = []
+    for card, action_kind, generation_count in card_action_pairs:
+        card_id = str(card.get("id") or "").strip()
+        if (
+            action_counts is not None
+            and not has_generation_counts
+            and int(requested_action_counts.get(action_kind, 0)) <= 0
+        ):
             continue
         route_ids = sorted(card_route_ids(card))
         compatible_routes = [
@@ -132,19 +185,18 @@ def select_action_task_contracts(
         route = sorted(compatible_routes, key=lambda item: str(item.get("id") or ""))[0]
         route_id = str(route.get("id") or "").strip()
         selected.append((card, route, route_id, action_kind))
+        generation_counts.append(generation_count)
 
-    if action_counts is None:
+    if has_generation_counts:
+        counts = [int(count) for count in generation_counts]
+        if sum(counts) != requested_count:
+            raise ValueError(
+                f"requested_count={requested_count} does not match generation_count "
+                f"sum={sum(counts)} for site {site_name!r}"
+            )
+    elif action_counts is None:
         counts = _allocate_counts(requested_count, len(selected))
     else:
-        available = {action_kind for _card, _route, _route_id, action_kind in selected}
-        requested_unavailable = sorted(
-            kind for kind, count in action_counts.items() if count > 0 and kind not in available
-        )
-        if requested_unavailable:
-            raise ValueError(
-                f"requested action kind(s) unavailable for site {site_name!r}: "
-                + ", ".join(requested_unavailable)
-            )
         counts = [int(action_counts.get(action_kind, 0)) for *_prefix, action_kind in selected]
         if sum(counts) != requested_count:
             raise ValueError(
@@ -455,6 +507,7 @@ def _build_messages(
         "task_card_id": contract.card_id,
         "route_id": contract.route_id,
         "action_kind": contract.action_kind,
+        "generation_count": contract.count,
         "requested_slots": requested_slots,
         "content_surface": contract.route.get("content_surface"),
         "resource_kind": contract.route.get("resource_kind"),
@@ -479,6 +532,11 @@ def _build_messages(
         "profile_summary": _profile_summary(profile),
         "slot_requirements": {
             "count": requested_slots,
+            "allocation_requirement": (
+                f"This card's exact allocation is {contract.count} accepted slot(s) for "
+                f"task_card_id {contract.card_id!r}; the host may request extra candidates "
+                "but will retain exactly that card quota."
+            ),
             "unique_task_slug": True,
             "unique_benign_reference_phrase": True,
             "carrier_title": "short realistic title for the seeded rendered content",
@@ -765,13 +823,19 @@ def _filter_contract_to_validated_anchors(
     valid_anchors: list[Mapping[str, Any]] = []
     for anchor in contract.anchor_assignments:
         task = _synthetic_anchor_validation_task(contract, anchor)
+        # This probe validates route/anchor placement one task at a time.  A
+        # generation_count belongs to the full batch, so omit it from the
+        # synthetic plan rather than treating this probe as an underfilled
+        # generation batch for the selected card.
+        validation_card = dict(contract.card)
+        validation_card.pop("generation_count", None)
         _validated, errors = validate_generated_novel_tasks_detailed(
             [task],
             site_name=contract.site,
             profile=dict(profile),
             expected_task_count=1,
             route_contracts={"route_families": [dict(contract.route)]},
-            task_card_plan={"schema_version": 1, "task_cards": [dict(contract.card)]},
+            task_card_plan={"schema_version": 1, "task_cards": [validation_card]},
         )
         if not errors:
             valid_anchors.append(anchor)

@@ -24,6 +24,9 @@ from warp_taskgen.phase_1.generated_workflows import (
     stable_answer_diversity_key,
     validated_host_action_contract,
 )
+from warp_taskgen.phase_1.novel_task_validation.task_card_generation import (
+    validate_task_card_generation_distribution,
+)
 from warp_taskgen.phase_2.exposure_contract import build_exposure_contract
 from warp_taskgen.phase_2.target_resolution.constants import _REDDIT_COMMENT_VISUAL_REGION_RE
 from warp_taskgen.phase_2.target_resolution.runner import derive_benign_target_resource
@@ -236,6 +239,14 @@ def validate_generated_novel_tasks_detailed(
             continue
         seen_ids.add(task_id)
         validated.append(task)
+
+    errors.extend(
+        validate_task_card_generation_distribution(
+            raw_tasks,
+            site_name=site_name,
+            task_card_plan=task_card_plan,
+        )
+    )
 
     if not validated and not errors:
         errors.append(
