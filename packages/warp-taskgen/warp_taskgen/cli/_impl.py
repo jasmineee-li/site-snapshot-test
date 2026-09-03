@@ -2014,7 +2014,6 @@ def _unknown_auth_sites(
 def _dispatch_phase(args: argparse.Namespace) -> int:
     """Resolve immutable Run identity, then dispatch to the requested phase."""
 
-    from warp_taskgen.cli.run_identity import resolve_cli_run_transition
     from warp_taskgen.state import (
         bind_run_definition,
         get_state_dir,
@@ -2028,61 +2027,72 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
     if phase == "2c":
         args.feasibility_only = True
 
-    transition = getattr(args, "_run_transition", None)
-    if transition is None:
-        try:
-            transition = resolve_cli_run_transition(args)
-        except ValueError as exc:
-            print(f"Phase dispatch rejected by Run Definition: {exc}", file=sys.stderr)
-            return 2
-    if transition.kind == "derived_required":
-        fields = ", ".join(transition.drift_fields) or "unknown inputs"
-        print(
-            "Phase dispatch requires an isolated Derived Run before execution "
-            f"({transition.reason_code}; changed: {fields}).",
-            file=sys.stderr,
-        )
-        return 2
-    if transition.kind == "rejected":
-        print(f"Phase dispatch rejected: {transition.reason_code}", file=sys.stderr)
-        return 2
-    definition = transition.definition if transition.kind in {"new", "exact"} else None
-    try:
-        validate_run_definition_binding(definition, state_dir=get_state_dir())
-    except ValueError as exc:
-        print(f"Phase dispatch rejected by persisted Run Definition: {exc}", file=sys.stderr)
-        return 2
-    from warp_taskgen.cli.run_control import dispatch_phase_with_run_control
-
-    def _run_bound_phase() -> int:
-        with bind_run_definition(definition, state_dir=get_state_dir()):
-            return _dispatch_phase_with_run_context(args)
-
+    from warp_taskgen.phase_1.run_lock import Phase1AlreadyRunning
     from warp_taskgen.phase_2.run_lock import Phase2AlreadyRunning
 
-    @contextlib.contextmanager
-    def _lifecycle_guard():
-        if phase in {"2", "2c"}:
-            from warp_taskgen.phase_2.run_lock import phase_2_run_lock
+    def _dispatch_with_run_definition() -> int:
+        from warp_taskgen.cli.run_identity import resolve_cli_run_transition
 
-            with phase_2_run_lock(get_state_dir()):
+        transition = getattr(args, "_run_transition", None)
+        if transition is None:
+            try:
+                transition = resolve_cli_run_transition(args)
+            except ValueError as exc:
+                print(f"Phase dispatch rejected by Run Definition: {exc}", file=sys.stderr)
+                return 2
+        if transition.kind == "derived_required":
+            fields = ", ".join(transition.drift_fields) or "unknown inputs"
+            print(
+                "Phase dispatch requires an isolated Derived Run before execution "
+                f"({transition.reason_code}; changed: {fields}).",
+                file=sys.stderr,
+            )
+            return 2
+        if transition.kind == "rejected":
+            print(f"Phase dispatch rejected: {transition.reason_code}", file=sys.stderr)
+            return 2
+        definition = transition.definition if transition.kind in {"new", "exact"} else None
+        try:
+            validate_run_definition_binding(definition, state_dir=get_state_dir())
+        except ValueError as exc:
+            print(f"Phase dispatch rejected by persisted Run Definition: {exc}", file=sys.stderr)
+            return 2
+        from warp_taskgen.cli.run_control import dispatch_phase_with_run_control
+
+        def _run_bound_phase() -> int:
+            with bind_run_definition(definition, state_dir=get_state_dir()):
+                return _dispatch_phase_with_run_context(args)
+
+        @contextlib.contextmanager
+        def _lifecycle_guard():
+            if phase in {"2", "2c"}:
+                from warp_taskgen.phase_2.run_lock import phase_2_run_lock
+
+                with phase_2_run_lock(get_state_dir()):
+                    yield
+                return
+            if phase != "4":
                 yield
-            return
-        if phase != "4":
-            yield
-            return
-        from warp_taskgen.phase_4.sweep_tag import sweep_in_progress
+                return
+            from warp_taskgen.phase_4.sweep_tag import sweep_in_progress
 
-        with _phase4_run_lock(get_state_dir()), sweep_in_progress():
-            yield
+            with _phase4_run_lock(get_state_dir()), sweep_in_progress():
+                yield
 
-    try:
         return dispatch_phase_with_run_control(
             phase=phase,
             state_dir=get_state_dir(),
             operation=_run_bound_phase,
             lifecycle_guard=_lifecycle_guard,
         )
+
+    try:
+        if phase == "1":
+            from warp_taskgen.phase_1.run_lock import phase_1_run_lock
+
+            with phase_1_run_lock(get_state_dir()):
+                return _dispatch_with_run_definition()
+        return _dispatch_with_run_definition()
     except Phase4AlreadyRunning as exc:
         print(
             f"Phase 4 refused to start because another run is active: {exc}",
@@ -2092,6 +2102,12 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
     except Phase2AlreadyRunning as exc:
         print(
             f"Phase 2 refused to start because another run is active: {exc}",
+            file=sys.stderr,
+        )
+        return 2
+    except Phase1AlreadyRunning as exc:
+        print(
+            f"Phase 1 refused to start because another run is active: {exc}",
             file=sys.stderr,
         )
         return 2
