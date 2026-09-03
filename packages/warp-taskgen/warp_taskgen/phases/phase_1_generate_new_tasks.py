@@ -43,6 +43,7 @@ from warp_taskgen.phase_1.task_card_batch_generation import (
     task_card_generation_slices,
 )
 from warp_taskgen.phases.phase_1_contract_bound_action_api import (
+    contract_bound_prompt_inputs,
     contract_bound_tool_schema_digest,
     generate_contract_bound_action_tasks_api,
 )
@@ -1234,6 +1235,19 @@ def compute_site_cache_fingerprint(
         ),
         "task_card_plan_digest": task_card_plan_digest(site_task_card_plan),
     }
+    site_uses_contract_bound_backend = _use_contract_bound_action_api(site_task_card_plan) or any(
+        _use_contract_bound_action_api(card_slice.task_card_plan)
+        for card_slice in task_card_generation_slices(
+            site_task_card_plan,
+            site_name=site.site_name,
+        )
+    )
+    if site_uses_contract_bound_backend:
+        # Keep optional prompt inputs local to sites that actually consume the
+        # contract-bound backend; model-only Site caches retain their identity.
+        prompt_inputs = contract_bound_prompt_inputs()
+        if prompt_inputs:
+            payload["contract_bound_prompt_inputs"] = prompt_inputs
     if _uses_sliced_model_prompt(site_task_card_plan, site_name=site.site_name):
         # The sliced prompt carries a site-global ordinal range and substantive
         # variation cues.  Keep the global cache schema and unaffected cache

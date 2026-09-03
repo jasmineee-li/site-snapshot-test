@@ -3,8 +3,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from warp_taskgen.adversarial_actions.capability_task_cards import (
+    compile_capability_task_card_plan,
+)
 from warp_taskgen.cli_status import build_status_payload, format_status_payload
-from warp_taskgen.phases import phase_1_generate_new_tasks
+from warp_taskgen.phases import phase_1_contract_bound_action_api, phase_1_generate_new_tasks
+from warp_taskgen.phases.phase_1_route_contracts import build_task_route_contracts
 
 
 def _profile(site_name: str) -> dict[str, object]:
@@ -230,6 +234,78 @@ def _write_partial_phase_1_run(run_root: Path) -> None:
     )
 
 
+def _write_contract_bound_phase_1_run(run_root: Path) -> None:
+    _write_partial_phase_1_run(run_root)
+    state_path = run_root / "pipeline_state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state.update(
+        {
+            "sites": "gitlab",
+            "task_capability_profile": "tier2_pure_action_paper",
+        }
+    )
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    benchmark_root = Path(state["benchmark_path"])
+    manifest = json.loads(
+        (run_root / "phase_0a" / "BENCHMARK_MANIFEST.json").read_text(encoding="utf-8")
+    )
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
+    profile = _profile("gitlab")
+    route_contracts = build_task_route_contracts(site_name="gitlab", profile=profile)
+    contract = phase_1_contract_bound_action_api.select_action_task_contracts(
+        site_name="gitlab",
+        task_card_plan=plan,
+        route_contracts=route_contracts,
+        requested_count=1,
+    )[0]
+    task = phase_1_contract_bound_action_api.compile_action_task_slot(
+        {
+            "task_slug": "follow-up",
+            "carrier_title": "Follow-up context",
+            "carrier_body": "This issue needs a public follow-up artifact.",
+            "benign_reference_phrase": "neutral reference alpha",
+            "abstract_purpose_tag": "public_followup",
+            "style_tag": "concise",
+        },
+        contract=contract,
+        task_number=1,
+        assignment_index=0,
+    )
+    gitlab = next(
+        site
+        for site in phase_1_generate_new_tasks.load_generate_new_tasks_eligible_sites(
+            profiles_dir=run_root / "phase_0c",
+            manifest_eval_types=["AgentResponseEvaluator"],
+            site_filter={"gitlab"},
+        )
+        if site.site_name == "gitlab"
+    )
+    shared_fingerprint = (
+        phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
+            benchmark_root=benchmark_root,
+            manifest=manifest,
+            sandbox_model="claude-sonnet-4-6",
+            task_card_plan=plan,
+        )
+    )
+    gitlab_fingerprint = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint=shared_fingerprint,
+        site=gitlab,
+        novel_tasks_per_site=1,
+        task_card_plan=plan,
+    )
+    phase_1 = run_root / "phase_1"
+    (phase_1 / "novel_tasks_gitlab.json").write_text(
+        json.dumps([task]),
+        encoding="utf-8",
+    )
+    (phase_1 / "novel_tasks_gitlab.json.metadata.json").write_text(
+        json.dumps({"fingerprint": gitlab_fingerprint, "site_name": "gitlab"}),
+        encoding="utf-8",
+    )
+
+
 def test_status_shows_reusable_and_missing_phase_1_site_work_without_writes(
     monkeypatch,
     tmp_path: Path,
@@ -310,6 +386,44 @@ def test_status_marks_cache_stale_when_current_backend_context_changes(
         "current": "set",
         "normalized_value": "enabled",
     }
+
+
+def test_status_marks_contract_bound_cache_stale_without_exposing_optional_input(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.delenv("WORLDSIM_PHASE1_DIVERSITY_SALT", raising=False)
+    monkeypatch.delenv("WORLDSIM_PHASE1_FORBIDDEN_REFERENCES", raising=False)
+    _write_contract_bound_phase_1_run(tmp_path)
+
+    baseline = build_status_payload(tmp_path)["phase1_generation"]
+    assert baseline["sites"] == [
+        {
+            "site": "gitlab",
+            "cache_status": "reusable",
+            "reason_code": "cache_valid",
+            "requested_tasks": 1,
+            "reusable_tasks": 1,
+            "remaining_tasks": 0,
+        }
+    ]
+
+    secret_salt = "private-salt-do-not-print"
+    monkeypatch.setenv("WORLDSIM_PHASE1_DIVERSITY_SALT", secret_salt)
+    payload = build_status_payload(tmp_path)
+    status = payload["phase1_generation"]
+
+    assert status["sites"] == [
+        {
+            "site": "gitlab",
+            "cache_status": "stale",
+            "reason_code": "cache_fingerprint_mismatch",
+            "requested_tasks": 1,
+            "reusable_tasks": 0,
+            "remaining_tasks": 1,
+        }
+    ]
+    assert secret_salt not in json.dumps(payload)
 
 
 def test_status_honors_valid_merged_output_before_missing_site_caches(
