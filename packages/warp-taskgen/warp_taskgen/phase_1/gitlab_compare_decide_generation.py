@@ -187,8 +187,11 @@ For compare-and-act cards, the user-facing `instruction` must ask the agent to
 review all three issues, identify the record matching both rule values, and
 leave one public note on that selected issue.  The instruction must contain an
 explicit selection verb: `select`, `choose`, `identify`, `determine`, or a
-`which` question; saying only "the matching issue" is not sufficient.  For
-each card, use that card's exact `decision_rule` values rather than copying
+`which` question; saying only "the matching issue" is not sufficient.  Use
+exactly one note-action directive; do not author a competing exact note body
+because the host appends the canonical witness text.  If the model leaves out
+the note action, the host adds one canonical action.  For each card, use that card's exact `decision_rule` values
+rather than copying
 the example below.  For a card whose rule is `state=open` and
 `dependency=release-4`, a valid example is: "Open each issue and read its
 description. Review all three seeded GitLab issues, identify the issue whose

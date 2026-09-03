@@ -11,6 +11,7 @@ from warp_taskgen.phase_1 import generated_workflows
 from warp_taskgen.phase_1.gitlab_compare_act import (
     DEFAULT_GITLAB_COMPARE_ACT_NOTE,
     bind_gitlab_compare_act_target,
+    compile_gitlab_compare_act_task,
 )
 from warp_taskgen.phase_1.gitlab_compare_decide_binding import (
     bind_gitlab_compare_decide_attempt,
@@ -285,6 +286,99 @@ def test_generated_act_instruction_has_one_exact_note_directive() -> None:
     assert instruction.count("leave one public note") == 1
     assert instruction.count(DEFAULT_GITLAB_COMPARE_ACT_NOTE) == 1
     assert f"Use exactly this note text: {DEFAULT_GITLAB_COMPARE_ACT_NOTE}" in instruction
+
+
+def test_public_compare_act_compile_rejects_predicate_insensitive_world() -> None:
+    task = _compile()
+    task["world"]["records"][1]["facts"] = {
+        "state": "closed",
+        "dependency": "release-3",
+        "summary": "Closed old release.",
+    }
+    task["world"]["records"][2]["facts"] = {
+        "state": "closed",
+        "dependency": "none",
+        "summary": "Closed unrelated issue.",
+    }
+
+    with pytest.raises(ValueError, match="state-only near-miss"):
+        compile_gitlab_compare_act_task(task)
+
+
+def test_generated_act_instruction_reuses_reversed_order_note_action() -> None:
+    source = _act_source()
+    source["instruction"] = (
+        "Review all three seeded GitLab issues, identify the issue whose state is open "
+        "and dependency is release-4; on the selected issue, the public note should be created."
+    )
+
+    task = compile_phase1_gitlab_compare_act_task(source, task_card=_act_card())
+
+    instruction = task["instruction"]
+    assert "Then leave one public note" not in instruction
+    assert instruction.count("public note") == 1
+    assert instruction.count(DEFAULT_GITLAB_COMPARE_ACT_NOTE) == 1
+
+
+def test_generated_act_instruction_accepts_long_distance_action_and_note() -> None:
+    source = _act_source()
+    source["instruction"] = (
+        "Review all three seeded GitLab issues, identify the issue whose state is open "
+        "and dependency is release-4, and leave"
+        + " carefully" * 40
+        + " one public note on the selected issue."
+    )
+
+    task = compile_phase1_gitlab_compare_act_task(source, task_card=_act_card())
+
+    instruction = task["instruction"]
+    assert "Then leave one public note" not in instruction
+    assert instruction.count(DEFAULT_GITLAB_COMPARE_ACT_NOTE) == 1
+
+
+@pytest.mark.parametrize(
+    ("instruction_suffix", "message"),
+    [
+        (
+            " Leave one public note on the selected issue and add another public note there.",
+            "exactly one note-action",
+        ),
+        (
+            " Use exactly this note text: A conflicting model-authored note.",
+            "exact note text",
+        ),
+    ],
+)
+def test_generated_act_instruction_rejects_ambiguous_note_directives(
+    instruction_suffix: str,
+    message: str,
+) -> None:
+    source = _act_source()
+    source["instruction"] += instruction_suffix
+
+    with pytest.raises(ValueError, match=message):
+        compile_phase1_gitlab_compare_act_task(source, task_card=_act_card())
+
+
+def test_generated_act_instruction_without_note_action_gets_one_canonical_action() -> None:
+    source = _act_source()
+    source["instruction"] = (
+        "Review all three seeded GitLab issues, identify the issue whose state is open "
+        "and dependency is release-4."
+    )
+
+    task = compile_phase1_gitlab_compare_act_task(source, task_card=_act_card())
+
+    assert task["instruction"].count("leave one public note") == 1
+    assert task["instruction"].count(DEFAULT_GITLAB_COMPARE_ACT_NOTE) == 1
+
+
+def test_generated_act_instruction_does_not_duplicate_on_recompile() -> None:
+    task = compile_phase1_gitlab_compare_act_task(_act_source(), task_card=_act_card())
+
+    recompiled = compile_gitlab_compare_act_task(task)
+
+    assert recompiled["instruction"] == task["instruction"]
 
 
 @pytest.mark.parametrize(

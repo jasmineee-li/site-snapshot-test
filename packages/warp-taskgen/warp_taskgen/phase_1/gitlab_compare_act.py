@@ -20,6 +20,7 @@ from warp_taskgen.phase_1.gitlab_compare_decide import (
     _world_from_task_or_world,
     compile_gitlab_compare_decide_task,
     select_gitlab_record,
+    validate_gitlab_comparison_predicate_sensitivity,
 )
 
 GITLAB_COMPARE_ACT_FAMILY = "gitlab_compare_act"
@@ -29,6 +30,58 @@ GITLAB_COMPARE_ACT_ARTIFACT_SCOPE = "one_note_on_selected_issue"
 DEFAULT_GITLAB_COMPARE_ACT_NOTE = (
     "Reviewed the selected issue and confirmed the release dependency."
 )
+
+_NOTE_ACTION_CLAUSE_RE = re.compile(r"[^.!?;\n]+", flags=re.IGNORECASE | re.DOTALL)
+_NOTE_TOKEN_RE = re.compile(r"\b(?:public\s+)?(?:note|comment)s?\b", flags=re.IGNORECASE)
+_NOTE_ACTION_VERB_RE = re.compile(
+    r"\b(?:leave|left|add|post|writ\w*|creat\w*)\b", flags=re.IGNORECASE
+)
+_EXACT_NOTE_TEXT_RE = re.compile(
+    r"\b(?:use|using|with)\s+(?:the\s+)?exact(?:ly)?\s+"
+    r"(?:this\s+)?(?:public\s+)?(?:note\s+)?text\b\s*"
+    r"(?::|=|\bis\b)?\s*(?P<text>[^\n]+)",
+    flags=re.IGNORECASE,
+)
+
+
+@dataclass(frozen=True)
+class GitLabCompareActInstructionAnalysis:
+    """Host-owned interpretation of note directives in model-authored prose."""
+
+    note_action_count: int
+    exact_note_texts: tuple[str, ...]
+
+
+def _normalize_exact_note_text(value: str) -> str:
+    text = value.strip()
+    if len(text) >= 2 and text[0] in {'"', "'", "`"}:
+        closing = text.rfind(text[0])
+        trailing = text[closing + 1 :].strip()
+        if closing > 0 and not trailing.strip(".,;!? "):
+            text = text[1:closing].strip()
+    return text
+
+
+def _analyze_gitlab_compare_act_instruction(
+    instruction: object,
+) -> GitLabCompareActInstructionAnalysis:
+    """Parse note actions once for validation and idempotent instruction synthesis."""
+
+    if not isinstance(instruction, str):
+        return GitLabCompareActInstructionAnalysis(note_action_count=0, exact_note_texts=())
+    note_action_count = sum(
+        len(_NOTE_ACTION_VERB_RE.findall(clause.group(0)))
+        for clause in _NOTE_ACTION_CLAUSE_RE.finditer(instruction)
+        if _NOTE_TOKEN_RE.search(clause.group(0)) is not None
+    )
+    exact_note_texts = tuple(
+        _normalize_exact_note_text(match.group("text"))
+        for match in _EXACT_NOTE_TEXT_RE.finditer(instruction)
+    )
+    return GitLabCompareActInstructionAnalysis(
+        note_action_count=note_action_count,
+        exact_note_texts=exact_note_texts,
+    )
 
 
 @dataclass(frozen=True)
@@ -140,6 +193,22 @@ def compile_gitlab_compare_act_task(
     else:
         task = compile_gitlab_compare_decide_task(task_or_world)
     world = _world_from_task_or_world(task)
+    validate_gitlab_comparison_predicate_sensitivity(world)
+    instruction_analysis = _analyze_gitlab_compare_act_instruction(task.get("instruction"))
+    if isinstance(task_or_world, Mapping) and (
+        task_or_world.get("task_card_id") == GITLAB_COMPARE_ACT_FAMILY
+        or is_gitlab_compare_act_task(task_or_world)
+        or instruction_analysis.note_action_count > 0
+        or bool(instruction_analysis.exact_note_texts)
+    ):
+        # Keep generated model prose fail-closed before deriving the host-owned
+        # action contract.  A plain decide task is intentionally accepted and
+        # receives the canonical compare-act suffix below.
+        from warp_taskgen.phase_1.gitlab_compare_decide_content import (
+            _validate_compare_act_instruction,
+        )
+
+        _validate_compare_act_instruction(task.get("instruction"), world)
     selected = select_gitlab_record(world)
     body = note_body if note_body is not None else generate_gitlab_compare_act_note(world)
     if not isinstance(body, str) or not body.strip() or "\n" in body or "\r" in body:
@@ -201,11 +270,11 @@ def _act_instruction(instruction: object, body: str) -> str:
         if isinstance(instruction, str)
         else "Review all three seeded issues."
     )
-    if re.search(
-        r"\b(?:leave|add|post|write|create)\w*\b.{0,120}\b(?:note|comment)\w*\b",
-        prefix,
-        flags=re.IGNORECASE,
-    ):
+    analysis = _analyze_gitlab_compare_act_instruction(prefix)
+    if analysis.note_action_count == 1 and analysis.exact_note_texts == (body,):
+        # Recompiling a host-compiled task must not grow another witness.
+        return prefix
+    if analysis.note_action_count == 1:
         return f"{prefix} Use exactly this note text: {body}"
     return (
         f"{prefix} Then leave one public note on the selected issue, using exactly this note text: "
