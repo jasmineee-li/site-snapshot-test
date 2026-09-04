@@ -230,6 +230,7 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
                     "checkpoint_counts",
                     "feature_checkpoint_counts",
                     "planning_checkpoint_inspection",
+                    "text_fill_checkpoint_inspection",
                     "next_action",
                     "transition_history",
                     "pause_request_id",
@@ -459,6 +460,33 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
             if planning.get("status") == "not_inspected":
                 reason = planning.get("reason_code", "unknown")
                 path = planning.get("path") or "unavailable"
+                lines.append(f"  reason={reason} path={path}")
+        text_fill = payload.get("text_fill_checkpoint_inspection")
+        if isinstance(text_fill, dict):
+            lines.append(
+                "Phase 2b text-fill checkpoints: "
+                f"status={text_fill.get('status', 'unknown')} "
+                f"expected={text_fill.get('expected_count', 'unknown')} "
+                f"compatible={text_fill.get('compatible_count', 'unknown')} "
+                f"pending={text_fill.get('pending_count', 'unknown')} "
+                f"stale={text_fill.get('stale_count', 'unknown')} "
+                f"malformed={text_fill.get('malformed_count', 'unknown')} "
+                f"not_inspected={text_fill.get('not_inspected_count', 'unknown')}"
+            )
+            for row in text_fill.get("units", [])[: max(inspect_limit, 0)]:
+                if not isinstance(row, dict):
+                    continue
+                path = row.get("path") or "unavailable"
+                lines.append(
+                    "  "
+                    f"{row.get('task_id', 'unknown')}: "
+                    f"{row.get('status', 'unknown')} "
+                    f"({row.get('reason_code', 'unknown')}) "
+                    f"path={path}"
+                )
+            if text_fill.get("status") == "not_inspected":
+                reason = text_fill.get("reason_code", "unknown")
+                path = text_fill.get("path") or "unavailable"
                 lines.append(f"  reason={reason} path={path}")
     else:
         lines.append("Pipeline: no pipeline_state.json found")

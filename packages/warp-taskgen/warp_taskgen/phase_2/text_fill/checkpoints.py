@@ -17,6 +17,10 @@ from pathlib import Path
 from typing import Any
 
 from warp_taskgen.atomic_io import write_json_atomic
+from warp_taskgen.phase_2.text_fill.checkpoint_reader import (
+    TextFillCheckpointInspection,
+    inspect_text_fill_checkpoint,
+)
 from warp_taskgen.phase_2.text_fill.seed import (
     materialize_adversarial_seed,
     validate_seed_template_contract,
@@ -163,49 +167,19 @@ def load_text_fill_checkpoint(
 ) -> tuple[dict[str, Any], dict[str, Any]] | None:
     """Load a checkpoint only when every Run/input/settings guard matches."""
 
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError, UnicodeError):
-        return None
-    if not _checkpoint_header_matches(
-        payload,
+    inspection = inspect_text_fill_checkpoint(
+        path,
         plan,
         definition=definition,
         text_model=text_model,
         texts_per_plan=texts_per_plan,
         settings=settings,
-    ):
+    )
+    if inspection.status != "compatible":
         return None
-    if payload.get("outcome") != "complete" or payload.get("validation_errors"):
+    if inspection.task is None or inspection.diagnostics is None:
         return None
-    task = payload.get("task")
-    diagnostics = payload.get("diagnostics")
-    validation = payload.get("validation")
-    if not isinstance(task, dict) or not isinstance(diagnostics, dict):
-        return None
-    if not isinstance(validation, list):
-        return None
-    try:
-        if payload.get("task_sha256") != _sha256_json(task):
-            return None
-        if payload.get("payload_ordinals") != task.get("payload_texts"):
-            return None
-        if payload.get("payload_ordinals_sha256") != _sha256_json(payload.get("payload_ordinals")):
-            return None
-        if payload.get("selected_payload_index") != task.get("selected_payload_index"):
-            return None
-        if payload.get("selected_seed") != task.get("adversarial_data_seed"):
-            return None
-        if payload.get("diagnostics_sha256") != _sha256_json(diagnostics):
-            return None
-        if payload.get("validation_sha256") != _sha256_json(validation):
-            return None
-        if validation != _validation_records(task, texts_per_plan=texts_per_plan):
-            return None
-        _validate_completed_task(task, plan=plan, texts_per_plan=texts_per_plan)
-    except (TypeError, ValueError, KeyError):
-        return None
-    return (_json_copy(task), _json_copy(diagnostics))
+    return (_json_copy(inspection.task), _json_copy(inspection.diagnostics))
 
 
 def text_fill_checkpoint_matches(
@@ -229,48 +203,6 @@ def text_fill_checkpoint_matches(
             settings=settings,
         )
         is not None
-    )
-
-
-def _checkpoint_header_matches(
-    payload: object,
-    plan: dict[str, Any],
-    *,
-    definition: RunDefinition,
-    text_model: str,
-    texts_per_plan: int,
-    settings: Mapping[str, Any] | None,
-) -> bool:
-    if not isinstance(payload, dict):
-        return False
-    if not isinstance(definition, RunDefinition) or definition.legacy or not definition.run_id:
-        return False
-    if type(payload.get("schema_version")) is not int:
-        return False
-    if payload.get("schema_version") != CHECKPOINT_SCHEMA_VERSION:
-        return False
-    if payload.get("stage") != CHECKPOINT_STAGE:
-        return False
-    try:
-        task_id = _task_id(plan)
-    except ValueError:
-        return False
-    checkpoint_settings = _checkpoint_settings(
-        settings,
-        text_model=text_model,
-        texts_per_plan=texts_per_plan,
-    )
-    return bool(
-        payload.get("task_id") == task_id
-        and payload.get("run_id") == definition.run_id
-        and payload.get("definition_digest") == definition.definition_digest
-        and payload.get("legacy") is False
-        and payload.get("input_sha256") == text_fill_input_digest(plan)
-        and payload.get("text_model") == text_model
-        and type(payload.get("texts_per_plan")) is int
-        and payload.get("texts_per_plan") == texts_per_plan
-        and payload.get("settings") == checkpoint_settings
-        and payload.get("settings_sha256") == _sha256_json(checkpoint_settings)
     )
 
 
@@ -375,6 +307,8 @@ def _checkpoint_settings(
 __all__ = [
     "CHECKPOINT_SCHEMA_VERSION",
     "CHECKPOINT_STAGE",
+    "TextFillCheckpointInspection",
+    "inspect_text_fill_checkpoint",
     "load_text_fill_checkpoint",
     "text_fill_checkpoint_matches",
     "text_fill_checkpoint_path",

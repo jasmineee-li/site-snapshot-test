@@ -21,6 +21,8 @@ from warp_taskgen.phase_2.text_fill.checkpoint_runner import (
 from warp_taskgen.phase_2.text_fill.checkpoints import (
     CHECKPOINT_SCHEMA_VERSION,
     CHECKPOINT_STAGE,
+    TextFillCheckpointInspection,
+    inspect_text_fill_checkpoint,
     load_text_fill_checkpoint,
     text_fill_checkpoint_matches,
     text_fill_checkpoint_path,
