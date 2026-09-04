@@ -588,3 +588,55 @@ They do not claim a working provider route, generate or admit a task, run a
 browser/model benchmark, change shared infrastructure, edit the paper, or turn
 the accepted `$3,000` operational backpressure value into a hard automatic
 spend cap. No further architecture question remains before the source slices.
+
+## 20. Agent-DX and CI acceleration plan accepted 2026-09-04
+
+The research baseline remains **2026-08-30**; this planning update is dated
+**2026-09-04 (America/New_York)**. Current source authority was rechecked at
+`origin/main` `d7d9a33e`. Three bounded `gpt-5.6-luna`/`max` agents inspected
+hosted CI, test ownership and provider-output boundaries, followed by no more
+than two focused review rounds. No source, workflow, dependency, provider,
+browser, benchmark instance, infrastructure or manuscript action was part of
+the planning work.
+
+Seven consecutive Taskgen PR runs (#248--#254) establish a 154-second median
+workflow baseline. Core pytest is the critical lane at 126 seconds median;
+remote tests are 16 seconds and package proof is 37 seconds. In a
+representative run, locked uv synchronization took about 1.3 seconds while
+pytest took about 122 seconds. The separate Root gates workflow is approximately
+111 seconds median elapsed. Successful pytest output is currently hidden by
+`run_silent`, so exact current slow nodes remain an explicit measurement gap.
+
+The accepted source-delivery sequence is one observable vertical slice to
+expose real core durations and, only if material, replace two duplicate
+readiness repository walks with focused inputs while preserving both assertion
+sets; then one measured, feature-oriented two-way core split with three-way
+capacity for both core lanes and the remote lane. A parallel slice keeps the
+Root gates workflow and required job visible while returning a successful no-op
+only for clearly Taskgen-only changes; ambiguous, mixed, root/config,
+workflow-router and unresolved-base cases run the full gate. The combined
+80--90 second merge-gate estimate is a
+45--55% projection to test, not a result. Package proof, the canonical readiness
+audit, selection parity, failure diagnostics and the stable aggregate remain
+mandatory. The [execution plan](web-benchmark-onboarding-2026-08-30/execution-plan.md#source-feedback-acceleration-slices)
+links issues #255, #257 and #256 and owns their dependency order.
+
+The user also accepted replacing the proposed no-provider output-contract
+rehearsal with two one-row production micro-canaries immediately before a paid
+Phase 1 resume. Both enter through `generate_new_tasks_for_site` with slicing
+disabled from a disposable output/state root: one configuration forces the
+direct contract-bound backend and final validation/cache path; the other forces
+the sandbox backend. The exact frozen OpenRouter host/model/auth route is checked
+without logging credentials. An Anthropic-direct result is transport-only
+evidence and cannot substitute for that exact-route result. These canaries do
+not touch a Site/browser and establish only producer-to-consumer output
+compatibility—not task quality, admission, exposure, grading or benchmark
+results. No mock provider, alternate parser/compiler, no-provider CLI, seven
+hand-authored response fixtures or new evidence system is authorized.
+
+The accepted [agent-DX research](web-benchmark-onboarding-2026-08-30/agent-dx-frontier-2026-09-04.md)
+and [CI/test acceleration research](web-benchmark-onboarding-2026-08-30/ci-test-acceleration-frontier-2026-09-04.md)
+record the measurements, current primary-source guidance and explicit
+non-goals. These choices affect delivery and validation strategy rather than a
+stable domain or runtime architecture, so they require neither a new glossary
+term nor an ADR.

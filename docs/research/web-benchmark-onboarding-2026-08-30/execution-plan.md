@@ -16,6 +16,16 @@ now split into narrow cache, ownership, cost, remote-root, and stage-specific
 checkpoint-visibility slices described below. This work improves safe resume
 and operator legibility; it does not create, admit, or evaluate a task.
 
+CI and agent-DX update: **2026-09-04 (America/New_York)** against
+`origin/main` `d7d9a33e`. The provider-independent source DAG #240--#246 is
+complete. Three new source-feedback tickets use measured hosted timings:
+#255 supplies current slow-node visibility and removes confirmed duplicate
+repository traversal only if it consumes material time, #257 depends on that
+trace for a two-way core split, and
+#256 independently routes the disjoint root gate inside its still-required job.
+The exact-route Phase 1 resumption protocol uses two production micro-canaries,
+not a no-provider imitation.
+
 Status: **source and transfer smokes complete; scientific execution pending**.
 The source tickets under parent issue #192 are closed; PRs #199–#204 and
 #206–#208 are merged, and live-proof issue #205 is closed. This
@@ -183,13 +193,13 @@ generation, admission, provenance, and safety contracts:
 
 | Source slice | Tracking issue | Dependency |
 | --- | --- | --- |
-| Contract-bound Phase 1 cache identity | [#240](https://github.com/jasmineee-li/warp/issues/240) | independent; blocks another paid Phase 1 resume |
-| Explicit remote state-root authority | [#241](https://github.com/jasmineee-li/warp/issues/241) | independent; joins the Phase 1 lock before another remote run |
-| Phase 1 single-owner CLI lifecycle | [#242](https://github.com/jasmineee-li/warp/issues/242) | independent; joins remote-root authority |
-| Observed Phase 1 cost durability and status | [#243](https://github.com/jasmineee-li/warp/issues/243) | #240 |
-| Phase 2a planning checkpoint status | [#244](https://github.com/jasmineee-li/warp/issues/244) | #243 |
-| Phase 2b text-fill checkpoint status | [#245](https://github.com/jasmineee-li/warp/issues/245) | #244 |
-| Phase 2c feasibility checkpoint status | [#246](https://github.com/jasmineee-li/warp/issues/246) | #245 |
+| Contract-bound Phase 1 cache identity | [#240](https://github.com/jasmineee-li/warp/issues/240) / [PR #248](https://github.com/jasmineee-li/warp/pull/248) | complete |
+| Explicit remote state-root authority | [#241](https://github.com/jasmineee-li/warp/issues/241) / [PR #250](https://github.com/jasmineee-li/warp/pull/250) | complete |
+| Phase 1 single-owner CLI lifecycle | [#242](https://github.com/jasmineee-li/warp/issues/242) / [PR #249](https://github.com/jasmineee-li/warp/pull/249) | complete |
+| Observed Phase 1 cost durability and status | [#243](https://github.com/jasmineee-li/warp/issues/243) / [PR #251](https://github.com/jasmineee-li/warp/pull/251) | complete after #240 |
+| Phase 2a planning checkpoint status | [#244](https://github.com/jasmineee-li/warp/issues/244) / [PR #252](https://github.com/jasmineee-li/warp/pull/252) | complete after #243 |
+| Phase 2b text-fill checkpoint status | [#245](https://github.com/jasmineee-li/warp/issues/245) / [PR #253](https://github.com/jasmineee-li/warp/pull/253) | complete after #244 |
+| Phase 2c feasibility checkpoint status | [#246](https://github.com/jasmineee-li/warp/issues/246) / [PR #254](https://github.com/jasmineee-li/warp/pull/254) | complete after #245 |
 
 Cache identity, Phase 1 ownership, and remote-root authority may develop in
 parallel. Cost durability stacks after cache identity because both touch Phase
@@ -198,6 +208,68 @@ shared status formatter. The focused
 [research note](dx-vertical-slices-online-research-2026-09-03.md) records the
 source findings, primary-source guidance, counterfactuals, and explicit
 non-goals.
+
+#### Source feedback acceleration slices
+
+These accepted slices improve the source-delivery loop while E3's exact
+provider route is unavailable. They do not gate a provider resume and do not
+change generation, admission, exposure, reset, grading or benchmark evidence.
+The measured 2026-09-04 baseline over PRs #248--#254 is 154 seconds median for
+the Taskgen workflow: 126 seconds in core pytest, 16 seconds in remote tests
+and 37 seconds in package proof. The separate Root gates workflow is about 111
+seconds median elapsed. A representative core run spent about 122 seconds in
+pytest and 1.3 seconds in locked uv synchronization, so dependency caching is
+not the primary target.
+
+| Source slice | Tracking issue | Dependency |
+| --- | --- | --- |
+| Expose real core durations and conditionally replace material duplicate readiness walks while preserving both assertion sets | [#255](https://github.com/jasmineee-li/warp/issues/255) | independent; supplies the current duration trace |
+| Split core tests into two measured feature-oriented lanes with three-way matrix capacity and exact selection parity | [#257](https://github.com/jasmineee-li/warp/issues/257) | #255 |
+| Route clearly Taskgen-only changes to a successful no-op inside the still-required Root gates job | [#256](https://github.com/jasmineee-li/warp/issues/256) | independent; may develop in parallel with #255/#257 |
+
+The critical delivery path is #255 then #257. Issue #256 is a parallel lane
+with no overlapping Taskgen acceptance owner. The two core lanes and existing
+remote lane must be allowed to run concurrently; otherwise a two-job
+`max-parallel` limit can erase the split's benefit. The first combined target is
+an approximately 80--90 second merge-gate critical path, a 45--55% projection
+from current hosted measurements rather than a promised result. Each ticket
+records its ordinary hosted wall time and stops after at most two focused
+repairs; do not create a scheduler grid, repeated timing campaign, third core
+shard, larger paid runner, timing manifest or shared virtual environment.
+
+The supporting [agent-DX note](agent-dx-frontier-2026-09-04.md) and
+[CI/test acceleration note](ci-test-acceleration-frontier-2026-09-04.md)
+record the current-source inspection, primary-source research, counterfactuals
+and rejected complexity.
+
+#### E3 provider-boundary resumption check
+
+Do not add a no-provider command, mock service, alternate parser/compiler, or
+seven hand-authored provider-response fixtures. Representative feature tests
+already substitute transport while exercising production compilation and
+validation. The unverified behavior is genuine producer-to-consumer response
+compatibility.
+
+Immediately before resuming paid Phase 1, use the exact frozen OpenRouter route
+to call `generate_new_tasks_for_site` twice for one row from a disposable
+output/state root with card slicing disabled:
+
+1. a host-action-only card and required capability profile that force the
+   direct contract-bound backend and then traverse top-level final validation
+   and cache behavior; and
+2. a model-owned, non-host-action-only card that forces the sandbox backend.
+
+Before dispatch, verify and record only the non-secret effective route: expected
+OpenRouter base host, frozen model, required auth variable present and
+higher-precedence OAuth variable absent. Never print a credential. These calls
+use provider/account capacity, write generation files and may create sandbox
+work, but do not touch an external Site or browser. Retain the compiled output,
+cost summary and telemetry where the owning backend already produces them under
+the existing run policy. Current entry points do not preserve raw Phase 1
+provider envelopes. Promote one sanitized genuine replay only after a recurring
+boundary failure justifies a deliberately reviewed recorder at the owning seam.
+An Anthropic-direct run may be labeled transport evidence, but it does not
+establish the frozen OpenRouter route.
 
 ### E4 — Evaluate the frozen expanded bank
 
@@ -262,27 +334,32 @@ schema. New diagnostics identify the failed invariant, relevant path or state
 root, and next safe command where one exists; human and JSON status retain the
 same explicit unknown or blocked state.
 
-## 5. Inputs still required before external execution
+## 5. External execution state and remaining boundaries
 
-These are missing operational parameters, not reopened architecture choices:
+These are current operational facts, not reopened architecture choices:
 
-1. **Paid model budget:** model/agent choice and a maximum dollar or token
-   budget for E3–E6.
-2. **TAC sandbox:** an approved disposable host or existing TAC deployment,
-   ordinary writer and independent-reader credentials, and isolated reset/admin
-   access. If TAC must be installed or provisioned, the exact target and cost
-   must be known before mutation.
-3. **Corpus/cohort size:** choose after the no-cost dry-run estimate, before
-   generation or admission results are visible. It must satisfy the accepted
-   substantial-expansion and workflow-coverage claim.
-4. **Publication:** manuscript editing may follow validated results under the
-   user's 2026-09-01 approval. Submission, upload, public release and archival
-   publication are not inferred.
+1. **E1/E2 are complete:** the approved disposable TAC deployment, separate
+   ordinary identities and host-owned reset path supported the retained
+   no-model Rocket.Chat smokes. They do not need to block source CI work.
+2. **E3 inputs are frozen:** `claude-sonnet-4-6`, the existing Modal and
+   Anthropic-compatible runners, 140 rows at 20 per family, and the accepted
+   `$3,000` run-level backpressure value are recorded on #212. That value is
+   operational backpressure, not an automatic hard cap or selection rule.
+3. **E3 remains externally blocked:** the configured frozen OpenRouter route
+   currently lacks usable provider credit. Once it is usable, run the two
+   one-row production micro-canaries above and then resume the exact retained
+   Phase 1 request. Do not silently fall back to Anthropic-direct and claim the
+   frozen-route result.
+4. **E4/E6 remain downstream scientific runs:** they wait for the admitted bank
+   and real matched pair and must preserve instance/reset isolation. Mutable
+   runs are not parallelized on one reset-sensitive instance.
+5. **Paper/publication remains separate:** do not edit the manuscript, submit,
+   upload, release or publish without the separately required approval.
 
-Until those inputs exist, autonomous work may complete specs, tickets, source
-integration, fakes, command dry runs, cost estimates and read-only readiness
-checks. It must not install TAC, create paid resources, make model calls, or
-invent credentials or result numbers.
+Autonomous work may complete #255--#257 and any other already authorized
+source tickets with ticket-local locked environments, focused tests, bounded
+review and ordinary PR delivery. It must not invent credentials or results,
+weaken a safety/runtime check, or treat source/CI success as benchmark evidence.
 
 ## 6. Deferred work
 
