@@ -640,3 +640,32 @@ record the measurements, current primary-source guidance and explicit
 non-goals. These choices affect delivery and validation strategy rather than a
 stable domain or runtime architecture, so they require neither a new glossary
 term nor an ADR.
+
+## 21. Post-delivery Agent-DX frontier proposed 2026-09-04
+
+The research baseline remains **2026-08-30**; this follow-up planning update is
+dated **2026-09-04 (America/New_York)** and rechecks current source at
+`origin/main` `eac23227`. PRs #259--#261 are now merged. Their decisive hosted
+runs put the Taskgen critical job at approximately 90 seconds on the PR and 103
+seconds on the merge push. Root routing completes Taskgen-only required checks
+in 14--20 seconds. The current trace exposes no safe, measured source change
+worth at least 20 seconds end to end, so another CI-performance PR is not yet
+justified.
+
+The configured OpenRouter credential currently authenticates, but is not
+usable for generation: the redacted current-key response reports no usable
+capacity, while the exact direct one-row production canary stops with HTTP 403
+`quota_exceeded` before model output. Exact account metadata remains local. The
+canary touches no browser or Site. Run15 remains 20/100 reusable only when
+`WORLDSIM_PHASE1_CONTRACT_BOUND_API=1` is restored; its 80 GitLab rows remain
+absent.
+
+The reviewed [next-frontier note](web-benchmark-onboarding-2026-08-30/agent-dx-next-frontier-2026-09-04.md)
+separates four bounded proposals: an operator-only OpenRouter capacity check in
+the existing E3 canary runbook; a still-unresolved per-card Phase 1 route-map
+specification; a short canonical Taskgen command card; and an optional CI
+summary limited to facts the workflow actually owns. It explicitly rejects a
+provider fallback, automatic readiness probe, mock provider, new manifest,
+test scheduler, third shard or weakened package/safety proof. These are
+proposals, not additions to the accepted decisions in sections 13, 19 or 20;
+no ADR or glossary update is warranted before the route-map choice is settled.
