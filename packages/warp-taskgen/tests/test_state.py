@@ -16,6 +16,22 @@ from warp_taskgen.state import bind_run_definition, get_state_dir, load_state, s
 from warp_taskgen.trajectory import save_result
 
 
+@pytest.fixture(autouse=True)
+def _isolate_state_and_cli_patch(monkeypatch):
+    """Keep direct env writes and the compatibility facade local to one test."""
+
+    # Track an explicit delete so direct production assignments are undone by
+    # pytest's existing monkeypatch lifecycle, even when the key was absent.
+    for key in ("WARP_TASKGEN_STATE_DIR", "WORLDSIM_STATE_DIR"):
+        monkeypatch.setenv(key, "")
+        monkeypatch.delenv(key)
+
+    original_dispatch = worldsim_main._ORIGINAL_IMPL_FUNCS["_dispatch_phase"]
+    worldsim_main._legacy_impl._dispatch_phase = original_dispatch
+    yield
+    worldsim_main._legacy_impl._dispatch_phase = original_dispatch
+
+
 def test_state_dir_honors_runtime_env_override(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
