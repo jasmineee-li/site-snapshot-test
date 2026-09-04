@@ -278,3 +278,228 @@ def test_site_cache_fingerprint_discriminates_sliced_model_prompts_deterministic
         if key != "sliced_model_prompt_context_version"
     }
     assert first != original_digest(without_discriminator)
+
+
+def test_contract_bound_prompt_inputs_invalidate_site_cache_identity(monkeypatch, tmp_path) -> None:
+    site = phase_1_generate_new_tasks.EligibleSiteProfile(
+        site_name="gitlab",
+        profile_path=tmp_path / "BENCHMARK_PROFILE_gitlab.json",
+        profile={},
+    )
+    plan = {
+        "task_capability_profile": "tier2_pure_action_paper",
+        "task_cards": [
+            {
+                **_card("gitlab-action", "gitlab", 2),
+                "benign_reward_shape": "host_action_only",
+                "capability_family": "public_issue_creation",
+                "compatible_action_kinds": ["create_issue"],
+            }
+        ],
+    }
+    monkeypatch.delenv("WORLDSIM_PHASE1_DIVERSITY_SALT", raising=False)
+    monkeypatch.delenv("WORLDSIM_PHASE1_FORBIDDEN_REFERENCES", raising=False)
+    baseline = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint="shared",
+        site=site,
+        task_card_plan=plan,
+    )
+
+    monkeypatch.setenv("WORLDSIM_PHASE1_DIVERSITY_SALT", "batch-a")
+    assert (
+        phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+            shared_inputs_fingerprint="shared",
+            site=site,
+            task_card_plan=plan,
+        )
+        != baseline
+    )
+
+
+@pytest.mark.parametrize(
+    "plan",
+    [
+        {
+            "task_capability_profile": "tier2_pure_action_paper",
+            "task_cards": [
+                {
+                    **_card("gitlab-action-a", "gitlab", 1),
+                    "benign_reward_shape": "host_action_only",
+                },
+                {
+                    **_card("gitlab-action-b", "gitlab", 1),
+                    "benign_reward_shape": "host_action_only",
+                },
+            ],
+        },
+        {
+            "task_capability_profile": "tier2_pure_action_paper",
+            "task_cards": [
+                {
+                    **_card("gitlab-compare", "gitlab", 5),
+                    "generation_contract": {
+                        "family": "gitlab_compare_decide",
+                        "version": 1,
+                        "record_keys": ["release-blocker", "docs-gap", "closed-bug"],
+                        "decision_rule": {"state": "open", "dependency": "release-4"},
+                    },
+                },
+                {
+                    **_card("gitlab-action", "gitlab", 1),
+                    "benign_reward_shape": "host_action_only",
+                },
+            ],
+        },
+    ],
+    ids=["sliced", "mixed"],
+)
+def test_contract_bound_prompt_inputs_invalidate_sliced_and_mixed_cache_identities(
+    monkeypatch,
+    tmp_path,
+    plan,
+) -> None:
+    site = phase_1_generate_new_tasks.EligibleSiteProfile(
+        site_name="gitlab",
+        profile_path=tmp_path / "BENCHMARK_PROFILE_gitlab.json",
+        profile={},
+    )
+    monkeypatch.delenv("WORLDSIM_PHASE1_DIVERSITY_SALT", raising=False)
+    baseline = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint="shared",
+        site=site,
+        task_card_plan=plan,
+    )
+    monkeypatch.setenv("WORLDSIM_PHASE1_DIVERSITY_SALT", "batch-a")
+
+    changed = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint="shared",
+        site=site,
+        task_card_plan=plan,
+    )
+
+    assert changed != baseline
+
+
+def test_contract_bound_forbidden_reference_identity_is_a_normalized_set(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    site = phase_1_generate_new_tasks.EligibleSiteProfile(
+        site_name="gitlab",
+        profile_path=tmp_path / "BENCHMARK_PROFILE_gitlab.json",
+        profile={},
+    )
+    plan = {
+        "task_capability_profile": "tier2_pure_action_paper",
+        "task_cards": [
+            {
+                **_card("gitlab-action", "gitlab", 2),
+                "benign_reward_shape": "host_action_only",
+            }
+        ],
+    }
+    monkeypatch.delenv("WORLDSIM_PHASE1_DIVERSITY_SALT", raising=False)
+    monkeypatch.setenv(
+        "WORLDSIM_PHASE1_FORBIDDEN_REFERENCES",
+        " Reference  A, reference\tB, reference a ",
+    )
+    first = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint="shared",
+        site=site,
+        task_card_plan=plan,
+    )
+    monkeypatch.setenv(
+        "WORLDSIM_PHASE1_FORBIDDEN_REFERENCES",
+        "reference b,REFERENCE A, reference b",
+    )
+    equivalent = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint="shared",
+        site=site,
+        task_card_plan=plan,
+    )
+    monkeypatch.setenv("WORLDSIM_PHASE1_FORBIDDEN_REFERENCES", "reference c")
+    changed = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint="shared",
+        site=site,
+        task_card_plan=plan,
+    )
+
+    assert equivalent == first
+    assert changed != first
+
+
+def test_contract_bound_prompt_inputs_do_not_affect_model_only_site_cache(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    site = phase_1_generate_new_tasks.EligibleSiteProfile(
+        site_name="gitlab",
+        profile_path=tmp_path / "BENCHMARK_PROFILE_gitlab.json",
+        profile={},
+    )
+    plan = {
+        "task_capability_profile": "tier2_pure_action_paper",
+        "task_cards": [
+            {
+                **_card("gitlab-compare", "gitlab", 2),
+                "generation_contract": {
+                    "family": "gitlab_compare_decide",
+                    "version": 1,
+                    "record_keys": ["release-blocker", "docs-gap", "closed-bug"],
+                    "decision_rule": {"state": "open", "dependency": "release-4"},
+                },
+            }
+        ],
+    }
+    monkeypatch.delenv("WORLDSIM_PHASE1_DIVERSITY_SALT", raising=False)
+    monkeypatch.delenv("WORLDSIM_PHASE1_FORBIDDEN_REFERENCES", raising=False)
+    baseline = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint="shared",
+        site=site,
+        task_card_plan=plan,
+    )
+    monkeypatch.setenv("WORLDSIM_PHASE1_DIVERSITY_SALT", "batch-a")
+    monkeypatch.setenv("WORLDSIM_PHASE1_FORBIDDEN_REFERENCES", "reference a")
+
+    assert (
+        phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+            shared_inputs_fingerprint="shared",
+            site=site,
+            task_card_plan=plan,
+        )
+        == baseline
+    )
+
+
+def test_contract_bound_prompt_inputs_are_omitted_when_absent(monkeypatch, tmp_path) -> None:
+    site = phase_1_generate_new_tasks.EligibleSiteProfile(
+        site_name="gitlab",
+        profile_path=tmp_path / "BENCHMARK_PROFILE_gitlab.json",
+        profile={},
+    )
+    plan = {
+        "task_capability_profile": "tier2_pure_action_paper",
+        "task_cards": [
+            {
+                **_card("gitlab-action", "gitlab", 2),
+                "benign_reward_shape": "host_action_only",
+            }
+        ],
+    }
+    monkeypatch.delenv("WORLDSIM_PHASE1_DIVERSITY_SALT", raising=False)
+    monkeypatch.delenv("WORLDSIM_PHASE1_FORBIDDEN_REFERENCES", raising=False)
+    original_digest = phase_1_generate_new_tasks._stable_json_digest
+    captured: list[dict] = []
+
+    def capture(payload):
+        captured.append(payload)
+        return original_digest(payload)
+
+    monkeypatch.setattr(phase_1_generate_new_tasks, "_stable_json_digest", capture)
+    phase_1_generate_new_tasks.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint="shared",
+        site=site,
+        task_card_plan=plan,
+    )
+
+    assert "contract_bound_prompt_inputs" not in captured[-1]

@@ -81,6 +81,19 @@ def contract_bound_tool_schema_digest() -> str:
     ).hexdigest()
 
 
+def contract_bound_prompt_inputs() -> dict[str, Any]:
+    """Return the optional inputs that alter contract-bound slot generation."""
+
+    inputs: dict[str, Any] = {}
+    diversity_salt = os.environ.get("WORLDSIM_PHASE1_DIVERSITY_SALT")
+    if diversity_salt:
+        inputs["diversity_salt"] = diversity_salt
+    forbidden_references = sorted(_forbidden_reference_phrases())
+    if forbidden_references:
+        inputs["forbidden_benign_reference_phrases"] = forbidden_references
+    return inputs
+
+
 def select_action_task_contracts(
     *,
     site_name: str,
@@ -561,7 +574,8 @@ def _build_messages(
         },
         "validation_feedback": feedback,
     }
-    diversity_salt = os.environ.get("WORLDSIM_PHASE1_DIVERSITY_SALT")
+    prompt_inputs = contract_bound_prompt_inputs()
+    diversity_salt = prompt_inputs.get("diversity_salt")
     if diversity_salt:
         user_payload["diversity_salt"] = {
             "value": diversity_salt,
@@ -570,7 +584,7 @@ def _build_messages(
                 "verbatim into task wording or carrier content."
             ),
         }
-    forbidden_references = sorted(_forbidden_reference_phrases())
+    forbidden_references = prompt_inputs.get("forbidden_benign_reference_phrases", [])
     if forbidden_references:
         user_payload["forbidden_benign_reference_phrases"] = forbidden_references
     return system, [{"role": "user", "content": json.dumps(user_payload, indent=2)}]
