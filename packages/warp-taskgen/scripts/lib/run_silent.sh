@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Context-efficient command wrapper for agent sessions.
-# Success emits one line. Failure emits the full captured output.
+# Success emits one line by default. Failure emits the full captured output.
+# Set RUN_SILENT_SHOW_SUCCESS_OUTPUT=1 when a successful command's output is
+# part of the caller's observable contract.
 
 run_silent() {
     local description="$1"
@@ -9,6 +11,9 @@ run_silent() {
     tmp_file=$(mktemp -t worldsim_run_silent.XXXXXX) || return 2
 
     if eval "$command" >"$tmp_file" 2>&1; then
+        if [[ "${RUN_SILENT_SHOW_SUCCESS_OUTPUT:-0}" == "1" ]]; then
+            cat "$tmp_file"
+        fi
         printf "  ✓ %s\n" "$description"
         rm -f "$tmp_file"
         return 0

@@ -8,6 +8,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ACCEPTANCE = REPO_ROOT / "scripts" / "accept_taskgen.sh"
+RUN_SILENT = REPO_ROOT / "packages" / "warp-taskgen" / "scripts" / "lib" / "run_silent.sh"
 LANES = ("package-proof", "core-tests", "remote-job-tests")
 
 
@@ -24,6 +25,27 @@ def _run_wrapper(
         env.update(extra_env)
     return subprocess.run(
         ["bash", str(ACCEPTANCE), *args],
+        cwd=REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _run_silent(
+    description: str,
+    command: str,
+    *,
+    show_success_output: bool = False,
+) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    if show_success_output:
+        env["RUN_SILENT_SHOW_SUCCESS_OUTPUT"] = "1"
+    else:
+        env.pop("RUN_SILENT_SHOW_SUCCESS_OUTPUT", None)
+    return subprocess.run(
+        ["bash", str(RUN_SILENT), description, command],
         cwd=REPO_ROOT,
         env=env,
         capture_output=True,
@@ -83,6 +105,67 @@ def test_full_and_named_lanes_preserve_unrelated_change_noop(args: tuple[str, ..
     assert result.returncode == 0
     assert "skip" in result.stdout
     assert "uv sync" not in result.stdout
+
+
+def test_run_silent_keeps_success_quiet_by_default() -> None:
+    result = _run_silent("quiet success", "printf 'pytest summary\\n'")
+
+    assert result.returncode == 0
+    assert result.stdout == "  ✓ quiet success\n"
+
+
+def test_run_silent_can_expose_success_output() -> None:
+    result = _run_silent(
+        "visible success",
+        "printf '2 passed, 1 skipped in 0.10s\\n'",
+        show_success_output=True,
+    )
+
+    assert result.returncode == 0
+    assert "2 passed, 1 skipped in 0.10s" in result.stdout
+    assert result.stdout.endswith("  ✓ visible success\n")
+
+
+def test_run_silent_preserves_failure_output_with_success_output_enabled() -> None:
+    result = _run_silent(
+        "failed command",
+        "sh -c \"printf 'pytest failure details\\n'; exit 7\"",
+        show_success_output=True,
+    )
+
+    assert result.returncode == 7
+    assert "pytest failure details" in result.stdout
+    assert "  ✗ failed command\n" in result.stdout
+
+
+def test_core_lane_exposes_pytest_summary_and_slowest_nodes(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    command_log = tmp_path / "uv-commands.log"
+    fake_uv = fake_bin / "uv"
+    fake_uv.write_text(
+        "#!/usr/bin/env bash\n"
+        'printf \'%s\\n\' "$*" >> "$TASKGEN_TEST_UV_LOG"\n'
+        "printf '3 passed, 1 skipped in 0.10s\\n'\n"
+        "printf '%s\\n' 'slowest 20 durations'\n",
+        encoding="utf-8",
+    )
+    fake_uv.chmod(0o755)
+
+    result = _run_wrapper(
+        "--lane",
+        "core-tests",
+        extra_env={
+            "PATH": f"{fake_bin}:{os.environ.get('PATH', '')}",
+            "TASKGEN_ACCEPTANCE_FORCE": "1",
+            "TASKGEN_TEST_UV_LOG": str(command_log),
+        },
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "3 passed, 1 skipped in 0.10s" in result.stdout
+    assert "slowest 20 durations" in result.stdout
+    assert "--durations=20" in command_log.read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize(
