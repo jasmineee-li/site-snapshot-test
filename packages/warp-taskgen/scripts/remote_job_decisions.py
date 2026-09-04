@@ -235,7 +235,9 @@ def command_runs_resume(argv: Sequence[str]) -> bool:
 
 
 def command_sets_inline_state_dir(argv: Sequence[str]) -> bool:
-    joined = " ".join(argv)
+    # Shell quoting/escaping may split a literal env-name spelling without
+    # changing the conservative substring detector's intended signal.
+    joined = re.sub(r"""['"\\]""", "", " ".join(argv))
     return "WORLDSIM_STATE_DIR" in joined or "WARP_TASKGEN_STATE_DIR" in joined
 
 
