@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections import Counter
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +17,10 @@ from warp_taskgen.phase_2.option_a import (
     _validate_option_a_placement,
 )
 from warp_taskgen.phase_2.output import _effective_task_site
-from warp_taskgen.phase_2.pause_control import planning_shard_checkpoint_matches
+from warp_taskgen.phase_2.pause_control import (
+    _read_planning_shard_checkpoint,
+    planning_shard_checkpoint_matches,
+)
 from warp_taskgen.phase_2.plan_validation import (
     _stale_reusable_exposure_contract_reason,
     _validate_adversarial_task_contract,
@@ -24,6 +29,8 @@ from warp_taskgen.phase_2.planning_types import SiteInjectionResult
 from warp_taskgen.run_definition_contracts import RunDefinition
 
 logger = logging.getLogger(__name__)
+
+_PLANNING_INSPECTION_ROW_LIMIT = 32
 
 
 def _shard_tasks(tasks: list[dict], shard_size: int) -> list[list[dict]]:
@@ -170,20 +177,13 @@ def _load_reusable_planning_shard(
 ) -> list[dict[str, Any]] | None:
     """Load one exact paused shard before admitting another API call."""
 
-    try:
-        data = json.loads(shard_path.read_text())
-    except (OSError, json.JSONDecodeError):
-        return None
-    if (
-        not isinstance(data, list)
-        or not data
-        or not planning_shard_checkpoint_matches(
-            shard_path,
-            data,
-            definition=definition,
-            expected_input_task_ids=expected_input_task_ids,
-        )
-    ):
+    checkpoint = _read_planning_shard_checkpoint(
+        shard_path,
+        definition=definition,
+        expected_input_task_ids=expected_input_task_ids,
+    )
+    data = checkpoint.payload
+    if checkpoint.status != "compatible" or data is None or not data:
         return None
     if any(_effective_task_site(task) != expected_site for task in data):
         return None
@@ -197,6 +197,147 @@ def _load_reusable_planning_shard(
     _target_stage._reconstruct_orphan_start_urls(reusable)
     _target_stage._normalize_l4_benign_task_ids_in_place(reusable)
     return reusable
+
+
+def inspect_planning_shard_checkpoints(
+    shards_dir: Path,
+    *,
+    definition: RunDefinition | None,
+    expected_shards: Sequence[Mapping[str, Any]] | None,
+    benign_by_id: dict[str, dict[str, Any]] | None = None,
+    site_profiles: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Explain persisted Phase 2a shard readiness without admitting work.
+
+    ``_load_reusable_planning_shard`` remains the acceptance authority.  This
+    wrapper only supplies a bounded, read-only explanation for operators:
+    missing files are pending, an otherwise well-shaped checkpoint bound to a
+    different Run is stale, and malformed or validator-rejected output is
+    malformed.  If the caller cannot reconstruct the expected set or the Run
+    is legacy/unidentified, no denominator is invented.
+    """
+
+    base = {
+        "status": "not_inspected",
+        "authority": "advisory:phase_2.planning.checkpoint_inspection",
+        "expected_count": None,
+        "compatible_count": None,
+        "pending_count": None,
+        "stale_count": None,
+        "malformed_count": None,
+        "not_inspected_count": None,
+        "shards": [],
+        "reason_code": None,
+        "path": None,
+        "effects": {"writes": False, "model_calls": False, "network": False},
+    }
+    if expected_shards is None:
+        base["reason_code"] = "planning_inputs_missing"
+        base["path"] = str(shards_dir.parent.parent / "phase_1" / "benign_tasks.json")
+        return base
+    if definition is None or definition.legacy or not definition.run_id:
+        base["reason_code"] = "run_definition_unavailable"
+        return base
+
+    rows: list[dict[str, Any]] = []
+    for expected in expected_shards:
+        label = expected.get("label")
+        site = expected.get("site")
+        input_task_ids = expected.get("input_task_ids")
+        if (
+            not isinstance(label, str)
+            or not label.strip()
+            or len(label) > 128
+            or not isinstance(site, str)
+            or not site.strip()
+            or len(site) > 128
+            or Path(label).name != label
+            or label in {".", ".."}
+            or not isinstance(input_task_ids, Sequence)
+            or isinstance(input_task_ids, str)
+            or any(not isinstance(value, str) or not value.strip() for value in input_task_ids)
+        ):
+            rows.append(
+                {
+                    "label": str(label or "unknown"),
+                    "site": str(site or "unknown"),
+                    "status": "not_inspected",
+                    "reason_code": "planning_inputs_invalid",
+                    "path": None,
+                }
+            )
+            continue
+        path = shards_dir / f"{label}.json"
+        row = _inspect_planning_shard(
+            path,
+            expected_site=site,
+            expected_input_task_ids=[str(value) for value in input_task_ids],
+            definition=definition,
+            benign_by_id=benign_by_id,
+            site_profiles=site_profiles,
+        )
+        rows.append({"label": label, "site": site, "path": str(path), **row})
+
+    counts = Counter(row["status"] for row in rows)
+    base.update(
+        {
+            "status": "inspected",
+            "expected_count": len(rows),
+            "compatible_count": counts.get("compatible", 0),
+            "pending_count": counts.get("pending", 0),
+            "stale_count": counts.get("stale", 0),
+            "malformed_count": counts.get("malformed", 0),
+            "not_inspected_count": counts.get("not_inspected", 0),
+            "shards": rows[:_PLANNING_INSPECTION_ROW_LIMIT],
+        }
+    )
+    if len(rows) > _PLANNING_INSPECTION_ROW_LIMIT:
+        base["truncated"] = True
+    first_problem = next((row for row in rows if row["status"] != "compatible"), None)
+    if first_problem is not None:
+        base["reason_code"] = first_problem["reason_code"]
+        base["path"] = first_problem["path"]
+    return base
+
+
+def _inspect_planning_shard(
+    path: Path,
+    *,
+    expected_site: str,
+    expected_input_task_ids: list[str],
+    definition: RunDefinition,
+    benign_by_id: dict[str, dict[str, Any]] | None,
+    site_profiles: dict[str, dict[str, Any]] | None,
+) -> dict[str, str]:
+    checkpoint = _read_planning_shard_checkpoint(
+        path,
+        definition=definition,
+        expected_input_task_ids=expected_input_task_ids,
+    )
+    if checkpoint.status != "compatible":
+        status = "pending" if checkpoint.status == "missing" else checkpoint.status
+        return {"status": status, "reason_code": checkpoint.reason_code}
+    payload = checkpoint.payload
+    if payload is None or not payload:
+        return {"status": "malformed", "reason_code": "checkpoint_output_invalid"}
+    if any(_effective_task_site(task) != expected_site for task in payload):
+        return {"status": "malformed", "reason_code": "checkpoint_output_invalid"}
+
+    if any(_is_option_a_site(task) for task in payload) and (
+        benign_by_id is None or site_profiles is None
+    ):
+        return {"status": "not_inspected", "reason_code": "planning_validators_unavailable"}
+    try:
+        reusable, dropped_count = _validate_recovered_planning_tasks(
+            payload,
+            benign_by_id=benign_by_id,
+            site_profiles=site_profiles,
+        )
+    except (AttributeError, KeyError, OSError, TypeError, UnicodeError, ValueError):
+        return {"status": "malformed", "reason_code": "checkpoint_output_invalid"}
+    if dropped_count or len(reusable) != len(payload):
+        return {"status": "malformed", "reason_code": "checkpoint_output_invalid"}
+    return {"status": "compatible", "reason_code": "checkpoint_compatible"}
 
 
 def _validate_recovered_planning_tasks(

@@ -21,6 +21,14 @@ from warp_taskgen.phase_2.output import _merge_preserving_unfiltered_sites
 from warp_taskgen.phase_2.pause_control import run_planning_shards
 from warp_taskgen.phase_2.phase_2c import stage as _phase_2c_stage
 from warp_taskgen.phase_2.phase_2c.config import _infer_task_records_benchmark
+from warp_taskgen.phase_2.planning_specs import (
+    TASKS_PER_SHARD as _TASKS_PER_SHARD,
+)
+from warp_taskgen.phase_2.planning_specs import (
+    build_planning_shard_specs,
+    classify_task_origin,
+    filter_tasks_by_origin,
+)
 from warp_taskgen.phase_2.planning_types import SiteInjectionResult
 from warp_taskgen.phase_2.runtime_generation import generation_for_runtime
 from warp_taskgen.phase_2.text_fill.checkpoint_runner import (
@@ -45,7 +53,7 @@ from warp_taskgen.runtime_composition import (
 from warp_taskgen.state import get_state_dir, load_state, save_state
 
 logger = logging.getLogger(__name__)
-TASKS_PER_SHARD = 20
+TASKS_PER_SHARD = _TASKS_PER_SHARD
 DEFAULT_PHASE_2A_SHARD_CONCURRENCY = 250
 
 
@@ -55,27 +63,17 @@ def _filter_tasks_by_origin(
     *,
     phase_label: str,
 ) -> list[dict[str, Any]]:
-    if task_origin in (None, "", "all"):
-        return tasks
-    if task_origin not in {"existing_task", "new_task"}:
-        raise ValueError(
-            f"{phase_label}: --task-origin must be one of all, existing_task, new_task; "
-            f"got {task_origin!r}"
+    filtered = filter_tasks_by_origin(tasks, task_origin, phase_label=phase_label)
+    if task_origin not in (None, "", "all"):
+        logger.info("%s: --task-origin filter active, running only %s", phase_label, task_origin)
+        logger.info(
+            "%s: task-origin filter kept %d/%d tasks", phase_label, len(filtered), len(tasks)
         )
-    filtered = [task for task in tasks if _classify_origin(task) == task_origin]
-    logger.info("%s: --task-origin filter active, running only %s", phase_label, task_origin)
-    logger.info("%s: task-origin filter kept %d/%d tasks", phase_label, len(filtered), len(tasks))
     return filtered
 
 
 def _classify_origin(task: Mapping[str, Any]) -> str:
-    stamped = task.get("origin")
-    if stamped in {"existing_task", "new_task"}:
-        return str(stamped)
-    task_id = str(task.get("task_id") or task.get("id") or "")
-    if task_id.startswith("novel_"):
-        return "new_task"
-    return "existing_task"
+    return classify_task_origin(task)
 
 
 def _with_phase1_route_surface_overlays(
@@ -226,64 +224,55 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 1
     state_metadata["benchmark_name"] = benchmark_name
+    input_task_count = len(benign_tasks)
 
     try:
-        benign_tasks = _filter_tasks_by_origin(
+        planning_plan = build_planning_shard_specs(
             benign_tasks,
-            task_origin,
+            task_origin=task_origin,
+            max_tasks_per_site=max_tasks_per_site,
+            sites_filter=sites_filter_raw,
             phase_label="Phase 2",
         )
     except ValueError as exc:
         logger.error(str(exc))
-        save_state(
-            "phase_2",
-            status="failed",
-            reason="invalid_task_origin",
-            **state_metadata,
-        )
+        if getattr(exc, "reason_code", None) == "invalid_task_origin":
+            save_state(
+                "phase_2",
+                status="failed",
+                reason="invalid_task_origin",
+                **state_metadata,
+            )
         return 1
 
-    # Load profiles from Phase 0c
+    benign_tasks = planning_plan.filtered_tasks
+    tasks_by_site = planning_plan.tasks_by_site
+    sites_filter = planning_plan.sites_filter
+    planning_specs = planning_plan.specs
+    if task_origin not in (None, "", "all"):
+        logger.info("Phase 2: --task-origin filter active, running only %s", task_origin)
+        logger.info(
+            "Phase 2: task-origin filter kept %d/%d tasks",
+            planning_plan.origin_filtered_count,
+            input_task_count,
+        )
+    if max_tasks_per_site is not None:
+        logger.info(
+            "Phase 2: capped at %d tasks/site via seeded sampler (%d -> %d tasks)",
+            max_tasks_per_site,
+            planning_plan.uncapped_task_count,
+            len(benign_tasks),
+        )
+    if sites_filter is not None:
+        logger.info("Phase 2: --sites filter active, running only %s", sorted(tasks_by_site))
+
+    # Load profiles from Phase 0c after validating the persisted Phase 2
+    # planning inputs. This keeps invalid task-origin requests actionable even
+    # when Phase 0c has not been materialized yet.
     profiles_dir = state_dir / "phase_0c"
     if not profiles_dir.exists():
         logger.error("Profiles directory not found at %s — run phase 0c first", profiles_dir)
         return 1
-
-    # Optional per-site cap (same deterministic seeded sampler Phase 3/4 use,
-    # so the same N tasks pair across phases).
-    if max_tasks_per_site is not None:
-        from warp_taskgen.agent_config import cap_tasks_per_site
-
-        before = len(benign_tasks)
-        benign_tasks = cap_tasks_per_site(benign_tasks, max_tasks_per_site)
-        logger.info(
-            "Phase 2: capped at %d tasks/site via seeded sampler (%d -> %d tasks)",
-            max_tasks_per_site,
-            before,
-            len(benign_tasks),
-        )
-
-    # Group tasks by primary site
-    tasks_by_site: dict[str, list[dict]] = {}
-    for task in benign_tasks:
-        site = task["site"]
-        tasks_by_site.setdefault(site, []).append(task)
-
-    # Optional per-site filter. When set, only the listed sites run; other
-    # sites' entries in adversarial_tasks.json are preserved via merge below.
-    sites_filter: set[str] | None = None
-    if sites_filter_raw:
-        sites_filter = {s.strip() for s in sites_filter_raw.split(",") if s.strip()}
-        unknown = sites_filter - set(tasks_by_site.keys())
-        if unknown:
-            logger.error(
-                "Phase 2: --sites includes unknown site(s): %s. Known sites: %s",
-                sorted(unknown),
-                sorted(tasks_by_site.keys()),
-            )
-            return 1
-        tasks_by_site = {s: ts for s, ts in tasks_by_site.items() if s in sites_filter}
-        logger.info("Phase 2: --sites filter active, running only %s", sorted(tasks_by_site.keys()))
 
     logger.info(
         "Phase 2: generating injections for %d sites (%d total tasks, phase_2a_runtime=api)",
@@ -375,44 +364,45 @@ async def run(args: argparse.Namespace) -> int:
         instance_by_site = _target_inputs._load_phase_2a_instance_by_site(args)
         _target_inputs._warm_phase_2a_instance_tokens(instance_by_site)
 
-        # Shard each site's tasks into chunks of TASKS_PER_SHARD and launch
-        # bounded host-side API calls. Shopping (192 tasks) becomes ~8 shorter
+        # Launch the pure builder's deterministic shard specs with bounded
+        # host-side API calls. Shopping (192 tasks) becomes ~8 shorter
         # strategy calls instead of one huge request.
         shard_specs: list[dict[str, Any]] = []
         reusable_shard_results: list[SiteInjectionResult] = []
         shard_limiter = asyncio.Semaphore(DEFAULT_PHASE_2A_SHARD_CONCURRENCY)
-        for site, tasks in tasks_by_site.items():
-            shards = _shards._shard_tasks(tasks, TASKS_PER_SHARD)
+        for planning_spec in planning_specs:
+            site = planning_spec["site"]
+            shard = planning_spec["site_tasks"]
+            tasks = planning_spec["all_site_tasks"]
+            label = planning_spec["label"]
             per_site_instance = instance_by_site.get(site) if instance_by_site is not None else None
-            for shard_idx, shard in enumerate(shards):
-                label = f"{site}-shard-{shard_idx}" if len(shards) > 1 else site
-                if paused_definition is not None:
-                    reusable_shard = _shards._load_reusable_planning_shard(
-                        output_dir / "shards" / f"{label}.json",
-                        expected_site=site,
-                        expected_input_task_ids=[str(task.get("id") or "") for task in shard],
-                        definition=paused_definition,
-                        benign_by_id=benign_by_id,
-                        site_profiles=site_profile_payloads,
-                    )
-                    if reusable_shard is not None:
-                        reusable_shard_results.append(SiteInjectionResult(site, reusable_shard, []))
-                        continue
-                shard_specs.append(
-                    {
-                        "site_name": site,
-                        "site_tasks": shard,
-                        "all_site_tasks": tasks,
-                        "profile_path": site_profiles[site],
-                        "site_profile_override": site_profile_payloads.get(site),
-                        "label": label,
-                        "sandbox_model": sandbox_model,
-                        "instance": per_site_instance,
-                        "benchmark": benchmark_name,
-                        "action_policy": phase_2a_action_policy,
-                        "runtime_composition": runtime_composition,
-                    }
+            if paused_definition is not None:
+                reusable_shard = _shards._load_reusable_planning_shard(
+                    output_dir / "shards" / f"{label}.json",
+                    expected_site=site,
+                    expected_input_task_ids=planning_spec["input_task_ids"],
+                    definition=paused_definition,
+                    benign_by_id=benign_by_id,
+                    site_profiles=site_profile_payloads,
                 )
+                if reusable_shard is not None:
+                    reusable_shard_results.append(SiteInjectionResult(site, reusable_shard, []))
+                    continue
+            shard_specs.append(
+                {
+                    "site_name": site,
+                    "site_tasks": shard,
+                    "all_site_tasks": tasks,
+                    "profile_path": site_profiles[site],
+                    "site_profile_override": site_profile_payloads.get(site),
+                    "label": label,
+                    "sandbox_model": sandbox_model,
+                    "instance": per_site_instance,
+                    "benchmark": benchmark_name,
+                    "action_policy": phase_2a_action_policy,
+                    "runtime_composition": runtime_composition,
+                }
+            )
 
         async def _run_planning_shard(spec: dict[str, Any]) -> SiteInjectionResult:
             return await _shards._run_shard_with_limit(shard_limiter, **spec)

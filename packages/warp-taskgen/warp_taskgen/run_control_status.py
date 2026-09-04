@@ -389,6 +389,12 @@ def build_run_control_projection(run_root: Path, state: dict[str, Any]) -> dict[
     else:
         counts = {"queued": None, "admitted": None, "completed": None, "authority": "unknown"}
 
+    planning_inspection = None
+    if state.get("step") == "phase_2" and stage == "planning":
+        from warp_taskgen.phase_2.checkpoint_inspection import inspect_planning_checkpoints
+
+        planning_inspection = inspect_planning_checkpoints(run_root, state)
+
     lifecycle_status = status
     if marker_payload is not None and status == "running":
         lifecycle_status = "pausing"
@@ -417,6 +423,8 @@ def build_run_control_projection(run_root: Path, state: dict[str, Any]) -> dict[
         projection["pause_request_id"] = marker_payload.get("request_id")
         projection["pause_reason_code"] = marker_payload.get("reason_code")
         projection["pause_age_seconds"] = marker_payload.get("age_seconds")
+    if planning_inspection is not None:
+        projection["planning_checkpoint_inspection"] = planning_inspection
     return projection
 
 

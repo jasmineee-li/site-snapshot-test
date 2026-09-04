@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+from argparse import Namespace
 
 import pytest
 
 from warp_taskgen.phase_2 import runner
+
+from ._fixtures import _benign_task
 
 
 def test_phase_2_task_origin_filter_keeps_only_new_tasks():
@@ -74,3 +77,70 @@ def test_phase_2_adds_route_surface_overlay(tmp_path):
         "issue_description",
     ]
     assert profile["injection_surface"] == [{"id": "issue_note"}]
+
+
+def test_phase_2_planning_keeps_raw_site_key():
+    from warp_taskgen.phase_2.planning_specs import build_planning_shard_specs
+
+    plan = build_planning_shard_specs(
+        [{"id": "task-1", "site": " shopping "}],
+    )
+
+    assert list(plan.tasks_by_site) == [" shopping "]
+    assert plan.specs[0]["label"] == " shopping "
+
+
+@pytest.mark.asyncio
+async def test_phase_2_invalid_origin_persists_before_profiles_gate(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_1").mkdir(parents=True)
+    (tmp_path / "phase_1" / "benign_tasks.json").write_text(json.dumps([_benign_task()]))
+
+    rc = await runner.run(
+        Namespace(
+            skip_feasibility=True,
+            sandbox_model="demo",
+            task_origin="paper_only",
+        )
+    )
+
+    assert rc == 1
+    state = json.loads((tmp_path / "pipeline_state.json").read_text())
+    assert state["status"] == "failed"
+    assert state["reason"] == "invalid_task_origin"
+
+
+@pytest.mark.asyncio
+async def test_phase_2_planning_logs_filter_cap_and_site_selection(monkeypatch, tmp_path, caplog):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_1").mkdir(parents=True)
+    tasks = [
+        {**_benign_task(), "id": f"novel-shopping-{index}", "origin": "new_task"}
+        for index in range(3)
+    ]
+    (tmp_path / "phase_1" / "benign_tasks.json").write_text(json.dumps(tasks))
+    (tmp_path / "phase_0c").mkdir()
+
+    with caplog.at_level("INFO", logger="warp_taskgen.phase_2.runner"):
+        rc = await runner.run(
+            Namespace(
+                skip_feasibility=True,
+                sandbox_model="demo",
+                task_origin="new_task",
+                max_tasks_per_site=1,
+                sites="shopping",
+            )
+        )
+
+    assert rc == 1
+    messages = [record.getMessage() for record in caplog.records]
+    assert any("--task-origin filter active" in message for message in messages)
+    assert any("task-origin filter kept 3/3 tasks" in message for message in messages)
+    assert any(
+        "capped at 1 tasks/site" in message and "(3 -> 1 tasks)" in message for message in messages
+    )
+    assert any(
+        "--sites filter active, running only ['shopping']" in message for message in messages
+    )
