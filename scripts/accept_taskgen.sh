@@ -9,8 +9,26 @@ ROUTER="$PACKAGE_DIR/scripts/taskgen_acceptance_router.py"
 
 LANE_FULL="full"
 LANE_PACKAGE_PROOF="package-proof"
-LANE_CORE_TESTS="core-tests"
+LANE_CORE_CONTEXT_BOUNDARIES="core-context-boundaries"
+LANE_CORE_FEATURE_TESTS="core-feature-tests"
 LANE_REMOTE_JOB_TESTS="remote-job-tests"
+
+CORE_CONTEXT_BOUNDARY_TESTS=(
+    tests/phase_2/phase_2c/test_stage_context_boundary.py
+    tests/phase_2/test_eligibility_context_boundary.py
+    tests/phase_2/test_generation_context_boundary.py
+    tests/phase_2/test_option_a_context_boundary.py
+    tests/phase_2/test_plan_validation_context_boundary.py
+    tests/phase_2/test_shard_context_boundary.py
+    tests/phase_2/test_target_context_boundary.py
+    tests/phase_4/test_leaf_context_boundary.py
+)
+CORE_REMOTE_IGNORES=(
+    --ignore
+    tests/test_remote_job_scripts.py
+    --ignore
+    tests/test_remote_job_decisions.py
+)
 
 usage() {
     cat <<'EOF'
@@ -28,7 +46,10 @@ running anything. CI uses this before Python and uv setup.
 Lanes:
   full             Complete local gate (the default).
   package-proof    Ruff, readiness, wheel build, and installed CLI smoke.
-  core-tests       Pytest excluding tests/test_remote_job_scripts.py.
+  core-context-boundaries
+                   Pytest for the Phase 2 and Phase 4 context-boundary tests.
+  core-feature-tests
+                   Pytest for normal Taskgen tests excluding context boundaries.
   remote-job-tests Pytest for tests/test_remote_job_scripts.py.
 EOF
 }
@@ -63,7 +84,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$lane" in
-    "$LANE_FULL"|"$LANE_PACKAGE_PROOF"|"$LANE_CORE_TESTS"|"$LANE_REMOTE_JOB_TESTS")
+    "$LANE_FULL"|"$LANE_PACKAGE_PROOF"|"$LANE_CORE_CONTEXT_BOUNDARIES"|"$LANE_CORE_FEATURE_TESTS"|"$LANE_REMOTE_JOB_TESTS")
         ;;
     *)
         printf 'error: unknown acceptance lane %s\n' "$lane" >&2
@@ -244,6 +265,45 @@ run_package_proof() {
     build_and_smoke_package
 }
 
+run_core_tests() {
+    local lane_name="$1"
+    local description="$2"
+    local -a pytest_args=(
+        -q
+        -n
+        4
+        --dist
+        worksteal
+        --durations=20
+    )
+    case "$lane_name" in
+        "$LANE_CORE_CONTEXT_BOUNDARIES")
+            pytest_args+=("${CORE_CONTEXT_BOUNDARY_TESTS[@]}")
+            ;;
+        "$LANE_CORE_FEATURE_TESTS")
+            pytest_args+=("--ignore-glob=*context_boundary.py")
+            ;;
+        *)
+            printf 'error: unsupported core lane %s\n' "$lane_name" >&2
+            return 2
+            ;;
+    esac
+    pytest_args+=("${CORE_REMOTE_IGNORES[@]}")
+
+    local command="uv run pytest"
+    local arg quoted_arg
+    for arg in "${pytest_args[@]}"; do
+        printf -v quoted_arg '%q' "$arg"
+        command+=" $quoted_arg"
+    done
+
+    (
+        cd "$PACKAGE_DIR"
+        RUN_SILENT_SHOW_SUCCESS_OUTPUT=1 \
+        "$PACKAGE_DIR/scripts/lib/run_silent.sh" "$description" "$command"
+    )
+}
+
 case "$lane" in
     "$LANE_FULL")
         bash "$PACKAGE_DIR/scripts/verify_default.sh"
@@ -252,14 +312,8 @@ case "$lane" in
     "$LANE_PACKAGE_PROOF")
         run_package_proof
         ;;
-    "$LANE_CORE_TESTS")
-        (
-            cd "$PACKAGE_DIR"
-            RUN_SILENT_SHOW_SUCCESS_OUTPUT=1 \
-            "$PACKAGE_DIR/scripts/lib/run_silent.sh" \
-                "core pytest parallel" \
-                "uv run pytest -q -n 4 --dist worksteal --durations=20 --ignore tests/test_remote_job_scripts.py --ignore tests/test_remote_job_decisions.py"
-        )
+    "$LANE_CORE_CONTEXT_BOUNDARIES"|"$LANE_CORE_FEATURE_TESTS")
+        run_core_tests "$lane" "${lane} pytest parallel"
         ;;
     "$LANE_REMOTE_JOB_TESTS")
         (

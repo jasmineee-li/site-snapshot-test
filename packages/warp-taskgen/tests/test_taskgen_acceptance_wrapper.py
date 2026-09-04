@@ -2,14 +2,37 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+PACKAGE_ROOT = REPO_ROOT / "packages" / "warp-taskgen"
 ACCEPTANCE = REPO_ROOT / "scripts" / "accept_taskgen.sh"
 RUN_SILENT = REPO_ROOT / "packages" / "warp-taskgen" / "scripts" / "lib" / "run_silent.sh"
-LANES = ("package-proof", "core-tests", "remote-job-tests")
+LANES = (
+    "package-proof",
+    "core-context-boundaries",
+    "core-feature-tests",
+    "remote-job-tests",
+)
+CORE_CONTEXT_BOUNDARY_FILES = (
+    "tests/phase_2/phase_2c/test_stage_context_boundary.py",
+    "tests/phase_2/test_eligibility_context_boundary.py",
+    "tests/phase_2/test_generation_context_boundary.py",
+    "tests/phase_2/test_option_a_context_boundary.py",
+    "tests/phase_2/test_plan_validation_context_boundary.py",
+    "tests/phase_2/test_shard_context_boundary.py",
+    "tests/phase_2/test_target_context_boundary.py",
+    "tests/phase_4/test_leaf_context_boundary.py",
+)
+CORE_REMOTE_IGNORES = (
+    "--ignore",
+    "tests/test_remote_job_scripts.py",
+    "--ignore",
+    "tests/test_remote_job_decisions.py",
+)
 
 
 def _run_wrapper(
@@ -54,6 +77,22 @@ def _run_silent(
     )
 
 
+def _collect_nodes(*args: str) -> set[str]:
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", *args],
+        cwd=PACKAGE_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    return {
+        line.strip()
+        for line in result.stdout.splitlines()
+        if line.strip().startswith("tests/") and "::" in line
+    }
+
+
 def test_help_describes_full_and_named_lanes() -> None:
     result = _run_wrapper("--help")
 
@@ -61,6 +100,33 @@ def test_help_describes_full_and_named_lanes() -> None:
     assert "full" in result.stdout
     for lane in LANES:
         assert lane in result.stdout
+
+
+def test_core_selections_are_disjoint_and_cover_former_core_collection() -> None:
+    discovered_context_files = tuple(
+        sorted(
+            path.relative_to(PACKAGE_ROOT).as_posix()
+            for path in (PACKAGE_ROOT / "tests").rglob("*context_boundary.py")
+        )
+    )
+    assert discovered_context_files == tuple(sorted(CORE_CONTEXT_BOUNDARY_FILES))
+
+    baseline = _collect_nodes(*CORE_REMOTE_IGNORES)
+    context = _collect_nodes(*CORE_CONTEXT_BOUNDARY_FILES, *CORE_REMOTE_IGNORES)
+    feature = _collect_nodes(
+        "--ignore-glob=*context_boundary.py",
+        *CORE_REMOTE_IGNORES,
+    )
+
+    assert context
+    assert context.isdisjoint(feature)
+    assert context | feature == baseline
+    assert {node.split("::", 1)[0] for node in context} == set(CORE_CONTEXT_BOUNDARY_FILES)
+    assert not any(
+        node.startswith("tests/test_remote_job_scripts.py::")
+        or node.startswith("tests/test_remote_job_decisions.py::")
+        for node in baseline
+    )
 
 
 def test_unknown_lane_is_rejected() -> None:
@@ -138,7 +204,8 @@ def test_run_silent_preserves_failure_output_with_success_output_enabled() -> No
     assert "  ✗ failed command\n" in result.stdout
 
 
-def test_core_lane_exposes_pytest_summary_and_slowest_nodes(tmp_path: Path) -> None:
+@pytest.mark.parametrize("lane", ("core-context-boundaries", "core-feature-tests"))
+def test_core_lane_exposes_pytest_summary_and_slowest_nodes(tmp_path: Path, lane: str) -> None:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     command_log = tmp_path / "uv-commands.log"
@@ -154,7 +221,7 @@ def test_core_lane_exposes_pytest_summary_and_slowest_nodes(tmp_path: Path) -> N
 
     result = _run_wrapper(
         "--lane",
-        "core-tests",
+        lane,
         extra_env={
             "PATH": f"{fake_bin}:{os.environ.get('PATH', '')}",
             "TASKGEN_ACCEPTANCE_FORCE": "1",
@@ -165,14 +232,30 @@ def test_core_lane_exposes_pytest_summary_and_slowest_nodes(tmp_path: Path) -> N
     assert result.returncode == 0, result.stderr
     assert "3 passed, 1 skipped in 0.10s" in result.stdout
     assert "slowest 20 durations" in result.stdout
-    assert "--durations=20" in command_log.read_text(encoding="utf-8")
+    command = command_log.read_text(encoding="utf-8")
+    assert "-q -n 4 --dist worksteal --durations=20" in command
+    assert "--ignore tests/test_remote_job_scripts.py" in command
+    assert "--ignore tests/test_remote_job_decisions.py" in command
+    if lane == "core-context-boundaries":
+        assert "--ignore-glob=*context_boundary.py" not in command
+        for path in CORE_CONTEXT_BOUNDARY_FILES:
+            assert path in command
+    else:
+        assert "--ignore-glob=*context_boundary.py" in command
+        for path in CORE_CONTEXT_BOUNDARY_FILES:
+            assert path not in command
 
 
 @pytest.mark.parametrize(
     ("lane", "required", "forbidden"),
     [
         (
-            "core-tests",
+            "core-context-boundaries",
+            "--ignore tests/test_remote_job_scripts.py",
+            "--dist load tests/test_remote_job_scripts.py",
+        ),
+        (
+            "core-feature-tests",
             "--ignore tests/test_remote_job_scripts.py",
             "--dist load tests/test_remote_job_scripts.py",
         ),
