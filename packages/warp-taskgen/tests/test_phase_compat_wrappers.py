@@ -45,7 +45,8 @@ def test_canonical_feature_modules_own_the_retired_surfaces() -> None:
 
 
 def test_tracked_source_has_no_retired_feature_imports() -> None:
-    audit = readiness_audit.build_audit()
-
-    assert audit.legacy_phase_imports == []
-    assert audit.active_facade_imports == []
+    # These are the same import predicates as the production audit, without
+    # rerunning its unrelated whole-repository metrics.
+    paths = [path for path in readiness_audit._git_ls_files() if path.endswith(".py")]
+    assert readiness_audit._legacy_phase_import_findings(paths) == []
+    assert readiness_audit._active_facade_import_findings(paths) == []
