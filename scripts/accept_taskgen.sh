@@ -255,9 +255,10 @@ case "$lane" in
     "$LANE_CORE_TESTS")
         (
             cd "$PACKAGE_DIR"
+            RUN_SILENT_SHOW_SUCCESS_OUTPUT=1 \
             "$PACKAGE_DIR/scripts/lib/run_silent.sh" \
                 "core pytest parallel" \
-                "uv run pytest -q -n 4 --dist worksteal --ignore tests/test_remote_job_scripts.py --ignore tests/test_remote_job_decisions.py"
+                "uv run pytest -q -n 4 --dist worksteal --durations=20 --ignore tests/test_remote_job_scripts.py --ignore tests/test_remote_job_decisions.py"
         )
         ;;
     "$LANE_REMOTE_JOB_TESTS")
