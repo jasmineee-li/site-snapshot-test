@@ -394,6 +394,13 @@ def build_run_control_projection(run_root: Path, state: dict[str, Any]) -> dict[
         from warp_taskgen.phase_2.checkpoint_inspection import inspect_planning_checkpoints
 
         planning_inspection = inspect_planning_checkpoints(run_root, state)
+    text_fill_inspection = None
+    if state.get("step") == "phase_2" and stage == "text_fill":
+        from warp_taskgen.phase_2.text_fill.checkpoint_inspection import (
+            inspect_text_fill_checkpoints,
+        )
+
+        text_fill_inspection = inspect_text_fill_checkpoints(run_root, state)
 
     lifecycle_status = status
     if marker_payload is not None and status == "running":
@@ -425,6 +432,8 @@ def build_run_control_projection(run_root: Path, state: dict[str, Any]) -> dict[
         projection["pause_age_seconds"] = marker_payload.get("age_seconds")
     if planning_inspection is not None:
         projection["planning_checkpoint_inspection"] = planning_inspection
+    if text_fill_inspection is not None:
+        projection["text_fill_checkpoint_inspection"] = text_fill_inspection
     return projection
 
 
