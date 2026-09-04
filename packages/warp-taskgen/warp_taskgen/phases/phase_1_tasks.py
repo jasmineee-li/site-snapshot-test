@@ -295,7 +295,7 @@ async def run(args: argparse.Namespace) -> int:
         task_card_plan_digest=task_card_digest,
     )
     cost_tracker.log_phase_summary("phase_1")
-    cost_tracker.save(state_dir / "cost_report.json")
+    _save_phase1_cost_report(state_dir)
     logger.info(
         "Phase 1 complete — %d benign tasks written to %s (%d existing-task + %d novel)",
         len(benign_tasks),
@@ -304,6 +304,25 @@ async def run(args: argparse.Namespace) -> int:
         len(novel_tasks),
     )
     return 0
+
+
+def _save_phase1_cost_report(state_dir: Path) -> None:
+    """Finalize cost output without replacing malformed prior evidence."""
+
+    path = state_dir / "cost_report.json"
+    inspection = cost_tracker.inspect_report(path)
+    if inspection.status == "malformed":
+        logger.warning(
+            "Preserving malformed cost report at %s; a future paid Phase 1 dispatch remains blocked",
+            path,
+        )
+        return
+    if inspection.status == "valid":
+        # Finalization can run after a cache-only invocation in a fresh
+        # process. Reload the authoritative valid report before writing so an
+        # empty in-memory tracker cannot erase prior observations.
+        cost_tracker.load(path)
+    cost_tracker.save(path)
 
 
 def _load_manifest(manifest_path: Path) -> dict[str, Any] | None:

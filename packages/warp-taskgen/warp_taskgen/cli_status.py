@@ -7,6 +7,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from warp_taskgen.cost_tracker import tracker as cost_tracker
 from warp_taskgen.phase_4.result_summary import summarize_results
 from warp_taskgen.run_control_status import build_run_control_projection
 from warp_taskgen.state import get_state_dir
@@ -271,10 +272,13 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
                     if key in intermediate:
                         phase4_summary[key] = intermediate[key]
         payload["phase4_summary"] = phase4_summary
-    if cost_path.exists():
-        cost = load_json(cost_path)
-        if isinstance(cost, dict):
-            payload["cost_report"] = cost
+    cost_inspection = cost_tracker.inspect_report(cost_path)
+    cost_observation = cost_inspection.to_dict()
+    payload["cost_observation"] = cost_observation
+    if cost_inspection.report is not None:
+        # Keep the existing report field as the raw artifact for compatibility;
+        # the sibling projection is the only derived status authority.
+        payload["cost_report"] = cost_inspection.report
     if manifest_path.exists():
         manifest = load_json(manifest_path)
         if isinstance(manifest, dict):
@@ -384,6 +388,22 @@ def _format_phase2c_rows(label: str, rows: list[dict[str, Any]], *, limit: int) 
 
 def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) -> str:
     lines = [f"WARP Taskgen status: {payload['run_root']}"]
+    cost_observation = payload.get("cost_observation")
+    if isinstance(cost_observation, dict):
+        status = cost_observation.get("status", "unknown")
+        known_total = cost_observation.get("known_total_cost_usd")
+        if isinstance(known_total, int | float):
+            known_total_text = f"{known_total:.4f}"
+        else:
+            known_total_text = "unknown"
+        lines.append(
+            "Observed cost: "
+            f"status={status} "
+            f"known_total_cost_usd={known_total_text} "
+            f"known_entry_count={cost_observation.get('known_entry_count', 'unknown')} "
+            f"unknown_entry_count={cost_observation.get('unknown_entry_count', 'unknown')} "
+            f"completeness={cost_observation.get('completeness', 'unknown')}"
+        )
     state = payload.get("pipeline_state")
     if isinstance(state, dict):
         lifecycle_status = payload.get("lifecycle_status", state.get("status", "unknown"))

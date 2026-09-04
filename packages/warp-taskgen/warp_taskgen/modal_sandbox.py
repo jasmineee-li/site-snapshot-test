@@ -232,6 +232,15 @@ class SandboxRetriableTimeoutError(TimeoutError):
         self.label = label
 
 
+_SANDBOX_PAID_CALL_STARTED_ATTR = "_warp_paid_call_started"
+
+
+def sandbox_paid_call_started(error: BaseException) -> bool:
+    """Return whether the sandbox reached the SDK process boundary."""
+
+    return bool(getattr(error, _SANDBOX_PAID_CALL_STARTED_ATTR, False))
+
+
 @dataclass
 class SandboxWatchdogState:
     """Track shard liveness across normal progress and rate-limit backoff."""
@@ -441,6 +450,7 @@ async def run_claude_in_sandbox(
     sandbox = await modal.Sandbox.create.aio(**sandbox_kwargs)
     sandbox_create_done = time.monotonic()
 
+    paid_call_started = False
     try:
         # Write the prompt directly to the sandbox filesystem. This avoids
         # creating a mount object for a small, per-call file.
@@ -459,6 +469,7 @@ async def run_claude_in_sandbox(
             bufsize=1,
         )
         exec_done = time.monotonic()
+        paid_call_started = True
 
         tag = f"[{label}] " if label else ""
         logger.info(
@@ -705,6 +716,10 @@ async def run_claude_in_sandbox(
         )
 
         return outputs
+    except Exception as exc:
+        if paid_call_started:
+            setattr(exc, _SANDBOX_PAID_CALL_STARTED_ATTR, True)
+        raise
     finally:
         await sandbox.terminate.aio()
 

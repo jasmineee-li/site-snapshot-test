@@ -95,6 +95,7 @@ if state_root is not None:
         authoritative_state = state_payload
 
 run_control = None
+cost_observation = None
 if state_root is not None and authoritative_state is not None:
     # The checked-out WARP status projection is the source for exact operator
     # next_action text. Fall back to the state-only identity below when an old
@@ -107,6 +108,9 @@ if state_root is not None and authoritative_state is not None:
         candidate = status_payload.get("run_control")
         if isinstance(candidate, dict):
             run_control = candidate
+        candidate = status_payload.get("cost_observation")
+        if isinstance(candidate, dict):
+            cost_observation = candidate
     except Exception:
         run_control = None
 
@@ -209,6 +213,7 @@ if json_mode:
         "run_status": authoritative_state.get("status") if isinstance(authoritative_state, dict) else None,
         "run_step": authoritative_state.get("step") if isinstance(authoritative_state, dict) else None,
         "run_control": run_control,
+        "cost_observation": cost_observation,
         "next_action": next_action,
     }
     print(json.dumps(payload, indent=2, sort_keys=True))
@@ -484,6 +489,17 @@ print(f"metadata: {metadata_path}")
 print(f"run_state_dir: {state_root if state_root is not None else 'unknown'}")
 print(f"run_id: {run_id or 'legacy/unknown'}")
 print(f"definition_digest: {definition_digest or 'unknown'}")
+if isinstance(cost_observation, dict):
+    known_total = cost_observation.get("known_total_cost_usd")
+    known_total_text = f"{known_total:.4f}" if isinstance(known_total, (int, float)) else "unknown"
+    print(
+        "observed_cost: "
+        f"status={cost_observation.get('status', 'unknown')} "
+        f"known_total_cost_usd={known_total_text} "
+        f"known_entry_count={cost_observation.get('known_entry_count', 'unknown')} "
+        f"unknown_entry_count={cost_observation.get('unknown_entry_count', 'unknown')} "
+        f"completeness={cost_observation.get('completeness', 'unknown')}"
+    )
 if isinstance(authoritative_state, dict):
     print(
         "run_state: "

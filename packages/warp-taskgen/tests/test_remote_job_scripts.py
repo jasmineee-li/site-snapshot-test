@@ -2628,6 +2628,98 @@ def test_status_json_keeps_job_and_run_identity_distinct(tmp_path: Path) -> None
         _cleanup_control_job(remote_dir, job_id)
 
 
+def test_status_projects_run_cost_observation_json_and_human(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    host_config, job_id, remote_dir = _start_control_test_job(
+        tmp_path, fakebin=fakebin, pause_mode="paused"
+    )
+    state_root = remote_dir / "logs" / "run"
+    (state_root / "cost_report.json").write_text(
+        json.dumps(
+            {
+                "entries": [
+                    {
+                        "phase": "phase_1",
+                        "task_id": None,
+                        "site": "gitlab",
+                        "total_cost_usd": 1.25,
+                        "num_turns": 1,
+                        "duration_ms": 10,
+                        "session_id": "response-1",
+                        "model_usage": None,
+                        "timestamp": "2026-09-03T00:00:00+00:00",
+                    },
+                    {
+                        "phase": "phase_1",
+                        "task_id": None,
+                        "site": "reddit",
+                        "total_cost_usd": None,
+                        "num_turns": None,
+                        "duration_ms": None,
+                        "session_id": None,
+                        "model_usage": None,
+                        "timestamp": "2026-09-03T00:00:01+00:00",
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    try:
+        env = _base_env(repo_root, tmp_path)
+        env["PATH"] = f"{fakebin}:{env['PATH']}"
+        bash_env = tmp_path / "bash_env"
+        bash_env.write_text("export PATH=/opt/homebrew/bin:$PATH\n", encoding="utf-8")
+        env["BASH_ENV"] = str(bash_env)
+        command = [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_status.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--job-id",
+            job_id,
+        ]
+        json_result = subprocess.run(
+            [*command, "--json"],
+            cwd=repo_root,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        assert json_result.returncode == 0, json_result.stderr
+        payload = json.loads(json_result.stdout)
+        assert payload["cost_observation"] == {
+            "path": str(state_root / "cost_report.json"),
+            "status": "valid",
+            "known_total_cost_usd": 1.25,
+            "known_entry_count": 1,
+            "unknown_entry_count": 1,
+            "recorded_entry_count": 2,
+            "completeness": "lower_bound",
+            "reason_code": None,
+        }
+
+        human_result = subprocess.run(
+            command,
+            cwd=repo_root,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        assert human_result.returncode == 0, human_result.stderr
+        assert (
+            "observed_cost: status=valid known_total_cost_usd=1.2500 "
+            "known_entry_count=1 unknown_entry_count=1 completeness=lower_bound"
+            in human_result.stdout
+        )
+    finally:
+        _cleanup_control_job(remote_dir, job_id)
+
+
 def test_stop_requires_job_id_and_rejects_patterns(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     host_config = _host_config(tmp_path)

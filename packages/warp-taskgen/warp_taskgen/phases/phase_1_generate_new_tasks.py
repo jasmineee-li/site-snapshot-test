@@ -17,6 +17,7 @@ from warp_taskgen.cost_tracker import tracker as cost_tracker
 from warp_taskgen.modal_sandbox import (
     preflight_sandbox_environment,
     run_claude_in_sandbox,
+    sandbox_paid_call_started,
     upload_to_volume,
 )
 from warp_taskgen.phase_1.generated_workflows import (
@@ -177,9 +178,33 @@ async def run_generate_new_tasks(
         site_plans=site_plans,
         action_counts=action_counts,
     )
+    requested_counts = {
+        site.site_name: _site_requested_count(
+            site_plans[site.site_name],
+            novel_tasks_per_site=novel_tasks_per_site,
+            action_counts=_action_counts_for_site(
+                site_plans[site.site_name],
+                action_counts,
+            ),
+        )
+        for site in eligible_sites
+    }
+    sites_needing_paid_work = [
+        site for site in eligible_sites if requested_counts[site.site_name] > 0
+    ]
     uses_sandbox = any(
-        not _use_contract_bound_action_api(site_plans[site.site_name]) for site in eligible_sites
+        not _use_contract_bound_action_api(site_plans[site.site_name])
+        for site in sites_needing_paid_work
     )
+    # A malformed prior report must never be replaced by an empty in-memory
+    # tracker after another paid Phase 1 dispatch. Cache hits return above, so
+    # this gate has no effect on runs that do not need a paid call.
+    cost_report_path = state_dir / "cost_report.json"
+    if sites_needing_paid_work:
+        cost_tracker.ensure_phase1_paid_dispatch_allowed(cost_report_path)
+        # The CLI normally loads this report before dispatch. Keep direct Python
+        # callers on the same preservation path before any immediate save.
+        cost_tracker.load(cost_report_path)
     benchmark_volume = None
     if uses_sandbox:
         # Fail fast if sandbox auth or image setup is missing before we pay for volume upload.
@@ -419,6 +444,8 @@ async def generate_new_tasks_for_site(
         )
 
     if _use_contract_bound_action_api(task_card_plan):
+        cost_report_path = _phase1_cost_report_path(output_dir)
+        cost_tracker.ensure_phase1_paid_dispatch_allowed(cost_report_path)
         logger.info(
             "Phase 1 (generate-new-tasks): launching contract-bound API backend for site %r",
             site.site_name,
@@ -435,6 +462,7 @@ async def generate_new_tasks_for_site(
             }
             if _task_number_start is not None:
                 api_kwargs["task_number_start"] = _task_number_start
+            api_kwargs["cost_report_path"] = cost_report_path
             generated_tasks = await generate_contract_bound_action_tasks_api(
                 **api_kwargs,
             )
@@ -500,6 +528,9 @@ async def generate_new_tasks_for_site(
             ["sandbox generation backend requires a benchmark volume"],
         )
 
+    cost_report_path = _phase1_cost_report_path(output_dir)
+    cost_tracker.ensure_phase1_paid_dispatch_allowed(cost_report_path)
+
     logger.info(
         "Phase 1 (generate-new-tasks): launching novel-task sandbox for site %r", site.site_name
     )
@@ -524,15 +555,43 @@ async def generate_new_tasks_for_site(
         if agent_context_path.exists():
             site_files["/workspace/profile/AGENT_CONTEXT.json"] = str(agent_context_path)
 
-        outputs = await run_claude_in_sandbox(
-            site_files=site_files,
-            prompt=prompt,
-            output_paths=[NOVEL_TASK_OUTPUT_PATH],
-            model=sandbox_model,
-            volumes={"/workspace/benchmark": _read_only_volume(benchmark_volume)},
-            label=f"1b-{site.site_name}",
+        try:
+            outputs = await run_claude_in_sandbox(
+                site_files=site_files,
+                prompt=prompt,
+                output_paths=[NOVEL_TASK_OUTPUT_PATH],
+                model=sandbox_model,
+                volumes={"/workspace/benchmark": _read_only_volume(benchmark_volume)},
+                label=f"1b-{site.site_name}",
+            )
+        except Exception as exc:
+            # This boundary is the only place that can observe a sandbox paid
+            # call failure. Setup/preflight failures occur before the SDK
+            # process boundary and must not be counted as paid observations.
+            if sandbox_paid_call_started(exc):
+                cost_tracker.record_and_save(
+                    "phase_1",
+                    None,
+                    cost_report_path,
+                    site=site.site_name,
+                )
+            raise
+        if not isinstance(outputs, Mapping):
+            cost_tracker.record_and_save(
+                "phase_1",
+                None,
+                cost_report_path,
+                site=site.site_name,
+            )
+            raise TypeError("sandbox paid response must be a mapping")
+        # Persist before reading or validating any generated payload. A later
+        # validation failure must not erase this returned paid response.
+        cost_tracker.record_and_save(
+            "phase_1",
+            outputs.get("_summary"),
+            cost_report_path,
+            site=site.site_name,
         )
-        cost_tracker.record("phase_1", outputs.get("_summary"), site=site.site_name)
 
         payload = outputs.get(NOVEL_TASK_OUTPUT_PATH)
         if not payload:
@@ -639,6 +698,16 @@ async def generate_new_tasks_for_site(
         [],
         last_errors or ["sandbox produced no novel tasks"],
     )
+
+
+def _phase1_cost_report_path(output_dir: Path) -> Path:
+    """Resolve the state-root report for normal and temporary slice outputs."""
+
+    resolved = output_dir.resolve()
+    for parent in (resolved, *resolved.parents):
+        if parent.name == "phase_1":
+            return parent.parent / "cost_report.json"
+    return get_state_dir() / "cost_report.json"
 
 
 async def _generate_new_tasks_for_site_card_slices(
