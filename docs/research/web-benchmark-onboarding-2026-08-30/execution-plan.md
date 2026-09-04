@@ -242,6 +242,11 @@ The supporting [agent-DX note](agent-dx-frontier-2026-09-04.md) and
 record the current-source inspection, primary-source research, counterfactuals
 and rejected complexity.
 
+The post-delivery [next-frontier note](agent-dx-next-frontier-2026-09-04.md)
+records the measured #259--#261 result, current OpenRouter capacity evidence
+and proposed follow-ups. Its per-card Phase 1 route-map choice remains
+unresolved and is not an authorized source ticket.
+
 #### E3 provider-boundary resumption check
 
 Do not add a no-provider command, mock service, alternate parser/compiler, or
@@ -346,10 +351,13 @@ These are current operational facts, not reopened architecture choices:
    `$3,000` run-level backpressure value are recorded on #212. That value is
    operational backpressure, not an automatic hard cap or selection rule.
 3. **E3 remains externally blocked:** the configured frozen OpenRouter route
-   currently lacks usable provider credit. Once it is usable, run the two
-   one-row production micro-canaries above and then resume the exact retained
-   Phase 1 request. Do not silently fall back to Anthropic-direct and claim the
-   frozen-route result.
+   currently authenticates but its redacted capacity response reports no
+   usable capacity. The exact direct one-row production canary stops with HTTP
+   403 `quota_exceeded` before model output and touches no browser or Site.
+   Exact account metadata remains local. Once the route reports usable
+   capacity, rerun the direct canary, run the sandbox canary, and only then
+   resume the exact retained Phase 1 request. Do not silently fall back to
+   Anthropic-direct and claim the frozen-route result.
 4. **E4/E6 remain downstream scientific runs:** they wait for the admitted bank
    and real matched pair and must preserve instance/reset isolation. Mutable
    runs are not parallelized on one reset-sensitive instance.
