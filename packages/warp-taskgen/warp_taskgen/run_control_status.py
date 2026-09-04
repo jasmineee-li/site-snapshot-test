@@ -401,6 +401,15 @@ def build_run_control_projection(run_root: Path, state: dict[str, Any]) -> dict[
         )
 
         text_fill_inspection = inspect_text_fill_checkpoints(run_root, state)
+    feasibility_inspection = None
+    if state.get("step") == "phase_2" and stage in {"feasibility", "complete"}:
+        from warp_taskgen.phase_2.phase_2c.checkpoint_inspection import (
+            inspect_feasibility_checkpoints,
+            terminal_promotion_completed,
+        )
+
+        if stage == "feasibility" or terminal_promotion_completed(state):
+            feasibility_inspection = inspect_feasibility_checkpoints(run_root, state)
 
     lifecycle_status = status
     if marker_payload is not None and status == "running":
@@ -434,6 +443,8 @@ def build_run_control_projection(run_root: Path, state: dict[str, Any]) -> dict[
         projection["planning_checkpoint_inspection"] = planning_inspection
     if text_fill_inspection is not None:
         projection["text_fill_checkpoint_inspection"] = text_fill_inspection
+    if feasibility_inspection is not None:
+        projection["feasibility_checkpoint_inspection"] = feasibility_inspection
     return projection
 
 

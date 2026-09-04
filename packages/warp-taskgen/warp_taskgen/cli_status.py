@@ -231,6 +231,7 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
                     "feature_checkpoint_counts",
                     "planning_checkpoint_inspection",
                     "text_fill_checkpoint_inspection",
+                    "feasibility_checkpoint_inspection",
                     "next_action",
                     "transition_history",
                     "pause_request_id",
@@ -487,6 +488,35 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
             if text_fill.get("status") == "not_inspected":
                 reason = text_fill.get("reason_code", "unknown")
                 path = text_fill.get("path") or "unavailable"
+                lines.append(f"  reason={reason} path={path}")
+        feasibility = payload.get("feasibility_checkpoint_inspection")
+        if isinstance(feasibility, dict):
+            lines.append(
+                "Phase 2c feasibility checkpoints: "
+                f"status={feasibility.get('status', 'unknown')} "
+                f"expected={feasibility.get('expected_count', 'unknown')} "
+                f"compatible={feasibility.get('compatible_count', 'unknown')} "
+                f"verified={feasibility.get('verified_count', 'unknown')} "
+                f"infeasible={feasibility.get('infeasible_count', 'unknown')} "
+                f"pending={feasibility.get('pending_count', 'unknown')} "
+                f"stale={feasibility.get('stale_count', 'unknown')} "
+                f"malformed={feasibility.get('malformed_count', 'unknown')} "
+                f"not_inspected={feasibility.get('not_inspected_count', 'unknown')}"
+            )
+            for row in feasibility.get("units", [])[: max(inspect_limit, 0)]:
+                if not isinstance(row, dict):
+                    continue
+                path = row.get("path") or "unavailable"
+                lines.append(
+                    "  "
+                    f"{row.get('task_id', 'unknown')}: "
+                    f"{row.get('status', 'unknown')} "
+                    f"({row.get('reason_code', 'unknown')}) "
+                    f"path={path}"
+                )
+            if feasibility.get("status") == "not_inspected":
+                reason = feasibility.get("reason_code", "unknown")
+                path = feasibility.get("path") or "unavailable"
                 lines.append(f"  reason={reason} path={path}")
     else:
         lines.append("Pipeline: no pipeline_state.json found")
