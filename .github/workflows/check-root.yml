@@ -26,26 +26,53 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Route Root gates
+        id: route
+        env:
+          ROOT_GATE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ -n "$ROOT_GATE_BASE_SHA" ]] && git rev-parse --verify "${ROOT_GATE_BASE_SHA}^{commit}" >/dev/null 2>&1; then
+            if decision="$(git diff --name-only "${ROOT_GATE_BASE_SHA}...HEAD" | python3 scripts/root_gate_router.py --paths-from-stdin)"; then
+              :
+            else
+              decision="run"
+              printf 'Root gates: unable to compute changed paths; running full gate\n' >&2
+            fi
+          else
+            decision="run"
+            printf 'Root gates: unable to resolve base revision; running full gate\n' >&2
+          fi
+          printf 'decision=%s\n' "$decision" >> "$GITHUB_OUTPUT"
+          printf 'Root gates route: %s\n' "$decision"
 
       - name: Set up Python
+        if: steps.route.outputs.decision == 'run'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Set up uv
+        if: steps.route.outputs.decision == 'run'
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
 
       - name: Install the locked environment
+        if: steps.route.outputs.decision == 'run'
         run: uv sync --locked --group dev
 
       - name: Run Ruff
+        if: steps.route.outputs.decision == 'run'
         run: uv run ruff check .
 
       - name: Run Black
+        if: steps.route.outputs.decision == 'run'
         run: uv run black --check .
 
       - name: Run mypy
+        if: steps.route.outputs.decision == 'run'
         run: uv run mypy
