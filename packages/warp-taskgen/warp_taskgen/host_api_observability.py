@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from json import JSONDecodeError
 from typing import Any
@@ -241,14 +242,23 @@ def summarize_exception(error: Any) -> dict[str, Any]:
 
 
 def usage_dict(response: Any) -> dict[str, int] | None:
-    usage = getattr(response, "usage", None)
+    if isinstance(response, Mapping):
+        usage = response.get("usage")
+    else:
+        usage = getattr(response, "usage", None)
     if usage is None:
         return None
+
+    def _value(name: str) -> Any:
+        if isinstance(usage, Mapping):
+            return usage.get(name, 0)
+        return getattr(usage, name, 0)
+
     return {
-        "input_tokens": getattr(usage, "input_tokens", 0) or 0,
-        "output_tokens": getattr(usage, "output_tokens", 0) or 0,
-        "cache_creation_input_tokens": getattr(usage, "cache_creation_input_tokens", 0) or 0,
-        "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", 0) or 0,
+        "input_tokens": _value("input_tokens") or 0,
+        "output_tokens": _value("output_tokens") or 0,
+        "cache_creation_input_tokens": _value("cache_creation_input_tokens") or 0,
+        "cache_read_input_tokens": _value("cache_read_input_tokens") or 0,
     }
 
 

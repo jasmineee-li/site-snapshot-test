@@ -15,14 +15,18 @@ import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from hashlib import sha256
+from pathlib import Path
 from typing import Any
 
 from warp_taskgen.cost_tracker import tracker as cost_tracker
-from warp_taskgen.host_api_observability import synthesize_cost_summary
+from warp_taskgen.host_api_observability import synthesize_cost_summary, usage_dict
 from warp_taskgen.phase_1.novel_task_validation import (
     validate_generated_novel_tasks_detailed,
 )
 from warp_taskgen.phase_4.anthropic_client import (
+    APIConnectionError,
+    APIResponseValidationError,
+    APIStatusError,
     call_with_retry,
     classify_api_exception,
     get_client,
@@ -248,6 +252,7 @@ async def generate_contract_bound_action_tasks_api(
     action_counts: Mapping[str, int] | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     task_number_start: int = 1,
+    cost_report_path: Path | None = None,
 ) -> list[dict[str, Any]]:
     """Generate and compile host-action-only tasks for one site."""
 
@@ -271,11 +276,14 @@ async def generate_contract_bound_action_tasks_api(
     compiled: list[dict[str, Any]] = []
     next_index = task_number_start
     for contract in contracts:
-        slots = await _generate_slots_for_contract(
-            contract=contract,
-            profile=profile,
-            sandbox_model=sandbox_model,
-        )
+        slot_kwargs: dict[str, Any] = {
+            "contract": contract,
+            "profile": profile,
+            "sandbox_model": sandbox_model,
+        }
+        if cost_report_path is not None:
+            slot_kwargs["cost_report_path"] = cost_report_path
+        slots = await _generate_slots_for_contract(**slot_kwargs)
         for offset, slot in enumerate(slots[: contract.count]):
             compiled.append(
                 compile_action_task_slot(
@@ -402,18 +410,22 @@ async def _generate_slots_for_contract(
     contract: SelectedActionTaskContract,
     profile: Mapping[str, Any],
     sandbox_model: str,
+    cost_report_path: Path | None = None,
 ) -> list[dict[str, Any]]:
     requested_slots = max(contract.count, int(contract.count * _OVERGENERATION_MULTIPLIER))
     feedback: list[dict[str, Any]] = []
     accepted: list[dict[str, Any]] = []
     for attempt in range(_MAX_SEMANTIC_RETRIES + 1):
-        slots = await _call_slots_api(
-            contract=contract,
-            profile=profile,
-            requested_slots=requested_slots,
-            feedback=feedback,
-            sandbox_model=sandbox_model,
-        )
+        slot_kwargs: dict[str, Any] = {
+            "contract": contract,
+            "profile": profile,
+            "requested_slots": requested_slots,
+            "feedback": feedback,
+            "sandbox_model": sandbox_model,
+        }
+        if cost_report_path is not None:
+            slot_kwargs["cost_report_path"] = cost_report_path
+        slots = await _call_slots_api(**slot_kwargs)
         accepted, feedback = _select_valid_slots(slots, contract=contract)
         if len(accepted) >= contract.count:
             return accepted[: contract.count]
@@ -452,7 +464,10 @@ async def _call_slots_api(
     requested_slots: int,
     feedback: list[dict[str, Any]],
     sandbox_model: str,
+    cost_report_path: Path | None = None,
 ) -> list[dict[str, Any]]:
+    report_path = cost_report_path or _default_cost_report_path()
+    cost_tracker.ensure_phase1_paid_dispatch_allowed(report_path)
     client = get_client()
     normalized_model = normalize_model_for_auth(sandbox_model)
     system, messages = _build_messages(
@@ -487,15 +502,42 @@ async def _call_slots_api(
             label=f"phase1-contract-bound-{contract.site}-{contract.card_id}",
         )
     except Exception as exc:
+        elapsed = time.monotonic() - t0
+        error_response = _provider_response_from_error(exc)
+        if (
+            error_response is not None
+            or _provider_response_attached(exc)
+            or _is_paid_host_exception(exc)
+        ):
+            summary = (
+                synthesize_cost_summary(error_response, model=normalized_model, elapsed_s=elapsed)
+                if error_response is not None
+                else None
+            )
+            cost_tracker.record_and_save(
+                "phase_1",
+                summary,
+                report_path,
+                site=contract.site,
+            )
         failure_class = classify_api_exception(exc)
         raise RuntimeError(
             f"contract-bound Phase 1 API failed for {contract.site}/{contract.card_id} "
             f"({failure_class}): {exc}"
         ) from exc
     elapsed = time.monotonic() - t0
-    cost_tracker.record(
+    # Persist immediately after the paid response returns, before slot
+    # extraction can reject malformed tool output.
+    error_response = _provider_response_with_usage(response)
+    summary = (
+        synthesize_cost_summary(response, model=normalized_model, elapsed_s=elapsed)
+        if error_response is not None
+        else None
+    )
+    cost_tracker.record_and_save(
         "phase_1",
-        synthesize_cost_summary(response, model=normalized_model, elapsed_s=elapsed),
+        summary,
+        report_path,
         site=contract.site,
     )
     slots = _extract_slots(response)
@@ -513,6 +555,77 @@ async def _call_slots_api(
             f"tool_use (stop_reason={stop_reason!r})"
         )
     return slots
+
+
+def _provider_response_with_usage(response: Any) -> Any | None:
+    """Return a provider completion only when its billable usage is present."""
+
+    if response is None:
+        return None
+    raw_usage = (
+        response.get("usage") if isinstance(response, Mapping) else getattr(response, "usage", None)
+    )
+    if raw_usage is None:
+        return None
+    for name in ("input_tokens", "output_tokens"):
+        value = (
+            raw_usage.get(name)
+            if isinstance(raw_usage, Mapping)
+            else getattr(raw_usage, name, None)
+        )
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            return None
+
+    # Required fields are now known to be present and valid. Optional cache
+    # fields may be absent and are normalized to zero by usage_dict.
+    usage = usage_dict(response)
+    if usage is None:
+        return None
+    for _name, value in usage.items():
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            return None
+    return response
+
+
+def _provider_response_from_error(error: BaseException) -> Any | None:
+    """Find one provider completion attached to a failed logical call."""
+
+    for attribute in ("raw_response", "last_completion", "completion", "response"):
+        candidate = getattr(error, attribute, None)
+        response = _provider_response_with_usage(candidate)
+        if response is not None:
+            return response
+    return None
+
+
+def _provider_response_attached(error: BaseException) -> bool:
+    """Return whether an exception carries a provider response boundary."""
+
+    return any(
+        getattr(error, attribute, None) is not None
+        for attribute in ("raw_response", "last_completion", "completion", "response")
+    )
+
+
+def _is_paid_host_exception(error: BaseException) -> bool:
+    """Recognize transport/provider failures without counting local bugs."""
+
+    return isinstance(
+        error,
+        (
+            APIStatusError,
+            APIConnectionError,
+            APIResponseValidationError,
+            ConnectionError,
+            TimeoutError,
+        ),
+    )
+
+
+def _default_cost_report_path() -> Path:
+    from warp_taskgen.state import get_state_dir
+
+    return get_state_dir() / "cost_report.json"
 
 
 def _build_messages(
