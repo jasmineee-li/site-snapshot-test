@@ -229,6 +229,7 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
                     "pause_request_error",
                     "checkpoint_counts",
                     "feature_checkpoint_counts",
+                    "planning_checkpoint_inspection",
                     "next_action",
                     "transition_history",
                     "pause_request_id",
@@ -432,6 +433,33 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
                 f"completed={counts.get('completed', 'unknown') if counts.get('completed') is not None else 'unknown'} "
                 f"authority={counts.get('authority', 'unknown')}"
             )
+        planning = payload.get("planning_checkpoint_inspection")
+        if isinstance(planning, dict):
+            lines.append(
+                "Phase 2a planning checkpoints: "
+                f"status={planning.get('status', 'unknown')} "
+                f"expected={planning.get('expected_count', 'unknown')} "
+                f"compatible={planning.get('compatible_count', 'unknown')} "
+                f"pending={planning.get('pending_count', 'unknown')} "
+                f"stale={planning.get('stale_count', 'unknown')} "
+                f"malformed={planning.get('malformed_count', 'unknown')} "
+                f"not_inspected={planning.get('not_inspected_count', 'unknown')}"
+            )
+            for row in planning.get("shards", [])[: max(inspect_limit, 0)]:
+                if not isinstance(row, dict):
+                    continue
+                path = row.get("path") or "unavailable"
+                lines.append(
+                    "  "
+                    f"{row.get('label', 'unknown')}: "
+                    f"{row.get('status', 'unknown')} "
+                    f"({row.get('reason_code', 'unknown')}) "
+                    f"path={path}"
+                )
+            if planning.get("status") == "not_inspected":
+                reason = planning.get("reason_code", "unknown")
+                path = planning.get("path") or "unavailable"
+                lines.append(f"  reason={reason} path={path}")
     else:
         lines.append("Pipeline: no pipeline_state.json found")
 
