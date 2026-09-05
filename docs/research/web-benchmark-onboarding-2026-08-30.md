@@ -669,3 +669,14 @@ provider fallback, automatic readiness probe, mock provider, new manifest,
 test scheduler, third shard or weakened package/safety proof. These are
 proposals, not additions to the accepted decisions in sections 13, 19 or 20;
 no ADR or glossary update is warranted before the route-map choice is settled.
+
+On **2026-09-05 (America/New_York)**, current source and two independent audits
+confirmed that another provider-independent generation framework would not
+advance E3. The accepted path is to preserve and resume Run15, defer persisted
+per-card route identity, and make the already-approved real provider checks
+reproducible through the bounded operator slice tracked by
+[#263](https://github.com/jasmineee-li/warp/issues/263). That command must stop
+on unavailable capacity, run the direct boundary before Modal setup, and call
+the existing production generation facade for both one-row checks. Its source
+tests establish orchestration only; successful frozen-route calls remain the
+required compatibility evidence.
