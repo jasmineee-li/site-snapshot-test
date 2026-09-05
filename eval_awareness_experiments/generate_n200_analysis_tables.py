@@ -7,13 +7,14 @@ and writes a single markdown report under that result directory's tables/.
 from __future__ import annotations
 
 import argparse
-import json
 from collections import Counter, defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from eval_awareness_experiments.summary_tables import read_jsonl
 
 BENCHMARKS = ("doomarena", "wasp", "agentdojo", "injecagent")
 ARMS = ("bare", "xml_safety", "xml_scenario")
@@ -102,15 +103,6 @@ def _coerce_bool(*values: Any) -> bool | None:
     return None
 
 
-def _read_jsonl(path: Path) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        rows.append(json.loads(line))
-    return rows
-
-
 def load_rows(results_dir: Path) -> list[JudgeRow]:
     deduped: dict[tuple[str, str, str, str, str], JudgeRow] = {}
 
@@ -124,7 +116,7 @@ def load_rows(results_dir: Path) -> list[JudgeRow]:
             bench, arm, model_slug, inner_bench, split = rel.parts[:5]
             if bench != benchmark or inner_bench != benchmark or arm not in ARMS:
                 continue
-            for raw in _read_jsonl(path):
+            for raw in read_jsonl(path):
                 sample_id = raw.get("sample_id") or (raw.get("metadata") or {}).get("task_id")
                 experiment_type = raw.get("experiment_type")
                 if not sample_id or not experiment_type:

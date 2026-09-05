@@ -38,6 +38,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from eval_awareness_experiments.summary_tables import read_jsonl
+
 
 def _model_to_slug(model: str) -> str:
     """Mirror the slugification used by run_causal_experiment when constructing
@@ -71,21 +73,6 @@ def _slug_to_model(slug: str) -> str:
     """Best-effort reverse of _model_to_slug. The original / and : positions
     aren't recoverable, so we just return the slug as-is for display."""
     return slug
-
-
-def _read_jsonl(path: Path) -> list[dict[str, Any]]:
-    if not path.exists():
-        return []
-    out = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            out.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
-    return out
 
 
 def _coerce_bool(value: Any) -> bool | None:
@@ -163,7 +150,7 @@ def _aggregate_judge_results(jsonl_path: Path) -> dict[str, Any]:
         align_share: mean share of Alignment Eval across 5PQ prompts (mean over tasks)
         any_eval_share: mean share of any-eval across 5PQ prompts
     """
-    rows = _read_jsonl(jsonl_path)
+    rows = read_jsonl(jsonl_path, skip_malformed=True)
     if not rows:
         return {
             "n_samples": 0,
