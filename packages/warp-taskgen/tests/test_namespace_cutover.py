@@ -80,3 +80,8 @@ def test_main_is_a_thin_entrypoint() -> None:
 
     assert set(vars(module)) & retired == set()
     assert module.__all__ == ["build_parser", "main"]
+
+
+def test_cli_package_has_no_impl_module() -> None:
+    importlib.invalidate_caches()
+    assert importlib.util.find_spec("warp_taskgen.cli._impl") is None

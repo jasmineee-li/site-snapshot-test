@@ -6,8 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from warp_taskgen.cli import site_composition_check
-from warp_taskgen.cli._impl import main
+from warp_taskgen.cli import main, site_composition_check
 
 
 class _FakeReport:

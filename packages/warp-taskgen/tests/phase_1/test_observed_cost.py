@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from warp_taskgen.cli_status import build_status_payload, format_status_payload
+from warp_taskgen.cli.status import build_status_payload, format_status_payload
 from warp_taskgen.cost_tracker import (
     CostReportMalformedError,
     CostTracker,

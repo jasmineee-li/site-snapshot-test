@@ -27,7 +27,7 @@ _MODULES = (
     "editors.base",
     "rewards.final_state",
     "sites.catalog",
-    "cli_status",
+    "cli.status",
 )
 
 _RESOURCE_PATHS = (

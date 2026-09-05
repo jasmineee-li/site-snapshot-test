@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from warp_taskgen.cli_status import build_status_payload, format_status_payload
+from warp_taskgen.cli.status import build_status_payload, format_status_payload
 from warp_taskgen.phase_2 import text_fill as phase_2_text_fill
 from warp_taskgen.phase_2.text_fill.checkpoints import (
     inspect_text_fill_checkpoint,

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from warp_taskgen import run_materialization
-from warp_taskgen.cli import _impl as cli_impl
+from warp_taskgen.cli import build_parser, dispatch, resume
 from warp_taskgen.cli.derived_run import dispatch_derived_resume
 from warp_taskgen.run_materialization import materialize_derived_run
 from warp_taskgen.run_transition import resolve_run_request
@@ -367,8 +367,8 @@ def test_plain_resume_rejects_drift_without_materializing_or_dispatching(
         called = True
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase_with_run_context", unexpected_dispatch)
-    assert cli_impl._dispatch_resume(Namespace(agent_model="child-model")) == 2
+    monkeypatch.setattr(dispatch, "_dispatch_phase_with_run_context", unexpected_dispatch)
+    assert resume._dispatch_resume(Namespace(agent_model="child-model")) == 2
     assert called is False
     assert (source_root / "pipeline_state.json").read_bytes() == source_before
     assert pointer.read_bytes() == pointer_before
@@ -399,7 +399,7 @@ def test_derive_and_resume_materializes_then_dispatches_only_child(monkeypatch, 
         save_state("phase_0a", status="running")
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase_with_run_context", child_dispatch)
+    monkeypatch.setattr(dispatch, "_dispatch_phase_with_run_context", child_dispatch)
     assert (
         dispatch_derived_resume(Namespace(command="derive-and-resume", agent_model="child-model"))
         == 0
@@ -446,7 +446,7 @@ def test_terminal_complete_plain_resume_rejects_explicit_definition_drift(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(source_root))
 
-    assert cli_impl._dispatch_resume(Namespace(agent_model="child-model")) == 2
+    assert resume._dispatch_resume(Namespace(agent_model="child-model")) == 2
     assert not (tmp_path / ".warp-derived-runs").exists()
     assert "derive-and-resume" in capsys.readouterr().err
 
@@ -486,7 +486,7 @@ def test_derive_and_resume_rejects_malformed_reservation_without_dispatch(
 
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(source_root))
-    monkeypatch.setattr(cli_impl, "_dispatch_resume", unexpected_dispatch)
+    monkeypatch.setattr(resume, "_dispatch_resume", unexpected_dispatch)
     assert (
         dispatch_derived_resume(Namespace(command="derive-and-resume", agent_model="child-model"))
         == 2
@@ -511,7 +511,7 @@ def test_derive_and_resume_reports_child_dispatch_failure_without_parent_writes(
 
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(source_root))
-    monkeypatch.setattr(cli_impl, "_dispatch_resume", fail_dispatch)
+    monkeypatch.setattr(resume, "_dispatch_resume", fail_dispatch)
     assert (
         dispatch_derived_resume(Namespace(command="derive-and-resume", agent_model="child-model"))
         == 2
@@ -541,6 +541,6 @@ def test_derive_and_resume_rejects_legacy_without_inventing_lineage(monkeypatch,
 
 
 def test_parser_exposes_one_explicit_derive_and_resume_operation():
-    args = cli_impl.build_parser().parse_args(["derive-and-resume", "--agent-model", "child-model"])
+    args = build_parser().parse_args(["derive-and-resume", "--agent-model", "child-model"])
     assert args.command == "derive-and-resume"
     assert args.agent_model == "child-model"
