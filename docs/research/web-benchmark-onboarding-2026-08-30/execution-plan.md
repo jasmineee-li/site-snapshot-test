@@ -26,6 +26,14 @@ trace for a two-way core split, and
 The exact-route Phase 1 resumption protocol uses two production micro-canaries,
 not a no-provider imitation.
 
+Provider-resumption update: **2026-09-05 (America/New_York)** against
+`origin/main` `bded71ea`. The configured OpenRouter key still authenticates but
+reports no usable capacity. Issue
+[#263](https://github.com/jasmineee-li/warp/issues/263) owns one reproducible
+operator command for the two real production micro-canaries. Run15 remains the
+resume target; effective-route persistence is deferred rather than changing its
+cache or Run Definition compatibility.
+
 Status: **source and transfer smokes complete; scientific execution pending**.
 The source tickets under parent issue #192 are closed; PRs #199–#204 and
 #206–#208 are merged, and live-proof issue #205 is closed. This
@@ -275,6 +283,42 @@ provider envelopes. Promote one sanitized genuine replay only after a recurring
 boundary failure justifies a deliberately reviewed recorder at the owning seam.
 An Anthropic-direct run may be labeled transport evidence, but it does not
 establish the frozen OpenRouter route.
+
+From `packages/warp-taskgen/`, load the configured repository credential, then
+run this exact retained-Run check. The output path must not already exist.
+
+```bash
+set -a
+source /Users/ashtonchew/projects/warp/.env
+set +a
+export WORLDSIM_PHASE1_CONTRACT_BOUND_API=1
+
+SOURCE_RUN=/Users/ashtonchew/projects/warp/.codex-worktrees/issue-212-expanded-bank/packages/warp-taskgen/logs/issue-212-expanded-bank/runs/15-non-tac-expanded-bank-bounded
+OUTPUT_ROOT="$PWD/logs/issue-212-expanded-bank/runs/17-provider-microcanaries-$(date -u +%Y%m%dT%H%M%SZ)"
+
+uv run python scripts/run_phase1_provider_microcanaries.py \
+  --source-run "$SOURCE_RUN" \
+  --output-root "$OUTPUT_ROOT" \
+  --direct-card-id gitlab_issue_description_public_followup_issue_paper \
+  --sandbox-card-id gitlab_compare_decide
+```
+
+The command checks the documented OpenRouter current-key endpoint first and
+stops while remaining capacity is absent or unknown. It then runs the direct
+production generation boundary before performing Modal preflight/upload and the
+sandbox production boundary. Only a successful two-row sequence authorizes the
+separate retained Phase 1 resume; the command does not resume Run 15 itself.
+After success, confirm that the earlier process or Remote Job has stopped, then
+inspect and use the exact existing resume path:
+
+```bash
+WORLDSIM_PHASE1_CONTRACT_BOUND_API=1 \
+  uv run warp-taskgen status "$SOURCE_RUN" --json
+
+WORLDSIM_PHASE1_CONTRACT_BOUND_API=1 \
+  WARP_TASKGEN_STATE_DIR="$SOURCE_RUN" \
+  uv run warp-taskgen resume
+```
 
 ### E4 — Evaluate the frozen expanded bank
 
