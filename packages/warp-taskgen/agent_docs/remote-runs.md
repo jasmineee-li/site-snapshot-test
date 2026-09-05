@@ -22,6 +22,12 @@ Use `--allow-active-jobs` only for deliberate maintenance with the provenance
 impact recorded. Keep secrets in the pushed environment, never in commands or
 shell history.
 
+An explicit `remote_job_start.sh --state-dir` owns the Run root. The wrapper
+passes both state-root variables and an explicit marker to the child; the WARP
+Taskgen CLI restores the equal variables after dotenv loading and consumes the
+marker. The wrapper rejects a command that also sets either variable inline.
+Use one authority for the Run root instead of relying on inherited shell state.
+
 When deploying a namespace-removal release to a long-lived host, add
 `--refresh-env` to `scripts/sync_to_host.sh`. After rsync, the flag runs the
 canonical `uv sync --locked --extra dev` workflow and checks the installed
