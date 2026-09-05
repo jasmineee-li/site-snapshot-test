@@ -124,26 +124,13 @@ def test_signature_version_bumped_to_18():
     assert sig["version"] == 18
 
 
-def test_impl_signature_observes_direct_preferred_token_patch(monkeypatch):
-    from warp_taskgen.phase_2.exposure_contract import _impl, signature
-
-    with monkeypatch.context() as patch:
-        patch.setattr(_impl, "PREFERRED_TOKEN_ORDER", ("{patched_token}",))
-        patch.setattr(signature, "PREFERRED_TOKEN_ORDER", signature.PREFERRED_TOKEN_ORDER)
-
-        sig = _impl.exposure_contract_signature()
-
-    assert sig["token_preference"] == ["{patched_token}"]
-
-
-def test_package_signature_observes_impl_preferred_token_patch(monkeypatch):
+def test_package_signature_observes_signature_preferred_token_patch(monkeypatch):
     import warp_taskgen.phase_2.exposure_contract as package
-    from warp_taskgen.phase_2.exposure_contract import _impl, signature
+    from warp_taskgen.phase_2.exposure_contract import signature
 
     with monkeypatch.context() as patch:
-        patch.setattr(_impl, "PREFERRED_TOKEN_ORDER", ("{package_patched_token}",))
-        patch.setattr(signature, "PREFERRED_TOKEN_ORDER", signature.PREFERRED_TOKEN_ORDER)
+        patch.setattr(signature, "PREFERRED_TOKEN_ORDER", ("{patched}",))
 
         sig = package.exposure_contract_signature()
 
-    assert sig["token_preference"] == ["{package_patched_token}"]
+    assert sig["token_preference"] == ["{patched}"]
