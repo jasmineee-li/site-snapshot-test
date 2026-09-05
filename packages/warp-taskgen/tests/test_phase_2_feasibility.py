@@ -20,7 +20,8 @@ from warp_taskgen.editors import EditorError
 from warp_taskgen.phase_2.phase_2c import _impl as feas
 from warp_taskgen.phase_2.phase_2c import _impl as phase_2c_impl
 from warp_taskgen.phase_2.phase_2c import probes, source_data_preflight, source_preflight
-from warp_taskgen.phases import phase_2c_preflight
+from warp_taskgen.phase_2.phase_2c import source_data_preflight as phase_2c_preflight
+from warp_taskgen.phase_2.phase_2c.policy import PreflightClassification
 
 
 def test_reachability_resource_prefers_exposure_contract_verification_url():
@@ -2242,13 +2243,13 @@ async def test_preflight_refreshes_stale_gitlab_storage_state(tmp_path, monkeypa
     seen_context_options: dict[str, Any] = {}
     reacquire_calls: list[str] = []
     self_test_results = [
-        phase_2c_preflight.PreflightClassification(
+        PreflightClassification(
             kind="login_redirect",
             quarantine=True,
             http_status=302,
             detail="302 redirect to /users/sign_in",
         ),
-        phase_2c_preflight.PreflightClassification(
+        PreflightClassification(
             kind="reachable",
             quarantine=False,
             http_status=200,
@@ -2334,7 +2335,7 @@ async def test_preflight_skips_source_data_quarantine_when_gitlab_refresh_still_
     state_path.write_text(
         json.dumps({"cookies": [{"name": "s", "value": "1", "domain": "gitlab.example"}]})
     )
-    self_test_result = phase_2c_preflight.PreflightClassification(
+    self_test_result = PreflightClassification(
         kind="login_redirect",
         quarantine=True,
         http_status=302,

@@ -10,7 +10,7 @@ from warp_taskgen.phase_2.phase_2c.policy import (
     PreflightClassification,
     ProbeTarget,
 )
-from warp_taskgen.phases.phase_2c_preflight import preflight_benign_targets
+from warp_taskgen.phase_2.phase_2c.source_data_preflight import preflight_benign_targets
 
 
 def _task() -> dict[str, object]:

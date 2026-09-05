@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import importlib
 from dataclasses import dataclass
 from typing import Any
 
@@ -14,9 +13,10 @@ from warp_taskgen.phase_2.phase_2c.policy import (
     ProbeTarget,
     SourceDataDecision,
     default_feasibility_policy_catalog,
+    task_probe_targets,
 )
+from warp_taskgen.phase_2.phase_2c.source_data_preflight import preflight_benign_targets
 from warp_taskgen.phase_2.phase_2c.webarena_policy import WebArenaFeasibilityPolicy
-from warp_taskgen.phases.phase_2c_preflight import _task_probe_targets, preflight_benign_targets
 
 
 @dataclass(frozen=True)
@@ -195,7 +195,7 @@ def test_catalog_unknown_binding_and_active_webarena_parity() -> None:
         (reddit_task, "http://reddit.test", WebArenaFeasibilityPolicy("reddit")),
     ):
         expected = policy.probe_targets(task, instance_url)
-        actual = _task_probe_targets(
+        actual = task_probe_targets(
             task,
             instance_url,
             feasibility_policy_catalog=catalog,
@@ -284,22 +284,3 @@ def test_canonical_source_preflight_threads_policy_catalog_to_probe(monkeypatch)
     assert raw == []
     assert dropped[0]["source_data_issue"]["kind"] == "fake_missing"
     assert context.calls == ["http://fake.test/fake-surface"]
-
-
-def test_legacy_policy_facade_preserves_registry_lifecycle() -> None:
-    from warp_taskgen.phase_2c import policy as legacy_policy
-    from warp_taskgen.phase_2c import webarena as legacy_webarena
-
-    legacy_policy = importlib.reload(legacy_policy)
-    assert legacy_policy.get_feasibility_policy("WebArena Verified", "gitlab") is not None
-    legacy_policy.clear_feasibility_policy_registry()
-    assert legacy_policy.get_feasibility_policy("WebArena Verified", "gitlab") is None
-
-    fake = _FakePolicy()
-    legacy_policy.register_feasibility_policy(fake)
-    assert legacy_policy.get_feasibility_policy("WebArena Verified", "fake") is fake
-
-    legacy_policy.clear_feasibility_policy_registry()
-    legacy_webarena.register_webarena_policies()
-    assert legacy_policy.get_feasibility_policy("WebArena Verified", "gitlab") is not None
-    assert legacy_policy.get_feasibility_policy("WebArena Verified", "fake") is None
