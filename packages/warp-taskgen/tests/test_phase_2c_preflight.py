@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`warp_taskgen.phases.phase_2c_preflight`.
+"""Unit tests for :mod:`warp_taskgen.phase_2.phase_2c.source_data_preflight`.
 
 Bug I (2026-04-23): pre-seed HTTP probe + source-data quarantine.
 These tests exercise the classifier rules + the whole-run bailout.
@@ -9,13 +9,15 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from warp_taskgen.phase_2c.policy import get_feasibility_policy
-from warp_taskgen.phases.phase_2c_preflight import (
-    _classify_probe,
-    _location_is_login,
-    _looks_like_login_stub,
+from warp_taskgen.phase_2.phase_2c.policy import default_feasibility_policy_catalog
+from warp_taskgen.phase_2.phase_2c.source_data_preflight import (
     preflight_benign_targets,
     self_test_preflight_auth,
+)
+from warp_taskgen.phase_2.phase_2c.webarena_policy import (
+    classify_webarena_probe,
+    location_is_login,
+    looks_like_login_stub,
 )
 
 # ---------------------------------------------------------------------------
@@ -59,19 +61,19 @@ class _FakeRequestContext:
 
 
 # ---------------------------------------------------------------------------
-# _classify_probe — table-driven
+# classify_webarena_probe — table-driven
 # ---------------------------------------------------------------------------
 
 
 def test_classify_200_clean_reachable():
-    c = _classify_probe(
+    c = classify_webarena_probe(
         status=200, headers={}, body_snippet="<html>welcome</html>", exception_name=None
     )
     assert c.kind == "reachable" and not c.quarantine
 
 
 def test_classify_200_login_stub_short_body():
-    c = _classify_probe(
+    c = classify_webarena_probe(
         status=200,
         headers={},
         body_snippet="please sign in to continue" * 2,
@@ -81,7 +83,7 @@ def test_classify_200_login_stub_short_body():
 
 
 def test_classify_200_login_stub_form_marker():
-    c = _classify_probe(
+    c = classify_webarena_probe(
         status=200,
         headers={},
         body_snippet='<form action="/users/sign_in" method="post">',
@@ -94,7 +96,7 @@ def test_classify_302_to_sign_in_is_login_redirect():
     # Playwright lowercases response header names so the classifier only
     # looks up ``location`` (not ``Location``). Keep the test lowercase
     # to match the real Playwright contract.
-    c = _classify_probe(
+    c = classify_webarena_probe(
         status=302,
         headers={"location": "http://host/users/sign_in"},
         body_snippet="",
@@ -104,7 +106,7 @@ def test_classify_302_to_sign_in_is_login_redirect():
 
 
 def test_classify_login_redirect_redacts_location_query():
-    c = _classify_probe(
+    c = classify_webarena_probe(
         status=302,
         headers={"location": "http://host/users/sign_in?token=secret&return_to=/private"},
         body_snippet="",
@@ -118,7 +120,7 @@ def test_classify_login_redirect_redacts_location_query():
 
 
 def test_classify_302_non_login_is_redirect_noncritical():
-    c = _classify_probe(
+    c = classify_webarena_probe(
         status=301,
         headers={"location": "/projects/foo/bar"},
         body_snippet="",
@@ -128,37 +130,37 @@ def test_classify_302_non_login_is_redirect_noncritical():
 
 
 def test_classify_404_quarantines_as_not_found():
-    c = _classify_probe(status=404, headers={}, body_snippet="", exception_name=None)
+    c = classify_webarena_probe(status=404, headers={}, body_snippet="", exception_name=None)
     assert c.kind == "not_found" and c.quarantine
 
 
 def test_classify_403_quarantines_as_forbidden():
-    c = _classify_probe(status=403, headers={}, body_snippet="", exception_name=None)
+    c = classify_webarena_probe(status=403, headers={}, body_snippet="", exception_name=None)
     assert c.kind == "forbidden" and c.quarantine
 
 
 def test_classify_401_quarantines_as_auth_missing():
-    c = _classify_probe(status=401, headers={}, body_snippet="", exception_name=None)
+    c = classify_webarena_probe(status=401, headers={}, body_snippet="", exception_name=None)
     assert c.kind == "auth_missing" and c.quarantine
 
 
 def test_classify_410_quarantines_as_gone():
-    c = _classify_probe(status=410, headers={}, body_snippet="", exception_name=None)
+    c = classify_webarena_probe(status=410, headers={}, body_snippet="", exception_name=None)
     assert c.kind == "gone" and c.quarantine
 
 
 def test_classify_429_does_not_quarantine():
-    c = _classify_probe(status=429, headers={}, body_snippet="", exception_name=None)
+    c = classify_webarena_probe(status=429, headers={}, body_snippet="", exception_name=None)
     assert c.kind == "rate_limited" and not c.quarantine
 
 
 def test_classify_500_does_not_quarantine():
-    c = _classify_probe(status=503, headers={}, body_snippet="", exception_name=None)
+    c = classify_webarena_probe(status=503, headers={}, body_snippet="", exception_name=None)
     assert c.kind == "server_error" and not c.quarantine
 
 
 def test_classify_connection_error_does_not_quarantine():
-    c = _classify_probe(
+    c = classify_webarena_probe(
         status=None,
         headers=None,
         body_snippet="",
@@ -168,25 +170,27 @@ def test_classify_connection_error_does_not_quarantine():
 
 
 def test_classify_timeout_does_not_quarantine():
-    c = _classify_probe(status=None, headers=None, body_snippet="", exception_name="TimeoutError")
+    c = classify_webarena_probe(
+        status=None, headers=None, body_snippet="", exception_name="TimeoutError"
+    )
     assert c.kind == "probe_timeout" and not c.quarantine
 
 
 def test_location_is_login_helper():
-    assert _location_is_login("http://host/users/sign_in?foo=1")
-    assert _location_is_login("/login")
-    assert not _location_is_login("/projects/foo/issues/1")
-    assert not _location_is_login(None)
+    assert location_is_login("http://host/users/sign_in?foo=1")
+    assert location_is_login("/login")
+    assert not location_is_login("/projects/foo/issues/1")
+    assert not location_is_login(None)
 
 
 def test_looks_like_login_stub_boundaries():
     # Short body + "sign in" → stub.
-    assert _looks_like_login_stub("please sign in")
+    assert looks_like_login_stub("please sign in")
     # Long prose body mentioning "sign in" → NOT stub (body_len gate).
     long_body = "This README mentions how to sign in for local dev." + (" " * 700)
-    assert not _looks_like_login_stub(long_body)
+    assert not looks_like_login_stub(long_body)
     # Form-action marker → stub regardless of body length.
-    assert _looks_like_login_stub("x" * 2000 + '<form action="/users/sign_in"')
+    assert looks_like_login_stub("x" * 2000 + '<form action="/users/sign_in"')
 
 
 def test_self_test_preflight_auth_gitlab_alive():
@@ -368,7 +372,7 @@ def test_preflight_missing_benchmark_metadata_keeps_without_policy_probe():
 
 
 def test_policy_lookup_normalizes_benchmark_alias():
-    assert get_feasibility_policy("WebArena Verified", "gitlab") is not None
+    assert default_feasibility_policy_catalog().get("WebArena Verified", "gitlab") is not None
 
 
 def test_preflight_redacts_sensitive_probe_url_fields():
