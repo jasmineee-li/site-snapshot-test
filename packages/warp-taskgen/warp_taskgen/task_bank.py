@@ -10,7 +10,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from warp_taskgen.phases.phase_2_core_surfaces import retired_carrier_reason
+from warp_taskgen.sites import SiteCarrierPolicy, SiteTargetingDefinitionError, default_catalog
 from warp_taskgen.state import get_state_dir
 
 TASK_BANK_SCHEMA_VERSION = 1
@@ -199,10 +199,19 @@ def carrier_contract_from_task(task: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _retired_carrier_reason(site: str, surface: str) -> str | None:
+    # An unknown Site binds a closed policy, which retires nothing.
+    try:
+        policy = default_catalog().bind(site=site).carrier_policy()
+    except SiteTargetingDefinitionError:
+        policy = SiteCarrierPolicy.closed("webarena_verified")
+    return policy.retired_reason_for(surface)
+
+
 def carrier_status_from_contract(contract: dict[str, Any]) -> dict[str, Any]:
     site = str(contract.get("site") or "").strip()
     surface = str(contract.get("target_surface_id") or "").strip()
-    reason = retired_carrier_reason(site, surface)
+    reason = _retired_carrier_reason(site, surface)
     if reason is not None:
         return {"active": False, "reason": reason}
     return {"active": True}
@@ -217,7 +226,7 @@ def is_active_task_bank_event(event: dict[str, Any]) -> bool:
     contract = event.get("carrier_contract")
     if isinstance(contract, dict):
         return (
-            retired_carrier_reason(
+            _retired_carrier_reason(
                 str(contract.get("site") or event.get("site") or ""),
                 str(contract.get("target_surface_id") or ""),
             )

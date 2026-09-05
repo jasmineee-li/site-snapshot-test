@@ -27,6 +27,21 @@ _VALIDATOR_SPEC.loader.exec_module(validator)
 from warp_taskgen.phase_2.target_resolution.constants import (  # noqa: E402
     LISTING_DETAIL_FORCING_REGEXES,
 )
+from warp_taskgen.sites import default_catalog  # noqa: E402
+
+
+def test_core_surface_aliases_match_site_owned_carrier_policies() -> None:
+    """The stdlib-only sandbox copy must equal the Site-owned alias tables."""
+    policies = {
+        site: default_catalog().bind(benchmark="webarena_verified", site=site).carrier_policy()
+        for site in ("gitlab", "reddit")
+    }
+    assert validator._CORE_SURFACE_ALIASES == {
+        site: dict(policy.surface_aliases) for site, policy in policies.items()
+    }
+    for site, policy in policies.items():
+        for raw in policy.surface_aliases:
+            assert validator._canonical_core_surface(site, raw) == policy.canonical_surface(raw)
 
 
 def _gitlab_compare_task_card_plan(*, family: str = "gitlab_compare_decide") -> dict:

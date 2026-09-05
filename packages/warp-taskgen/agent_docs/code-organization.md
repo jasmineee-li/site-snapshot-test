@@ -55,6 +55,10 @@ Current and target ownership should stay explicit:
   and `warp_taskgen/phases/phase_0c_audit.py` owns deterministic host audits. Do not
   move these concerns into Modal sandbox setup; `modal_sandbox.py` stays an
   infrastructure-only runner.
+- `warp_taskgen.sites`: Site Targeting, profile identity, and carrier policy.
+  Core-surface and active-carrier policy is Site-owned (`SiteCarrierPolicy` on
+  each `*_profile.py` mixin) and reached only through
+  `BoundSite.carrier_policy()`; a Site without the capability binds closed.
 - `warp_taskgen.seed_contracts`: shared seed/editor-call contract behavior used by
   Phase 2, Phase 4, seeding, and sandbox validation. This package must preserve
   sandbox packaging constraints and parity tests.

@@ -32,6 +32,7 @@ from warp_taskgen.phase_2.exposure_contract.phase4_exposure import (
     _transition_forced_by_task,
 )
 from warp_taskgen.phase_2.exposure_contract.route_metadata import _route_variant_label
+from warp_taskgen.sites import SiteCarrierPolicy, SiteTargetingDefinitionError, default_catalog
 
 
 def build_exposure_contract(
@@ -100,6 +101,13 @@ def build_exposure_contract(
         }
         return base
 
+    # Bind the Site once: its carrier policy is the exposure gate for every
+    # candidate below. An unknown Site or benchmark binds a closed policy, so
+    # every candidate reports ``non_core_surface`` rather than guessing.
+    try:
+        policy = default_catalog().bind(benchmark=benchmark, site=site).carrier_policy()
+    except SiteTargetingDefinitionError:
+        policy = SiteCarrierPolicy.closed(benchmark)
     available = available_tokens_for_kind(kind, anchors, benchmark=benchmark, site=site)
     allowed_editor_methods = _allowed_editor_methods(resource)
     candidates: list[dict[str, Any]] = []
@@ -110,6 +118,7 @@ def build_exposure_contract(
         available=available,
         allowed_editor_methods=allowed_editor_methods,
         surface_visibility_by_id=surface_visibility_by_id,
+        policy=policy,
     ):
         candidate = _surface_candidate(
             resource=resource,
@@ -120,6 +129,7 @@ def build_exposure_contract(
             site=site,
             available=available,
             spec=spec,
+            policy=policy,
         )
         if candidate is not None:
             candidates.append(candidate)

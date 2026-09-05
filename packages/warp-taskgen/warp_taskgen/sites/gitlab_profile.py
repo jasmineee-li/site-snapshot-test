@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from warp_taskgen.benchmark_capabilities import normalize_benchmark_name
+from warp_taskgen.sites.carrier_policy import SiteCarrierPolicy
 from warp_taskgen.sites.contracts import SurfaceResolution
 from warp_taskgen.sites.profile_routes import (
     ProfileSurfaceMapping,
@@ -69,6 +70,18 @@ _MAPPING = ProfileSurfaceMapping(
     source_field_aliases=_SOURCE_FIELD_ALIASES,
 )
 
+_CARRIER_POLICY = SiteCarrierPolicy(
+    benchmark="webarena_verified",
+    surface_aliases=_PROFILE_ID_ALIASES,
+    core_surfaces=frozenset(
+        {"issue.title", "issue.description", "mr.title", "mr.description", "note.body"}
+    ),
+    retired_carrier_surfaces=frozenset({"issue.title", "mr.title"}),
+    unsupported_carrier_kinds=frozenset({"gitlab_mr"}),
+    unsupported_carrier_methods=frozenset({"create_mr_note", "create_mr_description"}),
+    unsupported_carrier_surfaces=frozenset({"mr.description"}),
+)
+
 
 class GitLabProfileIdentity:
     """Mixin implementing GitLab's profile-surface vocabulary."""
@@ -102,6 +115,11 @@ class GitLabProfileIdentity:
             method=method,
             editor_surface_id=editor_surface_id,
         )
+
+    def carrier_policy(self, *, benchmark: str) -> SiteCarrierPolicy | None:
+        if normalize_benchmark_name(benchmark or "") != _CARRIER_POLICY.benchmark:
+            return None
+        return _CARRIER_POLICY
 
 
 def mapping_for(benchmark: str) -> ProfileSurfaceMapping | None:

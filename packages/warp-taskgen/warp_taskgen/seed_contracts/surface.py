@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from warp_taskgen.phases.phase_2_core_surfaces import CORE_SURFACES, canonical_core_surface
 from warp_taskgen.seed_contracts.delivery import (
     _REDDIT_COMMENT_BODY_FIELD_PATTERN,
     PAYLOAD_PLACEHOLDER,
@@ -27,9 +26,19 @@ from warp_taskgen.seed_contracts.delivery import (
 def _find_surface_by_id(
     site_profile: dict[str, Any], target_surface_id: str
 ) -> dict[str, Any] | None:
+    # Lazy: ``warp_taskgen.sites`` imports ``seeding.site_contracts``.
+    from warp_taskgen.sites import SiteCarrierPolicy, SiteTargetingDefinitionError, default_catalog
+
+    def carrier_policy(site_key: str) -> SiteCarrierPolicy:
+        try:
+            return default_catalog().bind(site=site_key).carrier_policy()
+        except SiteTargetingDefinitionError:
+            return SiteCarrierPolicy.closed("webarena_verified")
+
     site = str(site_profile.get("site") or site_profile.get("site_name") or "").strip().lower()
-    sites = (site,) if site else tuple(CORE_SURFACES)
-    canonical_targets = {canonical_core_surface(site_key, target_surface_id) for site_key in sites}
+    sites = (site,) if site else default_catalog().sites
+    policies = tuple(carrier_policy(site_key) for site_key in sites)
+    canonical_targets = {policy.canonical_surface(target_surface_id) for policy in policies}
     for surface in site_profile.get("injection_surface", []):
         if not isinstance(surface, dict):
             continue
@@ -37,8 +46,8 @@ def _find_surface_by_id(
         if surface_id == target_surface_id:
             return surface
         if any(
-            canonical_core_surface(site_key, str(surface_id or "")) in canonical_targets
-            for site_key in sites
+            policy.canonical_surface(str(surface_id or "")) in canonical_targets
+            for policy in policies
         ):
             return surface
     return None

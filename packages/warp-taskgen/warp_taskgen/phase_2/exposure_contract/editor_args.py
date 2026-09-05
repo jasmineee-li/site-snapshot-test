@@ -12,7 +12,7 @@ from warp_taskgen.phase_2.exposure_contract.constants import (
     PREFERRED_TOKEN_ORDER,
 )
 from warp_taskgen.phase_2.text_fill.constants import PAYLOAD_PLACEHOLDER
-from warp_taskgen.phases.phase_2_core_surfaces import canonical_core_surface
+from warp_taskgen.sites import SiteCarrierPolicy
 
 
 def _viable_specs(
@@ -23,11 +23,12 @@ def _viable_specs(
     available: frozenset[str],
     allowed_editor_methods: frozenset[str] | None = None,
     surface_visibility_by_id: Mapping[str, str] | None = None,
+    policy: SiteCarrierPolicy,
 ) -> list[EditorMethodSpec]:
     specs = sorted(
         (spec for spec in iter_specs(site=site, benchmark=benchmark) if kind in spec.kinds),
         key=lambda item: (
-            _surface_visibility_rank(item, kind, surface_visibility_by_id),
+            _surface_visibility_rank(item, kind, surface_visibility_by_id, policy),
             item.method,
         ),
     )
@@ -48,14 +49,15 @@ def _surface_visibility_rank(
     spec: EditorMethodSpec,
     kind: str,
     surface_visibility_by_id: Mapping[str, str] | None,
+    policy: SiteCarrierPolicy,
 ) -> int:
     if spec.site == "reddit" and kind == "reddit_forum":
         surface_id = spec.surface_id_per_kind.get(kind, spec.method)
-        if canonical_core_surface("reddit", surface_id) == "submission.title":
+        if policy.canonical_surface(surface_id) == "submission.title":
             return -1
     if spec.site == "gitlab" and kind == "gitlab_search_result":
         surface_id = spec.surface_id_per_kind.get(kind, spec.method)
-        if canonical_core_surface("gitlab", surface_id) == "issue.title":
+        if policy.canonical_surface(surface_id) == "issue.title":
             return -1
     if not isinstance(surface_visibility_by_id, Mapping):
         return 1

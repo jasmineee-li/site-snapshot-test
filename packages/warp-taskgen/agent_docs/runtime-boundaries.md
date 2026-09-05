@@ -39,8 +39,8 @@ inside `warp_taskgen/`; runtime imports from `AgentLab/` are forbidden.
 Canonical carrier IDs are `issue.description`, `note.body`, `submission.body`,
 and `comment.body`. Benchmark profiles may expose adapter-local IDs such as
 `profile_issue_description` or `thread_comment_body`. Resolve profile aliases
-through `warp_taskgen/surface_identity.py` with route/editor context; ambiguous or
-unknown mappings fail closed instead of choosing arbitrarily.
+through `BoundSite.resolve_profile_surface` with route/editor context; ambiguous
+or unknown mappings fail closed instead of choosing arbitrarily.
 
 Completion means the selected runtime boundary is explicit, auth stays in the
 central helper, sandbox files are intentionally included, and no benchmark-
