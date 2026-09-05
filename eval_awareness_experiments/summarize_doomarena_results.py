@@ -9,13 +9,19 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import csv
-import json
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 from eval_awareness_experiments.run_manifest import scan
+from eval_awareness_experiments.summary_tables import (
+    finalize_summary_row,
+    model_from_slug,
+    read_jsonl,
+    sum_bool_by_task,
+    write_csv,
+    write_md,
+)
 
 DEFAULT_SPLITS = ["reddit", "shopping", "shopping_admin", "gitlab"]
 
@@ -74,54 +80,11 @@ EVAL_LABELS = {
 }
 
 
-def _read_jsonl(path: Path) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    if not path.exists():
-        return rows
-    with path.open("r", encoding="utf-8") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            try:
-                rows.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
-    return rows
-
-
-def _model_from_slug(slug: str) -> str:
-    suffix = ""
-    base = slug
-    if base.endswith("_thinking"):
-        base = base.removesuffix("_thinking")
-        suffix = ":thinking"
-    if "_" not in base:
-        return base + suffix
-    provider, model = base.split("_", 1)
-    return f"{provider}/{model}{suffix}"
-
-
 def _task_id(row: dict[str, Any]) -> str:
     metadata = row.get("metadata") or {}
     if metadata.get("task_id"):
         return str(metadata["task_id"])
     return str(row.get("sample_id") or "")
-
-
-def _rate(num: int | float, den: int | float) -> float | None:
-    return (num / den) if den else None
-
-
-def _sum_bool_by_task(rows: list[dict[str, Any]], field: str) -> dict[str, bool]:
-    out: dict[str, bool] = {}
-    for row in rows:
-        task = _task_id(row)
-        if not task:
-            continue
-        value = (row.get("metadata") or {}).get(field)
-        if isinstance(value, bool):
-            out[task] = value
-    return out
 
 
 def _dedupe_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
@@ -142,12 +105,12 @@ def _summarize_split(
     cell_dir = result_path.parents[2]
     arm = cell_dir.parent.name
     model_slug = cell_dir.name
-    raw_rows = _read_jsonl(result_path)
+    raw_rows = read_jsonl(result_path, skip_malformed=True)
     rows, duplicate_rows = _dedupe_rows(raw_rows)
     task_ids = sorted({task for task in (_task_id(row) for row in rows) if task})
 
-    task_pass = _sum_bool_by_task(rows, "task_passed")
-    asr = _sum_bool_by_task(rows, "attack_success")
+    task_pass = sum_bool_by_task(rows, "task_passed", task_id=_task_id)
+    asr = sum_bool_by_task(rows, "attack_success", task_id=_task_id)
     judge_error_rows = sum(1 for row in raw_rows if (row.get("metadata") or {}).get("error"))
     expected_judge_rows = len(task_ids) * 2
 
@@ -178,7 +141,7 @@ def _summarize_split(
     purpose_eval_count = sum(purpose_counts[label] for label in EVAL_LABELS)
     return {
         "benchmark": "doomarena",
-        "model": _model_from_slug(model_slug),
+        "model": model_from_slug(model_slug),
         "arm": arm,
         "split": split,
         "n_tasks": len(task_ids),
@@ -208,55 +171,6 @@ def _summarize_split(
         "duplicate_judge_rows": duplicate_rows,
         "missing_judge_rows": max(0, expected_judge_rows - len(rows)),
     }
-
-
-def _finalize(row: dict[str, Any]) -> dict[str, Any]:
-    row = dict(row)
-    row["user_task_pass_rate"] = _rate(row["user_task_pass_count"], row["user_task_pass_n"])
-    row["asr_rate"] = _rate(row["asr_success_count"], row["asr_n"])
-    row["verbalized_eval_rate"] = _rate(row["verbalized_eval_count"], row["verbalized_n"])
-    row["verbalized_alignment_eval_rate"] = _rate(
-        row["verbalized_alignment_eval_count"],
-        row["verbalized_n"],
-    )
-    row["verbalized_capability_eval_rate"] = _rate(
-        row["verbalized_capability_eval_count"],
-        row["verbalized_n"],
-    )
-    row["verbalized_other_eval_rate"] = _rate(
-        row["verbalized_other_eval_count"],
-        row["verbalized_n"],
-    )
-    row["verbalized_real_rate"] = _rate(row["verbalized_real_count"], row["verbalized_n"])
-    row["purpose_eval_class_rate"] = _rate(
-        row["purpose_eval_class_count"],
-        row["purpose_n"],
-    )
-    row["purpose_alignment_eval_class_rate"] = _rate(
-        row["purpose_alignment_eval_class_count"],
-        row["purpose_n"],
-    )
-    row["purpose_capability_eval_class_rate"] = _rate(
-        row["purpose_capability_eval_class_count"],
-        row["purpose_n"],
-    )
-    row["purpose_other_eval_class_rate"] = _rate(
-        row["purpose_other_eval_class_count"],
-        row["purpose_n"],
-    )
-    row["purpose_real_class_rate"] = _rate(
-        row["purpose_real_class_count"],
-        row["purpose_n"],
-    )
-    row["purpose_alignment_eval_share_mean"] = _rate(
-        row["purpose_alignment_eval_share_sum"],
-        row["purpose_share_n"],
-    )
-    row["purpose_refused_share_mean"] = _rate(
-        row["purpose_refused_share_sum"],
-        row["purpose_share_n"],
-    )
-    return row
 
 
 def _aggregate(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -303,33 +217,6 @@ def _aggregate(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(groups.values(), key=lambda r: (r["model"], r["arm"]))
 
 
-def _format(value: Any) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, float):
-        return f"{value:.6f}"
-    return str(value)
-
-
-def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=COLUMNS, lineterminator="\n")
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({column: _format(row.get(column)) for column in COLUMNS})
-
-
-def _write_md(path: Path, rows: list[dict[str, Any]]) -> None:
-    lines = [
-        "| " + " | ".join(MD_COLUMNS) + " |",
-        "| " + " | ".join(["---"] * len(MD_COLUMNS)) + " |",
-    ]
-    for row in rows:
-        lines.append("| " + " | ".join(_format(row.get(column)) for column in MD_COLUMNS) + " |")
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-
 def summarize(
     results_dir: Path,
     output_dir: Path,
@@ -352,13 +239,13 @@ def summarize(
         _summarize_split(path, status_by_cell)
         for path in sorted(results_dir.glob("*/*/doomarena/*/trajectory_awareness_results.jsonl"))
     ]
-    split_rows = [_finalize(row) for row in split_rows]
-    aggregate_rows = [_finalize(row) for row in _aggregate(split_rows)]
+    split_rows = [finalize_summary_row(row) for row in split_rows]
+    aggregate_rows = [finalize_summary_row(row) for row in _aggregate(split_rows)]
 
-    _write_csv(output_dir / "doomarena_summary_by_model_arm_split.csv", split_rows)
-    _write_md(output_dir / "doomarena_summary_by_model_arm_split.md", split_rows)
-    _write_csv(output_dir / "doomarena_summary_by_model_arm.csv", aggregate_rows)
-    _write_md(output_dir / "doomarena_summary_by_model_arm.md", aggregate_rows)
+    write_csv(output_dir / "doomarena_summary_by_model_arm_split.csv", split_rows, COLUMNS)
+    write_md(output_dir / "doomarena_summary_by_model_arm_split.md", split_rows, MD_COLUMNS)
+    write_csv(output_dir / "doomarena_summary_by_model_arm.csv", aggregate_rows, COLUMNS)
+    write_md(output_dir / "doomarena_summary_by_model_arm.md", aggregate_rows, MD_COLUMNS)
     (output_dir / "doomarena_summary_notes.md").write_text(
         "# DoomArena N200 Summary Tables\n\n"
         "- These tables summarize the current DoomArena result snapshot. If a "

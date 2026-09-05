@@ -608,6 +608,7 @@ testpaths = [
     "eval_awareness_experiments/test_run_dispatch.py",
     "eval_awareness_experiments/judges/test_needham_native_transcripts.py",
     "eval_awareness_experiments/judges/test_purpose_continue_5q.py",
+    "eval_awareness_experiments/test_summary_tables.py",
     "models/common/test_agentlab_args.py",
     "scripts/test_root_gate_router.py",
 ]
