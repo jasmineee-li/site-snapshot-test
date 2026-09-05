@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from warp_taskgen import main as worldsim_main
 from warp_taskgen import task_bank
+from warp_taskgen.cli import main
 from warp_taskgen.cli_status import summarize_phase2c
 
 
@@ -221,7 +221,7 @@ def test_worldsim_status_prints_operator_card(tmp_path: Path, capsys) -> None:
     )
     task_bank.append_task_bank_events(tmp_path / "task_bank" / "events.jsonl", [event])
 
-    rc = worldsim_main.main(["status", str(tmp_path)])
+    rc = main(["status", str(tmp_path)])
 
     assert rc == 0
     out = capsys.readouterr().out
@@ -303,7 +303,7 @@ def test_worldsim_status_json_includes_task_bank_summary_not_raw_records(
     )
     task_bank.append_task_bank_events(tmp_path / "task_bank" / "events.jsonl", [event])
 
-    rc = worldsim_main.main(["status", str(tmp_path), "--json"])
+    rc = main(["status", str(tmp_path), "--json"])
 
     assert rc == 0
     payload = json.loads(capsys.readouterr().out)
@@ -331,7 +331,7 @@ def test_phase2c_status_counts_site_keyed_exposure_ineligible(tmp_path: Path) ->
 def test_worldsim_status_json_includes_summary(tmp_path: Path, capsys) -> None:
     _write_status_fixture(tmp_path)
 
-    rc = worldsim_main.main(["status", str(tmp_path), "--json"])
+    rc = main(["status", str(tmp_path), "--json"])
 
     assert rc == 0
     payload = json.loads(capsys.readouterr().out)
@@ -346,7 +346,7 @@ def test_worldsim_status_json_includes_summary(tmp_path: Path, capsys) -> None:
 def test_worldsim_inspect_prints_task_artifacts(tmp_path: Path, capsys) -> None:
     _write_status_fixture(tmp_path)
 
-    rc = worldsim_main.main(["inspect", "adv_variant", str(tmp_path)])
+    rc = main(["inspect", "adv_variant", str(tmp_path)])
 
     assert rc == 0
     out = capsys.readouterr().out
@@ -363,7 +363,7 @@ def test_worldsim_inspect_prints_task_artifacts(tmp_path: Path, capsys) -> None:
 def test_worldsim_inspect_missing_task_returns_one(tmp_path: Path, capsys) -> None:
     _write_status_fixture(tmp_path)
 
-    rc = worldsim_main.main(["inspect", "missing", str(tmp_path)])
+    rc = main(["inspect", "missing", str(tmp_path)])
 
     assert rc == 1
     assert "not found" in capsys.readouterr().err

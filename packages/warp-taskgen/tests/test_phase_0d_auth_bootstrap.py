@@ -1051,7 +1051,7 @@ class TestContractFailures:
 
 class TestCliDispatch:
     def test_cli_parses_phase_0d(self):
-        from warp_taskgen.main import build_parser
+        from warp_taskgen.cli.args import build_parser
 
         parser = build_parser()
         args = parser.parse_args(["phase", "0d", "--benchmark", "/tmp/bench"])
@@ -1059,7 +1059,7 @@ class TestCliDispatch:
         assert args.benchmark == Path("/tmp/bench")
 
     def test_cli_requires_benchmark_for_phase_0d(self, tmp_path, monkeypatch, capsys):
-        from warp_taskgen.main import _dispatch_phase
+        from warp_taskgen.cli.dispatch import _dispatch_phase
 
         monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
         args = argparse.Namespace(

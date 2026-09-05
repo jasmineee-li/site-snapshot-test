@@ -86,21 +86,16 @@ def test_canonical_parser_requires_exact_site_benchmark_and_use_case() -> None:
     assert args.action_kind == "answer_opposite_binary_label"
 
 
-def test_site_doctor_cli_is_a_direct_compatibility_alias() -> None:
-    args = _parser().parse_args(
-        [
-            "site",
-            "doctor",
-            "gitlab",
-            "--benchmark",
-            "webarena_verified",
-            "--use-case",
-            "phase_2_feasibility",
-        ]
+def test_site_doctor_is_rejected(capsys: pytest.CaptureFixture[str]) -> None:
+    retired_alias = (
+        "site doctor gitlab --benchmark webarena_verified --use-case phase_2_feasibility"
     )
 
-    assert args.site_command == "doctor"
-    assert not hasattr(args, "composition_command")
+    with pytest.raises(SystemExit) as excinfo:
+        _parser().parse_args(retired_alias.split())
+
+    assert excinfo.value.code == 2
+    assert "invalid choice: 'doctor'" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize(
@@ -146,27 +141,6 @@ def test_dispatch_exit_code_uses_static_status_only(
     assert f"Static Site Composition status: {static_status}" in output
     assert "active policy and live evidence not checked" in output
     assert "Operational readiness: blocked" in output
-
-
-def test_doctor_alias_dispatches_the_same_canonical_compiler(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    report = _FakeReport("complete")
-    monkeypatch.setattr(site_composition_check, "_compile_default", lambda **_: report)
-
-    result = site_composition_check.dispatch_site_composition(
-        SimpleNamespace(
-            site_command="doctor",
-            site="gitlab",
-            benchmark="webarena_verified",
-            use_case="phase_2_feasibility",
-            carrier=None,
-            action_kind=None,
-            json=True,
-        )
-    )
-
-    assert result == 0
 
 
 def test_missing_packaged_composition_returns_structured_invalid_report(

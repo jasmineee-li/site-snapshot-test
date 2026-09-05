@@ -14,10 +14,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from warp_taskgen import main as worldsim_main
 from warp_taskgen.agent_models import resolve_agent_model_profile, supported_agentlab_model_profiles
 from warp_taskgen.agentlab_cli import _prepare_single_task, _select_instance, _task_from_args
 from warp_taskgen.browser_use_agent import AuthArtifactMissingError
+from warp_taskgen.cli import build_parser
 from warp_taskgen.config import BenchmarkConfig
 from warp_taskgen.har_converter import minimal_har_placeholder_entry, strict_runtime_har_trace
 from warp_taskgen.phase_4 import runner as phase4_runner
@@ -2528,7 +2528,7 @@ def test_sidecar_chat_model_writes_model_call_metadata(tmp_path):
 
 
 def test_build_parser_accepts_agentlab_run_gpt_5_2_default(tmp_path):
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
 
     args = parser.parse_args(
         [
@@ -2554,7 +2554,7 @@ def test_agentlab_runner_default_model_matches_cli_default():
 
 
 def test_build_parser_accepts_agentlab_models_command():
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
 
     args = parser.parse_args(["agentlab", "models", "--json"])
 

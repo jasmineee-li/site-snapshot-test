@@ -26,7 +26,9 @@ from warp_taskgen.browser_use_agent import (
     _resolve_auth,
     _ScopedHeaderAuthInjector,
 )
-from warp_taskgen.main import _dispatch_phase, _unknown_auth_sites, build_parser
+from warp_taskgen.cli.args import build_parser
+from warp_taskgen.cli.auth import _unknown_auth_sites
+from warp_taskgen.cli.dispatch import _dispatch_phase
 
 
 def _valid_agent_context_with_auth(auth_mechanism: dict | None) -> dict:
@@ -764,7 +766,7 @@ class TestUnknownAuthGate:
         # Phase 4's heavy runner graph is imported, and this guard still
         # proves that execution never reaches the bounded runner call.
         monkeypatch.setattr(
-            "warp_taskgen.main._run_phase4_with_bounded_async_shutdown",
+            "warp_taskgen.cli._impl._run_phase4_with_bounded_async_shutdown",
             fake_phase_4_run,
         )
 

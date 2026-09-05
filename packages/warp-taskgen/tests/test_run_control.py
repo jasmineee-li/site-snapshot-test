@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from warp_taskgen import main as worldsim_main
 from warp_taskgen import run_control
 from warp_taskgen.atomic_io import write_json_atomic
+from warp_taskgen.cli import main
 from warp_taskgen.cli import run_control as cli_run_control
 from warp_taskgen.cli.run_control import dispatch_phase_with_run_control
 from warp_taskgen.cli_status import build_status_payload, format_status_payload
@@ -120,7 +120,7 @@ def test_pause_command_and_status_expose_pausing_without_mutating_checkpoint(
     _write_running_phase_4(tmp_path)
     before = (tmp_path / "pipeline_state.json").read_bytes()
 
-    assert worldsim_main.main(["pause", "--state-dir", str(tmp_path)]) == 0
+    assert main(["pause", "--state-dir", str(tmp_path)]) == 0
     payload = build_status_payload(tmp_path)
 
     assert payload["lifecycle_status"] == "pausing"

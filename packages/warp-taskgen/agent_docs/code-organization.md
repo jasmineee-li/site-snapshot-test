@@ -76,9 +76,8 @@ Current and target ownership should stay explicit:
   GitLab, Reddit, and explicit Classifieds diagnostic declarations. This seam
   reads declarations only. Executable owner behavior stays in its feature
   module and is tested through `tests/sites/behavior_contract/` with fake adapters. The
-  canonical CLI adapter is `site composition check`; `site doctor` is a
-  temporary parser-level CLI alias, not a Python compatibility module. Static
-  completion does not grant active policy or prove live evidence.
+  only CLI adapter is `site composition check`. Static completion does not
+  grant active policy or prove live evidence.
 - `warp_taskgen.comparison_ingestion`: native AgentLab comparison payload
   validation, immutable comparison-result envelopes, provenance/artifact
   references, and atomic `comparison_result.json` persistence. This module

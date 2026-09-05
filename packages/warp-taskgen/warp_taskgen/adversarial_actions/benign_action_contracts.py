@@ -18,7 +18,9 @@ from warp_taskgen.adversarial_actions.catalog import (
     EDITOR_METHODS_BY_MUTATION_ACTION,
     MUTATION_ACTION_KINDS,
 )
-from warp_taskgen.adversarial_actions.compiler import compile_public_benign_mutation_evaluator
+from warp_taskgen.adversarial_actions.public_mutation_compiler import (
+    compile_public_benign_mutation_evaluator,
+)
 from warp_taskgen.adversarial_actions.tier3 import (
     compile_tier3_benign_repository_network_reward,
     tier3_benign_repository_action_contract,

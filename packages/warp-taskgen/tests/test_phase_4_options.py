@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from warp_taskgen.main import build_parser
+from warp_taskgen.cli.args import build_parser
 from warp_taskgen.phase_4 import (
     phase_4_variant_budget_choices as public_phase_4_variant_budget_choices,
 )

@@ -73,10 +73,9 @@ status means only that static composition closed; it is not a readiness exit
 code. A later readiness owner may consume explicit policy and live evidence,
 but the static checker cannot accept or promote either ledger.
 
-`warp-taskgen site composition check` is the canonical CLI for this static
-check. `site doctor` is a temporary parser-level CLI compatibility alias, not
-a Python compatibility module or API. Executable Site
-behavior is verified separately through behavior-owned tests with fake adapters;
+`warp-taskgen site composition check` is the only CLI for this static check.
+Executable Site behavior is verified separately through behavior-owned tests
+with fake adapters;
 live safety evidence remains with its existing Run, Benchmark Host, and
 Benchmark owners.
 
