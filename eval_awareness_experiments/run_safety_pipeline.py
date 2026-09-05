@@ -1430,7 +1430,7 @@ def _parse_args() -> argparse.Namespace:
         "--wasp-task-dir",
         default=None,
         help="WASP planted-task pool directory (default: /tmp/wasp_full, "
-        "matching scripts/wasp_n100_run.sh). Only used when "
+        "matching eval_awareness_experiments/scripts/wasp/launch_glm5_n100_preset.sh). Only used when "
         "--benchmark wasp.",
     )
     parser.add_argument(

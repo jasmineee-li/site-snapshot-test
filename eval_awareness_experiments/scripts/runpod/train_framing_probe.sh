@@ -5,9 +5,9 @@
 # (clone, venv, model download), then re-runs the probe training.
 #
 # Usage:
-#   bash scripts/runpod_train_framing_probe.sh                       # opencua-32b
-#   MODEL_SHORT=opencua-32b   bash scripts/runpod_train_framing_probe.sh
-#   MODEL_SHORT=gui-owl-32b   bash scripts/runpod_train_framing_probe.sh
+#   bash eval_awareness_experiments/scripts/runpod/train_framing_probe.sh                       # opencua-32b
+#   MODEL_SHORT=opencua-32b   bash eval_awareness_experiments/scripts/runpod/train_framing_probe.sh
+#   MODEL_SHORT=gui-owl-32b   bash eval_awareness_experiments/scripts/runpod/train_framing_probe.sh
 
 set -euo pipefail
 
@@ -18,11 +18,11 @@ MODEL_SHORT=${MODEL_SHORT:-opencua-32b}
 case "$MODEL_SHORT" in
     opencua-32b)
         MODEL_HF=xlangai/OpenCUA-32B
-        TRAIN_SCRIPT=scripts/train_probe_framing_opencua_32b.sh
+        TRAIN_SCRIPT=eval_awareness_experiments/scripts/probes/train_probe_framing_opencua_32b.sh
         ;;
     gui-owl-32b|gui-owl-32b-think)
         MODEL_HF=mPLUG/GUI-Owl-1.5-32B-Think
-        TRAIN_SCRIPT=scripts/train_probe_framing_gui_owl_32b.sh
+        TRAIN_SCRIPT=eval_awareness_experiments/scripts/probes/train_probe_framing_gui_owl_32b.sh
         ;;
     *)
         echo "Unknown MODEL_SHORT='$MODEL_SHORT'. Use opencua-32b or gui-owl-32b." >&2
@@ -32,13 +32,13 @@ esac
 
 # Step 1: setup (clone repo + build venv + install [cua]).
 if [ ! -d "$REPO_DIR/.git" ] || [ ! -d "$REPO_DIR/.venv" ]; then
-    echo "[orchestrator] running runpod_setup.sh..."
-    if [ -f "$(dirname "$0")/runpod_setup.sh" ]; then
-        bash "$(dirname "$0")/runpod_setup.sh"
+    echo "[orchestrator] running setup.sh..."
+    if [ -f "$(dirname "$0")/setup.sh" ]; then
+        bash "$(dirname "$0")/setup.sh"
     else
         # If we're being invoked from outside the repo (e.g. via curl),
         # bootstrap by cloning and re-execing the in-repo orchestrator.
-        echo "[orchestrator] runpod_setup.sh not found alongside this script;"
+        echo "[orchestrator] setup.sh not found alongside this script;"
         echo "                bootstrapping via clone-and-reexec."
         REPO_URL=${REPO_URL:-https://github.com/jasmineee-li/warp.git}
         BRANCH=${BRANCH:-claude/general-session-rsdA2}
@@ -48,8 +48,8 @@ if [ ! -d "$REPO_DIR/.git" ] || [ ! -d "$REPO_DIR/.venv" ]; then
         fi
         cd "$REPO_DIR"
         git fetch origin "$BRANCH" && git checkout "$BRANCH" && git pull --ff-only origin "$BRANCH"
-        bash scripts/runpod_setup.sh
-        exec env MODEL_SHORT="$MODEL_SHORT" bash scripts/runpod_train_framing_probe.sh
+        bash eval_awareness_experiments/scripts/runpod/setup.sh
+        exec env MODEL_SHORT="$MODEL_SHORT" bash eval_awareness_experiments/scripts/runpod/train_framing_probe.sh
     fi
 fi
 

@@ -17,8 +17,12 @@ runners, judges, and analysis.
 - **A new run, or reporting one:** read `experiment_log.md` newest-first and add
   the entry before scaling past a smoke test; read
   `results_presentation_guide.md` before publishing numbers.
-- **Resuming prior work:** `HANDOFF_*.md` and `RUN_*.md` are the historical
-  record; read the one naming your benchmark.
+- **Resuming prior work:** `docs/handoffs/` holds every `HANDOFF_*.md`,
+  `RUN_*.md`, and dated setup note; read the one naming your benchmark or
+  host.
+- **Judge and metric worked examples, design notes:** `docs/` in this tree.
+- **Probe training or scoring:** read `../probes/README.md`.
+- **Serving a local model:** read `../models/README.md`.
 
 ## Safety
 

@@ -87,7 +87,7 @@ text pairs, computes the difference-of-means vector per layer, and
 saves the result. Single H100, ~30 minutes.
 
 ```bash
-bash scripts/train_probe_opencua_32b.sh
+bash eval_awareness_experiments/scripts/probes/train_probe_opencua_32b.sh
 ```
 
 Output goes to `probes/trained/opencua-32b/`. Check
@@ -101,7 +101,7 @@ informative.
 
 ```bash
 tmux new -s vllm
-bash scripts/serve_opencua_32b.sh
+bash eval_awareness_experiments/scripts/serving/serve_opencua_32b.sh
 ```
 
 Wait until you see `Application startup complete` and the server is
@@ -110,7 +110,7 @@ listening on `:8001`. Detach (`Ctrl-b d`) and leave it running.
 ### 3. Run the matrix
 
 ```bash
-bash scripts/run_cua_eval_awareness_matrix.sh \
+bash eval_awareness_experiments/scripts/probes/run_cua_eval_awareness_matrix.sh \
     --model local/opencua-32b \
     --benchmark agentdojo \
     --probe-dir probes/trained/opencua-32b/ \
@@ -236,13 +236,13 @@ cell is enough for a directional read).
 
 ```bash
 # Train probe
-bash scripts/train_probe_opencua_32b.sh
+bash eval_awareness_experiments/scripts/probes/train_probe_opencua_32b.sh
 
 # Serve
-bash scripts/serve_opencua_32b.sh           # in tmux, port 8001
+bash eval_awareness_experiments/scripts/serving/serve_opencua_32b.sh           # in tmux, port 8001
 
 # Run the full matrix
-bash scripts/run_cua_eval_awareness_matrix.sh \
+bash eval_awareness_experiments/scripts/probes/run_cua_eval_awareness_matrix.sh \
     --model local/opencua-32b \
     --benchmark agentdojo \
     --probe-dir probes/trained/opencua-32b/ \
@@ -250,12 +250,12 @@ bash scripts/run_cua_eval_awareness_matrix.sh \
     --max-tasks 30
 
 # Just baselines (skip the slow HF cells)
-bash scripts/run_cua_eval_awareness_matrix.sh \
+bash eval_awareness_experiments/scripts/probes/run_cua_eval_awareness_matrix.sh \
     --model local/opencua-32b --benchmark agentdojo \
     --max-tasks 30 --skip-steered
 
 # Just steered cells (skip the vLLM cells)
-bash scripts/run_cua_eval_awareness_matrix.sh \
+bash eval_awareness_experiments/scripts/probes/run_cua_eval_awareness_matrix.sh \
     --model local/opencua-32b --benchmark agentdojo \
     --probe-dir probes/trained/opencua-32b/ --steering-alpha -3.0 \
     --max-tasks 15 --skip-baseline
@@ -287,9 +287,9 @@ Or if the repo is already cloned:
 
 ```bash
 cd /workspace/warp
-bash scripts/runpod_setup.sh                              # idempotent; safe to re-run
-MODEL_SHORT=opencua-32b bash scripts/runpod_train_framing_probe.sh
-MODEL_SHORT=gui-owl-32b bash scripts/runpod_train_framing_probe.sh
+bash eval_awareness_experiments/scripts/runpod/setup.sh                              # idempotent; safe to re-run
+MODEL_SHORT=opencua-32b bash eval_awareness_experiments/scripts/runpod/train_framing_probe.sh
+MODEL_SHORT=gui-owl-32b bash eval_awareness_experiments/scripts/runpod/train_framing_probe.sh
 ```
 
 Output lands in `probes/trained/<model>-framing/`. Compare against the

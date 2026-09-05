@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Launch one preset of glm-5:thinking on DoomArena n=100. Mirror of
-# scripts/wasp_n100_run.sh but pinned to the *duplicate* dockers
+# eval_awareness_experiments/scripts/wasp/launch_glm5_n100_preset.sh but pinned to the *duplicate* dockers
 # (gitlab_doom :9002, forum_doom :8081) plus the shared shopping containers.
 # Used by the parallel DoomArena Claude in tmux session `doom_n100`.
 #

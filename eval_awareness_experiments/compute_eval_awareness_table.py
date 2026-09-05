@@ -2,7 +2,7 @@
 eval-awareness paper's Table 2 (DoomArena & WASP, bare arm, n200).
 
 Usage: run from project root:
-    python scripts/compute_eval_awareness_table.py
+    uv run python -m eval_awareness_experiments.compute_eval_awareness_table
 """
 
 import json

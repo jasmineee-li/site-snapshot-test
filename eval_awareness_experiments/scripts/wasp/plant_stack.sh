@@ -2,8 +2,8 @@
 # Plant the full WASP prompt-injection task pool into one GitLab/forum stack.
 #
 # Usage:
-#   STACK=glm GITLAB_PORT=9201 REDDIT_PORT=8201 ./scripts/wasp_plant_full_stack.sh
-#   ./scripts/wasp_plant_full_stack.sh glm 9201 8201
+#   STACK=glm GITLAB_PORT=9201 REDDIT_PORT=8201 ./eval_awareness_experiments/scripts/wasp/plant_stack.sh
+#   ./eval_awareness_experiments/scripts/wasp/plant_stack.sh glm 9201 8201
 #
 # Output defaults:
 #   /tmp/wasp_full_plant_<stack>/

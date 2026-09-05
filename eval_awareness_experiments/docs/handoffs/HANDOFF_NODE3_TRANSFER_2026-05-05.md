@@ -89,8 +89,8 @@ time, including:
 
 - `probes/chat_template_experiment.py`
 - `probes/eval_sad_stages_oversight.py`
-- `scripts/compute_eval_awareness_table.py`
-- `eval_awareness_experiments/HANDOFF_ASR_OUTCOME_SPLIT_2026-05-04.md`
+- `eval_awareness_experiments/compute_eval_awareness_table.py`
+- `eval_awareness_experiments/docs/handoffs/HANDOFF_ASR_OUTCOME_SPLIT_2026-05-04.md`
 - `eval_awareness_experiments/launch_n200_toolcalling_bare.sh`
 
 ### Docker Images
@@ -167,8 +167,8 @@ Script used:
 
 ```bash
 cd /local_data/temp/browser-sim
-./scripts/setup_wasp_per_model_dockers.sh up
-./scripts/setup_wasp_per_model_dockers.sh health
+./eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh up
+./eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh health
 ```
 
 Health returned HTTP 200 for every GitLab/forum pair:
@@ -189,8 +189,8 @@ Commands used:
 ```bash
 ssh node3
 cd /local_data/temp/browser-sim
-./scripts/setup_wasp_per_model_dockers.sh health
-PARALLEL=1 ./scripts/wasp_plant_per_model_dockers.sh
+./eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh health
+PARALLEL=1 ./eval_awareness_experiments/scripts/wasp/plant_per_model_stacks.sh
 ```
 
 Logs are in:
@@ -230,7 +230,7 @@ Additional per-model stacks were created with:
 
 ```bash
 cd /local_data/temp/browser-sim
-./scripts/setup_doomarena_per_model_dockers.sh up
+./eval_awareness_experiments/scripts/doomarena/docker_stacks_per_model.sh up
 ```
 
 The script reported all additional stacks healthy. HTTP 200 was observed for:
@@ -266,7 +266,7 @@ Do these only if we continue on node3:
    cd /local_data/temp/browser-sim
    export HF_HOME=/local_data/group_dir/huggingface
    export HF_HUB_CACHE=/local_data/group_dir/huggingface/hub
-   CUDA_VISIBLE_DEVICES=0,1 TENSOR_PARALLEL_SIZE=2 bash scripts/serve_opencua_72b.sh
+   CUDA_VISIBLE_DEVICES=0,1 TENSOR_PARALLEL_SIZE=2 bash eval_awareness_experiments/scripts/serving/serve_opencua_72b.sh
    ```
 
    The wrapper defaults to `PORT=8002`, `TENSOR_PARALLEL_SIZE=2`,
@@ -278,7 +278,7 @@ Do these only if we continue on node3:
    cd /local_data/temp/browser-sim
    export HF_HOME=/local_data/group_dir/huggingface
    export HF_HUB_CACHE=/local_data/group_dir/huggingface/hub
-   CUDA_VISIBLE_DEVICES=0 bash scripts/serve_gui_owl_32b.sh
+   CUDA_VISIBLE_DEVICES=0 bash eval_awareness_experiments/scripts/serving/serve_gui_owl_32b.sh
    ```
 
    The wrapper defaults to `PORT=8003`, `TENSOR_PARALLEL_SIZE=1`.
@@ -289,8 +289,8 @@ Do these only if we continue on node3:
 
    - `eval_awareness_experiments/DOCKER_PORTS_MULTI.md`
    - `eval_awareness_experiments/launch_doomarena_per_model.sh`
-   - `scripts/wasp_plant_per_model_dockers.sh`
-   - `scripts/run_cua_eval_awareness_matrix.sh`
+   - `eval_awareness_experiments/scripts/wasp/plant_per_model_stacks.sh`
+   - `eval_awareness_experiments/scripts/probes/run_cua_eval_awareness_matrix.sh`
 
 3. Probe/steering caveat.
 
@@ -305,8 +305,8 @@ Do these only if we continue on node3:
 
    ```bash
    cd /local_data/temp/browser-sim
-   ./scripts/setup_wasp_per_model_dockers.sh stop
-   ./scripts/setup_doomarena_per_model_dockers.sh stop
+   ./eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh stop
+   ./eval_awareness_experiments/scripts/doomarena/docker_stacks_per_model.sh stop
    docker stop gitlab_doom forum_doom shopping shopping_admin
    ```
 
@@ -314,8 +314,8 @@ Do these only if we continue on node3:
 
    ```bash
    cd /local_data/temp/browser-sim
-   ./scripts/setup_wasp_per_model_dockers.sh rm
-   ./scripts/setup_doomarena_per_model_dockers.sh rm
+   ./eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh rm
+   ./eval_awareness_experiments/scripts/doomarena/docker_stacks_per_model.sh rm
    docker rm -f gitlab_doom forum_doom shopping shopping_admin
    ```
 

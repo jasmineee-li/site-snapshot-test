@@ -131,12 +131,12 @@ eval_awareness_experiments/
 
 ```bash
 # Run one combo end-to-end (runner + judges) via the unified pipeline
-python -m eval_awareness_experiments.run_safety_pipeline \
+uv run python -m eval_awareness_experiments.run_safety_pipeline \
     --benchmark doomarena --model-name anthropic/claude-opus-4.7:thinking \
     --condition baseline --tasks-per-split 20
 
 # Or dispatch a full matrix (benchmarks x conditions x models x presets)
-python -m eval_awareness_experiments.run_causal_experiment \
+uv run python -m eval_awareness_experiments.run_causal_experiment \
     --models anthropic/claude-opus-4.7:thinking anthropic/claude-sonnet-4.6:thinking \
     --benchmarks doomarena wasp agentdojo injecagent \
     --conditions baseline eval_cue scenario_cue \
@@ -148,25 +148,24 @@ python -m eval_awareness_experiments.run_causal_experiment \
 
 ```bash
 # Experiment A: Cross-benchmark comparison
-python -m eval_awareness_experiments.run \
+uv run python -m eval_awareness_experiments.run \
     --config eval_awareness_experiments/configs/eval_awareness_comparison.yaml
 
 # Experiment C: Judge causal experiment trajectories
-python -m eval_awareness_experiments.run \
+uv run python -m eval_awareness_experiments.run \
     --config eval_awareness_experiments/configs/causal_injection_experiment.yaml
 ```
 
 ### Step 3: Analyze results
 
 ```bash
-python -m eval_awareness_experiments.analysis_causal \
+uv run python -m eval_awareness_experiments.analysis_causal \
     --results-dir eval_awareness_experiments/results \
     --output-dir eval_awareness_experiments/figures
 ```
 
 ## Prerequisites
 
-1. **DoomArena**: `git clone https://github.com/ServiceNow/DoomArena && pip install -e DoomArena/doomarena/browsergym`
-2. **WASP**: `git clone https://github.com/facebookresearch/wasp` + VisualWebArena Docker setup
-3. **AgentLab**: Already in this repo — `pip install -e AgentLab/`
-4. **API keys**: Set `OPENROUTER_API_KEY` in `.env`
+1. **Environment**: `SETUP.md`
+2. **Benchmark services** (DoomArena, WASP, AgentDojo, InjecAgent, EIA): `SAFETY_BENCHMARKS_HANDOFF.md`
+3. **API keys**: Set `OPENROUTER_API_KEY` in `.env`

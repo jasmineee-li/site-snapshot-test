@@ -133,7 +133,7 @@ So you can now opt into all 4 splits with
 
 ```bash
 # Per-model docker stacks (8 stacks: glm/sonnet/opus/gpt/flash/pro/gemini25/kimi25).
-./scripts/setup_doomarena_per_model_dockers.sh up
+./eval_awareness_experiments/scripts/doomarena/docker_stacks_per_model.sh up
 
 # Verify all 8 gitlab stacks are healthy.
 docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "gitlab|forum" | head
@@ -202,7 +202,7 @@ Then launch as above.
 WASP shares ONE docker stack across all models (port 9001 / 8080), so
 we can't parallelize across models without a per-model WASP setup
 script (doesn't exist today; would mirror
-`scripts/setup_doomarena_per_model_dockers.sh` but with WASP-style
+`eval_awareness_experiments/scripts/doomarena/docker_stacks_per_model.sh` but with WASP-style
 images). For now, run sequentially in one `run_causal_experiment` call:
 
 ```bash

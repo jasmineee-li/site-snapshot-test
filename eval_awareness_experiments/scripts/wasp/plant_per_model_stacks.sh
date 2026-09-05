@@ -5,13 +5,13 @@
 # bootstraps. Set PARALLEL=1 to plant all selected stacks concurrently.
 #
 # Usage:
-#   ./scripts/wasp_plant_per_model_dockers.sh
-#   MODEL_STACK_FILTER="gpt gemini25 kimi25" ./scripts/wasp_plant_per_model_dockers.sh
-#   PARALLEL=1 ./scripts/wasp_plant_per_model_dockers.sh
+#   ./eval_awareness_experiments/scripts/wasp/plant_per_model_stacks.sh
+#   MODEL_STACK_FILTER="gpt gemini25 kimi25" ./eval_awareness_experiments/scripts/wasp/plant_per_model_stacks.sh
+#   PARALLEL=1 ./eval_awareness_experiments/scripts/wasp/plant_per_model_stacks.sh
 
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../../.."
 
 MODEL_STACK_FILTER="${MODEL_STACK_FILTER:-all}"
 PARALLEL="${PARALLEL:-0}"
@@ -53,12 +53,12 @@ for stack in "${STACKS[@]}"; do
     echo "[$slug] plant gitlab=:$gitlab_port reddit=:$reddit_port -> $log"
 
     if [ "$PARALLEL" = "1" ]; then
-        ./scripts/wasp_plant_full_stack.sh "$slug" "$gitlab_port" "$reddit_port" \
+        ./eval_awareness_experiments/scripts/wasp/plant_stack.sh "$slug" "$gitlab_port" "$reddit_port" \
             > "$log" 2>&1 &
         PIDS+=("$!")
         LABELS+=("$slug")
     else
-        ./scripts/wasp_plant_full_stack.sh "$slug" "$gitlab_port" "$reddit_port" \
+        ./eval_awareness_experiments/scripts/wasp/plant_stack.sh "$slug" "$gitlab_port" "$reddit_port" \
             > "$log" 2>&1
     fi
 done

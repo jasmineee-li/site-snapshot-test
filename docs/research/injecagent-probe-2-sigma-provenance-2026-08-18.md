@@ -119,7 +119,7 @@ the fact. Steering moves ASR without moving the within-arm safe-vs-attacked gap.
   `.gitkeep` and `manifest.yaml`, and the one probe checked in is
   `opencua-72b-chat-template-span/` — OpenCUA-72B, not GUI-Owl.
 - **Not the same run as the in-tree GUI-Owl probe record.**
-  `docs/HANDOFF_GUI_OWL_PROBE_RESULTS.md` (2026-05-04) describes GUI-Owl probes
+  `eval_awareness_experiments/docs/handoffs/HANDOFF_GUI_OWL_PROBE_RESULTS.md` (2026-05-04) describes GUI-Owl probes
   trained on the contrastive and framing-pair datasets, with best layers 47 and
   42 and a failed cross-format validation. It does not record the layer-9
   last-user-token InjecAgent scoring behind the README sentence. Do not read
@@ -127,7 +127,7 @@ the fact. Steering moves ASR without moving the within-arm safe-vs-attacked gap.
 
 Reproducing the number from scratch means retraining the probe and re-scoring
 the InjecAgent trajectories on GPU — see `probes/train_probe.py`,
-`probes/score_probe.py`, and `docs/HANDOFF_CUA_EVAL_AWARENESS.md`.
+`probes/score_probe.py`, and `eval_awareness_experiments/docs/handoffs/HANDOFF_CUA_EVAL_AWARENESS.md`.
 
 ## Verification
 

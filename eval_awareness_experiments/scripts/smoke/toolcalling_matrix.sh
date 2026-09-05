@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../../.."
 
 PYTHON=.venv/bin/python
 OUTPUT_BASE="eval_awareness_experiments/results/smoke_toolcalling_test_$(date +%Y%m%d_%H%M%S)"

@@ -6,6 +6,9 @@ setup (plants issues / posts via Playwright), so it gets its own
 dirtied originals. DoomArena does runtime injection only — gets fresh
 duplicates that stay clean for repeated runs.
 
+Per-model stacks (one GitLab and Reddit pair per model) are listed in
+`DOCKER_PORTS_MULTI.md`.
+
 ## Port layout
 
 | service | for **WASP** | for **DoomArena** | image |

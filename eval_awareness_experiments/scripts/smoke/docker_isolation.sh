@@ -10,14 +10,14 @@
 # Wallclock: ~3–5 minutes.
 #
 # Usage:
-#   ./scripts/smoke_isolation_test.sh
+#   ./eval_awareness_experiments/scripts/smoke/docker_isolation.sh
 #
 # Exits 0 if both runs complete with non-empty trajectory_awareness JSONLs.
 # Exits non-zero on any failure or pre-flight problem.
 
 set -euo pipefail
 
-cd "$(dirname "$0")/.."   # repo root
+cd "$(dirname "$0")/../../.."   # repo root
 
 PYTHON=.venv/bin/python
 OUTPUT_BASE="eval_awareness_experiments/results/smoke_isolation_test_$(date +%Y%m%d_%H%M%S)"
