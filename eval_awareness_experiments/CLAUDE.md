@@ -49,9 +49,9 @@ shared parsers, wrappers, runners, and judges single-sourced across benchmark
 tracks. Discover entry points and flags with `--help`, then run a bounded smoke
 test before scaling concurrency or task volume.
 
-Validate from the repository root with `uv run ruff check .`,
-`uv run black --check .`, and `uv run mypy`.
+Validate from the repository root with the gates listed in `SETUP.md` under
+"Lint, format, types, and tests".
 
-Work is complete when those three checks pass, cleanup is confirmed, and
+Work is complete when those gates pass, cleanup is confirmed, and
 `experiment_log.md` carries the evidence, limitations, and next action. A run is
 not complete merely because a process exited.
