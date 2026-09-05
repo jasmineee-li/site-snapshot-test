@@ -1143,7 +1143,7 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
 
 
 def _discover_browser(study_dir: Path) -> list[dict]:
-    """Same logic as run_doomarena_pipeline.discover_trajectory_dirs but reusable."""
+    """Discover browser trajectory dirs under a study directory."""
     trajectories: list[dict] = []
     for summary in sorted(study_dir.rglob("summary_info.json")):
         task_dir = summary.parent

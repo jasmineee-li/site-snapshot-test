@@ -106,10 +106,9 @@ In scope:
 - **MiniWob, WebArena, OSWorld, WorkArena** — supported by AgentLab
   but these are **capability/agent benchmarks**, not safety
   benchmarks. No injection attacks; no ASR concept. Out of scope.
-- **OS-Harm, SafeArena** — runners exist (`run_osharm.py`,
-  `run_safearena.py`) but they cover different attack vectors than
-  the four above. Could be added later; keeping the matrix tight for
-  this experiment.
+- **OS-Harm, SafeArena** — not integrated (runner stubs removed 2026-09).
+  They cover different attack vectors than the four above. Could be
+  added later; keeping the matrix tight for this experiment.
 
 ---
 

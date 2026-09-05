@@ -76,6 +76,6 @@ uv run python -m eval_awareness_experiments.extract_worldsim --results-dir resul
 
 ## TheAgentCompany (TAC)
 
-Agent trajectory data from TheAgentCompany benchmark runs. Imported via the old `eval_awareness` pipeline — see `eval_awareness/import_tac.py`.
+Agent trajectory data from TheAgentCompany benchmark runs. Imported by `eval_awareness/import_tac.py`, retired 2026-09; the importer is in git history at `f189369c`.
 
 Not yet integrated into the `eval_awareness_experiments` format.

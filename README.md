@@ -58,9 +58,10 @@ WARP measures each of those outcomes on every trajectory. A paint-verified paylo
 
 This repository holds the code, data, and analysis released with the paper.
 
+<!-- Owner to confirm: §3 is attributed to eval_awareness_experiments/ after retiring eval_awareness/, the unwired website-level pilot. -->
 | Paper contribution | Where it lives | What it does |
 |---|---|---|
-| Eval-awareness measurement + causal cue study (§3) | `eval_awareness/`, `eval_awareness_experiments/`, `probes/`, `models/` | Runs six models across DoomArena, WASP, AgentDojo, and InjecAgent; scores transcript-purpose and verbalized awareness; runs the eval-cue intervention and the residual-stream probe. |
+| Eval-awareness measurement + causal cue study (§3) | `eval_awareness_experiments/`, `probes/`, `models/` | Runs six models across DoomArena, WASP, AgentDojo, and InjecAgent; scores transcript-purpose and verbalized awareness; runs the eval-cue intervention and the residual-stream probe. |
 | The WARP generator (§4) | `packages/warp-taskgen/` | The five-phase pipeline: recon, benign-task generation, adversarial-twin seeding, admission, and scored rollout with the eval-awareness rewrite loop. |
 | Awareness toolkit (`browser-eval-realism`) | [released separately](https://github.com/jasmineee-li/eval-realism-tools) | The awareness-measurement layer packaged on its own, so any benchmark can report awareness without adopting WARP's generator. |
 

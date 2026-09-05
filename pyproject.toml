@@ -214,19 +214,10 @@ dev = [
     "types-PyYAML>=6.0",
     "ipython>=8.20",
     "ipykernel>=6.29",
-    # Notebook execution stack, driven by the nbmake pytest plugin. Only nbmake
-    # is strictly needed — it pulls nbclient and nbformat, and nbclient pulls
-    # jupyter-client — but all four carry declared version floors here, as they
-    # did in the extra this group replaces. Keeping them explicit means a floor
-    # is enforced even if a future nbmake loosens or drops one of these edges.
-    "jupyter-client>=8.6",
-    "nbclient>=0.10",
-    "nbformat>=5.10",
-    "nbmake>=1.5",
 ]
 
 [tool.setuptools]
-packages = ["probes", "models", "eval_awareness", "eval_awareness_experiments"]
+packages = ["probes", "models", "eval_awareness_experiments"]
 
 # `xgrammar` is constrained here rather than in the `cua` extra above because
 # nothing in this tree imports it. It is vLLM's guided-decoding engine, reached
@@ -305,15 +296,14 @@ force-exclude = '''
   | vendors             # vendored upstream sources, read-only reference
   | packages            # warp-taskgen formats with `ruff format`, not Black
   | worldsim            # retired namespace; HTML/PNG fixtures only
-  | notebooks           # imported DoomArena tutorial notebook, not first-party
   | webarena            # local WebArena clone; carried over from the old exclude
   | \.claude/worktrees  # agent topic worktrees
   | \.codex-worktrees   # agent topic worktrees
 )/
 '''
 
-# Root lint gate for the evaluation-awareness study tree (`eval_awareness/`,
-# `eval_awareness_experiments/`, `models/`, `probes/`, and the root-level
+# Root lint gate for the evaluation-awareness study tree
+# (`eval_awareness_experiments/`, `models/`, `probes/`, and the root-level
 # runner scripts). Black above stays authoritative for formatting; Ruff is
 # lint-only here, so there is deliberately no [tool.ruff.format] section.
 #
@@ -335,7 +325,6 @@ extend-exclude = [
     "packages/",          # warp-taskgen owns its own [tool.ruff] config
     "worldsim/",          # retired namespace, stale local build artifacts only
     "dist/",              # built wheels/sdists (also a Ruff default)
-    "notebooks/",         # imported tutorial notebook; no formatter owns it
     ".claude/worktrees/", # agent topic worktrees
     ".codex-worktrees/",  # agent topic worktrees
 ]
@@ -399,7 +388,6 @@ allowed-confusables = [
 # already writes them.
 combine-as-imports = true
 known-first-party = [
-    "eval_awareness",
     "eval_awareness_experiments",
     "models",
     "probes",
@@ -418,13 +406,11 @@ known-first-party = [
 # `ruff check .` and `black --check .`.
 [tool.mypy]
 files = [
-    "eval_awareness",
     "eval_awareness_experiments",
     "models",
     "probes",
     "scripts",
     "inspect_comparative.py",
-    "rerun_experiments.py",
 ]
 
 # Tracks `requires-python` by hand. Unlike Ruff, mypy infers nothing from it,
