@@ -76,3 +76,7 @@ jobs:
       - name: Run mypy
         if: steps.route.outputs.decision == 'run'
         run: uv run mypy
+
+      - name: Run pytest
+        if: steps.route.outputs.decision == 'run'
+        run: uv run pytest

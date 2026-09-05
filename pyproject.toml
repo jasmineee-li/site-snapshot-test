@@ -582,3 +582,33 @@ module = [
     "eval_awareness_experiments.injection_modifier",
 ]
 disallow_untyped_defs = true
+
+# Root test gate for the evaluation-awareness study tree. Scope is stated
+# positively with `testpaths`, for the same reason [tool.mypy] uses `files`:
+# without it a bare `pytest` walks the whole repository, and the first
+# `test_*.py` it meets under `AgentLab/`, `vendors/`, or a result tree
+# becomes part of the gate by accident. The five files below are every
+# test module in the tree that runs on `uv sync --locked --group dev` alone:
+# they stub the model client or skip when `agentlab` is absent, and none of
+# them needs a browser, a service, or a provider key.
+#
+# `--ignore` keeps `judges/test_awareness_steering.py` out of collection. That
+# file is a judge, not a test: its `test_` prefix is the judge's registered
+# name, and its `TestAwarenessSteeringJudge` class matches pytest's default
+# `Test*` class pattern, so any collection that reaches `judges/` (an explicit
+# `pytest eval_awareness_experiments/judges`, say) would import it and emit a
+# collection warning. `addopts` applies to explicit paths too; `testpaths`
+# does not.
+#
+# `asyncio_mode` is deliberately left at pytest-asyncio's default (`strict`).
+# The one coroutine test carries its own `@pytest.mark.asyncio`, which is what
+# strict mode expects, so there is nothing to configure.
+[tool.pytest.ini_options]
+testpaths = [
+    "eval_awareness_experiments/test_run_dispatch.py",
+    "eval_awareness_experiments/judges/test_needham_native_transcripts.py",
+    "eval_awareness_experiments/judges/test_purpose_continue_5q.py",
+    "models/common/test_agentlab_args.py",
+    "scripts/test_root_gate_router.py",
+]
+addopts = "--ignore=eval_awareness_experiments/judges/test_awareness_steering.py"

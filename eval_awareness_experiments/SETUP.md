@@ -37,7 +37,7 @@ Keep provider keys in the root `.env` or the approved process environment.
 Never paste a key, token, authenticated browser state, or private host value
 into a command, config committed to git, result, or handoff.
 
-## Lint, format, and types
+## Lint, format, types, and tests
 
 The root `[tool.ruff]` config lints this tree — `eval_awareness/`,
 `eval_awareness_experiments/`, `models/`, `probes/`, and the root-level runner
@@ -54,18 +54,20 @@ own acceptance gate. Do not silence a finding with a blanket `ignore` when a
 targeted `per-file-ignores` entry or a `# noqa` with a reason will do.
 
 `[tool.mypy]` type-checks the same tree plus `scripts/` and the two root runner
-modules; `[tool.mypy] files` is the authoritative list. Run the remaining two
-gates from the repository root as well:
+modules; `[tool.mypy] files` is the authoritative list. `[tool.pytest.ini_options]`
+`testpaths` names the test modules that run on the locked environment alone.
+Run the remaining three gates from the repository root as well:
 
 ```bash
 uv run black --check .
 uv run mypy
+uv run pytest
 ```
 
-mypy takes no path argument here — it reads its own roots, so a bare
-`uv run mypy` is the whole gate. Write a suppression as `# type: ignore[<code>]`
-with a reason rather than a bare `# type: ignore`, so the gate reports it once
-it stops being needed.
+mypy and pytest take no path argument here — each reads its own roots, so a
+bare `uv run mypy` or `uv run pytest` is the whole gate. Write a suppression as
+`# type: ignore[<code>]` with a reason rather than a bare `# type: ignore`, so
+the gate reports it once it stops being needed.
 
 ## Route by setup type
 
