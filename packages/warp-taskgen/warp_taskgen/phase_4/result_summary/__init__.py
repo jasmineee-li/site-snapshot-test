@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 # ruff: noqa: F401
-from warp_taskgen.phase_4.result_summary import _impl as _legacy_impl
 from warp_taskgen.phase_4.result_summary.action_metrics import action_success_by_tier
 from warp_taskgen.phase_4.result_summary.audit import variant_regeneration_audit
 from warp_taskgen.phase_4.result_summary.final_metrics import (
+    COMPLIED_FINAL_STATUSES,
+    NON_SCORABLE_FINAL_STATUSES,
     ecologically_valid,
     final_compliant_result_has_adversarial_reward,
     final_metric_checked,
@@ -28,8 +29,4 @@ from warp_taskgen.phase_4.result_summary.task_metadata import (
     task_scenario_template,
     task_site,
     task_surface,
-)
-
-globals().update(
-    {name: value for name, value in vars(_legacy_impl).items() if not name.startswith("__")}
 )
