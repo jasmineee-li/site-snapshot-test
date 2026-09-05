@@ -27,7 +27,8 @@ from warp_taskgen.phase_1.gitlab_compare_decide_reward import (
     grade_gitlab_compare_decide,
     materialize_gitlab_compare_decide_reward,
 )
-from warp_taskgen.phase_2.phase_2c import _impl as phase_2c_impl
+from warp_taskgen.phase_2.phase_2c import verifier
+from warp_taskgen.phase_2.phase_2c.probe_bundle import Phase2cProbeBundle
 from warp_taskgen.phase_2.phase_2c.reddit_attribution import (
     _attach_gitlab_issue_note_state_probe_anchors,
 )
@@ -109,9 +110,7 @@ def _bound_metadata(
     task: dict[str, Any], *, ids: tuple[str, str, str], attempt_id: str = "attempt-1"
 ) -> dict[str, Any]:
     rows = []
-    for index, (record, physical_id) in enumerate(
-        zip(task["world"]["records"], ids, strict=True)
-    ):
+    for index, (record, physical_id) in enumerate(zip(task["world"]["records"], ids, strict=True)):
         rows.append(
             {
                 "call_index": index,
@@ -203,9 +202,9 @@ def test_generated_world_changes_winner_when_decisive_fact_moves() -> None:
 
     assert select_gitlab_record(world).logical_record_key == "release-blocker"
     assert select_gitlab_record(moved).logical_record_key == "docs-gap"
-    assert expected_gitlab_compare_decide_response(world) != expected_gitlab_compare_decide_response(
-        moved
-    )
+    assert expected_gitlab_compare_decide_response(
+        world
+    ) != expected_gitlab_compare_decide_response(moved)
     assert world.decision_rule["state"] == "open"
     assert world.decision_rule["dependency"] == "release-4"
 
@@ -254,10 +253,13 @@ def test_end_to_end_seed_bind_and_exact_grade_uses_selected_logical_key() -> Non
 
     expected = task["reward_function"]["eval"][0]["expected"]
     assert grade_gitlab_compare_decide(task, {**expected})[0] is True
-    assert grade_gitlab_compare_decide(
-        task,
-        {**expected, "retrieved_data": [*expected["retrieved_data"], "extra=field"]},
-    )[0] is False
+    assert (
+        grade_gitlab_compare_decide(
+            task,
+            {**expected, "retrieved_data": [*expected["retrieved_data"], "extra=field"]},
+        )[0]
+        is False
+    )
 
 
 def test_seed_emits_independent_records_with_logical_key_and_benchmark() -> None:
@@ -299,9 +301,7 @@ def test_vertical_seed_rebind_and_reward_dispatch_uses_fresh_selected_record() -
     _, phase2c_metadata = apply_data_seed(
         task["data_seed"], instance, seed_registry=_fake_registry()
     )
-    phase2c_binding = bind_gitlab_compare_decide_attempt(
-        task, phase2c_metadata, phase="phase2c"
-    )
+    phase2c_binding = bind_gitlab_compare_decide_attempt(task, phase2c_metadata, phase="phase2c")
 
     # A reset creates a fresh set of physical issue IDs while preserving the
     # generated logical records and decision rule.
@@ -478,16 +478,16 @@ def test_binder_rejects_seed_declaration_drift() -> None:
 
 
 @pytest.mark.asyncio
-async def test_phase2c_join_records_strict_binding_diagnostic(monkeypatch) -> None:
+async def test_phase2c_join_records_strict_binding_diagnostic() -> None:
     task = compile_gitlab_compare_decide_task(generate_gitlab_compare_decide_world())
     cleanup = _FakeCleanup()
-    monkeypatch.setattr(
-        phase_2c_impl,
-        "apply_data_seed_async",
-        AsyncMock(return_value=(cleanup, _bound_metadata(task, ids=("gl-1001", "gl-1002", "gl-1003")))),
+    bundle = Phase2cProbeBundle.default(
+        apply_seed=AsyncMock(
+            return_value=(cleanup, _bound_metadata(task, ids=("gl-1001", "gl-1002", "gl-1003")))
+        ),
     )
 
-    result = await phase_2c_impl._verify_one(
+    result = await verifier._verify_one(
         task,
         {"site_name": "gitlab", "site_url": "https://gitlab.invalid"},
         retry_count=0,
@@ -496,6 +496,7 @@ async def test_phase2c_join_records_strict_binding_diagnostic(monkeypatch) -> No
         force_reverify=True,
         cleanup_warnings=[],
         browser=None,
+        probes=bundle,
     )
 
     assert result["feasibility"]["status"] == "verified"

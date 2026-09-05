@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from warp_taskgen.phase_2.phase_2c import _impl
+from warp_taskgen.phase_2.phase_2c import runner
 from warp_taskgen.phase_2.phase_2c.checkpoints import (
     CHECKPOINT_SCHEMA_VERSION,
     CheckpointValidationError,
@@ -18,6 +18,8 @@ from warp_taskgen.phase_2.phase_2c.checkpoints import (
     task_fingerprint,
     write_checkpoint,
 )
+from warp_taskgen.phase_2.phase_2c.probe_bundle import Phase2cProbeBundle
+from warp_taskgen.seeding.site_contracts import SeedSiteRegistration, SeedSiteRegistry
 
 
 def _task() -> dict[str, object]:
@@ -289,7 +291,7 @@ async def test_verify_reconstructs_verified_outcome_without_seed_after_crash_bou
 
     calls = {"seed": 0}
 
-    async def apply(_seed: dict[str, Any], _instance: dict[str, Any]):
+    async def apply(_seed: dict[str, Any], _instance: dict[str, Any], **_kwargs: Any):
         calls["seed"] += 1
         return _Handle(), {}
 
@@ -297,18 +299,20 @@ async def test_verify_reconstructs_verified_outcome_without_seed_after_crash_bou
         return []
 
     monkeypatch.setenv("WORLDSIM_PHASE_2C_SKIP_RENDER_CHECK", "1")
-    monkeypatch.setattr(_impl, "acquire_tokens_for_instances", lambda _instances: [])
-    monkeypatch.setattr(
-        _impl,
-        "EDITOR_REGISTRY",
-        {("webarena_verified", "gitlab"): _Editor},
+    seed_registry = SeedSiteRegistry.from_registrations(
+        (SeedSiteRegistration("webarena_verified", "gitlab", _Editor),)
     )
-    monkeypatch.setattr(_impl, "_run_preflight_and_filter_raw", no_preflight)
-    monkeypatch.setattr(_impl, "apply_data_seed_async", apply)
+    bundle = Phase2cProbeBundle.default(
+        acquire_tokens=lambda _instances: [],
+        source_data_preflight=no_preflight,
+        apply_seed=apply,
+    )
 
     checkpoint_dir = tmp_path / "checkpoints"
-    first = await _impl.verify_feasibility(
+    first = await runner.verify_feasibility(
         tasks_path,
+        probes=bundle,
+        seed_registry=seed_registry,
         instances=[instance],
         concurrency=1,
         retry_count=0,
@@ -331,9 +335,14 @@ async def test_verify_reconstructs_verified_outcome_without_seed_after_crash_bou
     async def should_not_seed(*_args: Any, **_kwargs: Any):
         raise AssertionError("compatible checkpoint should be reused")
 
-    monkeypatch.setattr(_impl, "apply_data_seed_async", should_not_seed)
-    second = await _impl.verify_feasibility(
+    second = await runner.verify_feasibility(
         tasks_path,
+        probes=Phase2cProbeBundle.default(
+            acquire_tokens=lambda _instances: [],
+            source_data_preflight=no_preflight,
+            apply_seed=should_not_seed,
+        ),
+        seed_registry=seed_registry,
         instances=[instance],
         concurrency=1,
         retry_count=0,

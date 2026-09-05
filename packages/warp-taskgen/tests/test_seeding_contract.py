@@ -195,6 +195,6 @@ class TestFeasibilityCategorization:
         # guard — a full integration test would require a live instance.
         from pathlib import Path
 
-        src = Path("warp_taskgen/phase_2/phase_2c/_impl.py").read_text()
+        src = Path("warp_taskgen/phase_2/phase_2c/verifier.py").read_text()
         assert "except UnboundTokenError" in src
         assert 'kind="contract_violation"' in src

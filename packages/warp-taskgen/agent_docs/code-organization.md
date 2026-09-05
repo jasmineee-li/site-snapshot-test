@@ -21,7 +21,9 @@ Current and target ownership should stay explicit:
   reddit attribution, admission guards, render/reachability probes,
   source-data preflight, per-task verification, and runner orchestration. The
   historical `warp_taskgen.phases.phase_2_feasibility` facade was removed in Wave D;
-  callers and patch points use this feature-owned package.
+  callers and patch points use this feature-owned package. The `_impl.py`
+  parity module is retired: the loop takes its collaborators through
+  `probe_bundle.Phase2cProbeBundle`.
 - `warp_taskgen.phase_2.exposure_contract`: deterministic Phase 2 exposure
   contracts split by signature, builder, seed-template materialization, exposure
   modes, candidate selection, Phase 4 exposure gates, route metadata,
