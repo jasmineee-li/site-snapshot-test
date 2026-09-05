@@ -55,18 +55,10 @@ from warp_taskgen.adversarial_actions.catalog import (
     describe_action_kind,
     get_action_spec,
 )
-from warp_taskgen.adversarial_actions.compiler import (
-    ACTION_KINDS,
-    ACTION_POLICIES,
-    ACTION_SIGNAL_BY_KIND,
-    action_metadata_for_task,
+from warp_taskgen.adversarial_actions.options import (
     allowed_action_options,
     annotate_exposure_contracts_with_action_policy,
     annotate_exposure_contracts_with_actions,
-    canonical_action_policy,
-    compile_adversarial_final_state_check,
-    compile_adversarial_reward,
-    reward_signal_for_task,
 )
 from warp_taskgen.adversarial_actions.payload_guidance import (
     action_payload_guidance_text,
@@ -74,6 +66,7 @@ from warp_taskgen.adversarial_actions.payload_guidance import (
     action_payload_preservation_report,
     build_action_payload_guidance,
 )
+from warp_taskgen.adversarial_actions.policies import ACTION_POLICIES, canonical_action_policy
 from warp_taskgen.adversarial_actions.precondition_slots import (
     PRECONDITION_FORBIDDEN_EXACT_FIELDS,
     PRECONDITION_SLOT_FRAMES,
@@ -85,7 +78,19 @@ from warp_taskgen.adversarial_actions.precondition_slots import (
     precondition_slot_model_projection_from_task,
     validate_precondition_slot,
 )
+from warp_taskgen.adversarial_actions.public_mutation_compiler import (
+    compile_public_benign_mutation_evaluator,
+    compile_public_mutation_network_reward,
+)
 from warp_taskgen.adversarial_actions.readiness import build_action_readiness_artifacts
+from warp_taskgen.adversarial_actions.reward_compiler import (
+    compile_adversarial_final_state_check,
+    compile_adversarial_reward,
+)
+from warp_taskgen.adversarial_actions.reward_introspection import (
+    action_metadata_for_task,
+    reward_signal_for_task,
+)
 from warp_taskgen.adversarial_actions.scenario_templates import (
     SCENARIO_TEMPLATE_ALLOWED_FRAMES,
     SCENARIO_TEMPLATE_SCHEMA_VERSION,
@@ -95,6 +100,7 @@ from warp_taskgen.adversarial_actions.scenario_templates import (
     scenario_template_model_projection_from_task,
     validate_scenario_template,
 )
+from warp_taskgen.adversarial_actions.shared_compiler import ACTION_KINDS, ACTION_SIGNAL_BY_KIND
 from warp_taskgen.adversarial_actions.tier3 import (
     TIER3_ADAPTER_SPECS,
     TIER3_MATURITY_LEVELS,
@@ -162,6 +168,8 @@ __all__ = [
     "compatible_action_kinds_from_task",
     "compile_adversarial_final_state_check",
     "compile_adversarial_reward",
+    "compile_public_benign_mutation_evaluator",
+    "compile_public_mutation_network_reward",
     "control_action_kinds_from_task",
     "describe_action_capability",
     "describe_action_kind",

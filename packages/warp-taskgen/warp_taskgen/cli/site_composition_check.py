@@ -56,7 +56,7 @@ def _add_check_parser(parent: Any, *, help_text: str) -> None:
     _add_check_arguments(check_parser)
 
 
-def add_site_composition_parser(subparsers: Any, *, include_doctor_alias: bool = True) -> None:
+def add_site_composition_parser(subparsers: Any) -> None:
     """Add the canonical nested ``site composition check`` parser."""
 
     site_parser = subparsers.add_parser(
@@ -76,14 +76,6 @@ def add_site_composition_parser(subparsers: Any, *, include_doctor_alias: bool =
         composition_subparsers,
         help_text="Check one Site Composition without contacting a host.",
     )
-    if include_doctor_alias:
-        doctor_parser = site_subparsers.add_parser(
-            "doctor",
-            help="Compatibility alias for `site composition check`.",
-        )
-        # The compatibility alias intentionally accepts the same exact fields
-        # without adding a second command word.
-        _add_check_arguments(doctor_parser)
 
 
 def _compile_default(
@@ -170,12 +162,10 @@ def _exit_code(report: Any) -> int:
 def dispatch_site_composition(args: argparse.Namespace) -> int:
     """Compile and render one explicit static Site Composition request."""
 
-    if getattr(args, "site_command", None) == "composition":
-        if getattr(args, "composition_command", None) != "check":
-            return 2
-    elif getattr(args, "site_command", None) == "doctor":
-        pass
-    else:
+    if (
+        getattr(args, "site_command", None) != "composition"
+        or getattr(args, "composition_command", None) != "check"
+    ):
         return 2
     try:
         report = _compile_default(

@@ -13,8 +13,8 @@ from tests.phase_1.test_gitlab_compare_generated_content import (
     _compile,
     _source_task,
 )
-from warp_taskgen import main as worldsim_main
 from warp_taskgen import task_bank
+from warp_taskgen.cli import main
 from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
     compile_phase1_gitlab_compare_act_task,
     compile_phase1_gitlab_compare_decide_task,
@@ -233,7 +233,7 @@ def test_task_bank_cli_appends_phase2c_and_reports_status(
         encoding="utf-8",
     )
 
-    rc = worldsim_main.main(["task-bank", "append", "--run-dir", str(run_dir)])
+    rc = main(["task-bank", "append", "--run-dir", str(run_dir)])
 
     assert rc == 0
     out = capsys.readouterr().out
@@ -241,7 +241,7 @@ def test_task_bank_cli_appends_phase2c_and_reports_status(
     assert "By site: gitlab=1" in out
     assert "private_note" not in out
 
-    rc = worldsim_main.main(["task-bank", "status"])
+    rc = main(["task-bank", "status"])
 
     assert rc == 0
     out = capsys.readouterr().out
@@ -265,11 +265,9 @@ def test_task_bank_cli_export_summary(
     )
     export_path = tmp_path / "summary.json"
 
-    assert worldsim_main.main(["task-bank", "append", "--run-dir", str(run_dir)]) == 0
+    assert main(["task-bank", "append", "--run-dir", str(run_dir)]) == 0
     capsys.readouterr()
-    assert (
-        worldsim_main.main(["task-bank", "export", "--summary", "--output", str(export_path)]) == 0
-    )
+    assert main(["task-bank", "export", "--summary", "--output", str(export_path)]) == 0
 
     payload = json.loads(export_path.read_text(encoding="utf-8"))
     assert payload["admitted_tasks"] == 1
@@ -300,15 +298,15 @@ def test_task_bank_cli_export_raw_excludes_retired_by_default(
     )
     export_path = tmp_path / "events.json"
 
-    assert worldsim_main.main(["task-bank", "append", "--run-dir", str(run_dir)]) == 0
+    assert main(["task-bank", "append", "--run-dir", str(run_dir)]) == 0
     capsys.readouterr()
-    assert worldsim_main.main(["task-bank", "export", "--output", str(export_path)]) == 0
+    assert main(["task-bank", "export", "--output", str(export_path)]) == 0
 
     payload = json.loads(export_path.read_text(encoding="utf-8"))
     assert [event["task_id"] for event in payload] == ["adv_gitlab_active"]
 
     assert (
-        worldsim_main.main(
+        main(
             [
                 "task-bank",
                 "export",

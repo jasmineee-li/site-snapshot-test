@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 
-from warp_taskgen.adversarial_actions.compiler import (
+from warp_taskgen.adversarial_actions import (
     compile_public_mutation_network_reward,
 )
 from warp_taskgen.rewards import run_reward_function

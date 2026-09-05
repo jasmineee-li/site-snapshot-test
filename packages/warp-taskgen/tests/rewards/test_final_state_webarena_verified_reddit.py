@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from warp_taskgen.adversarial_actions.compiler import (
+from warp_taskgen.adversarial_actions import (
     compile_public_benign_mutation_evaluator,
 )
 from warp_taskgen.rewards import run_reward_function

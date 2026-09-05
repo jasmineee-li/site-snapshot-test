@@ -10,7 +10,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from warp_taskgen import main as worldsim_main
 from warp_taskgen.adversarial_actions.capability_adapters import (
     capability_adapters_for_profile,
 )
@@ -21,6 +20,8 @@ from warp_taskgen.adversarial_actions.capability_contracts import (
 from warp_taskgen.adversarial_actions.capability_task_cards import (
     compile_capability_task_card_plan,
 )
+from warp_taskgen.cli import _impl as cli_impl
+from warp_taskgen.cli import build_parser
 from warp_taskgen.phase_1 import novel_task_validation as phase_1_generate_new_tasks_validation
 from warp_taskgen.phase_1.novel_task_validation import task_cards
 from warp_taskgen.phase_2.target_resolution.constants import LISTING_DETAIL_FORCING_REGEXES
@@ -941,7 +942,7 @@ def _novel_task(
 
 
 def test_build_parser_accepts_generate_novel_flag():
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
 
     args = parser.parse_args(["phase", "1", "--generate-novel"])
 
@@ -949,7 +950,7 @@ def test_build_parser_accepts_generate_novel_flag():
 
 
 def test_build_parser_accepts_phase_0_host_inventory_instances(tmp_path):
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
     inventory_path = tmp_path / "instances.scale.json"
 
     args = parser.parse_args(
@@ -967,7 +968,7 @@ def test_build_parser_accepts_phase_0_host_inventory_instances(tmp_path):
 
 
 def test_build_parser_accepts_novel_tasks_per_site_aliases():
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
 
     args = parser.parse_args(["phase", "1", "--novel-tasks-per-site", "50"])
     alias_args = parser.parse_args(["phase", "1", "--new-tasks-per-site", "24"])
@@ -977,7 +978,7 @@ def test_build_parser_accepts_novel_tasks_per_site_aliases():
 
 
 def test_build_parser_accepts_phase_1_action_counts():
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
 
     args = parser.parse_args(
         [
@@ -992,7 +993,7 @@ def test_build_parser_accepts_phase_1_action_counts():
 
 
 def test_build_parser_accepts_phase_1_task_card_plan(tmp_path):
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
     plan_path = tmp_path / "task_cards.json"
 
     args = parser.parse_args(["phase", "1", "--task-card-plan", str(plan_path)])
@@ -1001,7 +1002,7 @@ def test_build_parser_accepts_phase_1_task_card_plan(tmp_path):
 
 
 def test_build_parser_accepts_phase_1_task_capability_profile():
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
 
     args = parser.parse_args(["phase", "1", "--task-capability-profile", "tier3_repository_pilot"])
 
@@ -1009,7 +1010,7 @@ def test_build_parser_accepts_phase_1_task_capability_profile():
 
 
 def test_build_parser_accepts_sandbox_model_flag_for_phase_3():
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
 
     args = parser.parse_args(
         ["phase", "3", "--instances", "instances.json", "--sandbox-model", "claude-opus-4-6"]
@@ -1019,7 +1020,7 @@ def test_build_parser_accepts_sandbox_model_flag_for_phase_3():
 
 
 def test_build_parser_rejects_removed_phase_2a_modal_flags():
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
 
     with pytest.raises(SystemExit):
         parser.parse_args(
@@ -1043,7 +1044,7 @@ def test_build_parser_rejects_removed_phase_2a_modal_flags():
 
 
 def test_build_parser_accepts_phase_2_text_fill_flags():
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
 
     args = parser.parse_args(
         [
@@ -1064,7 +1065,7 @@ def test_build_parser_accepts_phase_2_text_fill_flags():
 
 
 def test_build_parser_accepts_phase_2a_action_policy():
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
 
     for policy in (
         "mutation_when_available",
@@ -1086,7 +1087,7 @@ def test_build_parser_accepts_phase_2a_action_policy():
 
 
 def test_phase_2_help_mentions_sequential_2a_2b_stages():
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
     help_text = " ".join(_subparser(parser, "phase").format_help().split())
     assert "Phase 2 is one command with two internal model stages" in help_text
     assert "2a host-side API strategy planning, then 2b host-side text fill" in help_text
@@ -1094,7 +1095,7 @@ def test_phase_2_help_mentions_sequential_2a_2b_stages():
 
 
 def test_resume_help_mentions_phase_2_stage_resume():
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
     resume_parser = _subparser(parser, "resume")
     help_text = " ".join(resume_parser.format_help().split())
     description = " ".join((resume_parser.description or "").split())
@@ -1105,7 +1106,7 @@ def test_resume_help_mentions_phase_2_stage_resume():
 
 
 def test_build_parser_accepts_resume_no_l3_l4_flag():
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
 
     args = parser.parse_args(["resume", "--no-l3-l4"])
 
@@ -1113,7 +1114,7 @@ def test_build_parser_accepts_resume_no_l3_l4_flag():
 
 
 def test_build_parser_accepts_resume_phase_4_timeout_overrides():
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
 
     args = parser.parse_args(
         [
@@ -1136,7 +1137,7 @@ def test_build_parser_accepts_resume_phase_4_timeout_overrides():
 
 
 def test_build_parser_accepts_phase_4_task_timeout_override():
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
 
     args = parser.parse_args(
         ["phase", "4", "--agent-task-timeout", "900", "--phase-4-max-workers", "5"]
@@ -1159,12 +1160,12 @@ def test_dispatch_resume_preserves_saved_phase_2_l1_l2_mode(monkeypatch, tmp_pat
         },
     )
 
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
     args = parser.parse_args(["resume"])
     captured: dict[str, object] = {}
 
     monkeypatch.setattr(
-        worldsim_main,
+        cli_impl,
         "_install_verification_proxy_from_args",
         lambda synthetic: None,
     )
@@ -1173,9 +1174,9 @@ def test_dispatch_resume_preserves_saved_phase_2_l1_l2_mode(monkeypatch, tmp_pat
         captured["args"] = synthetic
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(args)
+    rc = cli_impl._dispatch_resume(args)
 
     assert rc == 0
     synthetic = captured["args"]
@@ -1196,7 +1197,7 @@ def test_dispatch_resume_preserves_saved_phase_2_l1_l2_mode(monkeypatch, tmp_pat
     ],
 )
 def test_build_parser_rejects_non_positive_max_tasks_per_site(argv):
-    parser = worldsim_main.build_parser()
+    parser = build_parser()
 
     with pytest.raises(SystemExit, match="2"):
         parser.parse_args(argv)

@@ -72,3 +72,11 @@ def test_retired_wave_d_paths_stay_absent() -> None:
     )
     for module in retired:
         assert importlib.util.find_spec(f"warp_taskgen.phases.{module}") is None
+
+
+def test_main_is_a_thin_entrypoint() -> None:
+    module = importlib.import_module("warp_taskgen.main")
+    retired = {"_legacy_impl", "_ORIGINAL_IMPL_FUNCS", "_sync_legacy_patches", "_dispatch_resume"}
+
+    assert set(vars(module)) & retired == set()
+    assert module.__all__ == ["build_parser", "main"]

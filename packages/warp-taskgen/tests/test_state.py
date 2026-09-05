@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from warp_taskgen import main as worldsim_main
 from warp_taskgen.browser_use_agent import AgentResult
+from warp_taskgen.cli import _impl as cli_impl
 from warp_taskgen.eval_worker_pool import load_completed_results
 from warp_taskgen.phases import phase_1_tasks
 from warp_taskgen.resume_metadata import RESULT_FINGERPRINT_KEY
@@ -17,19 +17,14 @@ from warp_taskgen.trajectory import save_result
 
 
 @pytest.fixture(autouse=True)
-def _isolate_state_and_cli_patch(monkeypatch):
-    """Keep direct env writes and the compatibility facade local to one test."""
+def _isolate_state_env(monkeypatch):
+    """Keep direct state-dir env writes local to one test."""
 
     # Track an explicit delete so direct production assignments are undone by
     # pytest's existing monkeypatch lifecycle, even when the key was absent.
     for key in ("WARP_TASKGEN_STATE_DIR", "WORLDSIM_STATE_DIR"):
         monkeypatch.setenv(key, "")
         monkeypatch.delenv(key)
-
-    original_dispatch = worldsim_main._ORIGINAL_IMPL_FUNCS["_dispatch_phase"]
-    worldsim_main._legacy_impl._dispatch_phase = original_dispatch
-    yield
-    worldsim_main._legacy_impl._dispatch_phase = original_dispatch
 
 
 def test_state_dir_honors_runtime_env_override(monkeypatch, tmp_path):
@@ -138,8 +133,6 @@ def test_run_definition_context_rejects_existing_identity_mismatch(monkeypatch, 
 
 
 def test_fresh_cli_phase_binds_identity_before_first_checkpoint(monkeypatch, tmp_path):
-    from warp_taskgen.cli import _impl as cli_impl
-
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path / "fresh"))
 
@@ -166,8 +159,6 @@ def test_fresh_cli_phase_binds_identity_before_first_checkpoint(monkeypatch, tmp
 
 
 def test_direct_phase_keeps_existing_legacy_state_without_logs_dir(monkeypatch, tmp_path):
-    from warp_taskgen.cli import _impl as cli_impl
-
     monkeypatch.chdir(tmp_path)
     state_dir = tmp_path / "legacy"
     state_dir.mkdir()
@@ -570,9 +561,9 @@ def test_dispatch_resume_restores_logs_dir_from_state(monkeypatch, tmp_path):
         captured["logs_dir"] = get_state_dir()
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(
+    rc = cli_impl._dispatch_resume(
         Namespace(
             benchmark=None,
             config=None,
@@ -617,9 +608,9 @@ def test_identity_aware_resume_refuses_definition_drift_without_writing(
         called = True
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace(agent_model="changed-model"))
+    rc = cli_impl._dispatch_resume(Namespace(agent_model="changed-model"))
 
     assert rc == 2
     assert called is False
@@ -652,9 +643,9 @@ def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(monke
         captured["agent_step_timeout"] = args.agent_step_timeout
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace())
+    rc = cli_impl._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -683,9 +674,9 @@ def test_dispatch_resume_treats_legacy_phase_4_state_as_strategy_variation(monke
         captured["phase_4_variant_system"] = args.phase_4_variant_system
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace())
+    rc = cli_impl._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -713,9 +704,9 @@ def test_dispatch_resume_overrides_saved_phase_4_timeouts(monkeypatch, tmp_path)
         captured["agent_step_timeout"] = args.agent_step_timeout
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace(agent_llm_timeout=240, agent_step_timeout=300))
+    rc = cli_impl._dispatch_resume(Namespace(agent_llm_timeout=240, agent_step_timeout=300))
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -747,9 +738,9 @@ def test_dispatch_resume_accepts_legacy_statusless_mirror(monkeypatch, tmp_path)
         captured["instances"] = args.instances
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace())
+    rc = cli_impl._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -778,9 +769,9 @@ def test_dispatch_resume_retries_failed_checkpoint(monkeypatch, tmp_path):
         captured["agent_model"] = args.agent_model
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace())
+    rc = cli_impl._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -793,8 +784,6 @@ def test_phase_1_failed_generation_retry_and_resume_preserve_task_profile(
     tmp_path,
 ):
     """A failed Phase 1 generation can be retried through the identified CLI run."""
-    from warp_taskgen.cli import _impl as cli_impl
-
     monkeypatch.chdir(tmp_path)
     state_dir = tmp_path / "run"
     monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(state_dir))
@@ -837,9 +826,7 @@ def test_phase_1_failed_generation_retry_and_resume_preserve_task_profile(
     )
 
     # The initial generation fails after writing its identified checkpoint.
-    # Calling through the compatibility facade also restores the implementation
-    # hook if a preceding facade test replaced it while exercising resume.
-    assert worldsim_main._dispatch_phase(phase_args) == 1
+    assert cli_impl._dispatch_phase(phase_args) == 1
     state = load_state()
     assert state is not None
     assert state["reason"] == "new_task_generation_failed"
@@ -848,7 +835,7 @@ def test_phase_1_failed_generation_retry_and_resume_preserve_task_profile(
 
     # An identical explicit retry must reach Phase 1 again, not fail identity
     # validation because the failed checkpoint dropped the profile.
-    assert worldsim_main._dispatch_phase(phase_args) == 1
+    assert cli_impl._dispatch_phase(phase_args) == 1
 
     captured = {}
 
@@ -890,9 +877,9 @@ def test_dispatch_resume_retries_cooperative_lifecycle_status(
         captured["agent_model"] = args.agent_model
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace())
+    rc = cli_impl._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured == {"phase": "4", "agent_model": "gpt-5.4"}
@@ -918,9 +905,9 @@ def test_dispatch_resume_omits_saved_task_cap_by_default(monkeypatch, tmp_path):
         captured["max_tasks_per_site"] = args.max_tasks_per_site
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace())
+    rc = cli_impl._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -963,9 +950,9 @@ def test_dispatch_resume_refuses_process_pool_root_and_prints_wrapper_command(
         called = True
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace())
+    rc = cli_impl._dispatch_resume(Namespace())
 
     assert rc == 2
     assert called is False
@@ -992,9 +979,9 @@ def test_dispatch_resume_allows_explicit_task_cap_override(monkeypatch, tmp_path
         captured["max_tasks_per_site"] = args.max_tasks_per_site
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace(max_tasks_per_site=5))
+    rc = cli_impl._dispatch_resume(Namespace(max_tasks_per_site=5))
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -1020,9 +1007,9 @@ def test_dispatch_resume_restores_saved_phase_2_sites_filter(monkeypatch, tmp_pa
         captured["sites"] = args.sites
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace())
+    rc = cli_impl._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "2"
@@ -1049,9 +1036,9 @@ def test_dispatch_resume_treats_partial_complete_as_advanced_phase(monkeypatch, 
         captured["sandbox_model"] = args.sandbox_model
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace())
+    rc = cli_impl._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "3"
@@ -1077,9 +1064,9 @@ def test_dispatch_resume_allows_explicit_phase_2_sites_override(monkeypatch, tmp
         captured["sites"] = args.sites
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace(sites="gitlab"))
+    rc = cli_impl._dispatch_resume(Namespace(sites="gitlab"))
 
     assert rc == 0
     assert captured["phase"] == "2"
@@ -1105,9 +1092,9 @@ def test_dispatch_resume_restores_saved_phase_3_sites_filter(monkeypatch, tmp_pa
         captured["sites"] = args.sites
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace())
+    rc = cli_impl._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "3"
@@ -1133,9 +1120,9 @@ def test_dispatch_resume_restores_saved_phase_4_sites_filter(monkeypatch, tmp_pa
         captured["sites"] = args.sites
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace())
+    rc = cli_impl._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -1165,9 +1152,9 @@ def test_dispatch_resume_ignores_removed_phase_2a_modal_state(monkeypatch, tmp_p
         captured["has_phase_2_launch_jitter_ms"] = hasattr(args, "phase_2_launch_jitter_ms")
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace())
+    rc = cli_impl._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "2"
@@ -1199,9 +1186,9 @@ def test_dispatch_resume_restores_saved_phase_2_text_fill_flags(monkeypatch, tmp
         captured["phase_2_text_model"] = args.phase_2_text_model
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace())
+    rc = cli_impl._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "2"
@@ -1230,9 +1217,9 @@ def test_dispatch_resume_restores_saved_generate_novel_for_phase_1(monkeypatch, 
         captured["generate_novel"] = args.generate_novel
         return 0
 
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = worldsim_main._dispatch_resume(Namespace())
+    rc = cli_impl._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "1"
@@ -1244,7 +1231,7 @@ def test_dispatch_resume_handles_non_object_state_json(monkeypatch, tmp_path, ca
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "pipeline_state.json").write_text('"bad-state"')
 
-    rc = worldsim_main._dispatch_resume(Namespace())
+    rc = cli_impl._dispatch_resume(Namespace())
 
     assert rc == 1
     assert "No pipeline state found" in capsys.readouterr().err
@@ -1267,10 +1254,10 @@ def test_main_resume_installs_proxy_after_restoring_saved_instances(monkeypatch,
         captured["instances"] = args.instances
         captured["phase"] = args.phase
 
-    monkeypatch.setattr(worldsim_main, "_install_verification_proxy_from_args", fake_install)
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", lambda args: 0)
+    monkeypatch.setattr(cli_impl, "_install_verification_proxy_from_args", fake_install)
+    monkeypatch.setattr(cli_impl, "_dispatch_phase", lambda args: 0)
 
-    rc = worldsim_main.main(["resume"])
+    rc = cli_impl.main(["resume"])
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -1290,7 +1277,7 @@ def test_main_phase_rejects_invalid_verification_proxy(monkeypatch, tmp_path, ca
         )
     )
 
-    rc = worldsim_main.main(["phase", "3", "--instances", str(instances_path)])
+    rc = cli_impl.main(["phase", "3", "--instances", str(instances_path)])
 
     assert rc == 2
     assert "verification_proxy_invalid" in capsys.readouterr().err
@@ -1317,7 +1304,7 @@ def test_install_verification_proxy_ignores_loopback_instances(monkeypatch, tmp_
 
     monkeypatch.setattr("warp_taskgen.http_proxy.install_proxy", fake_install_proxy)
 
-    worldsim_main._install_verification_proxy_from_args(
+    cli_impl._install_verification_proxy_from_args(
         Namespace(instances=instances_path, feasibility_instances=None)
     )
 
@@ -1343,7 +1330,7 @@ def test_install_verification_proxy_keeps_remote_instances(monkeypatch, tmp_path
 
     monkeypatch.setattr("warp_taskgen.http_proxy.install_proxy", fake_install_proxy)
 
-    worldsim_main._install_verification_proxy_from_args(
+    cli_impl._install_verification_proxy_from_args(
         Namespace(instances=instances_path, feasibility_instances=None)
     )
 
@@ -1374,7 +1361,7 @@ def test_install_verification_proxy_reads_token_env(monkeypatch, tmp_path):
 
     monkeypatch.setattr("warp_taskgen.http_proxy.install_proxy", fake_install_proxy)
 
-    worldsim_main._install_verification_proxy_from_args(
+    cli_impl._install_verification_proxy_from_args(
         Namespace(instances=instances_path, feasibility_instances=None)
     )
 
@@ -1405,7 +1392,7 @@ def test_install_verification_proxy_reads_token_file(monkeypatch, tmp_path):
 
     monkeypatch.setattr("warp_taskgen.http_proxy.install_proxy", fake_install_proxy)
 
-    worldsim_main._install_verification_proxy_from_args(
+    cli_impl._install_verification_proxy_from_args(
         Namespace(instances=instances_path, feasibility_instances=None)
     )
 
@@ -1435,7 +1422,7 @@ def test_install_verification_proxy_missing_external_token_disables_proxy(monkey
 
     monkeypatch.setattr("warp_taskgen.http_proxy.install_proxy", fake_install_proxy)
 
-    worldsim_main._install_verification_proxy_from_args(
+    cli_impl._install_verification_proxy_from_args(
         Namespace(instances=instances_path, feasibility_instances=None)
     )
 
@@ -1443,11 +1430,11 @@ def test_install_verification_proxy_missing_external_token_disables_proxy(monkey
 
 
 def test_phase4_run_lock_rejects_concurrent_run(tmp_path):
-    with worldsim_main._phase4_run_lock(tmp_path):
+    with cli_impl._phase4_run_lock(tmp_path):
         try:
-            with worldsim_main._phase4_run_lock(tmp_path):
+            with cli_impl._phase4_run_lock(tmp_path):
                 raise AssertionError("nested lock should not be acquired")
-        except worldsim_main.Phase4AlreadyRunning as exc:
+        except cli_impl.Phase4AlreadyRunning as exc:
             assert ".phase4_run.lock" in str(exc)
 
 

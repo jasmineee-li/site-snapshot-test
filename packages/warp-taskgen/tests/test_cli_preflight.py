@@ -4,7 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from warp_taskgen import main as worldsim_main
+from warp_taskgen.cli import main
 
 
 def test_standalone_preflight_runs_from_package_root(monkeypatch, tmp_path: Path) -> None:
@@ -25,7 +25,7 @@ def test_standalone_preflight_runs_from_package_root(monkeypatch, tmp_path: Path
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    result = worldsim_main.main(
+    result = main(
         [
             "preflight",
             "--host-config",
@@ -63,7 +63,7 @@ def test_standalone_preflight_resolves_relative_configs_from_package_root(
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    result = worldsim_main.main(
+    result = main(
         [
             "preflight",
             "--host-config",

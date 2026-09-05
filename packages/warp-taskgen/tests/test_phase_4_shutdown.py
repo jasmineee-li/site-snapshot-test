@@ -5,7 +5,7 @@ import os
 import time
 
 from warp_taskgen import browser_use_agent
-from warp_taskgen.main import (
+from warp_taskgen.cli.phase4_lock import (
     _phase4_async_shutdown_timeout,
     _run_phase4_with_bounded_async_shutdown,
 )
