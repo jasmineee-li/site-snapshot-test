@@ -652,11 +652,13 @@ in 14--20 seconds. The current trace exposes no safe, measured source change
 worth at least 20 seconds end to end, so another CI-performance PR is not yet
 justified.
 
-The configured OpenRouter credential currently authenticates, but is not
-usable for generation: the redacted current-key response reports no usable
-capacity, while the exact direct one-row production canary stops with HTTP 403
-`quota_exceeded` before model output. Exact account metadata remains local. The
-canary touches no browser or Site. Run15 remains 20/100 reusable only when
+At that fixed point, the configured OpenRouter credential authenticated but
+was not usable for generation: the redacted current-key response reported no
+usable capacity, and the exact direct one-row production canary stopped with
+HTTP 403 `quota_exceeded` before model output. This is historical boundary
+failure evidence; the delivered capacity-first runner is recorded below.
+Exact account metadata remains local, and the canary touched no browser or
+Site. Run15 remains 20/100 reusable only when
 `WORLDSIM_PHASE1_CONTRACT_BOUND_API=1` is restored; its 80 GitLab rows remain
 absent.
 
@@ -675,8 +677,13 @@ confirmed that another provider-independent generation framework would not
 advance E3. The accepted path is to preserve and resume Run15, defer persisted
 per-card route identity, and make the already-approved real provider checks
 reproducible through the bounded operator slice tracked by
-[#263](https://github.com/jasmineee-li/warp/issues/263). That command must stop
-on unavailable capacity, run the direct boundary before Modal setup, and call
-the existing production generation facade for both one-row checks. Its source
-tests establish orchestration only; successful frozen-route calls remain the
-required compatibility evidence.
+[#263](https://github.com/jasmineee-li/warp/issues/263). PR
+[#264](https://github.com/jasmineee-li/warp/pull/264) delivered that runner at
+`783d3533`: it stops on unavailable capacity, runs the direct boundary before
+Modal setup, and calls the existing production generation facade for both
+one-row checks. Its first real capacity check authenticated and stopped with
+`capacity_unavailable` before direct generation, Modal setup or fresh output
+creation. The older direct-canary HTTP 403 remains historical failure evidence;
+neither production boundary has passed. Source tests establish orchestration
+only, so successful frozen-route calls remain the required compatibility
+evidence.

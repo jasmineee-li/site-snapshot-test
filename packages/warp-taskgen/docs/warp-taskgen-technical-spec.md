@@ -320,21 +320,36 @@ A standalone validator script (`warp_taskgen/_sandbox_validator.py`) is staged i
 
 ### Cost Tracking
 
-A `CostTracker` singleton accumulates per-sandbox cost data across the entire pipeline run. Each sandbox invocation appends a `SandboxCostEntry`:
+A `CostTracker` singleton accumulates paid-call cost observations across the
+entire Run. Each observed sandbox or host-side provider boundary appends a
+`SandboxCostEntry`:
 
     @dataclass
     class SandboxCostEntry:
         phase: str
         task_id: str | None
         site: str | None
-        total_cost_usd: float
-        num_turns: int
-        duration_ms: int
-        session_id: str
-        model_usage: dict[str, dict[str, int]]
+        total_cost_usd: float | None
+        num_turns: int | None
+        duration_ms: int | None
+        session_id: str | None
+        model_usage: dict[str, dict[str, int]] | None
         timestamp: str
 
-The tracker exposes `record(phase, summary_json, ...)`, `total_cost() -> float`, and `save(path)` / `load(path)` methods. On each `save`, the full list is written to `logs/<run>/cost_report.json`. The `--resume` flag calls `load` so that cost data from prior phases is preserved across restarts.
+The tracker exposes `record(phase, summary_json, ...)`,
+`record_and_save(phase, summary_json, path, ...)`, `total_cost() -> float`, and
+`save(path)` / `load(path)` methods. On each `save`, the full list is written
+atomically to `logs/<run>/cost_report.json`. The `--resume` flag calls `load`
+so that cost data from prior phases is preserved across restarts.
+
+Phase 1 persists each returned paid-call observation before it reads or
+validates the generated payload. When a paid boundary can establish that a call
+started but has no usable summary, the entry keeps its cost and usage fields as
+`null`; unknown cost is never rewritten as zero. `status` therefore reports the
+sum of known entries as a lower bound together with known, unknown, and total
+entry counts. Before another paid Phase 1 dispatch, the existing report must
+parse and validate; a malformed report blocks dispatch rather than being
+overwritten.
 
 ### State Persistence and Resume
 
@@ -351,6 +366,12 @@ def save_state(step: str, iteration: int = 0, **metadata):
     tmp = state_path.with_suffix(".tmp")
     tmp.write_text(json.dumps(state, indent=2))
     os.replace(tmp, state_path)
+
+CLI-orchestrated Phase 1 execution also holds one non-blocking filesystem lock
+under the Run root for the complete phase dispatch. A second CLI process for
+the same root is rejected before it can generate tasks or make paid calls. The
+lock coordinates processes that share that filesystem; it is not a distributed
+lock and does not cover direct Python calls to Phase 1 helpers.
 
 On restart, `resume` reads this file and applies lifecycle routing:
 
@@ -1026,7 +1047,7 @@ Opt-in via `--generate-novel`. Runs for sites with at least one Phase 4-admissib
 
 **Surface identity.** The core methodology owns canonical carrier IDs such as `issue.description`, `note.body`, `submission.body`, and `comment.body`. Benchmark profiles own observed profile IDs and source-field names, for example `profile_issue_description` or `thread_comment_body`. Phase 1 route-contract construction, Phase 2 plan validation/materialization, and Phase 2b text-fill budgeting must resolve from canonical carrier ID to concrete profile surface through a deterministic benchmark adapter mapping. They must not depend on the generator or profiler emitting the canonical ID directly. Unknown benchmark/site mappings fail closed. Ambiguous profile surfaces, such as a shared canonical comment/note body with multiple concrete profile locations, require route/editor context and otherwise fail closed rather than choosing arbitrarily.
 
-**Implementation.** One Modal Sandbox per site, parallel execution (same pattern as Phase 0c and Phase 2). Each sandbox receives `BENCHMARK_PROFILE_{site}.json`, `AGENT_CONTEXT_{site}.json`, and read access to the benchmark source. The per-site cache key includes both artifacts, so agent-context changes invalidate stale cached novel tasks. Cache reuse also requires the cached tasks themselves to carry the same embedded ``agent_context``; fingerprint match alone is not enough.
+**Implementation.** One Modal Sandbox per site, parallel execution (same pattern as Phase 0c and Phase 2). Each sandbox receives `BENCHMARK_PROFILE_{site}.json`, `AGENT_CONTEXT_{site}.json`, and read access to the benchmark source. The per-site cache key includes both artifacts, so agent-context changes invalidate stale cached novel tasks. Cache reuse also requires the cached tasks themselves to carry the same embedded ``agent_context``; fingerprint match alone is not enough. For a Site/card plan that uses the contract-bound backend, the cache identity also includes any non-empty Phase 1 diversity salt and the sorted normalized forbidden-reference phrases consumed by that backend. A sandbox-only Site/card plan keeps its existing cache identity because it does not consume those inputs.
 
 **Reward functions.** Model-authored task rows use `NetworkEventEvaluator` (preferred), `FinalStateEvaluator`, or `AgentResponseEvaluator` only. A feature-owned host compiler may replace bounded semantic slots with an exact benchmark-specific evaluator when the authored task card opts into that compiler and the benchmark profile declares the evaluator; those evaluator types are not part of the default model-output allowlist. No `db_query_match` for novel tasks. No `task_id` field in the reward function (avoids canonical evaluator lookup for novel tasks). WARP Taskgen's homebrew `NetworkEventEvaluator` path supports URL/method checks plus response status, query params, exact/decoded body substrings, and structured POST-body subset checks for JSON, form, and HAR-shaped traces.
 

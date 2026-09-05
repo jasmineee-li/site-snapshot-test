@@ -16,23 +16,26 @@ now split into narrow cache, ownership, cost, remote-root, and stage-specific
 checkpoint-visibility slices described below. This work improves safe resume
 and operator legibility; it does not create, admit, or evaluate a task.
 
-CI and agent-DX update: **2026-09-04 (America/New_York)** against
-`origin/main` `d7d9a33e`. The provider-independent source DAG #240--#246 is
-complete. Three new source-feedback tickets use measured hosted timings:
-#255 supplies current slow-node visibility and removes confirmed duplicate
-repository traversal only if it consumes material time, #257 depends on that
-trace for a two-way core split, and
-#256 independently routes the disjoint root gate inside its still-required job.
-The exact-route Phase 1 resumption protocol uses two production micro-canaries,
-not a no-provider imitation.
+CI and agent-DX delivery update: **2026-09-04 (America/New_York)** against
+`origin/main` `eac23227`. The provider-independent source DAG #240--#246 and
+source-feedback PRs #259--#261 are complete. Taskgen-only root routing measured
+17 seconds rather than 1 minute 50 seconds for the full gate; core pytest
+measured 114.63 seconds after exposing durations and narrowing two readiness
+scans; the final two-way core split reduced the critical test job from 2
+minutes 18 seconds to 1 minute 30 seconds. The complete Taskgen workflow took
+about 1 minute 39 seconds including its aggregate. The exact-route Phase 1
+resumption protocol uses two production micro-canaries, not a no-provider
+imitation.
 
-Provider-resumption update: **2026-09-05 (America/New_York)** against
-`origin/main` `bded71ea`. The configured OpenRouter key still authenticates but
-reports no usable capacity. Issue
-[#263](https://github.com/jasmineee-li/warp/issues/263) owns one reproducible
-operator command for the two real production micro-canaries. Run15 remains the
-resume target; effective-route persistence is deferred rather than changing its
-cache or Run Definition compatibility.
+Provider-boundary delivery update: **2026-09-05 (America/New_York)** against
+`origin/main` `783d3533`. PR #264 implements the bounded operator runner. A
+real invocation reached the authenticated OpenRouter current-key endpoint and
+stopped with `capacity_unavailable` before direct generation, Modal setup, or
+creation of the fresh output root. Neither production generation boundary has
+passed; the earlier direct-canary HTTP 403 remains historical failure evidence.
+Issue [#263](https://github.com/jasmineee-li/warp/issues/263) is closed. Run15
+remains the resume target; effective-route persistence is deferred rather than
+changing its cache or Run Definition compatibility.
 
 Status: **source and transfer smokes complete; scientific execution pending**.
 The source tickets under parent issue #192 are closed; PRs #199–#204 and
@@ -229,21 +232,19 @@ seconds median elapsed. A representative core run spent about 122 seconds in
 pytest and 1.3 seconds in locked uv synchronization, so dependency caching is
 not the primary target.
 
-| Source slice | Tracking issue | Dependency |
+| Source slice | Tracking issue and delivery | Status |
 | --- | --- | --- |
-| Expose real core durations and conditionally replace material duplicate readiness walks while preserving both assertion sets | [#255](https://github.com/jasmineee-li/warp/issues/255) | independent; supplies the current duration trace |
-| Split core tests into two measured feature-oriented lanes with three-way matrix capacity and exact selection parity | [#257](https://github.com/jasmineee-li/warp/issues/257) | #255 |
-| Route clearly Taskgen-only changes to a successful no-op inside the still-required Root gates job | [#256](https://github.com/jasmineee-li/warp/issues/256) | independent; may develop in parallel with #255/#257 |
+| Expose real core durations and replace the two measured duplicate readiness walks while preserving both assertion sets | [#255](https://github.com/jasmineee-li/warp/issues/255) / [PR #260](https://github.com/jasmineee-li/warp/pull/260) | complete |
+| Split core tests into two feature-oriented lanes with three-way matrix capacity and exact selection parity | [#257](https://github.com/jasmineee-li/warp/issues/257) / [PR #261](https://github.com/jasmineee-li/warp/pull/261) | complete after #255 |
+| Route clearly Taskgen-only changes to a successful no-op inside the still-required Root gates job | [#256](https://github.com/jasmineee-li/warp/issues/256) / [PR #259](https://github.com/jasmineee-li/warp/pull/259) | complete |
 
-The critical delivery path is #255 then #257. Issue #256 is a parallel lane
-with no overlapping Taskgen acceptance owner. The two core lanes and existing
-remote lane must be allowed to run concurrently; otherwise a two-job
-`max-parallel` limit can erase the split's benefit. The first combined target is
-an approximately 80--90 second merge-gate critical path, a 45--55% projection
-from current hosted measurements rather than a promised result. Each ticket
-records its ordinary hosted wall time and stops after at most two focused
-repairs; do not create a scheduler grid, repeated timing campaign, third core
-shard, larger paid runner, timing manifest or shared virtual environment.
+The historical combined target was an approximately 80--90 second merge-gate
+critical path. The delivered split measured a 90-second critical test job and
+a 99-second complete Taskgen workflow including its aggregate. The two core
+lanes and existing remote lane run concurrently with `max-parallel: 3`; exact
+selection-parity tests preserve the prior core selection. The work did not add
+a scheduler grid, repeated timing campaign, third core shard, larger paid
+runner, timing manifest or shared virtual environment.
 
 The supporting [agent-DX note](agent-dx-frontier-2026-09-04.md) and
 [CI/test acceleration note](ci-test-acceleration-frontier-2026-09-04.md)
@@ -256,6 +257,10 @@ and proposed follow-ups. Its per-card Phase 1 route-map choice remains
 unresolved and is not an authorized source ticket.
 
 #### E3 provider-boundary resumption check
+
+Delivery is complete in [PR #264](https://github.com/jasmineee-li/warp/pull/264).
+The remaining gate is external provider capacity followed by one successful
+direct and one successful sandbox production micro-canary.
 
 Do not add a no-provider command, mock service, alternate parser/compiler, or
 seven hand-authored provider-response fixtures. Representative feature tests
@@ -396,22 +401,25 @@ These are current operational facts, not reopened architecture choices:
    operational backpressure, not an automatic hard cap or selection rule.
 3. **E3 remains externally blocked:** the configured frozen OpenRouter route
    currently authenticates but its redacted capacity response reports no
-   usable capacity. The exact direct one-row production canary stops with HTTP
-   403 `quota_exceeded` before model output and touches no browser or Site.
-   Exact account metadata remains local. Once the route reports usable
-   capacity, rerun the direct canary, run the sandbox canary, and only then
-   resume the exact retained Phase 1 request. Do not silently fall back to
-   Anthropic-direct and claim the frozen-route result.
+   usable capacity. The delivered microcanary runner stops with
+   `capacity_unavailable` before direct generation or Modal setup. The earlier
+   direct one-row HTTP 403 is retained historical failure evidence. Neither
+   check touches a browser or Site, and exact account metadata remains local.
+   Once the route reports usable capacity, run the direct and sandbox canaries
+   through the delivered command and only then resume the exact retained Phase
+   1 request. Do not silently fall back to Anthropic-direct and claim the
+   frozen-route result.
 4. **E4/E6 remain downstream scientific runs:** they wait for the admitted bank
    and real matched pair and must preserve instance/reset isolation. Mutable
    runs are not parallelized on one reset-sensitive instance.
 5. **Paper/publication remains separate:** do not edit the manuscript, submit,
    upload, release or publish without the separately required approval.
 
-Autonomous work may complete #255--#257 and any other already authorized
-source tickets with ticket-local locked environments, focused tests, bounded
-review and ordinary PR delivery. It must not invent credentials or results,
-weaken a safety/runtime check, or treat source/CI success as benchmark evidence.
+Provider-independent tickets #240--#246 and source-feedback tickets #255--#257
+are complete. Any further authorized source ticket uses a ticket-local locked
+environment, focused tests, bounded review and ordinary PR delivery. It must
+not invent credentials or results, weaken a safety/runtime check, or treat
+source/CI success as benchmark evidence.
 
 ## 6. Deferred work
 
