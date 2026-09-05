@@ -5,7 +5,7 @@ from pathlib import Path
 
 from warp_taskgen import task_bank
 from warp_taskgen.cli import main
-from warp_taskgen.cli_status import summarize_phase2c
+from warp_taskgen.cli.status import summarize_phase2c
 
 
 def _write_json(path: Path, payload: object) -> None:

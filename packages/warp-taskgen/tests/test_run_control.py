@@ -11,7 +11,7 @@ from warp_taskgen.atomic_io import write_json_atomic
 from warp_taskgen.cli import main
 from warp_taskgen.cli import run_control as cli_run_control
 from warp_taskgen.cli.run_control import dispatch_phase_with_run_control
-from warp_taskgen.cli_status import build_status_payload, format_status_payload
+from warp_taskgen.cli.status import build_status_payload, format_status_payload
 from warp_taskgen.run_control import (
     PauseBoundaryReached,
     acknowledge_pause,

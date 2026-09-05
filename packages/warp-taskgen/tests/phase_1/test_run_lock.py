@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import subprocess
@@ -9,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from warp_taskgen.cli import _impl as cli_impl
+from warp_taskgen.cli import dispatch
 from warp_taskgen.phase_1.run_lock import Phase1AlreadyRunning, phase_1_run_lock
 from warp_taskgen.run_transition import resolve_run_request
 
@@ -60,14 +61,14 @@ def test_phase_1_cli_refuses_same_root_before_body(
 ) -> None:
     monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(tmp_path))
     monkeypatch.setattr(
-        cli_impl,
+        dispatch,
         "_dispatch_phase_with_run_context",
         lambda _args: pytest.fail("Phase 1 body must not run while its lock is held"),
     )
 
     with phase_1_run_lock(tmp_path):
-        result = cli_impl._dispatch_phase(
-            cli_impl.argparse.Namespace(
+        result = dispatch._dispatch_phase(
+            argparse.Namespace(
                 command="phase",
                 phase="1",
                 generate_novel=generate_novel,
@@ -90,10 +91,10 @@ def test_phase_1_cli_allows_different_state_root_while_first_is_locked(
         entered.append(second_root)
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase_with_run_context", run_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase_with_run_context", run_phase)
     with phase_1_run_lock(first_root):
         monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(second_root))
-        result = cli_impl._dispatch_phase(cli_impl.argparse.Namespace(command="phase", phase="1"))
+        result = dispatch._dispatch_phase(argparse.Namespace(command="phase", phase="1"))
 
     assert result == 0
     assert entered == [second_root]

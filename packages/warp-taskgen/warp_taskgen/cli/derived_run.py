@@ -173,10 +173,10 @@ def dispatch_derived_resume(args: argparse.Namespace) -> int:
     with _bind_child_execution(context, pointer):
         # Import lazily to keep the feature adapter independent of the CLI
         # compatibility facade during parser construction.
-        from warp_taskgen.cli import _impl
+        from warp_taskgen.cli.resume import _dispatch_resume
 
         try:
-            return _impl._dispatch_resume(child_args)
+            return _dispatch_resume(child_args)
         except (OSError, RuntimeError, ValueError) as exc:
             print(f"Derived Run child dispatch failed: {exc}", file=sys.stderr)
             return 2

@@ -168,7 +168,7 @@ def test_overlay_is_additive_and_never_publishes_database(tmp_path: Path) -> Non
 
 
 def test_phase4_command_is_one_task_one_worker_one_iterator(tmp_path: Path) -> None:
-    from warp_taskgen.cli._impl import build_parser
+    from warp_taskgen.cli.args import build_parser
 
     config = load_canary_config(_write_config(tmp_path), require_ignored=False)
 
@@ -432,7 +432,7 @@ def test_canary_phase_builders_pin_the_one_run_contract(tmp_path: Path) -> None:
 
 def test_phase_transitions_preserve_one_run_definition(tmp_path: Path) -> None:
     from warp_taskgen.classifieds_canary import build_phase2c_command, build_phase3_command
-    from warp_taskgen.cli._impl import build_parser
+    from warp_taskgen.cli.args import build_parser
     from warp_taskgen.cli.run_identity import _definition_inputs
     from warp_taskgen.run_transition import resolve_run_request
 
@@ -460,8 +460,7 @@ def test_phase_transitions_preserve_one_run_definition(tmp_path: Path) -> None:
 def test_phase2c_alias_normalizes_feasibility_only_before_run_identity(monkeypatch) -> None:
     from argparse import Namespace
 
-    from warp_taskgen.cli import _impl as cli_impl
-    from warp_taskgen.cli import run_identity
+    from warp_taskgen.cli import dispatch, run_identity
 
     observed: list[bool] = []
 
@@ -471,7 +470,7 @@ def test_phase2c_alias_normalizes_feasibility_only_before_run_identity(monkeypat
 
     monkeypatch.setattr(run_identity, "resolve_cli_run_transition", reject_after_capture)
 
-    assert cli_impl._dispatch_phase(Namespace(command="phase", phase="2c")) == 2
+    assert dispatch._dispatch_phase(Namespace(command="phase", phase="2c")) == 2
     assert observed == [True]
 
 
@@ -520,7 +519,7 @@ def test_remote_canary_disables_ancestor_dotenv_override(tmp_path: Path) -> None
                 "import os; "
                 "from dotenv import load_dotenv; "
                 f"load_dotenv({str(dotenv)!r}, override=True); "
-                "import warp_taskgen.cli._impl; "
+                "import warp_taskgen.cli.env; "
                 "print(os.environ['WARP_CLASSIFIEDS_PROVIDER_SENTINEL'])"
             ),
         ],

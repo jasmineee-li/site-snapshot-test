@@ -102,7 +102,7 @@ if state_root is not None and authoritative_state is not None:
     # remote checkout cannot import the projection module.
     try:
         sys.path.insert(0, str(remote_dir))
-        from warp_taskgen.cli_status import build_status_payload
+        from warp_taskgen.cli.status import build_status_payload
 
         status_payload = build_status_payload(state_root)
         candidate = status_payload.get("run_control")

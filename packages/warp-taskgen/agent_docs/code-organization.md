@@ -117,9 +117,13 @@ Current and target ownership should stay explicit:
   runtime error validation, DB helpers, and editor-argument compatibility. This
   package remains a patchable public surface because many tests and hidden
   callers monkeypatch `warp_taskgen.seeding` directly.
-- `warp_taskgen.cli`: WARP Taskgen CLI parser, dispatch, phase-4 lock handling,
-  verification proxy setup, task-bank commands, resume flow, and auth
-  validation. `warp_taskgen.main` is the executable entrypoint.
+- `warp_taskgen.cli`: the WARP Taskgen CLI, split by owner: `env.py` runs the
+  import-time dotenv bootstrap first, `args.py` owns the parser and defaults,
+  `dispatch.py` owns `main` and phase dispatch, `resume.py` the resume flow,
+  `phase4_lock.py` the Phase 4 run lock and bounded async shutdown,
+  `proxy.py` verification-proxy setup, `task_bank.py` task-bank commands,
+  `auth.py` unknown-auth validation, and `status.py` the status and inspect
+  projections. `warp_taskgen.main` is the console entrypoint only.
 - `warp_taskgen.rewards`: reward dispatch and scoring behavior. Keep the public
   facade thin; put behavior in reward-local modules by evidence type and
   benchmark surface. Request-level evidence belongs in `network_event.py` and

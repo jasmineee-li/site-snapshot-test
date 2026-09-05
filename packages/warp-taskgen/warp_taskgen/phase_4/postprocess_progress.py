@@ -4,7 +4,7 @@ Observational telemetry for the Phase 4 postprocess + variant-generation loop.
 Tracks per-task lifecycle (started, active, completed, failed) and per-variant
 counters (generation attempts, evaluations, PVPO validity, compliance) under an
 asyncio.Lock and writes the schema_version=1 progress.json that the CLI status
-view (warp_taskgen/cli_status.py) and remote-job status scripts
+view (warp_taskgen/cli/status.py) and remote-job status scripts
 (scripts/remote_job_status.sh) read. Per CLAUDE.md, heartbeats are observational
 only; nothing in Phase 4 routing branches on this state.
 

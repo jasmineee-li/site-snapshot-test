@@ -6,7 +6,7 @@ from pathlib import Path
 from warp_taskgen.adversarial_actions.capability_task_cards import (
     compile_capability_task_card_plan,
 )
-from warp_taskgen.cli_status import build_status_payload, format_status_payload
+from warp_taskgen.cli.status import build_status_payload, format_status_payload
 from warp_taskgen.phases import phase_1_contract_bound_action_api, phase_1_generate_new_tasks
 from warp_taskgen.phases.phase_1_route_contracts import build_task_route_contracts
 

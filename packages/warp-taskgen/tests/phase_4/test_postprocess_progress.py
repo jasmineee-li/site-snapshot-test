@@ -1,6 +1,6 @@
 """Coverage for Phase 4 postprocess heartbeat infrastructure.
 
-Locks in the schema_version=1 progress.json shape that warp_taskgen/cli_status.py
+Locks in the schema_version=1 progress.json shape that warp_taskgen/cli/status.py
 and scripts/remote_job_status.sh consume, and the callback chain wiring used
 by warp_taskgen/phase_4/runner.run().
 """

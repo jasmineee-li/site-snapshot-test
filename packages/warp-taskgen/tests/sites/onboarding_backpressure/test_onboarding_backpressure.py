@@ -349,7 +349,7 @@ def test_site_composition_digest_is_stable_across_hash_seeds_and_import_order(
 def test_canonical_cli_requires_exact_carrier_and_action_and_says_static_only(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    from warp_taskgen.cli._impl import build_parser, main
+    from warp_taskgen.cli import build_parser, main
 
     argv = [
         "site",
@@ -404,7 +404,7 @@ def test_canonical_cli_requires_exact_carrier_and_action_and_says_static_only(
 def test_canonical_cli_unknown_site_uses_invalid_exit_code_without_fallback(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    from warp_taskgen.cli._impl import main
+    from warp_taskgen.cli import main
 
     result = main(
         [

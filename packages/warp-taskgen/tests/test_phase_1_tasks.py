@@ -20,8 +20,7 @@ from warp_taskgen.adversarial_actions.capability_contracts import (
 from warp_taskgen.adversarial_actions.capability_task_cards import (
     compile_capability_task_card_plan,
 )
-from warp_taskgen.cli import _impl as cli_impl
-from warp_taskgen.cli import build_parser
+from warp_taskgen.cli import build_parser, dispatch, resume
 from warp_taskgen.phase_1 import novel_task_validation as phase_1_generate_new_tasks_validation
 from warp_taskgen.phase_1.novel_task_validation import task_cards
 from warp_taskgen.phase_2.target_resolution.constants import LISTING_DETAIL_FORCING_REGEXES
@@ -1165,7 +1164,7 @@ def test_dispatch_resume_preserves_saved_phase_2_l1_l2_mode(monkeypatch, tmp_pat
     captured: dict[str, object] = {}
 
     monkeypatch.setattr(
-        cli_impl,
+        dispatch,
         "_install_verification_proxy_from_args",
         lambda synthetic: None,
     )
@@ -1174,9 +1173,9 @@ def test_dispatch_resume_preserves_saved_phase_2_l1_l2_mode(monkeypatch, tmp_pat
         captured["args"] = synthetic
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(args)
+    rc = resume._dispatch_resume(args)
 
     assert rc == 0
     synthetic = captured["args"]

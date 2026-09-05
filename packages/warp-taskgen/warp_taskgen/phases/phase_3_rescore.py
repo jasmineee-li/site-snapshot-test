@@ -515,7 +515,7 @@ def rescore_phase_3(
 
 
 def run(args: argparse.Namespace) -> int:
-    """Argparse entrypoint compatible with ``warp_taskgen.main._dispatch_phase``."""
+    """Argparse entrypoint compatible with ``warp_taskgen.cli.dispatch._dispatch_phase``."""
     phase_3_dir = Path(getattr(args, "phase_3_dir", Path("logs/phase_3_gemini-3-flash")))
     instances_path = getattr(args, "instances", None)
     if instances_path is not None:

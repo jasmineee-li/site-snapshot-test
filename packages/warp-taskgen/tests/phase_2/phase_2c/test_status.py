@@ -6,7 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from warp_taskgen.cli_status import build_status_payload, format_status_payload
+from warp_taskgen.cli.status import build_status_payload, format_status_payload
 from warp_taskgen.phase_2.phase_2c.checkpoints import (
     VERIFIER_VERSION,
     checkpoint_context,

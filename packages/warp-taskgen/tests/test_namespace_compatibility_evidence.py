@@ -40,7 +40,7 @@ from pathlib import Path
 
 root = Path(sys.argv[1])
 state_module = import_module(sys.argv[2] + ".state")
-status_module = import_module(sys.argv[2] + ".cli_status")
+status_module = import_module(sys.argv[2] + ".cli.status")
 state = state_module.load_state()
 assert isinstance(state, dict)
 status = status_module.build_status_payload(root)

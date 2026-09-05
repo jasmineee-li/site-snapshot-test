@@ -766,7 +766,7 @@ class TestUnknownAuthGate:
         # Phase 4's heavy runner graph is imported, and this guard still
         # proves that execution never reaches the bounded runner call.
         monkeypatch.setattr(
-            "warp_taskgen.cli._impl._run_phase4_with_bounded_async_shutdown",
+            "warp_taskgen.cli.dispatch._run_phase4_with_bounded_async_shutdown",
             fake_phase_4_run,
         )
 

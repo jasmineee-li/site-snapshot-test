@@ -10,7 +10,7 @@ import pytest
 def test_explicit_remote_state_aliases_survive_dotenv_without_changing_other_keys(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from warp_taskgen.cli import _impl as cli_impl
+    from warp_taskgen.cli import env as cli_env
 
     monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", "explicit-state")
     monkeypatch.setenv("WORLDSIM_STATE_DIR", "explicit-state")
@@ -26,19 +26,19 @@ def test_explicit_remote_state_aliases_survive_dotenv_without_changing_other_key
 
     monkeypatch.setattr(dotenv, "load_dotenv", fake_load_dotenv)
     try:
-        importlib.reload(cli_impl)
+        importlib.reload(cli_env)
         assert os.environ["WARP_TASKGEN_STATE_DIR"] == "explicit-state"
         assert os.environ["WORLDSIM_STATE_DIR"] == "explicit-state"
         assert os.environ["WARP_TEST_DOTENV_SENTINEL"] == "dotenv-value"
     finally:
         monkeypatch.undo()
-        importlib.reload(cli_impl)
+        importlib.reload(cli_env)
 
 
 def test_without_remote_marker_dotenv_aliases_keep_existing_override(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from warp_taskgen.cli import _impl as cli_impl
+    from warp_taskgen.cli import env as cli_env
 
     monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", "shell-canonical")
     monkeypatch.setenv("WORLDSIM_STATE_DIR", "shell-legacy")
@@ -52,9 +52,9 @@ def test_without_remote_marker_dotenv_aliases_keep_existing_override(
 
     monkeypatch.setattr(dotenv, "load_dotenv", fake_load_dotenv)
     try:
-        importlib.reload(cli_impl)
+        importlib.reload(cli_env)
         assert os.environ["WARP_TASKGEN_STATE_DIR"] == "dotenv-canonical"
         assert os.environ["WORLDSIM_STATE_DIR"] == "dotenv-legacy"
     finally:
         monkeypatch.undo()
-        importlib.reload(cli_impl)
+        importlib.reload(cli_env)

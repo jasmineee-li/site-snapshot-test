@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from warp_taskgen.browser_use_agent import AgentResult
-from warp_taskgen.cli import _impl as cli_impl
+from warp_taskgen.cli import dispatch, phase4_lock, proxy, resume
 from warp_taskgen.eval_worker_pool import load_completed_results
 from warp_taskgen.phases import phase_1_tasks
 from warp_taskgen.resume_metadata import RESULT_FINGERPRINT_KEY
@@ -140,9 +140,9 @@ def test_fresh_cli_phase_binds_identity_before_first_checkpoint(monkeypatch, tmp
         save_state("phase_1", status="running", agent_model="model-a")
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase_with_run_context", fake_dispatch)
+    monkeypatch.setattr(dispatch, "_dispatch_phase_with_run_context", fake_dispatch)
 
-    rc = cli_impl._dispatch_phase(
+    rc = dispatch._dispatch_phase(
         Namespace(command="phase", phase="1", agent_model="model-a", sites="gitlab")
     )
 
@@ -172,9 +172,9 @@ def test_direct_phase_keeps_existing_legacy_state_without_logs_dir(monkeypatch, 
         save_state("phase_1", status="running")
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase_with_run_context", fake_dispatch)
+    monkeypatch.setattr(dispatch, "_dispatch_phase_with_run_context", fake_dispatch)
 
-    assert cli_impl._dispatch_phase(Namespace(command="phase", phase="1")) == 0
+    assert dispatch._dispatch_phase(Namespace(command="phase", phase="1")) == 0
     saved = json.loads((state_dir / "pipeline_state.json").read_text())
     assert "run_definition" not in saved
 
@@ -561,9 +561,9 @@ def test_dispatch_resume_restores_logs_dir_from_state(monkeypatch, tmp_path):
         captured["logs_dir"] = get_state_dir()
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(
+    rc = resume._dispatch_resume(
         Namespace(
             benchmark=None,
             config=None,
@@ -608,9 +608,9 @@ def test_identity_aware_resume_refuses_definition_drift_without_writing(
         called = True
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace(agent_model="changed-model"))
+    rc = resume._dispatch_resume(Namespace(agent_model="changed-model"))
 
     assert rc == 2
     assert called is False
@@ -643,9 +643,9 @@ def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(monke
         captured["agent_step_timeout"] = args.agent_step_timeout
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace())
+    rc = resume._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -674,9 +674,9 @@ def test_dispatch_resume_treats_legacy_phase_4_state_as_strategy_variation(monke
         captured["phase_4_variant_system"] = args.phase_4_variant_system
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace())
+    rc = resume._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -704,9 +704,9 @@ def test_dispatch_resume_overrides_saved_phase_4_timeouts(monkeypatch, tmp_path)
         captured["agent_step_timeout"] = args.agent_step_timeout
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace(agent_llm_timeout=240, agent_step_timeout=300))
+    rc = resume._dispatch_resume(Namespace(agent_llm_timeout=240, agent_step_timeout=300))
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -738,9 +738,9 @@ def test_dispatch_resume_accepts_legacy_statusless_mirror(monkeypatch, tmp_path)
         captured["instances"] = args.instances
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace())
+    rc = resume._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -769,9 +769,9 @@ def test_dispatch_resume_retries_failed_checkpoint(monkeypatch, tmp_path):
         captured["agent_model"] = args.agent_model
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace())
+    rc = resume._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -826,7 +826,7 @@ def test_phase_1_failed_generation_retry_and_resume_preserve_task_profile(
     )
 
     # The initial generation fails after writing its identified checkpoint.
-    assert cli_impl._dispatch_phase(phase_args) == 1
+    assert dispatch._dispatch_phase(phase_args) == 1
     state = load_state()
     assert state is not None
     assert state["reason"] == "new_task_generation_failed"
@@ -835,7 +835,7 @@ def test_phase_1_failed_generation_retry_and_resume_preserve_task_profile(
 
     # An identical explicit retry must reach Phase 1 again, not fail identity
     # validation because the failed checkpoint dropped the profile.
-    assert cli_impl._dispatch_phase(phase_args) == 1
+    assert dispatch._dispatch_phase(phase_args) == 1
 
     captured = {}
 
@@ -845,8 +845,8 @@ def test_phase_1_failed_generation_retry_and_resume_preserve_task_profile(
         captured["phase_1_action_counts"] = args.phase_1_action_counts
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
-    assert cli_impl._dispatch_resume(Namespace()) == 0
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
+    assert resume._dispatch_resume(Namespace()) == 0
     assert captured == {
         "phase": "1",
         "task_capability_profile": "tier2_pure_action_paper",
@@ -877,9 +877,9 @@ def test_dispatch_resume_retries_cooperative_lifecycle_status(
         captured["agent_model"] = args.agent_model
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace())
+    rc = resume._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured == {"phase": "4", "agent_model": "gpt-5.4"}
@@ -905,9 +905,9 @@ def test_dispatch_resume_omits_saved_task_cap_by_default(monkeypatch, tmp_path):
         captured["max_tasks_per_site"] = args.max_tasks_per_site
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace())
+    rc = resume._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -950,9 +950,9 @@ def test_dispatch_resume_refuses_process_pool_root_and_prints_wrapper_command(
         called = True
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace())
+    rc = resume._dispatch_resume(Namespace())
 
     assert rc == 2
     assert called is False
@@ -979,9 +979,9 @@ def test_dispatch_resume_allows_explicit_task_cap_override(monkeypatch, tmp_path
         captured["max_tasks_per_site"] = args.max_tasks_per_site
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace(max_tasks_per_site=5))
+    rc = resume._dispatch_resume(Namespace(max_tasks_per_site=5))
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -1007,9 +1007,9 @@ def test_dispatch_resume_restores_saved_phase_2_sites_filter(monkeypatch, tmp_pa
         captured["sites"] = args.sites
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace())
+    rc = resume._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "2"
@@ -1036,9 +1036,9 @@ def test_dispatch_resume_treats_partial_complete_as_advanced_phase(monkeypatch, 
         captured["sandbox_model"] = args.sandbox_model
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace())
+    rc = resume._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "3"
@@ -1064,9 +1064,9 @@ def test_dispatch_resume_allows_explicit_phase_2_sites_override(monkeypatch, tmp
         captured["sites"] = args.sites
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace(sites="gitlab"))
+    rc = resume._dispatch_resume(Namespace(sites="gitlab"))
 
     assert rc == 0
     assert captured["phase"] == "2"
@@ -1092,9 +1092,9 @@ def test_dispatch_resume_restores_saved_phase_3_sites_filter(monkeypatch, tmp_pa
         captured["sites"] = args.sites
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace())
+    rc = resume._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "3"
@@ -1120,9 +1120,9 @@ def test_dispatch_resume_restores_saved_phase_4_sites_filter(monkeypatch, tmp_pa
         captured["sites"] = args.sites
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace())
+    rc = resume._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -1152,9 +1152,9 @@ def test_dispatch_resume_ignores_removed_phase_2a_modal_state(monkeypatch, tmp_p
         captured["has_phase_2_launch_jitter_ms"] = hasattr(args, "phase_2_launch_jitter_ms")
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace())
+    rc = resume._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "2"
@@ -1186,9 +1186,9 @@ def test_dispatch_resume_restores_saved_phase_2_text_fill_flags(monkeypatch, tmp
         captured["phase_2_text_model"] = args.phase_2_text_model
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace())
+    rc = resume._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "2"
@@ -1217,9 +1217,9 @@ def test_dispatch_resume_restores_saved_generate_novel_for_phase_1(monkeypatch, 
         captured["generate_novel"] = args.generate_novel
         return 0
 
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", fake_dispatch_phase)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", fake_dispatch_phase)
 
-    rc = cli_impl._dispatch_resume(Namespace())
+    rc = resume._dispatch_resume(Namespace())
 
     assert rc == 0
     assert captured["phase"] == "1"
@@ -1231,7 +1231,7 @@ def test_dispatch_resume_handles_non_object_state_json(monkeypatch, tmp_path, ca
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "pipeline_state.json").write_text('"bad-state"')
 
-    rc = cli_impl._dispatch_resume(Namespace())
+    rc = resume._dispatch_resume(Namespace())
 
     assert rc == 1
     assert "No pipeline state found" in capsys.readouterr().err
@@ -1254,10 +1254,10 @@ def test_main_resume_installs_proxy_after_restoring_saved_instances(monkeypatch,
         captured["instances"] = args.instances
         captured["phase"] = args.phase
 
-    monkeypatch.setattr(cli_impl, "_install_verification_proxy_from_args", fake_install)
-    monkeypatch.setattr(cli_impl, "_dispatch_phase", lambda args: 0)
+    monkeypatch.setattr(dispatch, "_install_verification_proxy_from_args", fake_install)
+    monkeypatch.setattr(dispatch, "_dispatch_phase", lambda args: 0)
 
-    rc = cli_impl.main(["resume"])
+    rc = dispatch.main(["resume"])
 
     assert rc == 0
     assert captured["phase"] == "4"
@@ -1277,7 +1277,7 @@ def test_main_phase_rejects_invalid_verification_proxy(monkeypatch, tmp_path, ca
         )
     )
 
-    rc = cli_impl.main(["phase", "3", "--instances", str(instances_path)])
+    rc = dispatch.main(["phase", "3", "--instances", str(instances_path)])
 
     assert rc == 2
     assert "verification_proxy_invalid" in capsys.readouterr().err
@@ -1304,7 +1304,7 @@ def test_install_verification_proxy_ignores_loopback_instances(monkeypatch, tmp_
 
     monkeypatch.setattr("warp_taskgen.http_proxy.install_proxy", fake_install_proxy)
 
-    cli_impl._install_verification_proxy_from_args(
+    proxy._install_verification_proxy_from_args(
         Namespace(instances=instances_path, feasibility_instances=None)
     )
 
@@ -1330,7 +1330,7 @@ def test_install_verification_proxy_keeps_remote_instances(monkeypatch, tmp_path
 
     monkeypatch.setattr("warp_taskgen.http_proxy.install_proxy", fake_install_proxy)
 
-    cli_impl._install_verification_proxy_from_args(
+    proxy._install_verification_proxy_from_args(
         Namespace(instances=instances_path, feasibility_instances=None)
     )
 
@@ -1361,7 +1361,7 @@ def test_install_verification_proxy_reads_token_env(monkeypatch, tmp_path):
 
     monkeypatch.setattr("warp_taskgen.http_proxy.install_proxy", fake_install_proxy)
 
-    cli_impl._install_verification_proxy_from_args(
+    proxy._install_verification_proxy_from_args(
         Namespace(instances=instances_path, feasibility_instances=None)
     )
 
@@ -1392,7 +1392,7 @@ def test_install_verification_proxy_reads_token_file(monkeypatch, tmp_path):
 
     monkeypatch.setattr("warp_taskgen.http_proxy.install_proxy", fake_install_proxy)
 
-    cli_impl._install_verification_proxy_from_args(
+    proxy._install_verification_proxy_from_args(
         Namespace(instances=instances_path, feasibility_instances=None)
     )
 
@@ -1422,7 +1422,7 @@ def test_install_verification_proxy_missing_external_token_disables_proxy(monkey
 
     monkeypatch.setattr("warp_taskgen.http_proxy.install_proxy", fake_install_proxy)
 
-    cli_impl._install_verification_proxy_from_args(
+    proxy._install_verification_proxy_from_args(
         Namespace(instances=instances_path, feasibility_instances=None)
     )
 
@@ -1430,11 +1430,11 @@ def test_install_verification_proxy_missing_external_token_disables_proxy(monkey
 
 
 def test_phase4_run_lock_rejects_concurrent_run(tmp_path):
-    with cli_impl._phase4_run_lock(tmp_path):
+    with phase4_lock._phase4_run_lock(tmp_path):
         try:
-            with cli_impl._phase4_run_lock(tmp_path):
+            with phase4_lock._phase4_run_lock(tmp_path):
                 raise AssertionError("nested lock should not be acquired")
-        except cli_impl.Phase4AlreadyRunning as exc:
+        except phase4_lock.Phase4AlreadyRunning as exc:
             assert ".phase4_run.lock" in str(exc)
 
 

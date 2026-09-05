@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 
 from tests.phase_2._fixtures import _single_surface_profile
-from warp_taskgen.cli import _impl as cli_impl
+from warp_taskgen.cli import resume_plan
 from warp_taskgen.cli.derived_run import dispatch_derived_resume
 from warp_taskgen.cli.run_control import dispatch_phase_with_run_control
-from warp_taskgen.cli_status import build_status_payload, format_status_payload
+from warp_taskgen.cli.status import build_status_payload, format_status_payload
 from warp_taskgen.phase_2.pause_control import write_planning_shard_checkpoint
 from warp_taskgen.run_control import RunInterrupted, acknowledge_pause, request_pause
 from warp_taskgen.run_control_history import load_transition_history
@@ -469,7 +469,7 @@ def test_resume_plan_json_is_read_only(tmp_path: Path, capsys) -> None:
     state_path.write_text(json.dumps(state), encoding="utf-8")
     before = state_path.read_bytes()
 
-    rc = cli_impl._dispatch_resume_plan(
+    rc = resume_plan.dispatch_resume_plan(
         Namespace(command="resume", plan=True, json=True),
         state,
     )
