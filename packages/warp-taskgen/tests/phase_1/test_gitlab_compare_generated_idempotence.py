@@ -23,7 +23,7 @@ from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
     compile_phase1_gitlab_compare_decide_task,
     validate_gitlab_compare_decide_task,
 )
-from warp_taskgen.phase_1.novel_task_validation._impl import (
+from warp_taskgen.phase_1.novel_task_validation.task_cards import (
     _validate_task_card_alignment,
 )
 from warp_taskgen.phases.phase_1_tasks import _stamp_benchmark_metadata

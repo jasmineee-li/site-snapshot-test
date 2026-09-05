@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from warp_taskgen.phases.phase_1_task_cards import task_card_generation_counts
 
-if TYPE_CHECKING:
-    from .errors import GeneratedTaskValidationError
+from .errors import GeneratedTaskValidationError
 
 
 def validate_task_card_generation_distribution(
@@ -23,10 +22,6 @@ def validate_task_card_generation_distribution(
     overfilled card is reported against its original plan index so diagnostics
     remain actionable when inactive cards precede active ones.
     """
-    # Import lazily because the compatibility ``errors`` facade still exports
-    # this type from ``_impl`` during the validation package migration.
-    from ._impl import GeneratedTaskValidationError
-
     counts = task_card_generation_counts(task_card_plan, site_name=site_name)
     if counts is None:
         return []
