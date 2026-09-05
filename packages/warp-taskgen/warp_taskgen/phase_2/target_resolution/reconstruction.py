@@ -3,52 +3,41 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Literal
+from typing import Any
 from urllib.parse import urlsplit
 
 from warp_taskgen.phase_2.target_resolution.listing_records import compose_listing_record
-from warp_taskgen.sites import ListingItemCandidate, SiteCatalog, TargetingFailure
-from warp_taskgen.sites.catalog import TargetingContext
-from warp_taskgen.sites.gitlab import GitLabSite
-from warp_taskgen.sites.gitlab import to_local_kind as _gitlab_to_local
-from warp_taskgen.sites.reddit import RedditSite
-from warp_taskgen.sites.reddit import to_local_kind as _reddit_to_local
-
-_GITLAB_SITE = GitLabSite()
-_REDDIT_SITE = RedditSite()
+from warp_taskgen.sites import (
+    ListingItemCandidate,
+    SiteTargetingDefinitionError,
+    TargetingFailure,
+    default_catalog,
+)
+from warp_taskgen.sites.gitlab import _clean_project_path as _gitlab_clean_project_path
 
 
 def _reconstruct_start_url_from_anchors(
-    site_kind: Literal["gitlab", "reddit"],
+    site_kind: str,
     kind: str,
     anchors: Mapping[str, Any],
     placeholders: Mapping[str, str],
 ) -> str | None:
-    """Compatibility delegate to the Site-owned route reconstruction."""
+    """Compatibility delegate to the bound Site's route reconstruction.
 
-    if site_kind == "gitlab":
-        adapter = _GITLAB_SITE
-        local_kind = _gitlab_to_local(kind)
-    elif site_kind == "reddit":
-        adapter = _REDDIT_SITE
-        local_kind = _reddit_to_local(kind)
-    else:
+    ``kind`` may be the Site-local or the prefixed compatibility spelling.  A
+    Site the catalog does not know, an unknown kind, or insufficient anchors
+    yield ``None``.
+    """
+
+    try:
+        bound = default_catalog().bind(
+            benchmark="webarena_verified",
+            site=site_kind,
+            placeholders=placeholders,
+        )
+    except SiteTargetingDefinitionError:
         return None
-    context = TargetingContext(
-        benchmark="webarena_verified",
-        site=site_kind,
-        placeholders=placeholders,
-    )
-    return adapter.reconstruct(local_kind, anchors, context)
-
-
-def _anchors_from_gitlab_item(item: Mapping[str, Any], *, kind_hint: str) -> dict[str, Any]:
-    """Project anchors out of a GitLab API item (issue or MR)."""
-    return _GITLAB_SITE.anchors_from_item(item, kind_hint=kind_hint)
-
-
-def _anchors_from_reddit_submission(entry: Mapping[str, Any], forum_name: str) -> dict[str, Any]:
-    return _REDDIT_SITE.anchors_from_submission(entry, forum_name)
+    return bound.reconstruct(kind, anchors)
 
 
 def _project_item_to_record(
@@ -64,7 +53,7 @@ def _project_item_to_record(
     source_kind = base.get("kind")
     if not isinstance(item_kind, str) or not isinstance(source_kind, str):
         return None
-    catalog = SiteCatalog()
+    catalog = default_catalog()
     site_kind = catalog.site_for_kind(source_kind, benchmark=benchmark)
     if site_kind is None:
         return None
@@ -133,4 +122,4 @@ def _clean_project_path(project_path: str) -> str:
     the API probe's ``web_url``). For URL reconstruction we want just
     the group-slashed path suffix.
     """
-    return _GITLAB_SITE.clean_project_path(project_path)
+    return _gitlab_clean_project_path(project_path)

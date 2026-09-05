@@ -264,6 +264,20 @@ class RedditSite(
             return None
         return anchors
 
+    def probe_item_anchors(
+        self,
+        item: Mapping[str, Any],
+        *,
+        kind_hint: str,
+        forum_name: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Project an L3 probe row into submission anchors; the forum is required."""
+
+        del kind_hint
+        if not forum_name:
+            return None
+        return self.anchors_from_submission(item, forum_name)
+
     @staticmethod
     def anchors_from_submission(entry: Mapping[str, Any], forum_name: str) -> dict[str, Any]:
         submission_id = entry.get("id") or entry.get("submission_id")

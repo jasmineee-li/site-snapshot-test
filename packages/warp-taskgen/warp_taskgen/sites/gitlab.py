@@ -510,6 +510,18 @@ class GitLabSite(
                 anchors["project_path"] = match.group("project_path")
         return anchors
 
+    def probe_item_anchors(
+        self,
+        item: Mapping[str, Any],
+        *,
+        kind_hint: str,
+        forum_name: str | None = None,
+    ) -> dict[str, Any]:
+        """Project an L3 probe row (issue or merge request) into route anchors."""
+
+        del forum_name
+        return self.anchors_from_item(item, kind_hint=kind_hint)
+
     @staticmethod
     def project_path_from_listing_task(
         instruction: str,

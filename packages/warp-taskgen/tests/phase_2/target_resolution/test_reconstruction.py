@@ -242,3 +242,108 @@ def test_patch_benign_target_resource_urls_rewrites_and_is_idempotent(tmp_path):
 
     assert patch_script.main(["patch", str(path)]) == 0
     assert json.loads(path.read_text()) == patched
+
+
+def test_bound_site_reconstructs_through_the_adapter_hook():
+    from .test_l4 import _fake_l4_catalog
+
+    bound = _fake_l4_catalog().bind(site="fake", origin="https://fake.local")
+
+    assert bound.reconstruct("list", {}) == "https://fake.local/list"
+    assert bound.reconstruct("fake_list", {}) == "https://fake.local/list"
+    assert bound.reconstruct("message", {"message_id": "7"}) == "https://fake.local/messages/7"
+    assert bound.reconstruct("fake_message", {}) is None
+    assert bound.reconstruct("not_a_kind", {"message_id": "7"}) is None
+    # No origin: the adapter has nothing to bind the route to.
+    assert _fake_l4_catalog().bind(site="fake").reconstruct("list", {}) is None
+
+
+def test_reconstruction_helper_resolves_a_fourth_site_through_the_catalog(monkeypatch):
+    from warp_taskgen.phase_2.target_resolution import reconstruction
+    from warp_taskgen.phase_2.target_resolution.listing_records import compose_listing_record
+    from warp_taskgen.sites import ListingItemCandidate
+
+    from .test_l4 import _fake_l4_catalog
+
+    catalog = _fake_l4_catalog()
+    monkeypatch.setattr(reconstruction, "default_catalog", lambda: catalog)
+    placeholders = {"__FAKE__": "https://fake.local"}
+
+    assert (
+        reconstruction._reconstruct_start_url_from_anchors(
+            "fake", "fake_message", {"message_id": "7"}, placeholders
+        )
+        == "https://fake.local/messages/7"
+    )
+    assert reconstruction._reconstruct_start_url_from_anchors("fake", "list", {}, placeholders) == (
+        "https://fake.local/list"
+    )
+    # A Site the catalog does not know fails closed instead of raising.
+    assert (
+        reconstruction._reconstruct_start_url_from_anchors("gitlab", "list", {}, placeholders)
+        is None
+    )
+
+    base = {"kind": "fake_list", "anchors": {}, "start_url_resolved": "https://fake.local/list"}
+    item = {"_item_kind": "fake_message", "id": "7", "title": "hello"}
+    record = reconstruction._project_item_to_record(base, item, placeholders)
+    bound = catalog.bind(site="fake", origin="https://fake.local", placeholders=placeholders)
+    candidate = ListingItemCandidate(
+        source_kind="fake_list",
+        item_kind="fake_message",
+        payload=item,
+        evidence_url=base["start_url_resolved"],
+    )
+    expected = compose_listing_record(base, candidate, bound.materialize_listing_entry(candidate))
+    assert record is not None
+    assert record == expected
+    assert record["start_url_resolved"] == "https://fake.local/messages/7"
+
+
+def test_bound_site_probe_item_anchors_wraps_the_active_site_hooks():
+    from warp_taskgen.sites import default_catalog
+    from warp_taskgen.sites.gitlab import GitLabSite
+    from warp_taskgen.sites.reddit import RedditSite
+
+    item = {"project_id": 5, "iid": 30, "web_url": "https://gitlab.local/a/b/-/issues/30"}
+    gitlab = default_catalog().bind(site="gitlab", placeholders=PLACEHOLDERS)
+    assert gitlab.probe_item_anchors(
+        item, kind_hint="gitlab_issue"
+    ) == GitLabSite.anchors_from_item(item, kind_hint="gitlab_issue")
+    # The hook wraps ``anchors_from_item`` verbatim: the iid key follows the
+    # kind hint and ``project_path`` still carries the web_url authority that
+    # ``_canonicalize_project_path`` strips downstream.
+    assert gitlab.probe_item_anchors(item, kind_hint="search_user_mrs") == {
+        "project_id": "5",
+        "mr_iid": "30",
+        "project_path": "gitlab.local/a/b",
+    }
+
+    entry = {"id": "12", "title": "t"}
+    reddit = default_catalog().bind(site="reddit", placeholders=PLACEHOLDERS)
+    assert reddit.probe_item_anchors(
+        entry, kind_hint="reddit_submission", forum_name="books"
+    ) == RedditSite.anchors_from_submission(entry, "books")
+    # Reddit anchors need a forum; without one there is nothing to attribute.
+    assert reddit.probe_item_anchors(entry, kind_hint="reddit_submission") is None
+
+
+def test_bound_site_probe_item_anchors_is_none_without_the_adapter_hook():
+    from tests.sites.synthetic_discussion_forum.site import ORIGIN, SyntheticDiscussionForumSite
+    from warp_taskgen.sites import SiteCatalog
+
+    bound = SiteCatalog([SyntheticDiscussionForumSite()]).bind(
+        site="synthetic_discussion_forum", origin=ORIGIN
+    )
+
+    assert bound.probe_item_anchors({"id": "1"}, kind_hint="thread") is None
+    assert bound.probe_item_anchors({"id": "1"}, kind_hint="thread", forum_name="x") is None
+    assert bound.project_path_from_listing_task("open a/b issues", resolved_start=None) is None
+
+
+def test_target_resolution_holds_no_module_level_site_instances():
+    from warp_taskgen.phase_2.target_resolution import listing_intent, reconstruction, url_matching
+
+    for module in (url_matching, reconstruction, listing_intent):
+        assert not hasattr(module, "_GITLAB_SITE"), module.__name__
+        assert not hasattr(module, "_REDDIT_SITE"), module.__name__

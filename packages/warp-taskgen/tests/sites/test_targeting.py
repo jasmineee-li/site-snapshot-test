@@ -418,17 +418,22 @@ def test_gitlab_issue_listing_is_classified_by_the_site_grammar():
     assert target.start_url_resolved == "https://gitlab.local/namespace/project/-/issues"
 
 
-def test_legacy_matchers_preserve_prefixed_resource_kinds():
-    from warp_taskgen.phase_2.target_resolution.url_matching import _match_gitlab, _match_reddit
+def test_bound_sites_preserve_prefixed_compatibility_kinds():
+    gitlab = (
+        SiteCatalog()
+        .bind(site="gitlab", origin="https://gitlab.local")
+        .resolve(_task("gitlab", "https://gitlab.local/a/b/-/issues/7"))
+    )
+    reddit = (
+        SiteCatalog()
+        .bind(site="reddit", origin="https://reddit.local")
+        .resolve(_task("reddit", "https://reddit.local/f/books/12/-/comment"))
+    )
 
-    assert _match_gitlab("https://gitlab.local/a/b/-/issues/7") == (
-        "gitlab_issue",
-        {"project_path": "a/b", "issue_iid": "7"},
-    )
-    assert _match_reddit("https://reddit.local/f/books/12/-/comment") == (
-        "reddit_submission",
-        {"forum_name": "books", "submission_id": "12"},
-    )
+    assert gitlab.canonical_route.compatibility_kind == "gitlab_issue"
+    assert gitlab.anchors == {"project_path": "a/b", "issue_iid": "7"}
+    assert reddit.canonical_route.compatibility_kind == "reddit_submission"
+    assert reddit.anchors == {"forum_name": "books", "submission_id": "12"}
 
 
 def test_l3_candidate_accepts_legacy_kind_and_preserves_local_route():

@@ -9,10 +9,6 @@ from warp_taskgen.phase_2.target_resolution.constants import (
     _REGEX_META_RE,
     VIEWPORT_BUDGET_CHARS,
 )
-from warp_taskgen.phase_2.target_resolution.types import ResourceKind
-from warp_taskgen.sites.catalog import (
-    TargetingContext,
-)
 from warp_taskgen.sites.catalog import (
     _iter_eval_urls as _catalog_iter_eval_urls,
 )
@@ -38,10 +34,6 @@ from warp_taskgen.sites.catalog import (
     _url_with_expected_query_params as _catalog_url_with_expected_query_params,
 )
 from warp_taskgen.sites.gitlab import GitLabSite
-from warp_taskgen.sites.reddit import RedditSite
-
-_GITLAB_SITE = GitLabSite()
-_REDDIT_SITE = RedditSite()
 
 
 def _strip_regex_anchors(url: str) -> str:
@@ -112,14 +104,6 @@ def _path_and_query(url: str) -> str:
     return _catalog_path_and_query(url)
 
 
-def _is_listing_kind(kind: str) -> bool:
-    if kind.startswith("gitlab_"):
-        return _GITLAB_SITE.is_listing(kind)
-    if kind.startswith("reddit_"):
-        return _REDDIT_SITE.is_listing(kind)
-    return False
-
-
 def _disambiguate_root_segment(task: Mapping[str, Any], segment: str) -> str | None:
     """Resolve a bare ``/<segment>`` URL into a gitlab kind.
 
@@ -131,46 +115,7 @@ def _disambiguate_root_segment(task: Mapping[str, Any], segment: str) -> str | N
     missing. The resolver does not guess: ambiguous cases fall through to
     ``kind=None`` with a categorized drop reason.
     """
-    return _GITLAB_SITE.disambiguate_root_segment(task, segment)
-
-
-def _listing_start_url(kind: str, resolved_url: str, fallback_url: str | None) -> str | None:
-    if kind.startswith("gitlab_"):
-        return _GITLAB_SITE.listing_start_url(kind, resolved_url, fallback_url)
-    if kind.startswith("reddit_"):
-        return _REDDIT_SITE.listing_start_url(kind, resolved_url, fallback_url)
-    return fallback_url
-
-
-def _match_gitlab(
-    url: str,
-    task: Mapping[str, Any] | None = None,
-) -> tuple[ResourceKind, dict[str, str]] | None:
-    hit = _GITLAB_SITE.match(
-        url,
-        task or {},
-        TargetingContext(benchmark="webarena_verified", site="gitlab"),
-    )
-    if hit is None:
-        return None
-    kind, anchors = hit
-    from warp_taskgen.sites.gitlab import to_legacy_kind
-
-    return to_legacy_kind(kind), anchors
-
-
-def _match_reddit(url: str) -> tuple[ResourceKind, dict[str, str]] | None:
-    hit = _REDDIT_SITE.match(
-        url,
-        {},
-        TargetingContext(benchmark="webarena_verified", site="reddit"),
-    )
-    if hit is None:
-        return None
-    kind, anchors = hit
-    from warp_taskgen.sites.reddit import to_legacy_kind
-
-    return to_legacy_kind(kind), anchors
+    return GitLabSite.disambiguate_root_segment(task, segment)
 
 
 def _iter_eval_urls(task: Mapping[str, Any]) -> list[str]:
@@ -219,7 +164,7 @@ def _canonicalize_project_path(project_path: str) -> str:
     Returns the bare ``namespace/project`` (or ``namespace/subgroup/project``)
     form expected by GitLab's path-based API endpoints. The L3 LLM
     sometimes emits ``localhost:8023/foo/bar`` because the API probe's
-    ``web_url`` puts the authority in the path; ``_anchors_from_gitlab_item``
+    ``web_url`` puts the authority in the path; the Site probe hook
     propagates that into ``project_path`` anchors. The bare form is what
     ``urllib.parse.quote(path, safe='')`` should percent-encode for
     ``GET /api/v4/projects/:id``.
@@ -227,4 +172,4 @@ def _canonicalize_project_path(project_path: str) -> str:
     Idempotent: already-canonical inputs return unchanged. Empty input
     returns the empty string.
     """
-    return _GITLAB_SITE.canonicalize_project_path(project_path)
+    return GitLabSite.canonicalize_project_path(project_path)

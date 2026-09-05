@@ -31,6 +31,10 @@ from warp_taskgen.sites.listing_resolution import (
     ListingSiteAdapter,
     materialize_listing_entry,
 )
+from warp_taskgen.sites.probe_hooks import (
+    ListingTaskProjectPathCapability,
+    ProbeItemAnchorsCapability,
+)
 from warp_taskgen.sites.profile_binding import BoundProfileRoutes
 from warp_taskgen.sites.read_surface import BoundReadSurface
 from warp_taskgen.sites.readback import BoundReadback
@@ -239,6 +243,46 @@ class BoundSite(BoundProfileRoutes, BoundReadSurface, BoundReadback):
             return bool(self._adapter.is_listing(route.kind))
         except Exception:
             return False
+
+    def reconstruct(self, kind: str, anchors: Mapping[str, Any]) -> str | None:
+        """Reconstruct the canonical start URL for a local or compatibility kind.
+
+        Unknown kinds and insufficient anchors yield ``None``; the bound
+        context supplies the origin, so no deployment host is guessed.
+        """
+
+        route = self._route_for_identifier(str(kind or ""), anchors)
+        if route is None:
+            return None
+        return self._adapter.reconstruct(route.kind, anchors, self._context)
+
+    def probe_item_anchors(
+        self,
+        item: Mapping[str, Any],
+        *,
+        kind_hint: str,
+        forum_name: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Project one L3 probe row through the adapter's optional hook."""
+
+        if not isinstance(self._adapter, ProbeItemAnchorsCapability):
+            return None
+        anchors = self._adapter.probe_item_anchors(item, kind_hint=kind_hint, forum_name=forum_name)
+        return dict(anchors) if isinstance(anchors, Mapping) else None
+
+    def project_path_from_listing_task(
+        self,
+        instruction: str,
+        *,
+        resolved_start: str | None,
+    ) -> str | None:
+        """Return the project path a listing task names, or ``None`` without the hook."""
+
+        if not isinstance(self._adapter, ListingTaskProjectPathCapability):
+            return None
+        return self._adapter.project_path_from_listing_task(
+            instruction, resolved_start=resolved_start
+        )
 
     def _resolved(
         self,

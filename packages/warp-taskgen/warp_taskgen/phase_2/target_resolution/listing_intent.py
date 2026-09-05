@@ -12,17 +12,13 @@ from warp_taskgen.phase_2.target_resolution.encounter import (
     _encounter_requirements,
     _route_evidence_flags,
 )
-from warp_taskgen.phase_2.target_resolution.reconstruction import (
-    _reconstruct_start_url_from_anchors,
-)
-from warp_taskgen.sites.gitlab import GitLabSite
-
-_GITLAB_SITE = GitLabSite()
+from warp_taskgen.sites.catalog import BoundSite
 
 
 def _gitlab_issue_listing_intent(
     task: Mapping[str, Any],
     *,
+    bound: BoundSite,
     resolved_start: str | None,
     placeholders: Mapping[str, str],
     benchmark: str,
@@ -49,11 +45,7 @@ def _gitlab_issue_listing_intent(
     ):
         return None
 
-    project_path = _project_path_from_gitlab_listing_task(
-        instruction,
-        resolved_start=resolved_start,
-        placeholders=placeholders,
-    )
+    project_path = bound.project_path_from_listing_task(instruction, resolved_start=resolved_start)
     if not project_path:
         return None
 
@@ -61,9 +53,7 @@ def _gitlab_issue_listing_intent(
     label_names = _label_names_from_gitlab_issue_listing_instruction(instruction)
     if label_names:
         anchors["label_names"] = label_names
-    reconstructed = _reconstruct_start_url_from_anchors(
-        "gitlab", "gitlab_search_result", anchors, placeholders
-    )
+    reconstructed = bound.reconstruct("gitlab_search_result", anchors)
     if reconstructed is None:
         base = (placeholders.get("__GITLAB__") or "").rstrip("/")
         reconstructed = f"{base}/{project_path}/-/issues" if base else resolved_start
@@ -82,18 +72,6 @@ def _gitlab_issue_listing_intent(
     record.update(_route_evidence_flags("gitlab_search_result", task))
     _assert_anchor_contract_conformance(record, benchmark=benchmark, site="gitlab")
     return record
-
-
-def _project_path_from_gitlab_listing_task(
-    instruction: str,
-    *,
-    resolved_start: str | None,
-    placeholders: Mapping[str, str],
-) -> str | None:
-    return _GITLAB_SITE.project_path_from_listing_task(
-        instruction,
-        resolved_start=resolved_start,
-    )
 
 
 def _label_names_from_gitlab_issue_listing_instruction(instruction: str) -> str | None:
