@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from warp_taskgen.editors._method_spec import FreeText
 from warp_taskgen.editors._registry import EditorMethodSpec
-from warp_taskgen.phase_2.exposure_contract import _impl as pec
 from warp_taskgen.phase_2.exposure_contract import (
     build_exposure_contract,
+    builder,
+    constants,
+    editor_args,
     materialize_seed_template_from_contract,
 )
 from warp_taskgen.seeding import self_contained_adversarial_seed_error
@@ -117,8 +119,10 @@ def test_prefers_always_shown_surface_when_multiple_specs_qualify(monkeypatch):
         surface_id_per_kind={"gitlab_issue": "note_on_issue"},
         required_editor_args=("body",),
     )
-    monkeypatch.setattr(pec, "iter_specs", lambda *, site, benchmark: [conditional, always_shown])
-    monkeypatch.setattr(pec, "available_tokens_for_kind", lambda *args, **kwargs: frozenset())
+    monkeypatch.setattr(
+        editor_args, "iter_specs", lambda *, site, benchmark: [conditional, always_shown]
+    )
+    monkeypatch.setattr(builder, "available_tokens_for_kind", lambda *args, **kwargs: frozenset())
 
     contract = build_exposure_contract(
         benign_task_id="task-visibility",
@@ -150,8 +154,8 @@ def test_core_surface_gitlab_issue_description_admitted(monkeypatch):
         surface_id_per_kind={"gitlab_issue": "issue.description"},
         required_editor_args=("description",),
     )
-    monkeypatch.setattr(pec, "iter_specs", lambda *, site, benchmark: [issue_description])
-    monkeypatch.setattr(pec, "available_tokens_for_kind", lambda *args, **kwargs: frozenset())
+    monkeypatch.setattr(editor_args, "iter_specs", lambda *, site, benchmark: [issue_description])
+    monkeypatch.setattr(builder, "available_tokens_for_kind", lambda *args, **kwargs: frozenset())
 
     contract = build_exposure_contract(
         benign_task_id="task-core-issue-description",
@@ -371,8 +375,8 @@ def test_core_surface_gitlab_label_description_dropped(monkeypatch):
         surface_id_per_kind={"gitlab_issue": "label.description"},
         required_editor_args=("description",),
     )
-    monkeypatch.setattr(pec, "iter_specs", lambda *, site, benchmark: [label_description])
-    monkeypatch.setattr(pec, "available_tokens_for_kind", lambda *args, **kwargs: frozenset())
+    monkeypatch.setattr(editor_args, "iter_specs", lambda *, site, benchmark: [label_description])
+    monkeypatch.setattr(builder, "available_tokens_for_kind", lambda *args, **kwargs: frozenset())
 
     contract = build_exposure_contract(
         benign_task_id="task-non-core-label-description",
@@ -403,8 +407,8 @@ def test_core_surface_reddit_submission_body_admitted(monkeypatch):
         surface_id_per_kind={"reddit_submission": "submission.body"},
         required_editor_args=("body",),
     )
-    monkeypatch.setattr(pec, "iter_specs", lambda *, site, benchmark: [submission_body])
-    monkeypatch.setattr(pec, "available_tokens_for_kind", lambda *args, **kwargs: frozenset())
+    monkeypatch.setattr(editor_args, "iter_specs", lambda *, site, benchmark: [submission_body])
+    monkeypatch.setattr(builder, "available_tokens_for_kind", lambda *args, **kwargs: frozenset())
 
     contract = build_exposure_contract(
         benign_task_id="task-core-submission-body",
@@ -432,8 +436,8 @@ def test_core_surface_unknown_site_fails_closed(monkeypatch):
         surface_id_per_kind={"gitlab_issue": "note.body"},
         required_editor_args=("body",),
     )
-    monkeypatch.setattr(pec, "iter_specs", lambda *, site, benchmark: [shopping_surface])
-    monkeypatch.setattr(pec, "available_tokens_for_kind", lambda *args, **kwargs: frozenset())
+    monkeypatch.setattr(editor_args, "iter_specs", lambda *, site, benchmark: [shopping_surface])
+    monkeypatch.setattr(builder, "available_tokens_for_kind", lambda *args, **kwargs: frozenset())
 
     contract = build_exposure_contract(
         benign_task_id="task-unknown-site",
@@ -1016,7 +1020,7 @@ def test_materialize_adds_order_guard_for_gitlab_project_issue_description():
     appended = out["editor_calls"][1]
     assert appended["method"] == "create_issue_description"
     assert appended["args"]["body"] == "{{PAYLOAD_TEXT}}"
-    assert appended["pre_call_delay_s"] == pec.ORDERED_CREATED_CHILD_PRE_CALL_DELAY_S
+    assert appended["pre_call_delay_s"] == constants.ORDERED_CREATED_CHILD_PRE_CALL_DELAY_S
     assert self_contained_adversarial_seed_error(benign_seed, out) is None
 
 
@@ -1055,7 +1059,7 @@ def test_materialize_reddit_comment_adds_pre_call_delay_after_benign_comment():
     assert out["editor_calls"][:1] == benign_seed["editor_calls"]
     appended = out["editor_calls"][1]
     assert appended["method"] == "create_comment"
-    assert appended["pre_call_delay_s"] == pec.ORDERED_CREATED_CHILD_PRE_CALL_DELAY_S
+    assert appended["pre_call_delay_s"] == constants.ORDERED_CREATED_CHILD_PRE_CALL_DELAY_S
     assert self_contained_adversarial_seed_error(benign_seed, out) is None
 
 
@@ -1096,7 +1100,7 @@ def test_materialize_gitlab_note_adds_pre_call_delay_after_benign_note():
     assert out["editor_calls"][:1] == benign_seed["editor_calls"]
     appended = out["editor_calls"][1]
     assert appended["method"] == "create_issue_note"
-    assert appended["pre_call_delay_s"] == pec.ORDERED_CREATED_CHILD_PRE_CALL_DELAY_S
+    assert appended["pre_call_delay_s"] == constants.ORDERED_CREATED_CHILD_PRE_CALL_DELAY_S
     assert self_contained_adversarial_seed_error(benign_seed, out) is None
 
 
