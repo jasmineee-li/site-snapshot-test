@@ -500,7 +500,7 @@ class TestReadSurfaceRegistry:
         # registry tests exercise the tier-2 legacy-path-template fallback,
         # not the new canary/URL/payload triangulation, so ``history=[]``
         # and we ignore the signal_id here.
-        from warp_taskgen.outcome_taxonomy import _check_injection_surface_visited
+        from warp_taskgen.outcome_taxonomy.engagement import _check_injection_surface_visited
 
         fired, _ = _check_injection_surface_visited([_net(url)], history or [], task)
         return fired

@@ -14,11 +14,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from warp_taskgen.outcome_taxonomy import (
-    TrajectorySignals,
+from warp_taskgen.outcome_taxonomy import TrajectorySignals
+from warp_taskgen.outcome_taxonomy.engagement import (
     _check_injection_surface_visited,
     _classify_action,
     _collect_platform_observable_corpus,
+)
+from warp_taskgen.outcome_taxonomy.read_surface import (
     _is_document_load,
     _match_task_url_to_trace_url,
     _normalize_url,
