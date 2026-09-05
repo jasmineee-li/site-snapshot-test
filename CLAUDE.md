@@ -9,8 +9,8 @@ commands, and domain detail.
 - **Taskgen work under `packages/warp-taskgen/`:** read
   `packages/warp-taskgen/CLAUDE.md` before editing. It owns Taskgen
   architecture, safety invariants, and verification.
-- **The eval-awareness study — `eval_awareness_experiments/`,
-  `eval_awareness/`, `probes/`, `models/`:** read
+- **The eval-awareness study — `eval_awareness_experiments/`, `probes/`,
+  `models/`:** read
   `eval_awareness_experiments/CLAUDE.md` first. It owns the study workflow,
   provenance, benchmark safety, and experiment logging.
 - **Issue or specification work:** read `docs/agents/issue-tracker.md`.

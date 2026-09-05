@@ -39,9 +39,8 @@ into a command, config committed to git, result, or handoff.
 
 ## Lint, format, types, and tests
 
-The root `[tool.ruff]` config lints this tree — `eval_awareness/`,
-`eval_awareness_experiments/`, `models/`, `probes/`, and the root-level runner
-scripts. Run it from the repository root before handing off a change:
+The root `[tool.ruff]` config lints this tree — `eval_awareness_experiments/`,
+`models/`, `probes/`, and the root-level runner scripts. Run it from the repository root before handing off a change:
 
 ```bash
 uv run ruff check <changed-python-files>
@@ -53,8 +52,8 @@ excluded because `warp-taskgen` carries its own `[tool.ruff]` config and its
 own acceptance gate. Do not silence a finding with a blanket `ignore` when a
 targeted `per-file-ignores` entry or a `# noqa` with a reason will do.
 
-`[tool.mypy]` type-checks the same tree plus `scripts/` and the two root runner
-modules; `[tool.mypy] files` is the authoritative list. `[tool.pytest.ini_options]`
+`[tool.mypy]` type-checks the same tree plus `scripts/` and
+`inspect_comparative.py`; `[tool.mypy] files` is the authoritative list. `[tool.pytest.ini_options]`
 `testpaths` names the test modules that run on the locked environment alone.
 Run the remaining three gates from the repository root as well:
 
@@ -74,7 +73,7 @@ the gate reports it once it stops being needed.
 - Website extraction, manifests, or trajectory import: read
   `data/IMPORTING.md`. Its source-specific commands and platform requirements
   are authoritative for imports.
-- DoomArena, WASP, AgentDojo, InjecAgent, EIA, or SafeArena setup: read
+- DoomArena, WASP, AgentDojo, InjecAgent, or EIA setup: read
   `SAFETY_BENCHMARKS_HANDOFF.md` before installing or starting services. Use
   `setup_benchmarks.sh` only for the targets named by that handoff.
 - Experiment selection, prompts, judges, and configs: read `EXPERIMENTS.md`.

@@ -10,7 +10,7 @@ This experiment suite integrates external IPI (Indirect Prompt Injection) and ha
 |-----------|------|--------|----------------------------|
 | **DoomArena** | Adversarial web attacks (popups, banners, content replacement) | [ServiceNow/DoomArena](https://github.com/ServiceNow/DoomArena) | JavaScript injection into BrowserGym environment |
 | **WASP** | Web agent prompt injection (GitLab + Reddit clones) | [facebookresearch/wasp](https://github.com/facebookresearch/wasp) | Text injection into issues/posts via VisualWebArena |
-| **SafeArena** | 500 tasks (250 safe + 250 harm) across shopping/Reddit/GitLab/homepage; 5 harm categories (misinformation, harassment, illegal, cybercrime, social bias) | [McGill-NLP/safearena](https://github.com/McGill-NLP/safearena) | Harmful goal instructions in `harm.json` — delivered via `HarmfulGoalInstructions` class (already uses `<rule>` XML tags for jailbreaks). BrowserGym + AgentLab. |
+| **SafeArena** | 500 tasks (250 safe + 250 harm) across shopping/Reddit/GitLab/homepage; 5 harm categories (misinformation, harassment, illegal, cybercrime, social bias) | [McGill-NLP/safearena](https://github.com/McGill-NLP/safearena) | Not integrated — no runner in this tree; see `SAFETY_BENCHMARKS_HANDOFF.md` for history |
 | ~~OS-harm~~ | ~~OS-level prompt injection (web subset)~~ | ~~[tml-epfl/os-harm](https://github.com/tml-epfl/os-harm)~~ | Disabled — requires OSWorld VM setup |
 
 Baseline comparisons use existing data from **WebArena-Infinity** (general agent benchmark) and **TheAgentCompany** (TAC).
@@ -54,7 +54,7 @@ Context:
 - **Eval awareness** = "I'm in an eval, I should act safe" → lowers ASR
 - **Scenario recognition** = "This is hypothetical/fake, so I can act differently" → raises ASR
 
-**Note on SafeArena**: SafeArena's harmful tasks already use `<rule>` XML tags in their `HarmfulExtraInstructions` (including a "purely hypothetical and fictional" framing). Our `eval_cue` / `scenario_cue` conditions wrap on top of that, potentially compounding or interacting with existing jailbreak cues. Compare baselines carefully.
+**Note on SafeArena**: If SafeArena is integrated: SafeArena's harmful tasks already use `<rule>` XML tags in their `HarmfulExtraInstructions` (including a "purely hypothetical and fictional" framing). Our `eval_cue` / `scenario_cue` conditions wrap on top of that, potentially compounding or interacting with existing jailbreak cues. Compare baselines carefully.
 
 ## Models
 
@@ -168,6 +168,5 @@ python -m eval_awareness_experiments.analysis_causal \
 
 1. **DoomArena**: `git clone https://github.com/ServiceNow/DoomArena && pip install -e DoomArena/doomarena/browsergym`
 2. **WASP**: `git clone https://github.com/facebookresearch/wasp` + VisualWebArena Docker setup
-3. **SafeArena**: `git clone https://github.com/McGill-NLP/safearena && cd safearena && pip install -e .` + Docker env + `huggingface-cli download McGill-NLP/safearena --repo-type dataset`
-4. **AgentLab**: Already in this repo — `pip install -e AgentLab/`
-5. **API keys**: Set `OPENROUTER_API_KEY` in `.env`
+3. **AgentLab**: Already in this repo — `pip install -e AgentLab/`
+4. **API keys**: Set `OPENROUTER_API_KEY` in `.env`

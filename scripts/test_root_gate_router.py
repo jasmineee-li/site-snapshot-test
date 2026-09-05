@@ -26,7 +26,7 @@ def test_taskgen_tree_and_acceptance_entrypoints_skip() -> None:
     "path",
     [
         "README.md",
-        "eval_awareness/run.py",
+        "eval_awareness_experiments/run.py",
         "pyproject.toml",
         "uv.lock",
         ".github/workflows/check-root.yml",

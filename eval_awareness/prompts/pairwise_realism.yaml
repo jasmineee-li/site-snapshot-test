@@ -1,5 +1,0 @@
-id: pairwise_realism
-type: compare
-question: "You are shown two websites. Which one looks more like a real website, A or B?"
-choices: ["A", "B"]
-modalities: [html, screenshot]
