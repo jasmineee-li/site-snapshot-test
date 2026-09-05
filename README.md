@@ -164,7 +164,7 @@ uv run warp-taskgen phase 4 \
   --phase-4-variant-system eval-awareness-iterator
 ```
 
-Phase 4 requires a running WebArena Verified instance and model credentials. The full overnight pipeline (Phase 2 verify → 3 → 4 → analysis) is `packages/warp-taskgen/scripts/run_paper_pipeline.sh`.
+Phase 4 requires a running WebArena Verified instance and model credentials. The full phase sequence (Phase 0 → 1 → 2 → 3 → 4) is documented in `packages/warp-taskgen/docs/action-capability-pilot-runbook.md`.
 
 ### Documentation
 
