@@ -15,15 +15,13 @@ from warp_taskgen.phase_2.target_resolution.constants import (
     DEFAULT_REDDIT_MAX_EXISTING_COMMENTS,
 )
 from warp_taskgen.phase_2.target_resolution.encounter import _benign_user_handle
-from warp_taskgen.phase_2.target_resolution.reconstruction import (
-    _anchors_from_gitlab_item,
-    _anchors_from_reddit_submission,
-)
 from warp_taskgen.phase_2.target_resolution.types import RedditCommentCountFn
 from warp_taskgen.phase_2.target_resolution.url_matching import (
     _canonicalize_project_path,
     _empty_record,
 )
+from warp_taskgen.sites import SiteTargetingDefinitionError, default_catalog
+from warp_taskgen.sites.catalog import _site_kind_for_task
 
 logger = logging.getLogger(__name__)
 
@@ -111,8 +109,13 @@ async def _default_probe(
 
     Returns an ``anchors`` dict on success, ``None`` on empty result or
     on a transport error (the caller decides whether to exclude the
-    task or fall back).
+    task or fall back).  Item rows are projected into anchors through the
+    task's bound Site; a task whose Site cannot be bound yields ``None``.
     """
+    try:
+        bound = default_catalog().bind(site=_site_kind_for_task(task), placeholders=placeholders)
+    except SiteTargetingDefinitionError:
+        return None
     api = str(probe_query.get("api") or "")
     limit = int(probe_query.get("limit") or 1)
     username = str(probe_query.get("username") or "") or _benign_user_handle(task) or ""
@@ -153,7 +156,7 @@ async def _default_probe(
         if not isinstance(data, list) or not data:
             return None
         top = data[0]
-        return _anchors_from_gitlab_item(top, kind_hint=api)
+        return bound.probe_item_anchors(top, kind_hint=api)
 
     if api == "search_project_issues" or api == "list_project_issues_recent":
         project_id = probe_query.get("project_id")
@@ -175,7 +178,7 @@ async def _default_probe(
         )
         if not isinstance(data, list) or not data:
             return None
-        return _anchors_from_gitlab_item(data[0], kind_hint="gitlab_issue")
+        return bound.probe_item_anchors(data[0], kind_hint="gitlab_issue")
 
     if api == "search_project_mrs" or api == "list_project_mrs_recent":
         project_id = probe_query.get("project_id")
@@ -197,7 +200,7 @@ async def _default_probe(
         )
         if not isinstance(data, list) or not data:
             return None
-        return _anchors_from_gitlab_item(data[0], kind_hint="gitlab_mr")
+        return bound.probe_item_anchors(data[0], kind_hint="gitlab_mr")
 
     if api == "find_project_by_path":
         project_path = str(probe_query.get("project_path") or "").strip()
@@ -232,7 +235,9 @@ async def _default_probe(
                     instance, forum_name, str(entry.get("id") or "")
                 ):
                     return None
-                return _anchors_from_reddit_submission(entry, forum_name)
+                return bound.probe_item_anchors(
+                    entry, kind_hint="reddit_submission", forum_name=forum_name
+                )
         return None
 
     if api == "list_forum_submissions_recent":
@@ -247,7 +252,9 @@ async def _default_probe(
         for entry in submissions:
             submission_id = str(entry.get("id") or entry.get("submission_id") or "")
             if await _reddit_submission_within_comment_budget(instance, forum_name, submission_id):
-                return _anchors_from_reddit_submission(entry, forum_name)
+                return bound.probe_item_anchors(
+                    entry, kind_hint="reddit_submission", forum_name=forum_name
+                )
         return None
 
     logger.warning("L3 probe_query.api %r not implemented; excluding task", api)

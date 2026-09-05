@@ -70,6 +70,7 @@ def derive_benign_target_resource(
             listing_record = (
                 _gitlab_issue_listing_intent(
                     task,
+                    bound=bound,
                     resolved_start=resolved_start,
                     placeholders=placeholders,
                     benchmark=benchmark,
@@ -109,6 +110,7 @@ def derive_benign_target_resource(
     if "L2" in allow_layers and site_kind == "gitlab":
         listing_record = _gitlab_issue_listing_intent(
             task,
+            bound=bound,
             resolved_start=resolved_start,
             placeholders=placeholders,
             benchmark=benchmark,
