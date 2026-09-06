@@ -209,6 +209,7 @@ def test_infrastructure_missingness_keeps_scheduled_denominator(tmp_path, failed
         "reward evaluation raised EditorError: reset",
         "FinalStateEvaluator adapter failed for site: EditorError: unavailable",
         "no network trace captured (required for FinalStateEvaluator)",
+        "reddit comment parent readback page missing",
     ],
 )
 def test_readback_failure_overrides_false_even_if_checked(tmp_path, message):
@@ -330,3 +331,68 @@ def test_export_command_uses_real_analyzer(tmp_path, capsys, monkeypatch):
     runpy.run_path(str(script), run_name="__main__")
     report = json.loads(capsys.readouterr().out)
     assert report["models"][0]["metrics"]["asr"]["task_weighted_secondary"]["effect"] == 1
+
+
+def test_incomplete_persisted_pair_remains_two_unknown_scheduled_arms(tmp_path):
+    path = _artifact(tmp_path, "a", "A", {"status": "scheduled"}, {"status": "scheduled"})
+    artifact = json.loads(path.read_text())
+    artifact.update(
+        status="scheduled", schema_version=3, arm_order=["ordinary", "tp_guided"], assignment_seed=4
+    )
+    artifact["primary"]["pairs"][0]["arm_order"] = ["ordinary", "tp_guided"]
+    path.write_text(json.dumps(artifact))
+    model = _analyze([path])["models"][0]
+    assert model["scheduled_pairs"] == 1
+    assert model["scheduled_arms"] == 2
+    assert model["metrics"]["asr"]["task_weighted_secondary"]["effect_bounds"] == [-1, 1]
+    assert model["stage_counts"]["ordinary"] == {"incomplete_scheduled_artifact": 1}
+
+
+def test_persisted_selector_baseline_fallback_stays_secondary(tmp_path):
+    path = _artifact(
+        tmp_path,
+        "a",
+        "A",
+        {"status": "qa_failed", "failure": "contract_qa_failed"},
+        _evaluated(False),
+    )
+    artifact = json.loads(path.read_text())
+    artifact["secondary"] = {
+        "endpoint": "secondary_selected_result",
+        "selector": "eval-awareness-iterator",
+        "arms": {
+            "tp_guided": {
+                "selected_iteration": 0,
+                "selection_reason": "baseline",
+                "result": _evaluated(True)["result"],
+            },
+            "ordinary": {
+                "selected_iteration": 1,
+                "selection_reason": "latest_valid_attempt",
+                "result": _evaluated(False)["result"],
+            },
+        },
+    }
+    path.write_text(json.dumps(artifact))
+    model = _analyze([path])["models"][0]
+    assert model["metrics"]["asr"]["task_weighted_secondary"]["effect"] == 0
+    assert (
+        model["same_selector_secondary"]["metrics"]["asr"]["task_weighted_secondary"]["effect"] == 1
+    )
+    assert model["same_selector_secondary"]["selection_counts"]["tp_guided"] == {"baseline": 1}
+
+
+def test_model_interval_does_not_depend_on_another_models_eligibility(tmp_path):
+    paths = [
+        _artifact(tmp_path, "a", "A", _evaluated(True), _evaluated(False), model="m1"),
+        _artifact(tmp_path, "b", "A", _evaluated(False), _evaluated(False), model="m1"),
+    ]
+    alone = _analyze(paths)["models"][0]["metrics"]["asr"]["covered_family_balanced_secondary"]
+    paths += [
+        _artifact(tmp_path, f"other{i}", "A", _evaluated(False), _evaluated(False), model="m2")
+        for i in range(20)
+    ]
+    together = _analyze(paths)["models"][0]["metrics"]["asr"]["covered_family_balanced_secondary"]
+    assert alone["effect"] == 0.5
+    assert alone["ci95"] is not None
+    assert together == alone

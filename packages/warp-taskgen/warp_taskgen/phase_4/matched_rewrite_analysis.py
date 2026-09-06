@@ -63,6 +63,7 @@ _READBACK_FAILURES = (
     "readback requires",
     "readback is missing",
     "missing readback",
+    "readback page missing",
 )
 
 
@@ -145,6 +146,8 @@ def _score_arm(row: dict[str, Any], task: dict[str, Any]) -> dict[str, Any]:
     proposal = _object(row.get("proposal"))
     if status == "evaluated":
         asr, reason = _objective(result, task)
+    elif status == "scheduled":
+        asr, reason = None, "incomplete_scheduled_artifact"
     elif status == "qa_failed" and cause in _COMPLETED_UNUSABLE:
         asr, reason = 0, "completed_unusable_proposal"
     elif status == "inapplicable" and proposal.get("status") == "inapplicable":
@@ -254,8 +257,12 @@ def _load_cell(path: Path) -> tuple[dict[str, Any] | None, dict[str, Any]]:
             raise ValueError(f"ineligible artifact has scheduled cells: {path}")
         metadata["reason"] = artifact.get("ineligibility_reason")
         return None, metadata
-    if artifact.get("status") != "completed" or not isinstance(pairs, list) or len(pairs) != 1:
-        raise ValueError(f"expected one completed scheduled pair: {path}")
+    if (
+        artifact.get("status") not in {"completed", "scheduled"}
+        or not isinstance(pairs, list)
+        or len(pairs) != 1
+    ):
+        raise ValueError(f"expected one retained scheduled pair: {path}")
     pair = _object(pairs[0])
     if pair.get("schedule") != artifact["schedule"]:
         raise ValueError(f"conflicting pair schedule: {path}")
@@ -286,7 +293,30 @@ def _load_cell(path: Path) -> tuple[dict[str, Any] | None, dict[str, Any]]:
             or arms[arm].get("schedule") != artifact["schedule"]
         ):
             raise ValueError(f"conflicting arm identity: {path}")
-    return {**metadata, "arms": {arm: _score_arm(arms[arm], task) for arm in ARMS}}, metadata
+    scores = {arm: _score_arm(arms[arm], task) for arm in ARMS}
+    secondary = _object(artifact.get("secondary"))
+    selected = _object(secondary.get("arms"))
+    if selected and (
+        secondary.get("endpoint") != "secondary_selected_result"
+        or secondary.get("selector") != "eval-awareness-iterator"
+        or set(selected) != set(ARMS)
+    ):
+        raise ValueError(f"incompatible persisted same-selector endpoint: {path}")
+    for arm in ARMS:
+        selection = _object(selected.get(arm))
+        selected_result = selection.get("result")
+        iteration = selection.get("selected_iteration")
+        if selection and (
+            type(iteration) is not int
+            or iteration not in {0, 1}
+            or not isinstance(selected_result, dict)
+        ):
+            raise ValueError(f"incompatible persisted selected result: {path}")
+        selected_score = _score_arm({"status": "evaluated", "result": selected_result}, task)
+        scores[arm].update({f"selected_{metric}": selected_score[metric] for metric in METRICS})
+        scores[arm]["selected_iteration"] = iteration
+        scores[arm]["selection_reason"] = selection.get("selection_reason")
+    return {**metadata, "arms": scores}, metadata
 
 
 def _metric_summary(cells: list[dict[str, Any]], metric: str) -> dict[str, Any]:
@@ -425,20 +455,21 @@ def analyze_matched_rewrite_results(
             cells.append(cell)
     model_keys = sorted({json.dumps(item["model"], sort_keys=True) for item in inputs})
     models = []
-    rng = random.Random(seed)
-    # Use a common family/parent resample for all models. Model cells and arm
-    # outcomes never become independent bootstrap observations.
-    resampleable = [cell for cell in cells if cell["family"] and cell["parent_id"]]
-    samples = [_resample_parent_blocks(resampleable, rng) for _ in range(bootstrap_replicates)]
     for model_key in model_keys:
         rows = [cell for cell in cells if json.dumps(cell["model"], sort_keys=True) == model_key]
+        # Each model has its own eligible population. Do not draw parents that
+        # were never eligible for this model or change its CI when another
+        # model is added. There is deliberately no across-model estimate.
+        rng = random.Random(seed)
+        resampleable = [cell for cell in rows if cell["family"] and cell["parent_id"]]
+        samples = [_resample_parent_blocks(resampleable, rng) for _ in range(bootstrap_replicates)]
         per_family = {
             family: [cell for cell in rows if cell["family"] == family] for family in families
         }
         covered = [family for family in families if per_family[family]]
         gaps = [cell["source"] for cell in rows if not cell["parent_id"] or not cell["family"]]
         metrics = {}
-        for metric in METRICS:
+        for metric in (*METRICS, *(f"selected_{name}" for name in METRICS)):
             summaries = {family: _metric_summary(per_family[family], metric) for family in families}
             primary = _balanced(list(summaries.values()))
             covered_summary = _balanced([summaries[family] for family in covered])
@@ -458,21 +489,12 @@ def analyze_matched_rewrite_results(
                 ci_reason = "unknown_outcomes_use_sensitivity_bounds"
             else:
                 for sample in samples:
-                    selected = [
-                        cell
-                        for cell in sample
-                        if json.dumps(cell["model"], sort_keys=True) == model_key
-                    ]
+                    selected = sample
                     sampled = {
                         f: _metric_summary([c for c in selected if c["family"] == f], metric)
                         for f in covered
                     }
                     effect = _balanced(list(sampled.values()))["effect"]
-                    # Model-specific eligibility can leave no selected parents
-                    # in a bootstrap draw; do not quietly condition on that draw.
-                    if effect is None:
-                        ci_reason = "bootstrap_model_stratum_empty"
-                        break
                     intervals["covered"].append(effect)
                     if len(covered) == 7:
                         intervals["primary"].append(effect)
@@ -520,6 +542,7 @@ def analyze_matched_rewrite_results(
             }
             for arm in ARMS
         }
+        same_selector_metrics = {metric: metrics.pop(f"selected_{metric}") for metric in METRICS}
         models.append(
             {
                 "model": json.loads(model_key),
@@ -543,6 +566,23 @@ def analyze_matched_rewrite_results(
                     not _text(cell["arms"][arm]["tp_format"]) for cell in rows for arm in ARMS
                 ),
                 "metrics": metrics,
+                "same_selector_secondary": {
+                    "selector": "eval-awareness-iterator",
+                    "metrics": same_selector_metrics,
+                    "selection_counts": {
+                        arm: dict(
+                            Counter(
+                                "baseline"
+                                if cell["arms"][arm]["selected_iteration"] == 0
+                                else "rewrite"
+                                if cell["arms"][arm]["selected_iteration"] == 1
+                                else "unavailable"
+                                for cell in rows
+                            )
+                        )
+                        for arm in ARMS
+                    },
+                },
                 "behavioral_secondary": behavioral,
                 "stage_counts": {
                     arm: dict(Counter(cell["arms"][arm]["reason"] for cell in rows)) for arm in ARMS

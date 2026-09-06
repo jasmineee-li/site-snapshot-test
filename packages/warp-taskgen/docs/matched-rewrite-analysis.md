@@ -21,6 +21,8 @@ prove that an external frozen cohort is complete when scheduled artifacts were
 never supplied. It rejects duplicate task/model cells, inconsistent model or
 family attribution, conflicting parent families, and malformed pair denominators.
 It reports ineligible input artifacts separately with their retained reasons.
+An incomplete predispatch `status=scheduled` artifact retains its explicit pair
+and both arms as unknown in the scheduled denominator.
 
 ## Persisted field mapping
 
@@ -64,7 +66,10 @@ component establishes 0, both true establish 1, otherwise the result is unknown.
 ASR, TP, joint outcomes and utility each retain the scheduled denominator and
 show scoreable counts. The behavioral secondary view counts only exact target
 outcomes, with separate arm denominators. Existing selected winners are not
-substituted into the primary analysis.
+substituted into the primary analysis. `same_selector_secondary` separately
+scores the existing `secondary.arms.*.result` under the same objective contract,
+with persisted baseline/rewrite selection counts and unknowns when unavailable.
+The analyzer never reruns the selector or invents a replacement selection.
 
 ## Estimation and uncertainty
 
@@ -86,11 +91,13 @@ scoreable count and cannot replace the primary. These are sensitivity bounds,
 not confidence intervals.
 
 The default 2,000 deterministic seeded percentile bootstrap replicates draw
-original parents with replacement within fixed families, carrying both arms,
-all variants and all model observations together. Fixed family weights are
-preserved. No interval is emitted when parent/family lineage is missing, fewer
-than two parents cover a family, or a model-specific eligible stratum becomes
-empty in a shared bootstrap draw. These reasons remain explicit. Small samples
+original parents with replacement within each model's eligible fixed families,
+carrying both arms and all variants together. Each model uses the same seed;
+adding another model does not change its intervals. There is no across-model
+aggregate, so repeated model observations are never pooled as independent
+parents. Fixed family weights are preserved. No interval is emitted when
+parent/family lineage is missing or fewer than two parents cover a family.
+These reasons remain explicit. Small samples
 and identical observed effects can still yield a degenerate empirical interval;
 this is limited observed variation, not proof of equivalence or preserved ASR.
 The analysis is estimation-first and performs no hypothesis-test battery or
