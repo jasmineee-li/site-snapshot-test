@@ -2276,6 +2276,8 @@ def test_named_composition_cleanup_failure_aborts_public_phase2c_runner(tmp_path
         ),
         feasibility_policy_catalog=default_feasibility_policy_catalog(),
         strict_seed_cleanup=True,
+        seed_token_scope="method",
+        strict_site_planning=True,
     )
 
     with pytest.raises(RequiredSeedCleanupError, match="cleanup_failed"):
@@ -2324,6 +2326,8 @@ def test_named_composition_partial_seed_cleanup_failure_aborts_public_phase2c_ru
         ),
         feasibility_policy_catalog=default_feasibility_policy_catalog(),
         strict_seed_cleanup=True,
+        seed_token_scope="method",
+        strict_site_planning=True,
     )
 
     with pytest.raises(RequiredSeedCleanupError) as raised:

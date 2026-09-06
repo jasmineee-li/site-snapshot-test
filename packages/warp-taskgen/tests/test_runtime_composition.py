@@ -170,6 +170,8 @@ def test_runtime_composition_rejects_wrong_catalog_types() -> None:
             site_catalog=object(),  # type: ignore[arg-type]
             seed_registry=composition.seed_registry,
             feasibility_policy_catalog=composition.feasibility_policy_catalog,
+            seed_token_scope=composition.seed_token_scope,
+            strict_site_planning=composition.strict_site_planning,
         )
 
 

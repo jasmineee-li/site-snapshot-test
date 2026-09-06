@@ -439,7 +439,7 @@ def _apply_editor_seed_call(
     created_resource_accumulator: list[dict[str, Any]] | None = None,
     editor_call_result_accumulator: list[dict[str, Any]] | None = None,
     seed_registry: SeedSiteRegistry,
-    seed_token_scope: str = "kind",
+    seed_token_scope: str,
 ) -> None:
     from datetime import UTC, datetime
 

@@ -83,9 +83,14 @@ class Phase2RuntimeAdmission:
         }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class RuntimeComposition:
-    """One immutable set of runtime catalogs for a bounded pipeline run."""
+    """One immutable set of runtime catalogs for a bounded pipeline run.
+
+    ``seed_token_scope`` and ``strict_site_planning`` carry no defaults: a
+    composition must say which reading it takes, so a new one cannot fall open
+    onto the default Run's permissive readings by omission.
+    """
 
     name: str
     site_catalog: SiteCatalog
@@ -108,8 +113,8 @@ class RuntimeComposition:
     ) = None
     phase_2_generation: Phase2Generation | None = None
     strict_seed_cleanup: bool = False
-    seed_token_scope: Literal["kind", "method"] = "kind"
-    strict_site_planning: bool = False
+    seed_token_scope: Literal["kind", "method"]
+    strict_site_planning: bool
 
     @classmethod
     def default(cls) -> RuntimeComposition:
