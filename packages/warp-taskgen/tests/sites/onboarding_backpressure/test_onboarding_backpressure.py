@@ -194,6 +194,9 @@ def registered_site_literals() -> tuple[tuple[str, ...], tuple[str, ...]]:
             for kind in (route.kind, route.compatibility_kind):
                 if kind and kind.startswith(prefix):
                     kinds.add(kind)
+    # A guard with no literals passes vacuously; an empty catalog or unprefixed
+    # kinds must fail here rather than silently narrow the check.
+    assert names and kinds, (names, kinds)
     return names, tuple(sorted(kinds))
 
 
