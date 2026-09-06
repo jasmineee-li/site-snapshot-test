@@ -1,15 +1,12 @@
-"""Phase 1 generate-new-tasks helpers: eligible-site discovery and novel-task generation."""
+"""Phase 1 generate-new-tasks runner: per-site sandbox generation and the batch run."""
 
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
-import os
 import tempfile
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
-from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -21,24 +18,44 @@ from warp_taskgen.modal_sandbox import (
     upload_to_volume,
 )
 from warp_taskgen.phase_1.contract_bound_action_api import (
-    contract_bound_prompt_inputs,
-    contract_bound_tool_schema_digest,
     generate_contract_bound_action_tasks_api,
-)
-from warp_taskgen.phase_1.generated_workflows import (
-    compile_model_owned_content,
-    generation_prompt_addendum,
-    generation_prompt_fingerprint_inputs,
-    owns_model_generated_content,
-    restore_compiled_tasks,
 )
 from warp_taskgen.phase_1.generated_workflows import (
     host_compiled_evaluator_types as feature_host_compiled_evaluator_types,
 )
+from warp_taskgen.phase_1.novel_task_cache import (
+    SiteGenerateNewTasksResult,
+    _load_all_cached_site_results,
+    _site_cache_metadata_path,
+    _write_site_cache_metadata,
+    compute_generate_new_tasks_shared_inputs_fingerprint,
+    compute_site_cache_fingerprint,
+    load_cached_novel_tasks,
+)
+from warp_taskgen.phase_1.novel_task_generation_prompt import (
+    _attach_agent_context_to_tasks,
+    _compile_phase1_feature_tasks,
+    _compile_phase1_model_owned_features,
+    _load_site_agent_context,
+    _render_generate_new_tasks_correction,
+    _stamp_new_task_origin,
+    _use_contract_bound_action_api,
+    render_generate_benign_tasks_prompt,
+)
+from warp_taskgen.phase_1.novel_task_site_plan import (
+    DEFAULT_NOVEL_TASKS_PER_SITE,
+    EligibleSiteProfile,
+    _action_counts_for_site,
+    _fail_if_action_counts_unavailable,
+    _fail_if_requested_sites_ineligible,
+    _fail_if_task_card_plan_missing_sites,
+    _normalize_site_filter,
+    _site_requested_count,
+    load_generate_new_tasks_eligible_sites,
+)
 from warp_taskgen.phase_1.novel_task_validation import (
     GeneratedTaskValidationError,
     sort_novel_tasks,
-    validate_generated_novel_tasks,
     validate_generated_novel_tasks_detailed,
 )
 from warp_taskgen.phase_1.task_card_batch_generation import (
@@ -48,62 +65,24 @@ from warp_taskgen.phase_1.task_card_batch_generation import (
     rekey_sandbox_task_ids,
     task_card_generation_slices,
 )
-from warp_taskgen.phases.phase_1_route_contracts import (
-    build_task_route_contracts,
-    route_contracts_digest,
-)
+from warp_taskgen.phases.phase_1_route_contracts import build_task_route_contracts
 from warp_taskgen.phases.phase_1_task_cards import (
-    card_action_kinds,
-    card_benign_reward_shape,
     task_card_generation_counts,
-    task_card_plan_digest,
     task_card_plan_for_site,
 )
-from warp_taskgen.placeholders import normalize_site_name
-from warp_taskgen.profile_validation import load_and_validate_profile
-from warp_taskgen.prompt_corrections import render_validation_feedback
-from warp_taskgen.prompt_loading import load_prompt
 from warp_taskgen.state import get_state_dir
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_NOVEL_TASKS_PER_SITE = 30
 GENERATE_NEW_TASKS_FIX_MAX_ITERATIONS = 2
 NOVEL_TASK_OUTPUT_PATH = "/workspace/output/benign_tasks.json"
 GENERATE_NEW_TASKS_RESUME_METADATA_PATH = "generate_new_tasks_resume_metadata.json"
-SITE_CACHE_METADATA_SUFFIX = ".metadata.json"
-GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION = 8
-CONTRACT_BOUND_ACTION_API_ENV = "WORLDSIM_PHASE1_CONTRACT_BOUND_API"
-CONTRACT_BOUND_ACTION_API_REQUIRED_PROFILES = frozenset({"tier2_pure_action_paper"})
 
 
 def _read_only_volume(volume: Any) -> Any:
     """Return a read-only mount when the object supports it."""
     read_only = getattr(volume, "read_only", None)
     return read_only() if callable(read_only) else volume
-
-
-@dataclass(frozen=True)
-class EligibleSiteProfile:
-    site_name: str
-    profile_path: Path
-    profile: dict[str, Any]
-
-
-@dataclass(frozen=True)
-class SiteGenerateNewTasksResult:
-    site_name: str
-    benign_tasks: list[dict[str, Any]]
-    errors: list[str]
-
-
-@dataclass(frozen=True)
-class SiteCacheInspection:
-    """Read-only explanation of one Phase 1 site-cache decision."""
-
-    status: str
-    reason_code: str
-    result: SiteGenerateNewTasksResult | None = None
 
 
 async def run_generate_new_tasks(
@@ -260,110 +239,6 @@ async def run_generate_new_tasks(
         )
 
     return sort_novel_tasks(all_novel_tasks)
-
-
-def load_generate_new_tasks_eligible_sites(
-    *,
-    profiles_dir: Path,
-    manifest_eval_types: list[str],
-    site_filter: Iterable[str] | None = None,
-) -> list[EligibleSiteProfile]:
-    """Return profiles with Phase 4-admissible carrier route families."""
-    eligible: list[EligibleSiteProfile] = []
-    site_filter_set = _normalize_site_filter(site_filter)
-
-    for profile_path in sorted(profiles_dir.glob("BENCHMARK_PROFILE_*.json")):
-        site_name = profile_path.stem.removeprefix("BENCHMARK_PROFILE_")
-        if site_filter_set is not None and site_name not in site_filter_set:
-            logger.info(
-                "Phase 1 (generate-new-tasks): skipping site %r due to --sites filter", site_name
-            )
-            continue
-        profile = load_and_validate_profile(
-            site_name,
-            profile_path,
-            manifest_eval_types=manifest_eval_types,
-        )
-        route_contracts = build_task_route_contracts(site_name=site_name, profile=profile)
-        if route_contracts.get("route_families"):
-            eligible.append(
-                EligibleSiteProfile(
-                    site_name=site_name,
-                    profile_path=profile_path,
-                    profile=profile,
-                )
-            )
-        else:
-            logger.info(
-                "Phase 1 (generate-new-tasks): skipping site %r (no Phase 4-admissible carrier route families)",
-                site_name,
-            )
-
-    return eligible
-
-
-def _normalize_site_filter(site_filter: Iterable[str] | None) -> set[str] | None:
-    if site_filter is None:
-        return None
-    normalized = {
-        normalize_site_name(str(site).strip()) for site in site_filter if str(site).strip()
-    }
-    return normalized or None
-
-
-def _fail_if_requested_sites_ineligible(
-    *,
-    site_filter: Iterable[str] | None,
-    eligible_sites: list[EligibleSiteProfile],
-) -> None:
-    requested = _normalize_site_filter(site_filter)
-    if requested is None:
-        return
-    eligible = {site.site_name for site in eligible_sites}
-    missing = sorted(requested - eligible)
-    if not missing:
-        return
-    raise RuntimeError(
-        "Phase 1 (generate-new-tasks) cannot satisfy the requested site filter because "
-        "the following selected site(s) have no Phase 4-admissible carrier route "
-        f"families: {', '.join(missing)}. This usually means Phase 0c did not produce "
-        "live inventory for inventory-backed routes, or the site has no strict-WASP "
-        "carrier surface under the current route contracts. Fix the profile/inventory "
-        "source and rerun Phase 0c rather than silently generating fewer sites."
-    )
-
-
-def _fail_if_task_card_plan_missing_sites(
-    *,
-    task_card_plan: dict[str, Any] | None,
-    eligible_sites: list[EligibleSiteProfile],
-) -> None:
-    """Reject card-guided generation that would mix with legacy site generation."""
-    if task_card_plan is None:
-        return
-    missing = [
-        site.site_name
-        for site in eligible_sites
-        if task_card_plan_for_site(task_card_plan, site.site_name) is None
-    ]
-    if not missing:
-        return
-    active_sites = sorted(
-        {
-            str(card.get("site")).strip()
-            for card in task_card_plan.get("task_cards", [])
-            if isinstance(card, dict)
-            and str(card.get("status", "active")) == "active"
-            and str(card.get("site") or "").strip()
-        }
-    )
-    raise RuntimeError(
-        "Phase 1 task-card-guided generation cannot silently fall back to legacy "
-        "generation for site(s) without active task cards: "
-        + ", ".join(sorted(missing))
-        + ". Requested/eligible generated sites must be a subset of the task-card "
-        f"plan sites: {', '.join(active_sites) or '<none>'}."
-    )
 
 
 async def generate_new_tasks_for_site(
@@ -782,665 +657,3 @@ async def _generate_new_tasks_for_site_card_slices(
             site_name=site.site_name,
         )
     return SiteGenerateNewTasksResult(site.site_name, batch.benign_tasks, [])
-
-
-def _stamp_new_task_origin(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Stamp generated tasks with their Phase 1 source before caching."""
-    stamped: list[dict[str, Any]] = []
-    for task in tasks:
-        item = json.loads(json.dumps(task))
-        if isinstance(item, dict):
-            item["origin"] = "new_task"
-        stamped.append(item)
-    return stamped
-
-
-def _compile_phase1_feature_tasks(
-    tasks: list[dict[str, Any]],
-    *,
-    task_card_plan: dict[str, Any] | None,
-) -> list[dict[str, Any]]:
-    """Apply explicitly authored feature generation before per-site caching."""
-    return restore_compiled_tasks(tasks, task_card_plan=task_card_plan)
-
-
-def _compile_phase1_model_owned_features(
-    tasks: Any,
-    *,
-    task_card_plan: dict[str, Any] | None,
-) -> Any:
-    """Compile strict semantic slots before generic task validation.
-
-    Model output contains only feature-owned semantic facts. Concrete owners
-    reconstruct host fields before the ordinary Phase 1 validators see a row.
-    """
-
-    return compile_model_owned_content(tasks, task_card_plan=task_card_plan)
-
-
-def load_cached_novel_tasks(
-    *,
-    intermediate_path: Path,
-    site_name: str,
-    profile: dict[str, Any],
-    cache_fingerprint: str,
-    expected_agent_context: dict[str, Any] | None = None,
-    expected_task_count: int = DEFAULT_NOVEL_TASKS_PER_SITE,
-    route_contracts: dict[str, Any] | None = None,
-    task_card_plan: dict[str, Any] | None = None,
-    host_compiled_evaluator_types: frozenset[str] = frozenset(),
-) -> SiteGenerateNewTasksResult | None:
-    """Return a validated cached per-site result when available."""
-    inspection = inspect_cached_novel_tasks(
-        intermediate_path=intermediate_path,
-        site_name=site_name,
-        profile=profile,
-        cache_fingerprint=cache_fingerprint,
-        expected_agent_context=expected_agent_context,
-        expected_task_count=expected_task_count,
-        route_contracts=route_contracts,
-        task_card_plan=task_card_plan,
-        host_compiled_evaluator_types=host_compiled_evaluator_types,
-    )
-    if inspection.result is not None:
-        logger.info(
-            "Phase 1 (generate-new-tasks): reusing %d cached novel tasks for site %r",
-            len(inspection.result.benign_tasks),
-            site_name,
-        )
-        return inspection.result
-    if inspection.status != "missing":
-        logger.warning(
-            "Phase 1 (generate-new-tasks): ignoring cached tasks for site %r (%s)",
-            site_name,
-            inspection.reason_code,
-        )
-    return None
-
-
-def inspect_cached_novel_tasks(
-    *,
-    intermediate_path: Path,
-    site_name: str,
-    profile: dict[str, Any],
-    cache_fingerprint: str,
-    expected_agent_context: dict[str, Any] | None = None,
-    expected_task_count: int = DEFAULT_NOVEL_TASKS_PER_SITE,
-    route_contracts: dict[str, Any] | None = None,
-    task_card_plan: dict[str, Any] | None = None,
-    host_compiled_evaluator_types: frozenset[str] = frozenset(),
-) -> SiteCacheInspection:
-    """Inspect a site cache with the same checks used before runtime reuse."""
-    if not intermediate_path.exists():
-        return SiteCacheInspection("missing", "cache_artifact_missing")
-
-    metadata_path = _site_cache_metadata_path(intermediate_path)
-    if not metadata_path.exists():
-        return SiteCacheInspection("stale", "cache_metadata_missing")
-    try:
-        metadata = json.loads(metadata_path.read_text())
-    except json.JSONDecodeError:
-        return SiteCacheInspection("invalid", "cache_metadata_invalid")
-    if not isinstance(metadata, dict):
-        return SiteCacheInspection("invalid", "cache_metadata_invalid")
-    if metadata.get("fingerprint") != cache_fingerprint:
-        return SiteCacheInspection("stale", "cache_fingerprint_mismatch")
-
-    try:
-        cached_tasks = json.loads(intermediate_path.read_text())
-    except json.JSONDecodeError:
-        return SiteCacheInspection("invalid", "cache_artifact_invalid_json")
-
-    validated_cached, errors = validate_generated_novel_tasks(
-        cached_tasks,
-        site_name=site_name,
-        profile=profile,
-        expected_task_count=expected_task_count,
-        route_contracts=route_contracts,
-        task_card_plan=task_card_plan,
-        host_compiled_evaluator_types=host_compiled_evaluator_types,
-    )
-    if errors:
-        return SiteCacheInspection("invalid", "cache_task_validation_failed")
-    if expected_agent_context is not None and any(
-        task.get("agent_context") != expected_agent_context for task in validated_cached
-    ):
-        return SiteCacheInspection("stale", "embedded_agent_context_mismatch")
-
-    return SiteCacheInspection(
-        "reusable",
-        "cache_valid",
-        SiteGenerateNewTasksResult(site_name, validated_cached, []),
-    )
-
-
-def load_existing_novel_tasks(output_path: Path) -> list[dict[str, Any]] | None:
-    """Return existing novel tasks from a merged output file, if present."""
-    if not output_path.exists():
-        return None
-
-    try:
-        merged = json.loads(output_path.read_text())
-    except json.JSONDecodeError:
-        logger.warning(
-            "Phase 1 (generate-new-tasks): ignoring invalid merged output at %s", output_path
-        )
-        return None
-
-    if not isinstance(merged, list):
-        return None
-
-    novel_tasks = [
-        task
-        for task in merged
-        if isinstance(task, dict) and str(task.get("id", "")).startswith("novel_")
-    ]
-    if not novel_tasks:
-        return None
-    return sort_novel_tasks(novel_tasks)
-
-
-def validate_existing_novel_tasks(
-    novel_tasks: list[dict[str, Any]],
-    *,
-    eligible_sites: list[EligibleSiteProfile],
-    expected_task_count: int = DEFAULT_NOVEL_TASKS_PER_SITE,
-    task_card_plan: dict[str, Any] | None = None,
-    action_counts: dict[str, int] | None = None,
-) -> list[str]:
-    """Validate merged-output novel tasks against the current eligible-site set."""
-    tasks_by_site: dict[str, list[dict[str, Any]]] = {}
-    for task in novel_tasks:
-        site_name = str(task.get("site", ""))
-        tasks_by_site.setdefault(site_name, []).append(task)
-
-    eligible_by_site = {site.site_name: site for site in eligible_sites}
-    errors: list[str] = []
-
-    unexpected_sites = sorted(set(tasks_by_site) - set(eligible_by_site))
-    if unexpected_sites:
-        errors.append(
-            "merged output contains novel tasks for unexpected sites: "
-            + ", ".join(unexpected_sites)
-        )
-
-    for site_name, site in eligible_by_site.items():
-        site_task_card_plan = task_card_plan_for_site(task_card_plan, site_name)
-        site_action_counts = _action_counts_for_site(site_task_card_plan, action_counts)
-        site_expected_count = _site_requested_count(
-            site_task_card_plan,
-            novel_tasks_per_site=expected_task_count,
-            action_counts=site_action_counts,
-        )
-        if site_expected_count <= 0:
-            if tasks_by_site.get(site_name):
-                errors.append(
-                    f"merged output contains novel tasks for site {site_name!r} with requested count 0"
-                )
-            continue
-        site_tasks = tasks_by_site.get(site_name)
-        if site_tasks is None:
-            errors.append(f"merged output is missing novel tasks for eligible site {site_name!r}")
-            continue
-        _, site_errors = validate_generated_novel_tasks(
-            site_tasks,
-            site_name=site_name,
-            profile=site.profile,
-            expected_task_count=site_expected_count,
-            route_contracts=build_task_route_contracts(
-                site_name=site.site_name,
-                profile=site.profile,
-            ),
-            task_card_plan=site_task_card_plan,
-            host_compiled_evaluator_types=feature_host_compiled_evaluator_types(
-                site_task_card_plan
-            ),
-        )
-        errors.extend(site_errors)
-
-    return errors
-
-
-def _load_all_cached_site_results(
-    *,
-    eligible_sites: list[EligibleSiteProfile],
-    output_dir: Path,
-    shared_inputs_fingerprint: str,
-    novel_tasks_per_site: int,
-    task_card_plan: dict[str, Any] | None = None,
-    action_counts: dict[str, int] | None = None,
-) -> list[SiteGenerateNewTasksResult] | None:
-    """Return cached per-site results when every eligible site cache validates."""
-    cached_results: list[SiteGenerateNewTasksResult] = []
-    for site in eligible_sites:
-        agent_context, agent_context_errors = _load_site_agent_context(site)
-        if agent_context_errors:
-            return None
-        site_task_card_plan = task_card_plan_for_site(task_card_plan, site.site_name)
-        site_expected_count = _site_requested_count(
-            site_task_card_plan,
-            novel_tasks_per_site=novel_tasks_per_site,
-            action_counts=_action_counts_for_site(site_task_card_plan, action_counts),
-        )
-        if site_expected_count <= 0:
-            continue
-        cached_result = load_cached_novel_tasks(
-            intermediate_path=output_dir / f"novel_tasks_{site.site_name}.json",
-            site_name=site.site_name,
-            profile=site.profile,
-            cache_fingerprint=compute_site_cache_fingerprint(
-                shared_inputs_fingerprint=shared_inputs_fingerprint,
-                site=site,
-                novel_tasks_per_site=novel_tasks_per_site,
-                task_card_plan=task_card_plan,
-                action_counts=action_counts,
-            ),
-            expected_agent_context=agent_context,
-            expected_task_count=site_expected_count,
-            route_contracts=build_task_route_contracts(
-                site_name=site.site_name,
-                profile=site.profile,
-            ),
-            task_card_plan=site_task_card_plan,
-            host_compiled_evaluator_types=feature_host_compiled_evaluator_types(
-                site_task_card_plan
-            ),
-        )
-        if cached_result is None:
-            return None
-        cached_results.append(cached_result)
-    return cached_results
-
-
-def render_generate_benign_tasks_prompt(
-    *,
-    site_name: str,
-    num_tasks: int,
-    task_card_plan: dict[str, Any] | None = None,
-    _task_number_start: int | None = None,
-) -> str:
-    """Render the generate-new-tasks prompt without interpreting literal example braces.
-
-    ``_task_number_start`` is private context used by card-sliced generation;
-    ordinary callers continue to receive the historical prompt unchanged.
-    """
-    prompt_name = (
-        "generate-benign-action-tasks"
-        if _task_card_plan_is_host_action_only(task_card_plan)
-        else "generate-benign-tasks"
-    )
-    prompt = load_prompt(
-        prompt_name,
-        validation_command=f"benign-tasks --site-name {site_name}",
-    )
-    rendered = prompt.replace("{site_name}", site_name).replace("{num_tasks}", str(num_tasks))
-    if isinstance(task_card_plan, dict):
-        addendum = generation_prompt_addendum(
-            task_card_plan,
-            site_name=site_name,
-            _task_number_start=_task_number_start,
-        )
-        if addendum:
-            rendered = f"{rendered}\n\n{addendum}"
-    return rendered
-
-
-def _task_card_plan_is_host_action_only(task_card_plan: dict[str, Any] | None) -> bool:
-    """Return whether every active card is plain host-action utility work."""
-    if not isinstance(task_card_plan, dict):
-        return False
-    active_cards = [
-        card
-        for card in task_card_plan.get("task_cards", [])
-        if isinstance(card, dict) and str(card.get("status", "active")) == "active"
-    ]
-    return bool(active_cards) and all(
-        card_benign_reward_shape(card) == "host_action_only"
-        and not owns_model_generated_content(card)
-        for card in active_cards
-    )
-
-
-def _action_counts_for_site(
-    task_card_plan: dict[str, Any] | None,
-    action_counts: dict[str, int] | None,
-) -> dict[str, int] | None:
-    if action_counts is None:
-        return None
-    if not isinstance(task_card_plan, dict):
-        return {}
-    available: set[str] = set()
-    for card in task_card_plan.get("task_cards", []):
-        if not isinstance(card, dict) or str(card.get("status", "active")) != "active":
-            continue
-        available.update(card_action_kinds(card))
-    return {kind: count for kind, count in action_counts.items() if kind in available}
-
-
-def _fail_if_action_counts_unavailable(
-    *,
-    site_plans: dict[str, dict[str, Any] | None],
-    action_counts: dict[str, int] | None,
-) -> None:
-    if action_counts is None:
-        return
-    available: set[str] = set()
-    for plan in site_plans.values():
-        if not isinstance(plan, dict):
-            continue
-        for card in plan.get("task_cards", []):
-            if not isinstance(card, dict) or str(card.get("status", "active")) != "active":
-                continue
-            available.update(card_action_kinds(card))
-    unavailable = sorted(
-        kind for kind, count in action_counts.items() if count > 0 and kind not in available
-    )
-    if unavailable:
-        raise ValueError(
-            "requested action kind(s) unavailable for selected sites/task-card plan: "
-            + ", ".join(unavailable)
-        )
-
-
-def _site_requested_count(
-    task_card_plan: dict[str, Any] | None,
-    *,
-    novel_tasks_per_site: int,
-    action_counts: dict[str, int] | None,
-) -> int:
-    generation_counts = task_card_generation_counts(task_card_plan)
-    if generation_counts is not None:
-        _validate_generation_count_action_counts(
-            task_card_plan=task_card_plan,
-            action_counts=action_counts,
-        )
-        return sum(generation_counts.values())
-    if action_counts is None:
-        return novel_tasks_per_site
-    return sum(_action_counts_for_site(task_card_plan, action_counts).values())
-
-
-def _validate_generation_count_action_counts(
-    *,
-    task_card_plan: dict[str, Any] | None,
-    action_counts: dict[str, int] | None,
-) -> None:
-    """Fail closed when explicit action counts disagree with card quotas."""
-    if action_counts is None:
-        return
-    generation_counts = task_card_generation_counts(task_card_plan)
-    if generation_counts is None:
-        return
-
-    expected_by_action: dict[str, int] = {}
-    for card in (task_card_plan or {}).get("task_cards", []):
-        if not isinstance(card, dict) or str(card.get("status", "active")) != "active":
-            continue
-        card_id = str(card.get("id") or "")
-        count = generation_counts.get(card_id)
-        if count is None:
-            continue
-        action_kinds = card_action_kinds(card)
-        if len(action_kinds) > 1:
-            raise ValueError(
-                "generation_count/action_counts conflict: multi-action task card "
-                f"{card_id!r} maps one quota to multiple action kinds "
-                f"{list(action_kinds)!r}; action_counts cannot disambiguate it"
-            )
-        if len(action_kinds) == 1:
-            expected_by_action[action_kinds[0]] = expected_by_action.get(action_kinds[0], 0) + count
-
-    conflicts: list[str] = []
-    for action_kind, expected in sorted(expected_by_action.items()):
-        actual = int(action_counts.get(action_kind, 0))
-        if actual != expected:
-            conflicts.append(f"{action_kind}: generation_count={expected}, action_counts={actual}")
-    if conflicts:
-        raise ValueError(
-            "generation_count/action_counts conflict for active task cards: "
-            + "; ".join(conflicts)
-            + ". Remove action_counts or make each action-kind total match its card quotas."
-        )
-
-
-def _normalize_action_counts(action_counts: dict[str, int] | None) -> dict[str, int] | None:
-    if action_counts is None:
-        return None
-    return {kind: int(action_counts[kind]) for kind in sorted(action_counts)}
-
-
-def _use_contract_bound_action_api(task_card_plan: dict[str, Any] | None) -> bool:
-    """Return whether Phase 1 should use the contract-bound API backend."""
-    if not _task_card_plan_is_host_action_only(task_card_plan):
-        return False
-    profile = ""
-    if isinstance(task_card_plan, dict):
-        profile = str(task_card_plan.get("task_capability_profile") or "").strip()
-    if profile in CONTRACT_BOUND_ACTION_API_REQUIRED_PROFILES:
-        return True
-    return os.environ.get(CONTRACT_BOUND_ACTION_API_ENV, "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-
-
-def _render_generate_new_tasks_correction(errors: list[GeneratedTaskValidationError]) -> str:
-    return render_validation_feedback(
-        artifact_name="benign_tasks.json",
-        errors=[error.to_dict() for error in errors],
-        summary=(
-            f"{len(errors)} validation error(s). Repair the tasks and return the complete "
-            "JSON array again."
-        ),
-        instruction=(
-            "Fix only the listed issues, preserve valid task intent where possible, and "
-            "return the complete JSON array. Do not include markdown or commentary."
-        ),
-    )
-
-
-def compute_generate_new_tasks_shared_inputs_fingerprint(
-    *,
-    benchmark_root: Path,
-    manifest: dict[str, Any],
-    sandbox_model: str = "claude-sonnet-4-6",
-    task_card_plan: dict[str, Any] | None = None,
-    action_counts: dict[str, int] | None = None,
-) -> str:
-    """Return a content-based digest for shared generate-new-tasks generation inputs."""
-    payload = {
-        "benchmark_tree_digest": _directory_tree_digest(benchmark_root),
-        "manifest": manifest,
-        "prompt": load_prompt(
-            "generate-benign-tasks",
-            validation_command="benign-tasks --site-name {site_name}",
-        ),
-        "host_action_prompt": load_prompt(
-            "generate-benign-action-tasks",
-            validation_command="benign-tasks --site-name {site_name}",
-        ),
-        **generation_prompt_fingerprint_inputs(task_card_plan),
-        "contract_bound_action_tool_schema": contract_bound_tool_schema_digest(),
-        "contract_bound_action_backend_env": os.environ.get(CONTRACT_BOUND_ACTION_API_ENV, ""),
-        "sandbox_model": sandbox_model,
-        "task_card_plan_digest": task_card_plan_digest(task_card_plan),
-        "action_counts": _normalize_action_counts(action_counts),
-    }
-    return _stable_json_digest(payload)
-
-
-def compute_site_cache_fingerprint(
-    *,
-    shared_inputs_fingerprint: str,
-    site: EligibleSiteProfile,
-    novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
-    task_card_plan: dict[str, Any] | None = None,
-    action_counts: dict[str, int] | None = None,
-) -> str:
-    """Return a content-based digest for one site's cached novel-task output."""
-    agent_context_path = site.profile_path.parent / f"AGENT_CONTEXT_{site.site_name}.json"
-    agent_context_digest = None
-    if agent_context_path.exists():
-        agent_context_digest = sha256(agent_context_path.read_bytes()).hexdigest()
-
-    site_task_card_plan = task_card_plan_for_site(task_card_plan, site.site_name)
-    payload = {
-        "cache_schema_version": GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION,
-        "shared_inputs_fingerprint": shared_inputs_fingerprint,
-        "site_name": site.site_name,
-        "profile": site.profile,
-        "route_contracts": route_contracts_digest(
-            build_task_route_contracts(site_name=site.site_name, profile=site.profile)
-        ),
-        "agent_context_digest": agent_context_digest,
-        "task_count": novel_tasks_per_site,
-        "action_counts": _normalize_action_counts(
-            _action_counts_for_site(
-                site_task_card_plan,
-                action_counts,
-            )
-        ),
-        "task_card_plan_digest": task_card_plan_digest(site_task_card_plan),
-    }
-    site_uses_contract_bound_backend = _use_contract_bound_action_api(site_task_card_plan) or any(
-        _use_contract_bound_action_api(card_slice.task_card_plan)
-        for card_slice in task_card_generation_slices(
-            site_task_card_plan,
-            site_name=site.site_name,
-        )
-    )
-    if site_uses_contract_bound_backend:
-        # Keep optional prompt inputs local to sites that actually consume the
-        # contract-bound backend; model-only Site caches retain their identity.
-        prompt_inputs = contract_bound_prompt_inputs()
-        if prompt_inputs:
-            payload["contract_bound_prompt_inputs"] = prompt_inputs
-    if _uses_sliced_model_prompt(site_task_card_plan, site_name=site.site_name):
-        # The sliced prompt carries a site-global ordinal range and substantive
-        # variation cues.  Keep the global cache schema and unaffected cache
-        # payloads stable; only these model-owned slices need invalidation.
-        payload["sliced_model_prompt_context_version"] = 1
-    return _stable_json_digest(payload)
-
-
-def _uses_sliced_model_prompt(
-    task_card_plan: Mapping[str, Any] | None,
-    *,
-    site_name: str,
-) -> bool:
-    """Return whether this site plan emits a model-owned sliced prompt."""
-
-    return any(
-        owns_model_generated_content(card)
-        for card_slice in task_card_generation_slices(task_card_plan, site_name=site_name)
-        for card in card_slice.task_card_plan.get("task_cards", [])
-        if isinstance(card, Mapping)
-    )
-
-
-def _load_site_agent_context(
-    site: EligibleSiteProfile,
-) -> tuple[dict[str, Any] | None, list[str]]:
-    """Load the sibling AGENT_CONTEXT file when present."""
-    agent_context_path = site.profile_path.parent / f"AGENT_CONTEXT_{site.site_name}.json"
-    if not agent_context_path.exists():
-        return None, []
-    try:
-        data = json.loads(agent_context_path.read_text())
-    except (json.JSONDecodeError, OSError) as exc:
-        return None, [f"invalid agent context for site {site.site_name!r}: {exc}"]
-    if not isinstance(data, dict):
-        return None, [
-            f"invalid agent context for site {site.site_name!r}: payload must be an object"
-        ]
-    return data, []
-
-
-def _attach_agent_context_to_tasks(
-    tasks: list[dict[str, Any]],
-    agent_context: dict[str, Any] | None,
-) -> list[dict[str, Any]]:
-    """Attach site agent context so later phases replay the same prompt contract.
-
-    The embedded context can include benchmark-issued test credentials. Keeping
-    it on the task artifact is intentional because later phases may run without
-    direct access to the original Phase 0c files and still need the same login
-    and response-format contract.
-    """
-    if agent_context is None:
-        return tasks
-
-    attached: list[dict[str, Any]] = []
-    for task in tasks:
-        hydrated = json.loads(json.dumps(task))
-        hydrated["agent_context"] = json.loads(json.dumps(agent_context))
-        attached.append(hydrated)
-    return attached
-
-
-def compute_generate_new_tasks_resume_fingerprint(
-    *,
-    shared_inputs_fingerprint: str,
-    eligible_sites: list[EligibleSiteProfile],
-    novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
-    task_card_plan: dict[str, Any] | None = None,
-    action_counts: dict[str, int] | None = None,
-) -> str:
-    """Return a deterministic digest for merged-output resume reuse."""
-    payload = {
-        "shared_inputs_fingerprint": shared_inputs_fingerprint,
-        "site_cache_fingerprints": [
-            {
-                "site_name": site.site_name,
-                "fingerprint": compute_site_cache_fingerprint(
-                    shared_inputs_fingerprint=shared_inputs_fingerprint,
-                    site=site,
-                    novel_tasks_per_site=novel_tasks_per_site,
-                    task_card_plan=task_card_plan,
-                    action_counts=action_counts,
-                ),
-            }
-            for site in sorted(eligible_sites, key=lambda item: item.site_name)
-        ],
-    }
-    return _stable_json_digest(payload)
-
-
-def _site_cache_metadata_path(intermediate_path: Path) -> Path:
-    return intermediate_path.with_suffix(intermediate_path.suffix + SITE_CACHE_METADATA_SUFFIX)
-
-
-def _write_site_cache_metadata(metadata_path: Path, *, fingerprint: str, site_name: str) -> None:
-    metadata_path.write_text(
-        json.dumps(
-            {
-                "fingerprint": fingerprint,
-                "site_name": site_name,
-            },
-            indent=2,
-        )
-    )
-
-
-def _stable_json_digest(value: Any) -> str:
-    return sha256(
-        json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
-
-
-def _directory_tree_digest(root: Path) -> str:
-    hasher = sha256()
-    for path in sorted(candidate for candidate in root.rglob("*") if candidate.is_file()):
-        rel_path = path.relative_to(root).as_posix().encode("utf-8")
-        hasher.update(rel_path)
-        hasher.update(b"\0")
-        with path.open("rb") as handle:
-            while True:
-                chunk = handle.read(1024 * 1024)
-                if not chunk:
-                    break
-                hasher.update(chunk)
-        hasher.update(b"\0")
-    return hasher.hexdigest()

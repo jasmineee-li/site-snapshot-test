@@ -5,13 +5,13 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
+from warp_taskgen.phase_1.novel_task_site_plan import DEFAULT_NOVEL_TASKS_PER_SITE
 from warp_taskgen.phase_2.text_fill.constants import DEFAULT_TEXT_FILL_MODEL, DEFAULT_TEXTS_PER_PLAN
 from warp_taskgen.phase_4.options import (
     DEFAULT_PHASE_4_EVAL_AWARENESS_MAX_ITERATIONS,
     DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
     DEFAULT_PHASE_4_VARIANT_SYSTEM,
 )
-from warp_taskgen.phases.phase_1_generate_new_tasks import DEFAULT_NOVEL_TASKS_PER_SITE
 from warp_taskgen.run_definition import define_run
 from warp_taskgen.run_definition_contracts import RunTransition
 from warp_taskgen.run_transition import resolve_run_request

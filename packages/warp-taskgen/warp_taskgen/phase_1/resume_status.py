@@ -12,25 +12,29 @@ from typing import Any
 from warp_taskgen.phase_1.generated_workflows import (
     host_compiled_evaluator_types as feature_host_compiled_evaluator_types,
 )
-from warp_taskgen.phases.phase_1_generate_new_tasks import (
+from warp_taskgen.phase_1.novel_task_cache import (
+    compute_generate_new_tasks_resume_fingerprint,
+    compute_generate_new_tasks_shared_inputs_fingerprint,
+    compute_site_cache_fingerprint,
+    inspect_cached_novel_tasks,
+    load_existing_novel_tasks,
+    validate_existing_novel_tasks,
+)
+from warp_taskgen.phase_1.novel_task_generation_prompt import (
     CONTRACT_BOUND_ACTION_API_ENV,
+    _load_site_agent_context,
+)
+from warp_taskgen.phase_1.novel_task_site_plan import (
     DEFAULT_NOVEL_TASKS_PER_SITE,
     EligibleSiteProfile,
     _action_counts_for_site,
     _fail_if_action_counts_unavailable,
     _fail_if_requested_sites_ineligible,
     _fail_if_task_card_plan_missing_sites,
-    _load_site_agent_context,
     _site_requested_count,
-    compute_generate_new_tasks_resume_fingerprint,
-    compute_generate_new_tasks_shared_inputs_fingerprint,
-    compute_site_cache_fingerprint,
-    inspect_cached_novel_tasks,
-    load_existing_novel_tasks,
     load_generate_new_tasks_eligible_sites,
-    sort_novel_tasks,
-    validate_existing_novel_tasks,
 )
+from warp_taskgen.phase_1.novel_task_validation import sort_novel_tasks
 from warp_taskgen.phases.phase_1_route_contracts import build_task_route_contracts
 from warp_taskgen.phases.phase_1_task_cards import (
     load_or_compile_task_card_plan,

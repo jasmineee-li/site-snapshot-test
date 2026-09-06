@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from warp_taskgen.phase_1 import generated_workflows
+from warp_taskgen.phase_1 import generated_workflows, novel_task_cache
 from warp_taskgen.phase_1.generated_workflows import generation_prompt_addendum
 from warp_taskgen.phases import phase_1_generate_new_tasks
 from warp_taskgen.phases.phase_1_task_cards import (
@@ -194,14 +194,14 @@ def test_site_cache_fingerprint_keeps_default_and_api_payloads_unchanged(
         profile_path=tmp_path / "BENCHMARK_PROFILE_gitlab.json",
         profile={},
     )
-    original_digest = phase_1_generate_new_tasks._stable_json_digest
+    original_digest = novel_task_cache._stable_json_digest
     captured: list[dict] = []
 
     def capture(payload):
         captured.append(payload)
         return original_digest(payload)
 
-    monkeypatch.setattr(phase_1_generate_new_tasks, "_stable_json_digest", capture)
+    monkeypatch.setattr(novel_task_cache, "_stable_json_digest", capture)
     default = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
         shared_inputs_fingerprint="default-shared",
         site=site,
@@ -251,14 +251,14 @@ def test_site_cache_fingerprint_discriminates_sliced_model_prompts_deterministic
             }
         ]
     }
-    original_digest = phase_1_generate_new_tasks._stable_json_digest
+    original_digest = novel_task_cache._stable_json_digest
     captured: list[dict] = []
 
     def capture(payload):
         captured.append(payload)
         return original_digest(payload)
 
-    monkeypatch.setattr(phase_1_generate_new_tasks, "_stable_json_digest", capture)
+    monkeypatch.setattr(novel_task_cache, "_stable_json_digest", capture)
     first = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
         shared_inputs_fingerprint="sliced-shared",
         site=site,
@@ -488,14 +488,14 @@ def test_contract_bound_prompt_inputs_are_omitted_when_absent(monkeypatch, tmp_p
     }
     monkeypatch.delenv("WORLDSIM_PHASE1_DIVERSITY_SALT", raising=False)
     monkeypatch.delenv("WORLDSIM_PHASE1_FORBIDDEN_REFERENCES", raising=False)
-    original_digest = phase_1_generate_new_tasks._stable_json_digest
+    original_digest = novel_task_cache._stable_json_digest
     captured: list[dict] = []
 
     def capture(payload):
         captured.append(payload)
         return original_digest(payload)
 
-    monkeypatch.setattr(phase_1_generate_new_tasks, "_stable_json_digest", capture)
+    monkeypatch.setattr(novel_task_cache, "_stable_json_digest", capture)
     phase_1_generate_new_tasks.compute_site_cache_fingerprint(
         shared_inputs_fingerprint="shared",
         site=site,

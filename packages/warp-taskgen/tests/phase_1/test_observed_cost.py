@@ -14,6 +14,7 @@ from warp_taskgen.cost_tracker import (
 from warp_taskgen.cost_tracker import (
     tracker as cost_tracker,
 )
+from warp_taskgen.phase_1 import novel_task_cache
 from warp_taskgen.phase_1.contract_bound_action_api import SelectedActionTaskContract
 from warp_taskgen.phase_1.contract_bound_action_api import (
     slot_generation as contract_api,
@@ -543,6 +544,11 @@ async def test_zero_requested_run_does_not_gate_or_preflight(monkeypatch, tmp_pa
     )
     monkeypatch.setattr(
         phase_1_generate_new_tasks,
+        "build_task_route_contracts",
+        lambda **_kwargs: {"route_families": [{"id": "route-1"}]},
+    )
+    monkeypatch.setattr(
+        novel_task_cache,
         "build_task_route_contracts",
         lambda **_kwargs: {"route_families": [{"id": "route-1"}]},
     )

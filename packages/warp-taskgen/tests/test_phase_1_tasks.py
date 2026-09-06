@@ -21,6 +21,7 @@ from warp_taskgen.adversarial_actions.capability_task_cards import (
     compile_capability_task_card_plan,
 )
 from warp_taskgen.cli import build_parser, dispatch, resume
+from warp_taskgen.phase_1 import novel_task_cache
 from warp_taskgen.phase_1 import novel_task_validation as phase_1_generate_new_tasks_validation
 from warp_taskgen.phase_1.contract_bound_action_api import (
     contract_selection,
@@ -860,7 +861,7 @@ def _generate_new_tasks_resume_metadata(
         )
     )
     return {
-        "fingerprint": phase_1_generate_new_tasks.compute_generate_new_tasks_resume_fingerprint(
+        "fingerprint": novel_task_cache.compute_generate_new_tasks_resume_fingerprint(
             shared_inputs_fingerprint=shared_inputs_fingerprint,
             eligible_sites=eligible_sites,
             novel_tasks_per_site=novel_tasks_per_site,
@@ -6833,12 +6834,12 @@ def test_compute_generate_new_tasks_shared_inputs_fingerprint_changes_when_promp
         benchmark_root=benchmark_root,
         manifest=manifest,
     )
-    original_load_prompt = phase_1_generate_new_tasks.load_prompt
+    original_load_prompt = novel_task_cache.load_prompt
 
     def fake_load_prompt(*args, **kwargs):
         return original_load_prompt(*args, **kwargs) + "\nchanged"
 
-    monkeypatch.setattr(phase_1_generate_new_tasks, "load_prompt", fake_load_prompt)
+    monkeypatch.setattr(novel_task_cache, "load_prompt", fake_load_prompt)
     second = phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
         benchmark_root=benchmark_root,
         manifest=manifest,

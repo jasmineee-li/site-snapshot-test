@@ -65,6 +65,16 @@ Current and target ownership should stay explicit:
   and messages, `slot_compilation.py` owning the compile of one accepted slot
   into a host-owned benign task, and `slot_generation.py` owning the host API
   call. The package `__init__` re-exports only the public entry points.
+- Phase 1 novel-task generation is split by behavior:
+  `warp_taskgen/phases/phase_1_generate_new_tasks.py` remains the runner and owns
+  the batch run, per-site sandbox generation, and the card-slice loop;
+  `warp_taskgen/phase_1/novel_task_cache.py` owns cached site results, cache
+  validation, and the shared-inputs, site-cache, and resume fingerprints;
+  `warp_taskgen/phase_1/novel_task_site_plan.py` owns eligible-site discovery,
+  site filters, and per-site generation counts; and
+  `warp_taskgen/phase_1/novel_task_generation_prompt.py` owns generation prompts,
+  validation corrections, origin stamping, feature compilation, and site agent
+  context. The siblings must not import the runner.
 - `warp_taskgen.adversarial_actions`: host-owned adversarial action behavior split by
   policies, allowed options, reward compilation, public mutation rewards,
   final-state compilers, and reward introspection. Import from the

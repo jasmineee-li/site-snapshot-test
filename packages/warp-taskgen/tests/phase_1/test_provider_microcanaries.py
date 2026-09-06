@@ -8,10 +8,8 @@ from types import ModuleType
 
 import pytest
 
-from warp_taskgen.phases.phase_1_generate_new_tasks import (
-    EligibleSiteProfile,
-    SiteGenerateNewTasksResult,
-)
+from warp_taskgen.phase_1.novel_task_cache import SiteGenerateNewTasksResult
+from warp_taskgen.phase_1.novel_task_site_plan import EligibleSiteProfile
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = PACKAGE_ROOT / "scripts" / "run_phase1_provider_microcanaries.py"
