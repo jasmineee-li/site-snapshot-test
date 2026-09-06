@@ -108,7 +108,7 @@ def provider(monkeypatch):
         return httpx.Response(200, json=_message(response, len(observed)))
 
     client = AsyncAnthropic(
-        api_key="test-credential-never-archive",
+        api_key="test-key",
         base_url="https://provider.test",
         max_retries=0,
         http_client=httpx.AsyncClient(transport=httpx.MockTransport(handle)),
@@ -142,7 +142,7 @@ def _read_requests(root: Path, diagnostics: dict) -> list[dict]:
         assert envelope["request_sha256"] == ref["request_sha256"]
         assert envelope["request_index"] == index
         assert envelope["resolved_client_provider"] == "openrouter"
-        assert "test-credential-never-archive" not in raw.decode()
+        assert "test-key" not in raw.decode()
         records.append(envelope["request"])
     return records
 
@@ -256,7 +256,7 @@ async def test_configured_model_and_resolved_provider_are_distinct_and_unknown_i
     observed, _ = provider
     monkeypatch.setattr(anthropic_client, "_client_provider", resolved)
     if resolved:
-        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-credential-never-archive")
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     with bind_text_fill_request_archive(tmp_path, tmp_path / "phase_2/text_fill/requests"):
         _, _, diag = await api._call_text_fill_api(
             "Generate", "anthropic/claude-sonnet-4-6", task=_task()
@@ -304,7 +304,7 @@ async def test_failed_archive_write_is_explicit_without_repeating_or_rejecting_g
     observed, _ = provider
 
     def unavailable(*_args, **_kwargs):
-        raise OSError("test-credential-never-archive")
+        raise OSError("test-key")
 
     monkeypatch.setattr(request_archive, "write_json_atomic", unavailable)
     with bind_text_fill_request_archive(tmp_path, tmp_path / "phase_2/text_fill/requests"):
@@ -316,7 +316,7 @@ async def test_failed_archive_write_is_explicit_without_repeating_or_rejecting_g
     assert ref["error_type"] == "OSError"
     assert "path" not in ref and "sha256" not in ref
     assert "request retention failed" in caplog.text
-    assert "test-credential-never-archive" not in caplog.text
+    assert "test-key" not in caplog.text
 
 
 @pytest.mark.asyncio
