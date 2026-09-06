@@ -7,6 +7,7 @@ policy, and benchmark profiles remain the source of truth.
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 from collections.abc import Mapping
@@ -183,7 +184,7 @@ def _profile_surface_fallback(
     surface = facts.profile_surface_fallbacks.get((target_surface_id, method))
     if surface is None:
         return None, None
-    overlay = dict(surface)
+    overlay = copy.deepcopy(surface)
     resolution = {
         "benchmark": benchmark,
         "site": site,
