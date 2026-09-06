@@ -3,7 +3,14 @@ from __future__ import annotations
 from tests.sites.test_read_surface import FakeReadSurfaceSite
 from warp_taskgen.sites import ReadbackDecision, ReadbackFailure, ReadbackObservation, SiteCatalog
 from warp_taskgen.sites.gitlab import GitLabSite
+from warp_taskgen.sites.gitlab_readback import rendered_note_text
 from warp_taskgen.sites.reddit import RedditSite
+
+
+def test_rendered_note_text_normalizes_entities_and_whitespace() -> None:
+    # Moved here with the deletion of the phase_2_render_check._strip_html
+    # facade: gitlab_readback owns GitLab note text rendering.
+    assert rendered_note_text("<p>Foo &amp; <em>bar</em>\n baz</p>") == "Foo & bar baz"
 
 
 def test_gitlab_interprets_exact_note_and_description() -> None:

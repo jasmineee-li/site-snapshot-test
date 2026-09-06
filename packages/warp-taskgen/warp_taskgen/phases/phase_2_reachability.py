@@ -45,10 +45,8 @@ from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 from warp_taskgen.agent_auth import playwright_storage_state
-from warp_taskgen.phases.phase_2_render_check import (
-    _strip_markdown_for_text_match,
-    _with_cache_buster,
-)
+from warp_taskgen.phases.phase_2_render_check import _with_cache_buster
+from warp_taskgen.sites.render_probe import normalize_for_text_match, wait_for_body_text
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +59,7 @@ _SITE_SELECTORS: dict[str, str] = {
     # notes thread has not appeared yet, and the 2-witness grep fails
     # with ``witnesses_absent``. Wait for an actual note element so the
     # body text contains the seeded payload when we grep it (mirrors
-    # the render-check gate at phase_2_render_check.py:_GITLAB_NOTE_SELECTOR).
+    # the render-check gate at sites/gitlab_render_probe.py:_GITLAB_NOTE_SELECTOR).
     "gitlab_issue": ".notes .note, .discussion-notes .note, ul.notes-list .note",
     "gitlab_mr": ".notes .note, .discussion-notes .note, ul.notes-list .note",
     "gitlab_dashboard_list": ".issuable-list, .todos-list",
@@ -569,10 +567,12 @@ async def _body_witness_match(
         body_text = await page.text_content("body") or ""
     except Exception:
         body_text = ""
-    normalized_body = _normalize_for_match(body_text)
+    normalized_body = normalize_for_text_match(body_text)
     witnesses_tuple = tuple(w for w in witnesses if isinstance(w, str) and w)
-    matched = tuple(w for w in witnesses_tuple if _normalize_for_match(w) in normalized_body)
-    missing = tuple(w for w in witnesses_tuple if _normalize_for_match(w) not in normalized_body)
+    matched = tuple(w for w in witnesses_tuple if normalize_for_text_match(w) in normalized_body)
+    missing = tuple(
+        w for w in witnesses_tuple if normalize_for_text_match(w) not in normalized_body
+    )
     return matched, missing
 
 
@@ -580,7 +580,7 @@ async def _visual_witness_match(page: Any, witnesses: Iterable[str]) -> dict[str
     normalized_witnesses = tuple(
         normalized
         for witness in witnesses
-        for normalized in [_normalize_for_match(witness)]
+        for normalized in [normalize_for_text_match(witness)]
         if normalized
     )
     if not normalized_witnesses:
@@ -730,78 +730,6 @@ async def _visual_witness_match(page: Any, witnesses: Iterable[str]) -> dict[str
     )
 
 
-def _normalize_for_match(text: str | None) -> str:
-    """Collapse whitespace and lowercase, matching render_check semantics.
-
-    Phase 2c's render-check compares on this normalized form so a
-    signature with single spaces matches a body where the same text
-    was laid out with newlines or indented whitespace (GitLab wraps
-    long notes across multiple lines). Reachability must use the
-    identical function — a plain ``.lower()`` missed 30+ signature
-    matches whose body text had intervening whitespace.
-
-    Bug G (2026-04-23): strip markdown delimiters before whitespace
-    collapse so a signature ``**[CI Pipeline Notification]**`` matches
-    a DOM body rendered as ``[CI Pipeline Notification]`` (GitLab
-    CommonMark → ``<strong>`` → text_content drops the ``**``).
-    """
-    return re.sub(r"\s+", " ", _strip_markdown_for_text_match(text or "")).lower()
-
-
-async def _wait_for_body_text(
-    page: Any,
-    needle: str | Iterable[str],
-    timeout_ms: int,
-) -> bool:
-    """Poll the current page's ``body`` text every 500 ms until every needle appears.
-
-    Used for kinds whose seed lives in lazy-loaded content:
-    * gitlab_issue / gitlab_mr: notes stream in via discussions.json
-      AJAX *after* DOMContentLoaded. The note-selector wait only
-      guarantees *some* note has rendered; the seeded note may arrive
-      in a later batch. Poll until the signature text appears or the
-      selector timeout expires.
-    * gitlab_search_result: GitLab search is DB LIKE on WebArena, but
-      still has a short render window before the matched row enters
-      the DOM.
-
-    ``needle`` may be a single string (back-compat) or an iterable of
-    strings; with multiple needles the poll waits for *all* of them to
-    appear so that a fast-matching primary signature (e.g. a URL that
-    is present in the static body) does not short-circuit the wait for
-    a later-arriving secondary witness (the hydrated note prose).
-    Empty / falsy needles are ignored. Returns ``True`` iff every
-    non-empty needle is present in the body within ``timeout_ms``.
-    """
-    if isinstance(needle, str):
-        needles_raw: tuple[str, ...] = (needle,)
-    else:
-        needles_raw = tuple(needle)
-    needles_norm = tuple(n for n in (_normalize_for_match(raw) for raw in needles_raw) if n)
-    if not needles_norm:
-        return True
-    deadline = time.monotonic() + (timeout_ms / 1000.0)
-    while time.monotonic() < deadline:
-        try:
-            body = await page.text_content("body") or ""
-        except Exception:
-            body = ""
-        normalized_body = _normalize_for_match(body)
-        if all(n in normalized_body for n in needles_norm):
-            return True
-        try:
-            await page.wait_for_timeout(_SEARCH_POLL_INTERVAL_MS)
-        except Exception:
-            break
-    return False
-
-
-# Back-compat alias — keep the old name importable for callers and tests
-# that may reference it. Deprecate in a follow-up commit once
-# grep-clean.
-_wait_for_search_title = _wait_for_body_text
-
-
 async def verify_reachable(
     *,
     browser: Any,
@@ -903,7 +831,7 @@ async def verify_reachable(
         # below still runs and will record witnesses_absent with a
         # clear detail.
         if kind in _DYNAMIC_WITNESS_KINDS:
-            await _wait_for_body_text(page, witnesses, selector_timeout_ms)
+            await wait_for_body_text(page, witnesses, selector_timeout_ms)
         matched, missing = await _body_witness_match(page, witnesses)
         if not missing:
             # The visual probe is advisory at Phase 2c. Phase 4 PVPO measures
@@ -962,7 +890,7 @@ async def verify_reachable(
                         target_url,
                     )
             if kind in _DYNAMIC_WITNESS_KINDS:
-                await _wait_for_body_text(page, witnesses, selector_timeout_ms)
+                await wait_for_body_text(page, witnesses, selector_timeout_ms)
             target_matched, target_missing = await _body_witness_match(page, witnesses)
             if not target_missing:
                 # See note on the direct path: Phase 2c uses the visual probe
