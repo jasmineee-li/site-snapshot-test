@@ -14,7 +14,7 @@ PRESET="${1:?usage: doomarena_n100_run.sh <preset> [site=reddit] [max-tasks=100]
 SITE="${2:-reddit}"
 MAX_TASKS="${3:-100}"
 
-REPO=/local_data/temp/max/browser-sim
+REPO="${REPO:-/local_data/temp/max/browser-sim}"
 SLUG="${PRESET#scratchpad_}"
 STAMP=$(date +%Y%m%d_%H%M)
 LOG="$REPO/n${MAX_TASKS}_glm5_doom_${SITE}_${SLUG}_v2_${STAMP}.log"

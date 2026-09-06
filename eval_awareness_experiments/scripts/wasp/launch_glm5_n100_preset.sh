@@ -5,7 +5,7 @@ set -euo pipefail
 
 PRESET="${1:?usage: wasp_n100_run.sh <preset>}"
 TASK_DIR=/tmp/wasp_full
-REPO=/local_data/temp/max/browser-sim
+REPO="${REPO:-/local_data/temp/max/browser-sim}"
 SLUG="${PRESET#scratchpad_}"   # bare / private / etc
 STAMP=$(date +%Y%m%d_%H%M)
 LOG="$REPO/n100_glm5_${SLUG}_v2_${STAMP}.log"
