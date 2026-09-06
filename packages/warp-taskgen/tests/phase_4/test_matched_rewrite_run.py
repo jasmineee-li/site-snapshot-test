@@ -27,6 +27,8 @@ from warp_taskgen.run_definition_contracts import RunDefinition
 
 def _config() -> MatchedRewriteStudyConfig:
     return MatchedRewriteStudyConfig(
+        arm_order=("tp_guided", "ordinary"),
+        assignment_seed=42,
         call_policy=MatchedCallPolicy(
             model="claude-sonnet-4-6",
             provider="openrouter",

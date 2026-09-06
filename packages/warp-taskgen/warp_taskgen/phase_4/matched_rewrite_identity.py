@@ -12,7 +12,10 @@ from warp_taskgen.phase_4.matched_rewrite_contracts import (
 from warp_taskgen.run_definition import define_run
 
 STUDY_ID: Final = "matched_tp_guided_vs_ordinary_rewrite"
-STUDY_SCHEMA_VERSION: Final = 2
+STUDY_SCHEMA_VERSION: Final = 3
+LEGACY_STUDY_SCHEMA_VERSION: Final = 2
+ARM_ORDER_FIELD: Final = "phase_4_matched_rewrite_study_arm_order"
+ASSIGNMENT_SEED_FIELD: Final = "phase_4_matched_rewrite_study_assignment_seed"
 BASELINE_TASK_FIELD: Final = "phase_4_matched_rewrite_study_baseline_task"
 BASELINE_RESULT_FIELD: Final = "phase_4_matched_rewrite_study_baseline_result"
 BASELINE_SELECTED_PAYLOAD_FIELD: Final = "phase_4_matched_rewrite_study_selected_payload"
@@ -41,6 +44,24 @@ class IncompatibleMatchedRewriteResume(ValueError):
         self.observed = observed
 
 
+def assignment_projection(config: MatchedRewriteStudyConfig) -> JsonObject:
+    """Retain the original schema-v2 shape when inspecting legacy assignments."""
+
+    if config.arm_order is None:
+        return {}
+    return {"arm_order": list(config.arm_order), "assignment_seed": config.assignment_seed}
+
+
+def study_schema_version(config: MatchedRewriteStudyConfig) -> int:
+    return STUDY_SCHEMA_VERSION if config.arm_order is not None else LEGACY_STUDY_SCHEMA_VERSION
+
+
+def assignment_inputs(config: MatchedRewriteStudyConfig) -> JsonObject:
+    if config.arm_order is None:
+        return {}
+    return {ARM_ORDER_FIELD: list(config.arm_order), ASSIGNMENT_SEED_FIELD: config.assignment_seed}
+
+
 def validate_baseline_binding(
     baseline: AdmittedBaseline,
     config: MatchedRewriteStudyConfig,
@@ -55,8 +76,11 @@ def validate_baseline_binding(
         BASELINE_CONSTRAINTS_FIELD: baseline.constraints,
         _CONDITION_FIELD: config.condition,
         _SCHEDULE_FIELD: config.schedule,
-        CALL_POLICY_FIELD: config.resolve_call_policy(baseline.model_context.sandbox_model).to_dict(),
+        CALL_POLICY_FIELD: config.resolve_call_policy(
+            baseline.model_context.sandbox_model
+        ).to_dict(),
     }
+    expected_inputs.update(assignment_inputs(config))
     if config.budget is not None:
         expected_inputs[BUDGET_FIELD] = config.budget.to_dict()
     expected_inputs.update(
@@ -78,6 +102,10 @@ def validate_baseline_binding(
             }
         ).input_projection()
     projection = baseline.run_definition.input_projection()
+    if config.arm_order is None and any(
+        field in projection for field in (ARM_ORDER_FIELD, ASSIGNMENT_SEED_FIELD)
+    ):
+        raise ValueError("ordered baseline Run Definition requires its explicit assignment")
     for field, value in normalized.items():
         if field not in projection or projection[field] != value:
             raise ValueError(f"admitted baseline Run Definition is missing or mismatched {field!r}")
@@ -90,7 +118,8 @@ def checkpoint_payload(
     """Build the strict compatibility-only checkpoint metadata."""
 
     return {
-        "schema_version": STUDY_SCHEMA_VERSION,
+        "schema_version": study_schema_version(config),
+        **assignment_projection(config),
         "study_id": STUDY_ID,
         "condition": config.condition,
         "schedule": config.schedule,
@@ -129,6 +158,7 @@ def validate_checkpoint(
             observed=sorted(checkpoint),
         )
     for field in (
+        *assignment_projection(config),
         "schema_version",
         "study_id",
         "condition",
@@ -155,6 +185,8 @@ def validate_checkpoint(
 
 
 __all__ = [
+    "ARM_ORDER_FIELD",
+    "ASSIGNMENT_SEED_FIELD",
     "BASELINE_CONSTRAINTS_FIELD",
     "BASELINE_RESULT_FIELD",
     "BASELINE_SELECTED_PAYLOAD_FIELD",
@@ -162,10 +194,14 @@ __all__ = [
     "BASELINE_WITNESS_FIELD",
     "BUDGET_FIELD",
     "CALL_POLICY_FIELD",
+    "LEGACY_STUDY_SCHEMA_VERSION",
     "STUDY_ID",
     "STUDY_SCHEMA_VERSION",
     "IncompatibleMatchedRewriteResume",
+    "assignment_inputs",
+    "assignment_projection",
     "checkpoint_payload",
+    "study_schema_version",
     "validate_baseline_binding",
     "validate_checkpoint",
 ]

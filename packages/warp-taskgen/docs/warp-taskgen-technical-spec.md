@@ -2626,3 +2626,49 @@ Current WARP Taskgen adversarial seeding does not use arbitrary Phase 0c
 delivery mechanisms. It uses host-owned editor methods that issue authenticated
 HTTP for regular-user GitLab and Reddit/Postmill writes. Non-WASP sites in this
 appendix remain historical or support plumbing, not active IPI carrier scope.
+
+
+### Opt-in matched rewrite arm assignment
+
+The retained matched-Run API (`run_retained_matched_rewrite`) requires an explicit
+`MatchedRewriteStudyConfig.arm_order` and integer `assignment_seed` before a new
+study can dispatch. The order is either `("tp_guided", "ordinary")` or its reverse;
+it is separate from the existing `one_opportunity` schedule. Both arms remain
+serial and use the same retained baseline and immutable task/reward constraints.
+The ordinary arm receives neutral critique without TP feedback. Existing Phase 4
+owners continue to own proposal validation, repair, browser execution and reset.
+
+Before outcomes are observed, callers freeze original-parent/model cells and
+use `assign_matched_arm_orders(cells, seed=...)`. Each `MatchedParentCell` supplies
+an explicit original `parent_id`, workflow `family`, and target `model` identity;
+identifiers are not inferred from variant names. A parent/model may appear once.
+The helper ranks parents with SHA-256 over the seed and family/model identity and
+alternates the first arm within each stratum. A separate seeded bit chooses the
+first arm, so counts differ by at most one for odd strata. Input enumeration
+order cannot change assignments. Changing the cohort can change assignments;
+freeze the full cohort and persist each resolved order before execution. This
+helper performs no dispatch and creates no scheduler or cohort artifact store.
+
+Ordered study results use schema version 3. `result.json` and its checkpoint
+contain `arm_order` (a JSON list) and `assignment_seed`; the primary pair also
+contains `arm_order`. The study Run Definition binds them through
+`phase_4_matched_rewrite_study_arm_order` and
+`phase_4_matched_rewrite_study_assignment_seed`. A completed result can reopen
+only under its exact source, assignment, and other effective inputs. The existing
+`result.json` atomically records the bound assignment with `status="scheduled"`
+before the first provider dispatch, then is replaced by the completed result.
+An interrupted study retains an incomplete artifact without a completed
+checkpoint and rejects automatic redispatch, including with the same assignment;
+there is no inferred mid-arm resume. A changed
+order, changed seed, missing assignment, or incompatible checkpoint rejects
+before provider dispatch; it requires a new study Run rather than rewriting the
+old result.
+
+Historical schema-v2 artifacts keep their original identity and shape and remain
+readable/reusable with a legacy configuration (both assignment fields absent).
+They cannot satisfy an ordered request and are not migrated. The low-level study
+API preserves historical behavior for such configurations; fresh retained-Run
+execution requires the explicit assignment. Offline integration tests exercise
+real retained-Run materialization, parsing, validation, QA, selection and atomic
+persistence with fixed model/browser boundary responses. Those tests do not
+establish live provider/browser/reset integration or a measured treatment effect.
