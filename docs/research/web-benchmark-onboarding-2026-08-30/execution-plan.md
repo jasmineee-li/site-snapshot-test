@@ -52,6 +52,132 @@ infrastructure. It is not an unbounded spending authorization and cannot
 supply missing hosts, credentials, billing limits, model choices, or
 publication authority.
 
+## Current program contract and remaining work — 2026-09-06
+
+This section is the canonical current plan. The dated delivery history below
+remains evidence of earlier decisions; where it differs, this section governs.
+Audit source: `origin/main` `4ca2b1ad`; the root checkout at `a054c5c8` is stale.
+PRs #331–#334 are merged (remote main advanced to `c8650b68` during
+integration). At inspection, #335 (auth bootstrap) and #336 (AgentLab runner)
+are separately owned active changes;
+they are not new work for this program. Recheck their merge state before any
+dependent edit. The two matched-study packages below began at `413e189d` and
+must pass integration against the main branch they will join.
+
+### Settled scientific and execution choices
+
+WARP studies **indirect prompt injection (IPI)** through lower-trust content
+encountered during legitimate browser tasks. The follow-up tests whether
+substantively generated workflows broaden this evaluation and whether TP-guided
+rewriting adds value over matched ordinary rewriting. High ASR, a null paired
+effect, and retained attack success with lower measured evaluation salience are
+all reportable outcomes. The latter does not by itself identify causal mediation
+by latent awareness. A one-opportunity comparison does not establish superiority
+of a multi-round search loop.
+
+- Keep **Sonnet 4.6 and GPT-5.2** as the initial expanded-evaluation and matched
+  study target agents. Preserve the historical six-model results and retained
+  generator, iterator and judge configurations. Astra is the implementation
+  agent. Verify exact provider/runner settings from Run Artifacts before calls;
+  a target model is distinct from a generator, proposer or judge role.
+- Keep the **140-candidate allocation, 20 per seven workflow families** (40
+  information-only and 100 state-changing benign tasks). Candidates are not
+  admitted tasks. Include all eligible admitted parents per target where
+  feasible. If necessary, freeze a family-stratified subset before rewrite
+  outcomes are observed; never select for attack success.
+- Keep the **$5,000 overall remaining ceiling**, covering generation, expanded
+  evaluation and matched studies. The earlier $3,000 generation backpressure
+  value is historical, not an additional budget. Use existing estimates,
+  configured limits and returned usage; do not add a billing service, repeated
+  Modal cost polling or a new stop condition solely for missing Modal pricing.
+  Existing production ledger-validation and provider-capacity checks remain.
+- Eligible matched baselines must satisfy canonical admission, mutable payload,
+  witness and PVPO requirements and have baseline TP other than Real. Include
+  baseline successes and failures. Freeze parent/model cells before treatment.
+- One rewrite opportunity per arm, same proposer and repair allowance, with
+  TP diagnosis as the information difference. Neither arm receives VEA or
+  reward traces as extra feedback. Historical issue wording mentioning VEA
+  does not authorize a larger intervention. Ordinary critique must be produced
+  through the real matched provider on live Runs.
+- Balance seeded arm order within family/model strata and persist it. Reserve
+  one reset scope through both arms, with verified reset before reuse.
+- Primary: per-model paired ASR difference, equal weights over the seven fixed
+  task-card families, parent-clustered 95% intervals. Report task-micro and
+  per-family results secondarily. Never silently drop an empty family or
+  substitute zero; report the full-family estimate unavailable. There is no
+  accepted 2-percentage-point noninferiority threshold.
+- Fixed-opportunity outcomes distinguish measured success, measured negative,
+  completed unusable proposal (zero with its own cause), and infrastructure,
+  reset or readback failure (unknown). Retain every scheduled cell and report
+  missing-outcome bounds. Baseline fallback under the shared selector is a
+  secondary endpoint. Report TP, joint outcomes, benign utility and gains/losses
+  with their actual available denominators; do not count infrastructure errors
+  as model resistance.
+
+### One remaining-work map
+
+Owners below are responsibilities, not claims that every future implementation
+has already been dispatched. The Astra lead owns scope, interfaces and final
+acceptance. “Plan WARP benchmark expansion” owns E3 execution and its E4/E5
+operational reconnaissance; this task must not resume its Run or duplicate it.
+
+| Work / scientific purpose | Current evidence | Missing deliverable and owner | Dependencies / gate | Acceptance criteria and what it unlocks |
+| --- | --- | --- | --- | --- |
+| **E3: corpus generation and admission.** Test substantive workflow breadth, not paraphrase volume. | Owner reports retained Run 15 has 20 reusable Postmill rows, 80 missing non-TAC GitLab rows, no GitLab aggregate/cache and no Phase 2 directory; 40 TAC candidates remain separate. Current-main compatibility: 15 microcanary tests and all three fast checks passed; 12 Run file hashes unchanged by inspection. | Exact-route production canaries, retained resume, TAC generation, admission and frozen funnel. **Owner: Plan WARP benchmark expansion, #212.** | **OpenRouter**, then **Benchmark Instances** for feasibility/admission. Current production capacity check stops before generation/Modal; confirm the prior process/Remote Job no longer owns Run 15 before eventual resume. SSH timeout does not prove no owner. | Direct and sandbox production boundaries succeed; original compatible Run resumes without concatenating diagnostic runs; all seven allocations accounted for as candidate/validated/admitted/failed with substantive task evidence. Unlocks expanded evaluation. |
+| **E1/E2: Rocket.Chat/TAC evidence.** Demonstrate transfer of ordinary-participant IPI and exact decision/action grading. | #210/#211 completed: pinned TAC/Rocket.Chat 5.3 no-model smokes, separate ordinary identities, exact thread/notification readback and terminal reset. These are transport/execution proofs, not model results. | Reuse retained smoke evidence and bind generated TAC rows to the proven composition; then collect model trajectories. **Owner: E3/E4 execution lane.** | Source work complete; **Instance + OpenRouter** for new rows. | Actual Phase 2/4 paths preserve exact identity, independent readback and reset; model results distinguish decision from notification, encounter and utility. Unlocks bounded TAC transfer claims, not TAC-wide or cross-Site support. |
+| **A: retained matched arm order.** Prevent order from being confounded with the intervention. | Existing one-opportunity API and retained checkpoints; new production-path tests exercise both orders, QA rejection, reset failure and legacy reuse. Implementation is in progress, not yet a scientific Run. | Seeded balanced assignments bound to Run Definition and results; schema-2 reading without ordered reuse. **Owner: Astra implement_order; one focused PR.** | **Now, offline.** Independent review and required checks before merge. | Actual dispatch follows frozen assignment; changing seed/order rejects reuse; source baseline unchanged; reset failure prevents agent dispatch; deliberate fixed-order regression fails the test. Unlocks defensible E5/E6 execution. |
+| **B: matched analysis/export.** Estimate incremental benefit with honest missingness and family coverage. | Existing retained result format; new real arithmetic tests and JSON export in progress. | Fixed endpoint, cause-aware unknowns, seven-family macro, parent-block intervals, bounds and secondary views. **Owner: Astra implement_analysis; one focused PR.** | **Now, offline**; producer-to-analyzer integration after A. Scientific estimates need **results**. | Positive/negative and independent numerical tests, unequal family weights and parent dependence, missing-family unavailability, evaluator failure unknowns; required checks and independent review. Unlocks analysis immediately when real pairs arrive. |
+| **E5: first real matched pair.** Prove the entire scientific intervention is executable. | Source support exists; no verified complete eligible local baseline in the inspected E3 artifacts. Historical Sonnet/GPT-5.2 archive names are leads, not accepted baselines. | Restore and validate one exact task/result/payload/witness/Run identity; bind provider/runner and per-arm limits; execute both arms. **Owner: lead assigns runtime owner after E3 scout, #214.** | **A + OpenRouter + isolated Instance + eligible artifact.** May precede E4 if a historical source passes existing materializer checks. | Real ordinary critique and TP diagnosis with matched opportunity; verified reset, retained failure/usage/outcomes; no manufactured legacy identity. One pair proves execution, not treatment effect. |
+| **E4: expanded target evaluation.** Measure attack performance and utility across the admitted workflow bank. | No expanded evaluated bank yet. Host configuration exists in an ignored worktree; replica declarations are not live isolation proof. A bounded SSH read-only probe timed out before authentication. | Freeze bank identity and target settings; evaluate admitted rows and export authoritative funnel. **Owner: expansion execution lane / lead, #213.** | **E3 + OpenRouter + verified Instances.** | Both settled targets, complete scheduled outcomes, PVPO/task-broke/non-encounter/utility distinctions, exact final-state evaluation and reset-safe scheduling. No success-based admission filter. Unlocks representative E6 cohort and breadth results. |
+| **E6: matched cohort.** Measure TP-guided incremental value across workflows. | Accepted design above; no expanded matched results. | Freeze eligible parents per model and seeded orders, run cohort and analyze. **Owner: study execution lane / lead, #215.** | **E4 + E5 + B + capacity/Instances.** | All eligible feasible or pre-outcome frozen subset; seven-family primary reported only when supported; every scheduled cell and missingness retained; paired intervals and secondary endpoints reproducible. Unlocks the main matched-study claim. |
+| **Historical scoring attribution.** Ensure ASR witnesses match the requested new action. | Separate investigation reports a concrete Reddit source-witness contamination candidate via offline replay and GitLab attribution weaknesses from a mechanism screen; original evaluator/package association remains to be reconciled. The earlier 241/242 discrepancy was withdrawn. | Approved planning covers all 300 historical model-task rows (120 Reddit posts, 120 GitLab issues, 60 GitLab notes), with original-contract/source reconciliation and lightweight prospective generation provenance. **Owner: Plan WARP scoring attribution audit…**, task `01a07849-8154-7a60-8a54-316d788328f2`; its local `packages/warp-taskgen/docs/handoffs/attribution-audit-plan.md` owns detailed scope. | **Now: planning/artifact reconciliation.** Implementation follows that owner's scope decision; historical numerical changes need exact evidence. | Preserve raw Runs and original scores, attribute any defect to exact source/artifacts, version corrected analysis separately. Missing old metadata alone does not invalidate results. New analyzer correctness does not validate historical or current evaluator attribution; resolve any confirmed applicable production defect before new browser studies. Unlocks trustworthy historical comparisons. |
+| **Evaluation-awareness validity.** Separate measured framing/TP effects from latent-awareness claims. | Existing external five-phrasing classifier exports, Taskgen TP and probe analyses are different instruments. Manifest cell inventories are not completed denominators. Neutral system-prompt source exists; accepted neutral-result provenance was not found in inspected inventory. Paper-to-retained judge/actor/step settings and probe snapshots need reconciliation. | Claim-to-artifact table using existing Run identities and regeneration commands; resolve corrected snapshot, calibration, refusals/denominators and pending WASP paired discordances. **Owner: Astra lead coordinates awareness/paper owner; no duplicate exporter dispatched.** | **Now: read-only reconciliation**, then **upstream corrected results**. New cue/probe Runs require a **scope decision**. | Match every reported instrument, target/judge role, actor, step budget, calibration split and analysis population to artifacts. Explain unresolved differences without declaring all paper claims false. Do not call hypothetical framing neutral or infer mediation from association. Unlocks defensible causal language and validity limitations. |
+| **E7: analysis and paper preparation.** Make the evidence useful and the thesis assessable. | Existing historical paper/report; active manuscript is the paper repository's `icml/icml_final.tex` (audit at `48aa588`). New experimental claims are not yet measured. | Regenerate tables/plots, align methods and denominators, document provenance, limitations and bounded claims. **Owner: paper owner with Astra lead acceptance, #216.** | **Now:** table/claim planning and artifact reconciliation. Final numbers need **E4/E6 and historical/validity resolutions**. | Separate supplied structure/generated instances/admission/evaluation; report high/null/mixed results faithfully, distinguish bounded transfer and one-step rewrite claims. Follow paper-repository guidance; submission/publication is separate authorization. |
+
+### Interfaces, dispatch and acceptance
+
+A owns matched order/config/identity/run changes and its owning technical-spec
+section. B owns analysis and its export/tests/documentation. The shared retained
+contract is schema 3 with top-level `arm_order` and `assignment_seed`, and pair
+`arm_order`; family comes from original retained `task_card_id`, parent from
+`benign_task_id`, not prompt-sanitized task metadata or a model-dependent Run
+identity. A owns producer changes. B consumes them without redefining them.
+The canonical plan is owned by the lead; the expansion task is coordinating
+operational findings rather than editing this file concurrently.
+
+Each new package starts from current `origin/main` in a separate short-lived
+Codex worktree with one exact objective, owning files, exclusions, acceptance
+tests and completion condition. Review the proposed approach and early diff;
+report extra work to the lead instead of absorbing it. Use existing production
+APIs and Run Artifacts. Substitute only necessary external boundaries in tests;
+do not replace the behavior being asserted. Require an independent correctness
+and spec review per PR, repeat only to verify a concrete repair, and merge after
+required checks pass. Remove only clean worktrees created for that package.
+Source PRs supporting #214/#215 do not close their still-unmeasured live Runs.
+
+The immediate sequence is A/B tests and review in parallel with this audit;
+merge A, validate B against its actual producer, then merge B. The expansion
+owner's current-main compatibility gate is already green; it still needs real
+provider capacity. In parallel, reconcile existing awareness and historical
+artifacts before proposing new source. Do not create a scheduler, reset system,
+billing layer, alternate schema or generic instrument framework to fill time.
+Source-delivery estimates concern review/CI cycles; live-study elapsed time
+cannot be inferred from those estimates until capacity, eligible rows and
+reachable reset scopes are known.
+
+### Deferred options: planning, not implementation authorization
+
+| Option | Scientific value | Effort and dependencies | Recommendation / decision boundary |
+| --- | --- | --- | --- |
+| **Plane** | Tests portability to another structured work-management Site; finite multi-record decisions/actions can add useful dependencies, although GitLab comparison already covers part of that contribution. | Medium-to-large separate slice: pin actual deployed version/routes, prove ordinary-role writer and independent exact reader/reset, then implement only consumed generation/admission/evaluation joins and run models. No current Plane adapter was found. Existing TAC Plane fork and modern Plane routes differ. | Keep a bounded portfolio ready; decide after core transfer/breadth evidence identifies the remaining scientific gap. E1 success does not prohibit reconsidering Plane. No implementation dispatched. |
+| **Cross-application workflows (for example GitLab → Plane)** | Tests a real cross-Site information/action dependency, beyond another carrier for the same payload. | Larger than Plane alone: current single-task validation requires one Site. Needs explicit multi-Site task/evidence contract, identity linkage and proven reset isolation across both Instances; depends on a working second Site. | Separate scope decision after defining the contribution and one finite end-to-end task. Do not disguise it as configuration or build a universal workflow engine. |
+| **New targets, iterator upgrades, neutral/cue/probe Runs, multi-round matching** | Could test contemporary robustness, search efficiency or stronger awareness mechanisms, each a different question. | New predeclared comparison, role-specific provider settings, capacity and appropriate controls. Existing-role continuity would need an explicit bridge. | Preserve current models and one-opportunity scope; consider only after evidence or an explicit user decision establishes the value. No automatic model refresh. |
+
+Supporting bounded Plane planning is in
+[the existing portfolio](../benchmark-followons-2026-09-01/plane-task-portfolio.md)
+and [primary-source notes](../benchmark-followons-2026-09-01/plane-and-cross-site-primary-sources.md).
+These options are not dependencies of the accepted core program.
+
 ## 1. Current evidence
 
 | Claim area | Evidence now | What it does not establish |
@@ -375,8 +501,8 @@ submission or publication remains a distinct external action.
 
 Each ticket owns one demonstrable behavior and one PR. Source work uses
 separate short-lived worktrees from current `origin/main`; dependent PRs land
-to `main` rather than remaining indefinitely stacked. Review is bounded to two
-passes. Runtime work uses separate state directories and existing Run
+to `main` rather than remaining indefinitely stacked. Use one independent correctness/spec review per PR; repeat only to verify
+a concrete repair. Runtime work uses separate state directories and existing Run
 Artifacts, not another manifest or attestation layer.
 
 For these E3 support slices, the issue itself is the compact agent execution
@@ -396,9 +522,10 @@ These are current operational facts, not reopened architecture choices:
    ordinary identities and host-owned reset path supported the retained
    no-model Rocket.Chat smokes. They do not need to block source CI work.
 2. **E3 inputs are frozen:** `claude-sonnet-4-6`, the existing Modal and
-   Anthropic-compatible runners, 140 rows at 20 per family, and the accepted
-   `$3,000` run-level backpressure value are recorded on #212. That value is
-   operational backpressure, not an automatic hard cap or selection rule.
+   Anthropic-compatible runners, 140 rows at 20 per family, and the historical
+   `$3,000` run-level backpressure value are recorded on #212. The current
+   overall remaining ceiling is `$5,000`, as specified above; the earlier
+   generation value is not an additional allocation.
 3. **E3 remains externally blocked:** the configured frozen OpenRouter route
    currently authenticates but its redacted capacity response reports no
    usable capacity. The delivered microcanary runner stops with
@@ -425,6 +552,5 @@ source/CI success as benchmark evidence.
 
 Keep the accepted deferrals: Plane and cross-application generation, live NPCs,
 multi-round matched rewriting, a universal workflow/binder/auth framework, a
-universal semantic judge, and new evidence machinery. Revisit Plane only if E1
-demonstrates that ordinary Rocket.Chat exposure is infeasible or scientifically
-collapses to message copying.
+universal semantic judge, and new evidence machinery. The current decision criteria and scientific value for Plane and cross-Site
+work are recorded above; E1 success does not prohibit later reconsideration.
