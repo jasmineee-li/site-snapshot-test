@@ -23,14 +23,14 @@ from warp_taskgen.modal_sandbox import (
     preflight_sandbox_environment,
     upload_to_volume,
 )
-from warp_taskgen.phases.phase_1_generate_new_tasks import (
-    EligibleSiteProfile,
+from warp_taskgen.phase_1.novel_task_cache import (
     SiteGenerateNewTasksResult,
-    _use_contract_bound_action_api,
     compute_generate_new_tasks_shared_inputs_fingerprint,
     compute_site_cache_fingerprint,
-    generate_new_tasks_for_site,
 )
+from warp_taskgen.phase_1.novel_task_generation_prompt import _use_contract_bound_action_api
+from warp_taskgen.phase_1.novel_task_site_plan import EligibleSiteProfile
+from warp_taskgen.phases.phase_1_generate_new_tasks import generate_new_tasks_for_site
 from warp_taskgen.phases.phase_1_task_cards import (
     load_task_card_plan,
     task_card_plan_digest,
