@@ -61,7 +61,17 @@ json_mode="$3"
 # the interpreter that has warp_taskgen and its dependencies installed. A bare
 # python3 does not.
 cd "$remote_dir"
-uv run --no-sync python - "$remote_dir" "$job_id" "$json_mode" <<'PY'
+# Non-login remote shell: resolve uv the way sync_to_host.sh does, so a
+# standalone-installer uv under $HOME/.local/bin still works.
+uv_bin="$(command -v uv || true)"
+if [[ -z "$uv_bin" && -x "$HOME/.local/bin/uv" ]]; then
+  uv_bin="$HOME/.local/bin/uv"
+fi
+if [[ -z "$uv_bin" ]]; then
+  echo "ERROR: uv not found in PATH or at \$HOME/.local/bin/uv on the remote host" >&2
+  exit 2
+fi
+"$uv_bin" run --no-sync python - "$remote_dir" "$job_id" "$json_mode" <<'PY'
 import json
 import os
 import re
