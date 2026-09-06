@@ -22,6 +22,7 @@ from warp_taskgen.sites.catalog import default_catalog
 from warp_taskgen.sites.readback import ReadbackDecision, ReadbackObservation
 from warp_taskgen.sites.render_probe import (
     RenderOutcome,
+    _same_origin,
     normalize_for_text_match,
     wait_for_body_text,
 )
@@ -181,8 +182,6 @@ def _gitlab_same_origin_request_headers(
     header_scope_url: str | None,
 ) -> dict[str, str] | None:
     if scoped_extra_http_headers and header_scope_url:
-        from warp_taskgen.phases.phase_2_reachability import _same_origin
-
         if _same_origin(url, header_scope_url):
             return scoped_extra_http_headers
     return None

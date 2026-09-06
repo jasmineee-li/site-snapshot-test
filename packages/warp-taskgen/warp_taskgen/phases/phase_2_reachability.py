@@ -46,7 +46,11 @@ from urllib.parse import urlsplit, urlunsplit
 
 from warp_taskgen.agent_auth import playwright_storage_state
 from warp_taskgen.phases.phase_2_render_check import _with_cache_buster
-from warp_taskgen.sites.render_probe import normalize_for_text_match, wait_for_body_text
+from warp_taskgen.sites.render_probe import (
+    _same_origin,
+    normalize_for_text_match,
+    wait_for_body_text,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -109,35 +113,6 @@ def _pop_scoped_extra_http_headers(context_kwargs: dict[str, Any]) -> dict[str, 
         if isinstance(key, str) and isinstance(value, str):
             scoped[key] = value
     return scoped or None
-
-
-def _same_origin(url: str, site_url: str) -> bool:
-    try:
-        parsed = urlsplit(url)
-        site = urlsplit(site_url)
-    except Exception:
-        return False
-    if not parsed.scheme or not parsed.hostname or not site.scheme or not site.hostname:
-        return False
-
-    def port_for(scheme: str, port: int | None) -> int | None:
-        if port is not None:
-            return port
-        if scheme.lower() == "http":
-            return 80
-        if scheme.lower() == "https":
-            return 443
-        return None
-
-    return (
-        parsed.scheme.lower(),
-        parsed.hostname.lower(),
-        port_for(parsed.scheme, parsed.port),
-    ) == (
-        site.scheme.lower(),
-        site.hostname.lower(),
-        port_for(site.scheme, site.port),
-    )
 
 
 async def _install_resource_blocker(
