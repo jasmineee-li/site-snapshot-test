@@ -368,6 +368,12 @@ def test_eval_awareness_iterator_owns_explicit_dependencies_and_runner_does_not_
         assert "install_context" not in sibling_source
         assert "ruff: noqa: F821" not in sibling_source
         assert "from warp_taskgen.phase_4._context" not in sibling_source
+        # Siblings take their dependencies from the owning modules, never through
+        # the runner's globals; the runner is the one that imports the siblings.
+        assert (
+            f"from warp_taskgen.phase_4.{EVAL_AWARENESS_ITERATOR_MODULE} import"
+            not in sibling_source
+        )
         assert f"from warp_taskgen.phase_4.{sibling} import" in _source(
             EVAL_AWARENESS_ITERATOR_MODULE
         )
