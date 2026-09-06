@@ -18,8 +18,11 @@ Current and target ownership should stay explicit:
 - `warp_taskgen.phase_2.phase_2c`: Phase 2c feasibility verification split by
   report types, constants, fingerprints, outcome stanzas, exposure projection,
   reddit attribution, admission guards, render/reachability probes,
-  source-data preflight, per-task verification, and runner orchestration. The
-  loop takes its collaborators through `probe_bundle.Phase2cProbeBundle`.
+  source-data preflight, the preflight auth self-test that decides whether the
+  benign agent's browser auth is still live, source-data admission that runs
+  that self-test and the benign-target preflight and then filters the raw task
+  list, per-task verification, and runner orchestration. The loop takes its
+  collaborators through `probe_bundle.Phase2cProbeBundle`.
 - `warp_taskgen.phase_2.exposure_contract`: deterministic Phase 2 exposure
   contracts split by signature, builder, seed-template materialization, exposure
   modes, candidate selection, Phase 4 exposure gates, route metadata,
@@ -77,8 +80,19 @@ Current and target ownership should stay explicit:
   final-state compilers, and reward introspection. Import from the
   behavior-owned module or the package `__init__`; there is no `compiler.py`
   facade.
-- Phase 0c profile rigor is split by behavior:
-  `warp_taskgen/phases/phase_0_recon.py` remains the compatibility runner,
+- Phase 0 recon is split by behavior:
+  `warp_taskgen/phases/phase_0_recon.py` owns the phase entry point, the Phase 0c
+  loop, and per-site tiered profiling.
+  `warp_taskgen/phases/phase_0a_benchmark_manifest.py` owns Benchmark Discovery,
+  manifest path and eval-type validation, and the sandbox file map.
+  `warp_taskgen/phases/phase_0c_profile_reuse.py` owns the reuse decisions and the
+  tier metadata and input hashes they compare against.
+  `warp_taskgen/phases/phase_0c_instance_reachability.py` owns Benchmark Instance
+  URLs, proxy rewriting and redaction, and the reachability report.
+  `warp_taskgen/phases/phase_0c_tier_sandbox.py` owns staging, the per-tier sandbox
+  call, and the bounded correction retry loop.
+  `warp_taskgen/phases/phase_0c_profile_enrichment.py` owns host-side handle,
+  project, and forum enrichment of a profile.
   `warp_taskgen/phases/phase_0_evidence_index.py` owns neutral source indexes,
   `warp_taskgen/phases/phase_0c_artifacts.py` owns provenance/reuse/trace artifacts,
   and `warp_taskgen/phases/phase_0c_audit.py` owns deterministic host audits. Do not
@@ -93,6 +107,8 @@ Current and target ownership should stay explicit:
   Core-surface and active-carrier policy is Site-owned (`SiteCarrierPolicy` on
   each `*_profile.py` mixin) and reached only through
   `BoundSite.carrier_policy()`; a Site without the capability binds closed.
+  `bound_site.py` owns `BoundSite` and `catalog.py` owns the `SiteCatalog` that
+  binds it, so a caller that only needs the bound Site imports the leaf.
 - `warp_taskgen.seed_contracts`: shared seed/editor-call contract behavior used by
   Phase 2, Phase 4, seeding, and sandbox validation. This package must preserve
   sandbox packaging constraints and parity tests.
@@ -165,8 +181,12 @@ Current and target ownership should stay explicit:
   Behavior lives in the sibling module that owns it and `__init__.py` re-exports
   an explicit, bounded surface. Patch the owning sibling (for example
   `warp_taskgen.seeding.execution`), not the package root.
-  `site_contracts.default_seed_registry()` builds the default GitLab/Reddit seed
-  binding a Run uses when it does not carry its own.
+  `site_contracts.default_seed_registry()` builds the GitLab/Reddit seed binding
+  the `default` Runtime Composition carries, which is what a Run that names no
+  composition resolves. `tokens.py::_assert_benign_tokens_bound` takes the
+  composition's `seed_token_scope` explicitly (`kind` for the default
+  composition, `method` for the named POCs) instead of inferring it from
+  whether a registry was passed.
 - `warp_taskgen.cli`: the WARP Taskgen CLI, split by owner: the parser
   (`args`), the import-time dotenv bootstrap that runs first (`env`), dispatch
   (`dispatch`), resume (`resume`, `resume_plan`, `derived_run`,
@@ -236,7 +256,8 @@ Keep pytest tests under top-level `tests/`, mirrored by domain where practical:
 - `tests/phase_4/`
 - `tests/seed_contracts/`
 - `tests/test_browser_use_agent.py` and other Browser Use-focused files
-- `tests/test_sandbox_validator.py`
+- `tests/sandbox_validator/`, one file per validator surface, with the shared
+  validator loader and plan builders in `tests/sandbox_validator/_fixtures.py`
 
 Tests may import feature-private helpers when those helpers encode important
 contracts, but they should import them from the owning feature package rather

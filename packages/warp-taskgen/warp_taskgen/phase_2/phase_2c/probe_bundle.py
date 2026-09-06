@@ -16,7 +16,7 @@ from typing import Any
 from warp_taskgen.auth_tokens import acquire_tokens_for_instances
 from warp_taskgen.phase_2.phase_2c import fingerprints as _fingerprints
 from warp_taskgen.phase_2.phase_2c import probes as _probes
-from warp_taskgen.phase_2.phase_2c import source_data_preflight as _source_data_preflight
+from warp_taskgen.phase_2.phase_2c import source_data_admission as _source_data_admission
 from warp_taskgen.phase_2.phase_2c.retry_timing import phase_2c_retry_sleep
 from warp_taskgen.phases.phase_2_reachability import ReachabilityOutcome, verify_reachable
 from warp_taskgen.phases.phase_2_render_check import RenderOutcome, verify_seed_renders
@@ -69,7 +69,7 @@ class Phase2cProbeBundle:
 
         bundle = cls(
             acquire_tokens=acquire_tokens_for_instances,
-            source_data_preflight=_source_data_preflight._run_preflight_and_filter_raw,
+            source_data_preflight=_source_data_admission._run_preflight_and_filter_raw,
             apply_seed=apply_data_seed_async,
             render_check=_probes._run_render_check,
             reachability_check=_probes._run_reachability_check,

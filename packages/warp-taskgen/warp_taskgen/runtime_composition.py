@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from warp_taskgen.benchmark_contracts import BenchmarkCapabilities
@@ -25,6 +25,7 @@ CLASSIFIEDS_LISTING_REPLY_POC = "classifieds_listing_reply_poc"
 ROCKET_CHAT_CONVERSATION_DECISION_POC = "rocket_chat_conversation_decision_poc"
 ROCKET_CHAT_CONVERSATION_NOTIFICATION_POC = "rocket_chat_conversation_notification_poc"
 RUNTIME_COMPOSITION_CHOICES = (
+    DEFAULT_RUNTIME_COMPOSITION,
     CLASSIFIEDS_LISTING_REPLY_POC,
     ROCKET_CHAT_CONVERSATION_DECISION_POC,
     ROCKET_CHAT_CONVERSATION_NOTIFICATION_POC,
@@ -82,9 +83,14 @@ class Phase2RuntimeAdmission:
         }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class RuntimeComposition:
-    """One immutable set of runtime catalogs for a bounded pipeline run."""
+    """One immutable set of runtime catalogs for a bounded pipeline run.
+
+    ``seed_token_scope`` and ``strict_site_planning`` carry no defaults: a
+    composition must say which reading it takes, so a new one cannot fall open
+    onto the default Run's permissive readings by omission.
+    """
 
     name: str
     site_catalog: SiteCatalog
@@ -107,6 +113,8 @@ class RuntimeComposition:
     ) = None
     phase_2_generation: Phase2Generation | None = None
     strict_seed_cleanup: bool = False
+    seed_token_scope: Literal["kind", "method"]
+    strict_site_planning: bool
 
     @classmethod
     def default(cls) -> RuntimeComposition:
@@ -127,6 +135,8 @@ class RuntimeComposition:
             site_catalog=default_catalog(),
             seed_registry=default_seed_registry(),
             feasibility_policy_catalog=default_feasibility_policy_catalog(),
+            seed_token_scope="kind",
+            strict_site_planning=False,
         )
 
     def __post_init__(self) -> None:
@@ -164,6 +174,10 @@ class RuntimeComposition:
             raise TypeError("runtime composition phase_2_generation must satisfy Phase2Generation")
         if not isinstance(self.strict_seed_cleanup, bool):
             raise TypeError("runtime composition strict_seed_cleanup must be a bool")
+        if self.seed_token_scope not in ("kind", "method"):
+            raise ValueError("runtime composition seed_token_scope must be 'kind' or 'method'")
+        if not isinstance(self.strict_site_planning, bool):
+            raise TypeError("runtime composition strict_site_planning must be a bool")
 
 
 def classifieds_listing_reply_poc() -> RuntimeComposition:
@@ -190,6 +204,8 @@ def classifieds_listing_reply_poc() -> RuntimeComposition:
         ),
         reader_preflight=preflight_classifieds_reader,
         strict_seed_cleanup=True,
+        seed_token_scope="method",
+        strict_site_planning=True,
     )
 
 
@@ -318,6 +334,8 @@ def _rocket_chat_conversation_poc(
         reward_evidence_loader=reward_evidence_loader,
         phase_2_generation=ROCKET_CHAT_PHASE2_GENERATION,
         strict_seed_cleanup=True,
+        seed_token_scope="method",
+        strict_site_planning=True,
     )
 
 
@@ -341,16 +359,21 @@ def benchmark_capabilities_for_runtime(
     return get_benchmark_capabilities(benchmark)
 
 
-def runtime_composition_for_name(name: object) -> RuntimeComposition | None:
-    """Resolve an explicit runtime opt-in; empty/default input stays ``None``."""
+def runtime_composition_for_name(name: object) -> RuntimeComposition:
+    """Resolve the composition one Run uses; an unnamed Run gets the default.
+
+    ``None``, ``""`` and ``"default"`` all resolve to
+    :meth:`RuntimeComposition.default`, assembled per call so nothing is
+    memoized or registered process-wide.  An unknown name still fails closed.
+    """
 
     if name in (None, ""):
-        return None
+        return RuntimeComposition.default()
     if not isinstance(name, str):
         raise ValueError("runtime composition name must be a string")
     normalized = name.strip().lower()
-    if not normalized:
-        return None
+    if not normalized or normalized == DEFAULT_RUNTIME_COMPOSITION:
+        return RuntimeComposition.default()
     if normalized == CLASSIFIEDS_LISTING_REPLY_POC:
         return classifieds_listing_reply_poc()
     if normalized == ROCKET_CHAT_CONVERSATION_DECISION_POC:

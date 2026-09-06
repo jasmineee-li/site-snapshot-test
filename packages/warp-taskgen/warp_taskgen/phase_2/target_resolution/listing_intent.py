@@ -12,7 +12,7 @@ from warp_taskgen.phase_2.target_resolution.encounter import (
     _encounter_requirements,
     _route_evidence_flags,
 )
-from warp_taskgen.sites.catalog import BoundSite
+from warp_taskgen.sites.bound_site import BoundSite
 
 
 def _gitlab_issue_listing_intent(

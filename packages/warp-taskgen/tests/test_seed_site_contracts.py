@@ -425,11 +425,19 @@ def test_patchable_seeding_facade_exposes_seed_contract_types() -> None:
     assert seeding.ReadSurfaceFact is ReadSurfaceFact
 
 
-def test_default_path_preserves_legacy_apply_hook_signature(monkeypatch) -> None:
+def test_default_path_threads_the_default_composition_into_the_apply_hook(monkeypatch) -> None:
+    """A Run that names no composition seeds under the default one.
+
+    The apply hook receives the default GitLab/Reddit registry and the
+    kind-scoped token reading, rather than the absent registry the
+    pre-composition default path used to pass.
+    """
+
     calls: list[tuple[int | None, str]] = []
+    threaded: dict[str, Any] = {}
     session = _IsolatedSession()
 
-    def _legacy_apply_hook(
+    def _apply_hook(
         session: Any,
         call: dict[str, Any],
         instance: dict[str, Any],
@@ -441,11 +449,15 @@ def test_default_path_preserves_legacy_apply_hook_signature(monkeypatch) -> None
         read_surface_provenance: dict[str, Any] | None = None,
         created_resource_accumulator: list[dict[str, Any]] | None = None,
         editor_call_result_accumulator: list[dict[str, Any]] | None = None,
+        seed_registry: Any,
+        seed_token_scope: str = "kind",
     ) -> None:
         calls.append((call_index, str(call["method"])))
+        threaded["seed_registry"] = seed_registry
+        threaded["seed_token_scope"] = seed_token_scope
 
     monkeypatch.setattr(seeding.execution.requests, "Session", lambda: session)
-    monkeypatch.setattr(seeding.execution, "_apply_editor_seed_call", _legacy_apply_hook)
+    monkeypatch.setattr(seeding.execution, "_apply_editor_seed_call", _apply_hook)
 
     handle, metadata = seeding.apply_data_seed(
         {
@@ -465,3 +477,7 @@ def test_default_path_preserves_legacy_apply_hook_signature(monkeypatch) -> None
     assert metadata == {}
     assert calls == [(0, "create_submission")]
     assert session.closed is True
+    assert set(threaded["seed_registry"].registrations) == set(
+        default_seed_registry().registrations
+    )
+    assert threaded["seed_token_scope"] == "kind"

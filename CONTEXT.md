@@ -40,9 +40,11 @@ _Avoid_: Session, experiment
 
 **Runtime Composition**:
 An immutable bundle of Site, seeding, feasibility, readback, and cleanup owners
-resolved once per Run when the Run names one, and never registered process-wide.
-An unnamed Run carries no bundle; each reader resolves the default GitLab/Reddit
-seed binding on its own.
+resolved once per Run and never registered process-wide. Every Run resolves
+one: a Run that names none resolves the `default` composition, the
+GitLab/Reddit bundle whose seed tokens are kind-scoped and whose read-surface
+planning is non-strict. The `default` name is not recorded in Run state, so
+only a named composition appears there.
 _Avoid_: Feature flag, global registration, Site registration
 
 **Host-Owned**:

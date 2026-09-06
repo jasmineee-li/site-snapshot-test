@@ -39,6 +39,7 @@ from warp_taskgen.editors._registry import (
 from warp_taskgen.phase_2.option_a import (
     _validate_option_a_placement_registry,
 )
+from warp_taskgen.runtime_composition import RuntimeComposition
 from warp_taskgen.seeding import UnboundTokenError, _assert_benign_tokens_bound
 
 # ---------------------------------------------------------------------------
@@ -309,8 +310,14 @@ def test_validator_substituter_agreement(
         "benign_target_resource": {"kind": kind, "anchors": anchors},
     }
     substituter_raises = False
+    composition = RuntimeComposition.default()
     try:
-        _assert_benign_tokens_bound(plan["seed_template"]["editor_calls"][0], fake_task)
+        _assert_benign_tokens_bound(
+            plan["seed_template"]["editor_calls"][0],
+            fake_task,
+            seed_registry=composition.seed_registry,
+            seed_token_scope=composition.seed_token_scope,
+        )
     except UnboundTokenError:
         substituter_raises = True
 

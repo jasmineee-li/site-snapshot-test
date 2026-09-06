@@ -6,8 +6,9 @@ route descriptors or a deterministic target.  Authentication, browser
 reachability, editors, exposure, and scoring remain outside this package.
 """
 
+from warp_taskgen.sites.bound_site import BoundSite
 from warp_taskgen.sites.candidate_resolution import SourceListing, TargetCandidate
-from warp_taskgen.sites.catalog import BoundSite, SiteCatalog, default_catalog
+from warp_taskgen.sites.catalog import SiteCatalog, default_catalog
 from warp_taskgen.sites.classifieds_reader import (
     CLASSIFIEDS_READER_AUTH_TYPE,
     CLASSIFIEDS_READER_CONTRACT_SCHEMA_VERSION,

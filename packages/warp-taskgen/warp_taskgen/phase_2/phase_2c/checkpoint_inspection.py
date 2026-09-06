@@ -30,10 +30,7 @@ from warp_taskgen.phase_2.phase_2c.config import (
 )
 from warp_taskgen.phase_2.phase_2c.fingerprints import _host_fingerprint, _task_content_hash
 from warp_taskgen.phase_2.phase_2c.outcomes import _resolve_seed_site
-from warp_taskgen.phase_2.phase_2c.policy import (
-    FeasibilityPolicyCatalog,
-    default_feasibility_policy_catalog,
-)
+from warp_taskgen.phase_2.phase_2c.policy import FeasibilityPolicyCatalog
 from warp_taskgen.run_definition import define_run
 from warp_taskgen.runtime_composition import runtime_composition_for_name
 
@@ -192,11 +189,7 @@ def inspect_feasibility_checkpoints(
         )
 
     try:
-        policy_catalog = (
-            runtime_composition.feasibility_policy_catalog
-            if runtime_composition is not None
-            else default_feasibility_policy_catalog()
-        )
+        policy_catalog = runtime_composition.feasibility_policy_catalog
         policy_available = _policy_context_available(
             selected_tasks,
             benchmark,

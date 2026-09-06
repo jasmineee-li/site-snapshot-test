@@ -89,8 +89,9 @@ def add_phase_parser(subparsers: argparse._SubParsersAction) -> None:
         choices=RUNTIME_COMPOSITION_CHOICES,
         default=None,
         help=(
-            "Explicit runtime Site composition for a bounded POC. Omit to preserve "
-            "the default GitLab/Reddit runtime."
+            "Runtime Site composition for this Run. Omitting it, or passing "
+            "'default', resolves the default GitLab/Reddit composition; the "
+            "other names are bounded POC compositions."
         ),
     )
     phase_cmd.add_argument(

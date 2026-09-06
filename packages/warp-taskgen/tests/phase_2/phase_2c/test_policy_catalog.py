@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from warp_taskgen.phase_2.phase_2c import source_data_preflight
+from warp_taskgen.phase_2.phase_2c import source_data_admission
 from warp_taskgen.phase_2.phase_2c.policy import (
     FeasibilityPolicyCatalog,
     PreflightClassification,
@@ -235,6 +235,7 @@ def test_fake_policy_preflight_is_per_run_and_does_not_leak() -> None:
             [task],
             instances_by_site={"fake": [instance]},
             request_context_factory=factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
     assert keep == [task]
@@ -267,7 +268,7 @@ def test_canonical_source_preflight_threads_policy_catalog_to_probe(monkeypatch)
     )
 
     dropped = asyncio.run(
-        source_data_preflight._run_preflight_and_filter_raw(
+        source_data_admission._run_preflight_and_filter_raw(
             raw,
             instances_by_site={
                 "fake": [

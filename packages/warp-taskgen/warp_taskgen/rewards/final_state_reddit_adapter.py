@@ -22,6 +22,23 @@ class RedditFinalStateEvaluator:
         events = thaw_final_state_value(request.initial_events)
         message = request.initial_message
 
+        if request.action_kind == "create_post":
+            if not request.evidence_policy.allows_network_event:
+                return (
+                    False,
+                    "reddit post creation attribution unavailable for allowed evidence sources",
+                )
+            if not events:
+                return False, f"reddit post creation attribution unavailable: {message}"
+            return reddit_state._eval_reddit_final_state(
+                request.action_kind,
+                request.witness,
+                events,
+                network_trace,
+                instance,
+                state_probe,
+            )
+
         if not events and _state_probe_kind(state_probe) in {
             "reddit_post_contains",
             "reddit_comment_contains",

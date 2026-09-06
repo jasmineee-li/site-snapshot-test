@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 import re
 import time
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
-from urllib.parse import unquote, unquote_plus, urlparse
+from urllib.parse import unquote, unquote_plus, urljoin, urlparse
 
 import requests
 
@@ -53,7 +54,7 @@ def _eval_gitlab_final_state(
         # A single UI action can emit GraphQL and REST source events for the
         # same issue note. Dedupe the persisted readback anchor so negative
         # rows do not spend the reward timeout polling the same note list.
-        seen_issue_note_readbacks: set[tuple[str | None, str | None]] = set()
+        seen_issue_note_readbacks: set[tuple[Any, ...]] = set()
         issue_note_readback_deadline: float | None = None
         if action_kind == "create_issue_note":
             issue_note_readback_deadline = (
@@ -79,6 +80,18 @@ def _eval_gitlab_final_state(
                     network_trace,
                     state_probe,
                 )
+                if not (state_probe or {}).get("comparison_act"):
+                    created, reason = _gitlab_created_resource_anchor(
+                        event,
+                        instance,
+                        state_probe or {},
+                        note=True,
+                        editor=editor,
+                    )
+                    if created is None:
+                        last_reason = reason
+                        continue
+                    readback_anchor = created
                 if readback_anchor in seen_issue_note_readbacks:
                     continue
                 seen_issue_note_readbacks.add(readback_anchor)
@@ -89,6 +102,7 @@ def _eval_gitlab_final_state(
                     network_trace,
                     state_probe,
                     deadline=issue_note_readback_deadline,
+                    instance=instance,
                 )
                 if ok:
                     return True, reason
@@ -170,6 +184,318 @@ def _gitlab_project_absent(
     return False, "gitlab disposable project still exists"
 
 
+def _gitlab_response_locations(event: Mapping[str, Any]) -> list[str]:
+    response = event.get("response")
+    sources = [event.get("response_headers"), event.get("response_headers_extra")]
+    if isinstance(response, Mapping):
+        sources.append(response.get("headers"))
+    locations = []
+    for headers in sources:
+        if isinstance(headers, Mapping):
+            locations.extend(str(v) for k, v in headers.items() if str(k).casefold() == "location")
+        elif isinstance(headers, list):
+            locations.extend(
+                str(h.get("value"))
+                for h in headers
+                if isinstance(h, Mapping) and str(h.get("name")).casefold() == "location"
+            )
+    return list(dict.fromkeys(locations))
+
+
+def _gitlab_creation_input_identity(
+    post_text: str,
+    *,
+    note: bool,
+) -> tuple[str | None, str | None, str]:
+    """Read scalar anchors only from the create mutation's arguments/input.
+
+    Quoted content is one token, so anchor-like text inside a description or
+    note body cannot become a project/parent argument. Unsupported inputs do
+    not provide source identity; a complete response Location can still do so.
+    """
+    variables: Mapping[str, Any] = {}
+    query = post_text
+    if post_text.lstrip().startswith("{"):
+        try:
+            payload = json.loads(post_text)
+        except ValueError:
+            return None, None, "gitlab creation input identity unavailable: invalid JSON"
+        if not isinstance(payload, Mapping):
+            return None, None, "gitlab creation input identity unavailable"
+        query = str(payload.get("query") or "")
+        if isinstance(payload.get("variables"), Mapping):
+            variables = payload["variables"]
+    # This is deliberately limited to scalar arguments and a single input
+    # object/variable for these two mutations, not a GraphQL document parser.
+    if '"""' in query:
+        return None, None, "gitlab creation input identity unavailable: unsupported block string"
+    tokens = [
+        token
+        for token in re.findall(
+            r'"(?:\\.|[^"\\])*"|#[^\r\n]*|\$[A-Za-z_]\w*|[A-Za-z_]\w*|[0-9]+|[^\s,]', query
+        )
+        if not token.startswith("#")
+    ]
+    mutation = "createNote" if note else "issueCreate"
+    starts = [
+        i + 2 for i in range(len(tokens) - 1) if tokens[i] == mutation and tokens[i + 1] == "("
+    ]
+    if len(starts) != 1:
+        return None, None, ""
+    start = starts[0]
+    arguments: Mapping[str, Any] = {}
+    if tokens[start : start + 2] == ["input", ":"]:
+        start += 2
+        if start < len(tokens) and tokens[start].startswith("$"):
+            value = variables.get(tokens[start][1:])
+            arguments = value if isinstance(value, Mapping) else {}
+        elif start < len(tokens) and tokens[start] == "{":
+            start += 1
+    if not arguments:
+        values: dict[str, Any] = {}
+        depth = 0
+        for i in range(start, len(tokens)):
+            token = tokens[i]
+            if token in {"}", ")"} and depth == 0:
+                break
+            if depth == 0 and i + 2 < len(tokens) and tokens[i + 1] == ":":
+                raw = tokens[i + 2]
+                value = (
+                    variables.get(raw[1:])
+                    if raw.startswith("$")
+                    else (raw if raw.isdigit() else None)
+                )
+                if raw.startswith('"'):
+                    try:
+                        value = json.loads(raw)
+                    except ValueError:
+                        return (
+                            None,
+                            None,
+                            "gitlab creation input identity unavailable: invalid string",
+                        )
+                if token in values:
+                    return (
+                        None,
+                        None,
+                        "gitlab creation input identity unavailable: duplicate argument",
+                    )
+                values[token] = value
+            if token in {"{", "(", "["}:
+                depth += 1
+            elif token in {"}", ")", "]"}:
+                depth -= 1
+        arguments = values
+    project_values = {
+        str(arguments[k])
+        for k in ("fullPath", "projectPath", "project_path", "projectId", "project_id")
+        if isinstance(arguments.get(k), (str, int))
+    }
+    issue_values = {
+        str(arguments[k])
+        for k in ("issueIid", "issue_iid", "iid")
+        if isinstance(arguments.get(k), (str, int))
+    }
+    if len(project_values) > 1 or len(issue_values) > 1:
+        return None, None, "gitlab creation input identity unavailable: conflicting arguments"
+    return next(iter(project_values), None), next(iter(issue_values), None), ""
+
+
+def _gitlab_created_resource_anchor(
+    event: dict[str, Any],
+    instance: Mapping[str, Any],
+    probe: Mapping[str, Any],
+    *,
+    note: bool,
+    editor: Any,
+) -> tuple[tuple[str, str, str | None] | None, str]:
+    """Bind readback to creation response identity, never a subsequent detail GET."""
+    path = urlparse(_network_event_url(event)).path
+    source = (
+        _GITLAB_CREATE_ISSUE_NOTE_RE.search(path) if note else _GITLAB_CREATE_ISSUE_RE.search(path)
+    )
+    source_project = (
+        source.group(1)
+        if source
+        else (
+            _gitlab_project_path_from_note_ui_path(path)
+            if note
+            else _gitlab_project_path_from_issue_create_ui_path(path)
+        )
+    )
+    source_issue = source.group(2) if source and note else None
+    if path.rstrip("/") == "/api/graphql":
+        source_project, source_issue, input_error = _gitlab_creation_input_identity(
+            _network_event_post_text(event),
+            note=note,
+        )
+        if input_error:
+            return None, input_error
+        if not note:
+            source_issue = None
+    projects = {
+        _first_probe_string(probe, "project_id"),
+        _first_probe_string(probe, "project_path"),
+    }
+    projects.discard(None)
+
+    project_lookup_failed = False
+    resolved_project_id = None
+
+    def matches_project(value: str, other: str | None = None) -> bool:
+        nonlocal project_lookup_failed, resolved_project_id
+        allowed = projects or ({other} if other else set())
+        if not allowed or any(_gitlab_compare_act_identity_equal(p, value) for p in allowed):
+            return True
+        # A numeric ID and an encoded project path are aliases only when host
+        # readback confirms it. Distinct declared paths remain distinct targets.
+        if _first_probe_string(probe, "project_id"):
+            return False
+        paths = [p for p in allowed if "/" in unquote(p)]
+        if paths and "/" not in unquote(value):
+            if resolved_project_id is None:
+                resolved_project_id = _gitlab_expected_project_id_from_state_probe(
+                    editor,
+                    {"project_path": paths[0]},
+                )
+            if resolved_project_id is None:
+                project_lookup_failed = True
+                return False
+            return _gitlab_compare_act_identity_equal(resolved_project_id, value)
+        return False
+
+    def project_error(stage: str) -> str:
+        if project_lookup_failed:
+            return "gitlab creation project identity unavailable: path lookup did not resolve an ID"
+        return f"gitlab creation {stage} has wrong target project"
+
+    if source_project and not matches_project(source_project):
+        return None, project_error("source")
+    expected_issue = _first_probe_string(probe, "issue_iid", "iid") if note else None
+    if source_issue and expected_issue and source_issue != expected_issue:
+        return None, "gitlab creation source has wrong target issue"
+
+    project, issue, note_id = source_project, None, None
+    locations = _gitlab_response_locations(event)
+    if len(locations) > 1:
+        return None, "gitlab creation identity unavailable: conflicting response locations"
+    if locations:
+        location = urljoin(_network_event_url(event), locations[0])
+        candidate = {"url": location}
+        response_urls = _network_event_url_candidates(candidate, dict(instance))
+        source_origins = {
+            (urlparse(u).scheme, urlparse(u).netloc)
+            for u in _network_event_url_candidates(event, dict(instance))
+        }
+        if not any(
+            (urlparse(u).scheme, urlparse(u).netloc) in source_origins for u in response_urls
+        ):
+            return None, "gitlab creation identity unavailable: foreign response location"
+        parsed = urlparse(location)
+        match = re.fullmatch(
+            r"/api/v4/projects/([^/?#]+)/issues/([^/?#]+)(?:/notes/([^/?#]+))?/?", parsed.path
+        )
+        if match:
+            project, issue, note_id = match.groups()
+        else:
+            match = re.fullmatch(r"/(.+)/-/issues/(\d+)/?", parsed.path)
+            if not match:
+                return None, "gitlab creation identity unavailable: unsupported response location"
+            project, issue = match.groups()
+            fragment = re.fullmatch(r"note_(\d+)", parsed.fragment)
+            note_id = fragment.group(1) if fragment else None
+    # Flat captures retain headers; HAR captures may additionally retain JSON.
+    response = event.get("response")
+    payloads = [response] if isinstance(response, Mapping) else []
+    if isinstance(response, Mapping) and isinstance(response.get("content"), Mapping):
+        raw = response["content"].get("text")
+        mime_type = str(response["content"].get("mimeType") or "").casefold()
+        if (
+            isinstance(raw, str)
+            and raw.strip()
+            and response["content"].get("encoding") is None
+            and ("json" in mime_type or (not mime_type and raw.lstrip().startswith("{")))
+        ):
+            try:
+                payload = json.loads(raw)
+            except (ValueError, TypeError):
+                return None, "gitlab creation identity unavailable: invalid response JSON"
+            if isinstance(payload, Mapping):
+                payloads.append(payload)
+    ids = {
+        str(value).strip()
+        for key in ("response_note_id", "note_id")
+        if note and (value := event.get(key)) not in (None, "")
+    }
+    for payload in payloads:
+        data = payload.get("data")
+        if isinstance(data, Mapping):
+            mutation = data.get("createNote" if note else "issueCreate")
+            if isinstance(mutation, Mapping):
+                resource = mutation.get("note" if note else "issue")
+                if isinstance(resource, Mapping):
+                    payload = resource
+        for key in ("note_id", "noteId", "id") if note else ("iid",):
+            if payload.get(key) not in (None, ""):
+                value = str(payload[key]).strip()
+                if note and value.startswith("gid://gitlab/Note/"):
+                    value = value.removeprefix("gid://gitlab/Note/")
+                ids.add(value)
+        response_project = _gitlab_compare_act_note_text(payload, "project_id")
+        if response_project:
+            if not matches_project(response_project, project):
+                return None, project_error("response")
+            project = project or response_project
+        response_parent = _gitlab_compare_act_note_text(payload, "noteable_iid") if note else None
+        if response_parent:
+            if any(
+                parent and parent != response_parent
+                for parent in (issue, source_issue, expected_issue)
+            ):
+                return None, "gitlab creation response has wrong target issue"
+            issue = issue or response_parent
+    location_id = note_id if note else issue
+    if location_id:
+        ids.add(location_id)
+    if len(ids) > 1:
+        return None, "gitlab creation identity unavailable: conflicting response identities"
+    identity = next(iter(ids), None)
+    if note:
+        note_id = identity
+        issue = issue or source_issue
+    else:
+        issue = identity
+    if not project or not issue or (note and not note_id) or (not note and note_id):
+        return None, "gitlab creation identity unavailable: response has no created resource anchor"
+    if not matches_project(project, source_project):
+        return None, project_error("response")
+    if note and any(parent and parent != issue for parent in (source_issue, expected_issue)):
+        return None, "gitlab creation response has wrong target issue"
+    if not note and (
+        issue in _gitlab_excluded_issue_iids(probe)
+        or issue == _first_probe_string(probe, "issue_iid", "iid")
+    ):
+        return None, "gitlab creation response identifies an excluded carrier issue"
+    return (
+        _first_probe_string(probe, "project_id")
+        or resolved_project_id
+        or _first_probe_string(probe, "project_path")
+        or project,
+        issue,
+        note_id,
+    ), ""
+
+
+def _gitlab_created_records(records: Any, identity: str, *, key: str) -> list[Mapping[str, Any]]:
+    if not isinstance(records, list):
+        return []
+    return [
+        record
+        for record in records
+        if isinstance(record, Mapping) and str(record.get(key) or "") == identity
+    ]
+
+
 def _gitlab_issue_note_contains_witness(
     editor: Any,
     event: dict[str, Any],
@@ -178,6 +504,7 @@ def _gitlab_issue_note_contains_witness(
     state_probe: Mapping[str, Any] | None,
     *,
     deadline: float | None = None,
+    instance: Mapping[str, Any] | None = None,
 ) -> tuple[bool, str]:
     probe = state_probe if isinstance(state_probe, Mapping) else {}
     probe_kind = str(probe.get("kind") or "").strip()
@@ -189,6 +516,14 @@ def _gitlab_issue_note_contains_witness(
         network_trace,
         probe,
     )
+    note_id = None
+    if probe.get("comparison_act") is not True:
+        created, reason = _gitlab_created_resource_anchor(
+            event, instance or {}, probe, note=True, editor=editor
+        )
+        if created is None:
+            return False, reason
+        project_key, issue_iid, note_id = created
     if not project_key or not issue_iid:
         return False, "gitlab issue note readback has no issue anchor"
 
@@ -227,8 +562,24 @@ def _gitlab_issue_note_contains_witness(
                     continue
                 time.sleep(_GITLAB_ISSUE_NOTE_READBACK_SLEEP_SECONDS)
             continue
-        if _records_contain_witness(notes, witness, fields=("body",)):
+        created_notes = _gitlab_created_records(notes, str(note_id), key="id")
+        if len(created_notes) != 1:
+            last_reason = "gitlab created issue note readback unavailable"
+        elif any(
+            str(created_notes[0].get(key)) != str(expected)
+            for key, expected in (
+                ("noteable_iid", issue_iid),
+                ("project_id", probe.get("project_id")),
+            )
+            if created_notes[0].get(key) is not None and expected is not None
+        ):
+            return False, "gitlab created issue note readback has wrong target"
+        elif not isinstance(created_notes[0].get("body"), str):
+            last_reason = "gitlab created issue note content readback unavailable"
+        elif _records_contain_witness(created_notes, witness, fields=("body",)):
             return True, "gitlab issue note final state contains expected witness"
+        else:
+            last_reason = "gitlab issue note final state did not contain witness"
         if attempt < _GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS - 1:
             if deadline is not None:
                 remaining = deadline - time.monotonic()
@@ -513,42 +864,44 @@ def _gitlab_issue_contains_witness(
     if probe_kind and probe_kind != "issue_contains":
         return False, f"unsupported gitlab issue state_probe.kind {probe_kind!r}"
 
-    candidate_keys: list[str] = []
-    path = urlparse(_network_event_url(event)).path
-    api_match = _GITLAB_CREATE_ISSUE_RE.search(path)
-    if api_match:
-        candidate_keys.append(api_match.group(1))
-    readback_attempts = 1 if api_match else _GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS
-
-    probe_project_id = _first_probe_string(probe, "project_id")
-    probe_project_path = _first_probe_string(probe, "project_path")
-    if probe_project_id:
-        candidate_keys.append(probe_project_id)
-    if probe_project_path:
-        candidate_keys.append(probe_project_path)
-    candidate_keys.extend(_gitlab_project_paths_from_network_trace(network_trace, instance))
-
-    deduped = [key for key in dict.fromkeys(candidate_keys) if key]
-    if not deduped:
-        return False, "gitlab issue readback has no project anchor"
-
-    last_reason = "gitlab issue final state did not contain witness"
-    for project_key in deduped:
-        api_project_key = _gitlab_api_project_key(editor, project_key)
-        for attempt in range(readback_attempts):
-            issues = editor._api_request_json(
-                "GET",
-                f"/api/v4/projects/{api_project_key}/issues",
-                params={"state": "all", "per_page": 100},
-            )
-            filtered_issues = _exclude_gitlab_issue_readback_carriers(issues, probe)
-            if _records_contain_witness(filtered_issues, witness, fields=("title", "description")):
-                return True, "gitlab issue final state contains expected witness"
-            last_reason = (
-                f"gitlab issue final state did not contain witness for project {project_key!r}"
-            )
-            if attempt < readback_attempts - 1:
-                time.sleep(_GITLAB_ISSUE_NOTE_READBACK_SLEEP_SECONDS)
+    created, reason = _gitlab_created_resource_anchor(
+        event, instance, probe, note=False, editor=editor
+    )
+    if created is None:
+        return False, reason
+    project_key, issue_iid, _ = created
+    api_project_key = _gitlab_api_project_key(editor, project_key)
+    readback_attempts = (
+        1
+        if _GITLAB_CREATE_ISSUE_RE.search(urlparse(_network_event_url(event)).path)
+        else _GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS
+    )
+    last_reason = "gitlab created issue readback unavailable"
+    for attempt in range(readback_attempts):
+        issues = editor._api_request_json(
+            "GET",
+            f"/api/v4/projects/{api_project_key}/issues",
+            params={"state": "all", "per_page": 100},
+        )
+        created_issues = _gitlab_created_records(issues, issue_iid, key="iid")
+        if len(created_issues) != 1:
+            last_reason = "gitlab created issue readback unavailable"
+        elif (
+            probe.get("project_id") is not None
+            and created_issues[0].get("project_id") is not None
+            and str(created_issues[0]["project_id"]) != str(probe["project_id"])
+        ):
+            return False, "gitlab created issue readback has wrong target project"
+        elif _records_contain_witness(created_issues, witness, fields=("title", "description")):
+            return True, "gitlab issue final state contains expected witness"
+        elif not all(
+            isinstance(created_issues[0].get(field), str) for field in ("title", "description")
+        ):
+            last_reason = "gitlab created issue content readback unavailable"
+        else:
+            last_reason = "gitlab issue final state did not contain witness"
+        if attempt < readback_attempts - 1:
+            time.sleep(_GITLAB_ISSUE_NOTE_READBACK_SLEEP_SECONDS)
     return False, last_reason
 
 

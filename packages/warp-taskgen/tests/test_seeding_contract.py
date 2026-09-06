@@ -117,6 +117,10 @@ class TestAssertBenignTokensBound:
     def test_user_handle_always_available(self) -> None:
         # Even with zero anchors, {benign_user_handle} should be reachable
         # (identity token — comes from agent context, not resolver anchors).
+        # The reading comes from the default Runtime Composition's token scope.
+        from warp_taskgen.runtime_composition import RuntimeComposition
+
+        composition = RuntimeComposition.default()
         task = {
             "id": "t2",
             "benign_target_resource": {
@@ -125,7 +129,12 @@ class TestAssertBenignTokensBound:
             },
         }
         call = {"args": {"body": "@{benign_user_handle} do X"}}
-        _assert_benign_tokens_bound(call, task)
+        _assert_benign_tokens_bound(
+            call,
+            task,
+            seed_registry=composition.seed_registry,
+            seed_token_scope=composition.seed_token_scope,
+        )
 
     def test_noop_when_resource_missing(self) -> None:
         # Legacy or shopping task with no benign_target_resource — skip.
@@ -198,3 +207,106 @@ class TestFeasibilityCategorization:
         src = Path("warp_taskgen/phase_2/phase_2c/verifier.py").read_text()
         assert "except UnboundTokenError" in src
         assert 'kind="contract_violation"' in src
+
+
+class TestSeedTokenScopeIsACompositionProperty:
+    """#309: a GitLab identity token must stay reachable on the default path.
+
+    Before the Runtime Composition carried the scope, passing an explicit
+    registry silently switched the check to the method-scoped reading, which
+    has no identity union — so ``{benign_user_handle}`` in a
+    ``create_issue_note`` seed raised ``UnboundTokenError`` even though the
+    kind-scoped contract publishes it. The scope now comes from the
+    composition, so the default composition keeps the kind-scoped reading and
+    only a named POC composition gets the method-scoped one.
+    """
+
+    @staticmethod
+    def _gitlab_issue_task() -> dict[str, object]:
+        return {
+            "id": "adv-gitlab-issue-note",
+            "site": "gitlab",
+            "benchmark": "webarena_verified",
+            "benign_target_resource": {
+                "kind": "issue",
+                "anchors": {"project_id": "42", "issue_iid": "7"},
+            },
+        }
+
+    def test_default_composition_binds_the_gitlab_identity_token(self) -> None:
+        from warp_taskgen.runtime_composition import RuntimeComposition
+
+        composition = RuntimeComposition.default()
+        assert composition.seed_token_scope == "kind"
+
+        # Must not raise: the kind-scoped union publishes the identity token.
+        _assert_benign_tokens_bound(
+            "hi {benign_user_handle}",
+            self._gitlab_issue_task(),
+            seed_registry=composition.seed_registry,
+            seed_token_scope=composition.seed_token_scope,
+        )
+
+    def test_method_scope_still_rejects_a_token_the_method_never_declares(self) -> None:
+        """The method-scoped reading (the #309 branch) is unchanged.
+
+        This is the exact branch the pre-composition code selected whenever a
+        registry was supplied, and it still fails closed.
+        """
+
+        from warp_taskgen.seeding.site_contracts import default_seed_registry
+
+        with pytest.raises(UnboundTokenError) as exc_info:
+            _assert_benign_tokens_bound(
+                "hi {benign_user_handle}",
+                self._gitlab_issue_task(),
+                seed_registry=default_seed_registry(),
+                seed_token_scope="method",
+            )
+        assert exc_info.value.token == "{benign_user_handle}"
+
+    def test_poc_composition_rejects_a_token_its_method_does_not_declare(self) -> None:
+        from warp_taskgen.runtime_composition import classifieds_listing_reply_poc
+
+        composition = classifieds_listing_reply_poc()
+        assert composition.seed_token_scope == "method"
+
+        call = {
+            "site": "classifieds",
+            "benchmark": "visualwebarena",
+            "method": "create_listing_reply",
+            "args": {"listing_id": "{benign_listing_id}", "body": "hi {benign_user_handle}"},
+        }
+        task = {
+            "id": "adv-classifieds-anchor",
+            "site": "classifieds",
+            "benchmark": "visualwebarena",
+            "benign_target_resource": {
+                "kind": "listing",
+                "anchors": {"listing_id": 17, "user_handle": "someone"},
+            },
+        }
+        with pytest.raises(UnboundTokenError) as exc_info:
+            _assert_benign_tokens_bound(
+                call,
+                task,
+                seed_registry=composition.seed_registry,
+                seed_token_scope=composition.seed_token_scope,
+            )
+        assert exc_info.value.token == "{benign_user_handle}"
+
+    def test_method_scope_requires_a_registry(self) -> None:
+        with pytest.raises(ValueError, match="method-scoped seed token checks"):
+            _assert_benign_tokens_bound(
+                "hi {benign_user_handle}",
+                self._gitlab_issue_task(),
+                seed_token_scope="method",
+            )
+
+    def test_unknown_scope_fails_closed(self) -> None:
+        with pytest.raises(ValueError, match="seed_token_scope"):
+            _assert_benign_tokens_bound(
+                "hi {benign_user_handle}",
+                self._gitlab_issue_task(),
+                seed_token_scope="site",
+            )

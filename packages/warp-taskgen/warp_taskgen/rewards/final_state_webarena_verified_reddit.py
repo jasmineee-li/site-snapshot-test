@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Mapping
+from html.parser import HTMLParser
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import requests
 
 from warp_taskgen.rewards.network_event import _matching_network_events
-from warp_taskgen.rewards.network_trace import _network_event_url
+from warp_taskgen.rewards.network_trace import _network_event_url, _network_event_url_candidates
 from warp_taskgen.rewards.shared import _dedupe_strings, _state_probe_kind
 
 _REDDIT_SUBMIT_RE = re.compile(r"/submit/([^/?#]+)/?$")
@@ -32,6 +34,7 @@ def _eval_reddit_final_state(
 
     with requests.Session() as session:
         editor = RedditEditor(instance, session)
+        post_reason = "reddit post creation attribution unavailable: no created resource identity"
         for event in reversed(events):
             path = urlparse(_network_event_url(event)).path
             if action_kind == "submit_comment":
@@ -59,11 +62,23 @@ def _eval_reddit_final_state(
                 if not match:
                     continue
                 forum = match.group(1)
-                detail_paths = _reddit_detail_paths_from_trace(network_trace, forum)
-                detail_paths.extend(_reddit_detail_paths_from_forum(editor, forum))
-                for detail_path in _dedupe_strings(detail_paths)[:25]:
-                    if _reddit_path_contains(editor, detail_path, witness):
-                        return True, "reddit post final state contains expected witness"
+                detail_path = _reddit_post_path_from_response(event, forum, instance)
+                if not detail_path:
+                    continue
+                if isinstance(state_probe, Mapping) and detail_path == (
+                    f"/f/{state_probe.get('forum_name')}/{state_probe.get('submission_id')}"
+                ):
+                    post_reason = "reddit post creation attribution unavailable: response identifies the known carrier"
+                    continue
+                earlier_events = network_trace[: network_trace.index(event)]
+                if detail_path in _reddit_detail_paths_from_trace(earlier_events, forum, instance):
+                    post_reason = "reddit post creation attribution unavailable: response identifies a previously observed resource"
+                    continue
+                passed, post_reason = _reddit_post_body_contains(editor, detail_path, witness)
+                if passed:
+                    return True, post_reason
+        if action_kind == "create_post":
+            return False, post_reason
     return False, f"reddit {action_kind} final state did not contain witness"
 
 
@@ -128,7 +143,7 @@ def _eval_reddit_final_state_from_probe(
     forum = str(state_probe.get("forum_name") or "").strip() or None
     submission_id = str(state_probe.get("submission_id") or "").strip() or None
     if action_kind == "create_post":
-        candidate_paths = _reddit_created_post_paths_from_trace(network_trace, forum)
+        return False, "reddit post creation attribution unavailable from detail navigation alone"
     elif action_kind == "submit_comment":
         if _reddit_comment_probe_requires_attribution(state_probe, instance):
             if not forum or not submission_id:
@@ -320,9 +335,153 @@ def _reddit_path_contains(editor: Any, path: str, witness: str) -> bool:
     return bool(response is not None and witness in response.text)
 
 
-def _reddit_detail_paths_from_trace(network_trace: list[dict[str, Any]], forum: str) -> list[str]:
+def _reddit_post_path_from_response(
+    event: dict[str, Any], forum: str, instance: dict[str, Any]
+) -> str | None:
+    """Bind the created submission to the successful submit response, never a forum scan."""
+    response = event.get("response")
+    response = response if isinstance(response, Mapping) else {}
+    locations: list[str] = []
+    for headers in (
+        event.get("response_headers"),
+        event.get("response_headers_extra"),
+        response.get("headers"),
+    ):
+        if isinstance(headers, Mapping):
+            locations.extend(
+                str(value) for key, value in headers.items() if str(key).lower() == "location"
+            )
+        elif isinstance(headers, list):
+            locations.extend(
+                str(item.get("value", ""))
+                for item in headers
+                if isinstance(item, Mapping) and str(item.get("name", "")).lower() == "location"
+            )
+    if response.get("redirectURL"):
+        locations.append(str(response["redirectURL"]))
+    paths: set[str] = set()
+    origin = urlparse(str(instance.get("site_url", "")))
+    for location in locations:
+        absolute = urljoin(_network_event_url(event), location)
+        candidates = _network_event_url_candidates({"url": absolute}, instance)
+        valid = False
+        for candidate in candidates:
+            parsed = urlparse(candidate)
+            match = re.fullmatch(r"/f/([^/?#]+)/([^/?#]+)(?:/[^/?#]+)?/?", parsed.path)
+            if (parsed.scheme, parsed.netloc) != (origin.scheme, origin.netloc) or not match:
+                continue
+            if match.group(1) != forum or match.group(2) in {"-", ".", ".."}:
+                continue
+            paths.add(f"/f/{forum}/{match.group(2)}")
+            valid = True
+        if not valid:
+            return None
+    payloads: list[Any] = [response]
+    content = response.get("content")
+    if isinstance(content, Mapping) and isinstance(content.get("text"), str):
+        try:
+            payloads.append(json.loads(content["text"]))
+        except (ValueError, TypeError):
+            pass
+    for payload in payloads:
+        if not isinstance(payload, Mapping):
+            continue
+        for key in ("id", "submission_id"):
+            identity = payload.get(key)
+            if isinstance(identity, (str, int)) and re.fullmatch(r"[\w-]+", str(identity)):
+                paths.add(f"/f/{forum}/{identity}")
+    return next(iter(paths)) if len(paths) == 1 else None
+
+
+class _RedditPostBodyParser(HTMLParser):
+    """Read Postmill submission bodies separately from titles, comments and navigation."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.blocks: list[dict[str, Any]] = []
+        self.stack: list[tuple[str, set[str]]] = []
+        self.block: dict[str, Any] | None = None
+        self.article_depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        classes = set((values.get("class") or "").split())
+        if tag == "article" and "submission" in classes and self.block is None:
+            self.block = {"paths": set(), "parts": [], "has_body": False}
+            self.article_depth = len(self.stack)
+        if self.block is not None:
+            if "submission__link" in classes:
+                match = _REDDIT_DETAIL_RE.match(urlparse(values.get("href") or "").path)
+                if match:
+                    self.block["paths"].add(f"/f/{match.group(1)}/{match.group(2)}")
+            if "submission__body" in classes:
+                self.block["has_body"] = True
+            if any("submission__body" in entry[1] for entry in self.stack) and tag == "a":
+                self.block["parts"].append(values.get("href") or "")
+        if tag not in {
+            "area",
+            "base",
+            "br",
+            "col",
+            "embed",
+            "hr",
+            "img",
+            "input",
+            "link",
+            "meta",
+            "param",
+            "source",
+            "track",
+            "wbr",
+        }:
+            self.stack.append((tag, classes))
+
+    def handle_endtag(self, tag: str) -> None:
+        for index in range(len(self.stack) - 1, -1, -1):
+            if self.stack[index][0] == tag:
+                del self.stack[index:]
+                if self.block is not None and len(self.stack) <= self.article_depth:
+                    self.blocks.append(self.block)
+                    self.block = None
+                break
+
+    def handle_data(self, data: str) -> None:
+        if (
+            self.block is not None
+            and any("submission__body" in entry[1] for entry in self.stack)
+            and not any(entry[0] in {"script", "style"} for entry in self.stack)
+        ):
+            self.block["parts"].append(data)
+
+
+def _reddit_post_body_contains(editor: Any, path: str, witness: str) -> tuple[bool, str]:
+    response = editor._form_get(path, allow_missing=True)
+    if response is None:
+        return False, "reddit post body readback unavailable: page missing"
+    parser = _RedditPostBodyParser()
+    parser.feed(response.text)
+    blocks = [block for block in parser.blocks if block["paths"] == {path} and block["has_body"]]
+    if len(blocks) != 1:
+        return (
+            False,
+            "reddit post body readback unavailable: response-bound submission body missing",
+        )
+    if witness in "".join(blocks[0]["parts"]):
+        return True, "reddit post final state contains expected witness in created submission body"
+    return False, "reddit post created submission body did not contain witness"
+
+
+def _reddit_detail_paths_from_trace(
+    network_trace: list[dict[str, Any]], forum: str, instance: dict[str, Any]
+) -> list[str]:
     paths: list[str] = []
+    origin = urlparse(str(instance.get("site_url", "")))
     for event in network_trace:
+        if not any(
+            (urlparse(url).scheme, urlparse(url).netloc) == (origin.scheme, origin.netloc)
+            for url in _network_event_url_candidates(event, instance)
+        ):
+            continue
         path = urlparse(_network_event_url(event)).path
         match = _REDDIT_DETAIL_RE.search(path)
         if not match or match.group(1) != forum:

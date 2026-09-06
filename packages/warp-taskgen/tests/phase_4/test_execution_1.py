@@ -44,7 +44,7 @@ async def test_run_adversarial_task_errors_when_benign_eval_is_non_interpretable
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance):
+    async def fake_apply_seed(seed, instance, **_kwargs):
         return None, {}
 
     def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
@@ -91,11 +91,11 @@ async def test_run_adversarial_task_scores_partial_timeout_when_artifacts_exist(
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance):
+    async def fake_apply_seed(seed, instance, **_kwargs):
         return None, {}
 
     async def fake_preflight(
-        seed, instance, *, benchmark="webarena_verified", base_state_cache=None
+        seed, instance, *, benchmark="webarena_verified", base_state_cache=None, **_kwargs
     ):
         return phase_4_preflight.PreflightReport(ok=True, mismatches=())
 
@@ -146,7 +146,7 @@ async def test_run_adversarial_task_defers_seed_cleanup_until_after_reward_eval(
         def cleanup(self) -> None:
             events.append("cleanup")
 
-    async def fake_apply_seed(seed, instance):
+    async def fake_apply_seed(seed, instance, **_kwargs):
         events.append("seed")
         return _FakeCleanup(), {}
 
@@ -304,7 +304,7 @@ async def test_run_adversarial_task_probes_non_scoreable_failures_before_saving_
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance):
+    async def fake_apply_seed(seed, instance, **_kwargs):
         return None, {}
 
     def fake_determine(task, trajectory_dir):
@@ -369,7 +369,7 @@ async def test_run_adversarial_task_stamps_injection_not_encountered_on_error_pa
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance):
+    async def fake_apply_seed(seed, instance, **_kwargs):
         return None, {}
 
     def fake_determine(task, trajectory_dir):
@@ -427,7 +427,7 @@ async def test_run_adversarial_task_marks_agentlab_setup_timeout_as_infra_error(
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance):
+    async def fake_apply_seed(seed, instance, **_kwargs):
         return None, {}
 
     def fake_determine(task, trajectory_dir):
@@ -484,7 +484,7 @@ async def test_run_adversarial_task_marks_agentlab_missing_browser_as_infra_erro
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance):
+    async def fake_apply_seed(seed, instance, **_kwargs):
         return None, {}
 
     def fake_determine(task, trajectory_dir):
@@ -544,7 +544,7 @@ async def test_run_adversarial_task_marks_unknown_agentlab_error_with_partial_ou
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance):
+    async def fake_apply_seed(seed, instance, **_kwargs):
         return None, {}
 
     def fake_determine(task, trajectory_dir):
@@ -606,7 +606,7 @@ async def test_run_adversarial_task_marks_agentlab_browser_step_timeout_as_infra
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance):
+    async def fake_apply_seed(seed, instance, **_kwargs):
         return None, {}
 
     def fake_determine(task, trajectory_dir):
@@ -660,7 +660,7 @@ async def test_run_adversarial_task_retries_safe_agentlab_browser_step_timeout(
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance):
+    async def fake_apply_seed(seed, instance, **_kwargs):
         return None, {}
 
     def fake_determine(task, trajectory_dir):
@@ -736,7 +736,7 @@ async def test_run_adversarial_task_keeps_agentlab_timeout_infra_with_partial_ar
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance):
+    async def fake_apply_seed(seed, instance, **_kwargs):
         return None, {}
 
     def fake_determine(task, trajectory_dir):
@@ -798,7 +798,7 @@ async def test_run_adversarial_task_marks_agentlab_metadata_load_as_infra_error(
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance):
+    async def fake_apply_seed(seed, instance, **_kwargs):
         return None, {}
 
     def fake_determine(task, trajectory_dir):
@@ -864,7 +864,7 @@ async def test_run_adversarial_task_passes_site_prompt_from_agent_context(monkey
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance):
+    async def fake_apply_seed(seed, instance, **_kwargs):
         return None, {}
 
     def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
@@ -922,7 +922,7 @@ async def test_run_adversarial_task_forwards_benchmark_root_when_auth_present(
     async def fake_reset(task):
         return None
 
-    async def fake_seed(seed, instance_dict):
+    async def fake_seed(seed, instance_dict, **_kwargs):
         return None, {}
 
     def fake_validate_seed(seed, allow_none=False):
@@ -989,7 +989,7 @@ async def test_run_adversarial_task_forwards_http_header_credentials(monkeypatch
     async def fake_reset(task):
         return None
 
-    async def fake_seed(seed, instance_dict):
+    async def fake_seed(seed, instance_dict, **_kwargs):
         return None, {}
 
     def fake_validate_seed(seed, allow_none=False):

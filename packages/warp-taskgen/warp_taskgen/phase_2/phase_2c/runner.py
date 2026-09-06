@@ -56,7 +56,7 @@ from warp_taskgen.phase_2.phase_2c.probes import (
 from warp_taskgen.phase_2.phase_2c.types import FeasibilityReport, _ReplicaStats
 from warp_taskgen.phase_2.phase_2c.verifier import _verify_one
 from warp_taskgen.runtime_composition import RequiredSeedCleanupError, RuntimeComposition
-from warp_taskgen.seeding import SeedSiteRegistry, default_seed_registry
+from warp_taskgen.seeding import SeedSiteRegistry
 from warp_taskgen.sites import SiteCatalog
 
 logger = logging.getLogger(__name__)
@@ -120,17 +120,21 @@ async def verify_feasibility(
             header so reviewers see the upstream qualifier.
         stagger_delay: Optional startup spread between workers.
         feasibility_policy_catalog: Optional immutable per-run policy snapshot
-            for source-data preflight. When omitted, the explicit WebArena
-            default catalog is assembled for that run.
+            for source-data preflight. When omitted, the default Runtime
+            Composition's policy catalog is used.
         seed_registry: Optional immutable per-run Site editor snapshot. When
-            omitted, the historical editor registry remains the compatibility
-            source.
+            omitted, the default Runtime Composition's GitLab/Reddit binding
+            is used and seed tokens stay kind-scoped; supplying one keeps the
+            method-scoped reading of the pre-composition seam.
         site_catalog: Optional immutable per-run Site capability catalog used
-            to plan read-surface verification. When omitted, the production
-            GitLab/Reddit catalog is assembled for each check.
+            to plan read-surface verification. When omitted, the default
+            Runtime Composition's catalog is used and read-surface planning
+            stays non-strict; supplying one keeps the strict reading of the
+            pre-composition seam.
         runtime_composition: Optional immutable per-run composition. When
-            supplied, its Site, seed, and feasibility catalogs are used
-            together; the default ``None`` path preserves existing behavior.
+            supplied, its Site, seed, and feasibility catalogs, its seed token
+            scope, and its planning strictness are used together; omitting it
+            resolves :meth:`RuntimeComposition.default`.
         checkpoint_dir: Optional directory for durable per-task checkpoints.
             When omitted, direct/legacy callers retain pre-checkpoint behavior;
             an identity without a directory never writes into the process cwd.
@@ -160,6 +164,31 @@ async def verify_feasibility(
         feasibility_policy_catalog = runtime_composition.feasibility_policy_catalog
         seed_registry = runtime_composition.seed_registry
         site_catalog = runtime_composition.site_catalog
+        run_composition = runtime_composition
+    else:
+        # No composition was named, so this Run uses the default one. The
+        # pre-composition kwargs stay the compatibility seam: supplying one of
+        # them still selects the strict, method-scoped reading it always did.
+        default_composition = RuntimeComposition.default()
+        feasibility_policy_catalog = (
+            feasibility_policy_catalog
+            if feasibility_policy_catalog is not None
+            else default_composition.feasibility_policy_catalog
+        )
+        run_composition = RuntimeComposition(
+            name=default_composition.name,
+            site_catalog=(
+                site_catalog if site_catalog is not None else default_composition.site_catalog
+            ),
+            seed_registry=(
+                seed_registry if seed_registry is not None else default_composition.seed_registry
+            ),
+            feasibility_policy_catalog=feasibility_policy_catalog,
+            seed_token_scope="method" if seed_registry is not None else "kind",
+            strict_site_planning=site_catalog is not None,
+        )
+        seed_registry = run_composition.seed_registry
+        site_catalog = run_composition.site_catalog
 
     raw = json.loads(tasks_path.read_text())
     if not isinstance(raw, list):
@@ -282,8 +311,7 @@ async def verify_feasibility(
         # head so the representative is reproducible across runs.
         representative = _ordered_instance_dicts(site_instances)[0]
         benchmark = normalize_benchmark_name(representative.get("benchmark") or task_benchmark)
-        active_registry = seed_registry if seed_registry is not None else default_seed_registry()
-        registration = active_registry.get(benchmark, site)
+        registration = seed_registry.get(benchmark, site)
         editor_cls = registration.editor_factory if registration is not None else None
         if editor_cls is None:
             raise RuntimeError(
@@ -307,13 +335,12 @@ async def verify_feasibility(
         len(raw),
         len(instances_by_site),
     )
-    preflight_kwargs: dict[str, Any] = {
-        "instances_by_site": instances_by_site,
-        "benchmark_root": benchmark_root,
-    }
-    if feasibility_policy_catalog is not None:
-        preflight_kwargs["feasibility_policy_catalog"] = feasibility_policy_catalog
-    dropped_source_data = await probes.source_data_preflight(raw, **preflight_kwargs)
+    dropped_source_data = await probes.source_data_preflight(
+        raw,
+        instances_by_site=instances_by_site,
+        benchmark_root=benchmark_root,
+        feasibility_policy_catalog=feasibility_policy_catalog,
+    )
     logger.info(
         "phase 2c preflight: complete — dropped %d task(s); %d remain for the probe (elapsed=%.1fs)",
         len(dropped_source_data),
@@ -550,13 +577,8 @@ async def verify_feasibility(
                                 "checkpoint_context": task_checkpoint,
                                 "checkpoint_work_unit": checkpoint_work_unit,
                                 "probes": probes,
+                                "runtime_composition": run_composition,
                             }
-                            if seed_registry is not None:
-                                verify_kwargs["seed_registry"] = seed_registry
-                            if site_catalog is not None:
-                                verify_kwargs["site_catalog"] = site_catalog
-                            if runtime_composition is not None:
-                                verify_kwargs["runtime_composition"] = runtime_composition
                             result = await _verify_one(
                                 task,
                                 instance,

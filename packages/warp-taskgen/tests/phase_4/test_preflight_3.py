@@ -1,6 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
+from warp_taskgen.seeding import default_seed_registry  # noqa: E402
 
 
 def test_effective_adversarial_seed_rejects_semantically_invalid_selected_payload():
@@ -314,7 +315,7 @@ async def test_run_adversarial_task_classifies_invalid_seed_shape_as_preflight_m
 
 @pytest.mark.asyncio
 async def test_preflight_adversarial_seed_converts_runtime_errors_to_mismatches(monkeypatch):
-    def boom(seed, instance):
+    def boom(seed, instance, **_kwargs):
         raise RuntimeError("editor exploded")
 
     monkeypatch.setattr(phase_4_preflight, "preflight_editor_seed_calls", boom)
@@ -332,6 +333,7 @@ async def test_preflight_adversarial_seed_converts_runtime_errors_to_mismatches(
             ],
         },
         {"site_name": "gitlab", "site_url": "http://gitlab.test"},
+        seed_registry=default_seed_registry(),
     )
 
     assert report.ok is False
@@ -357,7 +359,7 @@ async def test_run_adversarial_task_threads_seed_benchmark_into_preflight(monkey
     captured: dict[str, object] = {}
 
     async def fake_preflight(
-        seed, instance, *, benchmark="webarena_verified", base_state_cache=None
+        seed, instance, *, benchmark="webarena_verified", base_state_cache=None, **_kwargs
     ):
         captured["benchmark"] = benchmark
         return phase_4_preflight.PreflightReport(

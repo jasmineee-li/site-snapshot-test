@@ -6,10 +6,15 @@ import pytest
 
 from tests.sites.test_read_surface import FakeReadSurfaceSite
 from warp_taskgen.phase_2.phase_2c import probes, verifier
+from warp_taskgen.phase_2.phase_2c.policy import default_feasibility_policy_catalog
 from warp_taskgen.phase_2.phase_2c.probe_bundle import Phase2cProbeBundle
-from warp_taskgen.runtime_composition import classifieds_listing_reply_poc
+from warp_taskgen.runtime_composition import (
+    DEFAULT_RUNTIME_COMPOSITION,
+    RuntimeComposition,
+    classifieds_listing_reply_poc,
+)
 from warp_taskgen.seeding import SeedSiteRegistration, SeedSiteRegistry
-from warp_taskgen.sites import ReadbackDecision, ReadbackObservation, SiteCatalog
+from warp_taskgen.sites import ReadbackDecision, ReadbackObservation, SiteCatalog, default_catalog
 from warp_taskgen.sites.read_surface import build_read_surface_plan
 
 
@@ -31,6 +36,7 @@ async def test_render_check_consumes_injected_site_plan(monkeypatch: pytest.Monk
 
     monkeypatch.setattr(probes, "verify_seed_renders", fake_verify_seed_renders)
     outcome = await probes._run_render_check(
+        strict_site_planning=True,
         browser=object(),
         render_semaphore=None,
         seed={
@@ -110,6 +116,7 @@ async def test_render_check_uses_anonymous_reader_contract_without_writer_auth(
         lambda _instance: (_ for _ in ()).throw(AssertionError("writer auth reused")),
     )
     outcome = await probes._run_render_check(
+        strict_site_planning=True,
         browser=object(),
         render_semaphore=None,
         seed={
@@ -160,6 +167,7 @@ async def test_classifieds_composition_reader_gate_ignores_failing_writer_auth(
         lambda _instance: (_ for _ in ()).throw(AssertionError("writer auth reused")),
     )
     outcome = await probes._run_render_check(
+        strict_site_planning=True,
         browser=object(),
         render_semaphore=None,
         seed={
@@ -225,6 +233,7 @@ async def test_classifieds_composition_missing_reader_auth_fails_before_render(
         lambda _instance: (_ for _ in ()).throw(AssertionError("writer auth reused")),
     )
     outcome = await probes._run_render_check(
+        strict_site_planning=True,
         browser=object(),
         render_semaphore=None,
         seed={
@@ -320,8 +329,6 @@ async def test_classifieds_composition_missing_reader_auth_skips_seed_and_render
         force_reverify=True,
         cleanup_warnings=[],
         browser=object(),
-        seed_registry=composition.seed_registry,
-        site_catalog=composition.site_catalog,
         runtime_composition=composition,
         probes=bundle,
     )
@@ -400,8 +407,6 @@ async def test_classifieds_composition_cleanup_failure_invalidates_phase2c_verif
             force_reverify=True,
             cleanup_warnings=warnings,
             browser=object(),
-            seed_registry=composition.seed_registry,
-            site_catalog=composition.site_catalog,
             runtime_composition=composition,
             probes=bundle,
         )
@@ -440,6 +445,7 @@ async def test_render_check_preserves_generic_identity_tokens_in_bound_plan(
 
     monkeypatch.setattr(probes, "verify_seed_renders", fake_verify_seed_renders)
     outcome = await probes._run_render_check(
+        strict_site_planning=True,
         browser=object(),
         render_semaphore=None,
         seed={
@@ -486,6 +492,7 @@ async def test_render_check_fails_before_browser_for_foreign_only_surface(
 
     monkeypatch.setattr(probes, "verify_seed_renders", should_not_run)
     outcome = await probes._run_render_check(
+        strict_site_planning=True,
         browser=object(),
         render_semaphore=None,
         seed={
@@ -520,6 +527,8 @@ async def test_active_site_missing_benchmark_fails_before_browser(
 
     monkeypatch.setattr(probes, "verify_seed_renders", should_not_run)
     outcome = await probes._run_render_check(
+        site_catalog=default_catalog(),
+        strict_site_planning=False,
         browser=object(),
         render_semaphore=None,
         seed={
@@ -552,6 +561,8 @@ async def test_payload_call_cannot_borrow_setup_call_surface(
 
     monkeypatch.setattr(probes, "verify_seed_renders", should_not_run)
     outcome = await probes._run_render_check(
+        site_catalog=default_catalog(),
+        strict_site_planning=False,
         browser=object(),
         render_semaphore=None,
         seed={
@@ -604,6 +615,8 @@ async def test_multicall_payload_requires_per_call_metadata(
 
     monkeypatch.setattr(probes, "verify_seed_renders", should_not_run)
     outcome = await probes._run_render_check(
+        site_catalog=default_catalog(),
+        strict_site_planning=False,
         browser=object(),
         render_semaphore=None,
         seed={
@@ -694,8 +707,14 @@ async def test_verify_one_threads_per_run_seed_and_site_catalogs(
         force_reverify=True,
         cleanup_warnings=[],
         browser=object(),
-        seed_registry=seed_registry,
-        site_catalog=site_catalog,
+        runtime_composition=RuntimeComposition(
+            name=DEFAULT_RUNTIME_COMPOSITION,
+            site_catalog=site_catalog,
+            seed_registry=seed_registry,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
+            seed_token_scope="method",
+            strict_site_planning=True,
+        ),
         probes=bundle,
     )
 
@@ -704,3 +723,123 @@ async def test_verify_one_threads_per_run_seed_and_site_catalogs(
         "seed_registry": seed_registry,
         "site_catalog": site_catalog,
     }
+
+
+# Planning strictness is a Runtime Composition property (#276). The default
+# composition keeps the historical fall-through for the three cases where a
+# read surface cannot be planned; a named POC composition fails closed on the
+# same three. These pin behaviour that was previously implied by whether a
+# caller happened to pass a Site catalog.
+
+_FALL_THROUGH_CASES = {
+    "benchmark_missing_and_site_not_in_catalog": (
+        {
+            "editor_calls": [
+                {"site": "fake", "method": "create_message", "args": {"body": "unplanned body"}}
+            ]
+        },
+        {"read_surface_urls": ["https://fake.local/messages/17"]},
+        {"site_name": "fake", "site_url": "https://fake.local"},
+    ),
+    "blank_signature": (
+        {
+            "editor_calls": [
+                {"site": "gitlab", "method": "create_issue_note", "args": {"note_body": ""}}
+            ]
+        },
+        {"read_surface_urls": ["https://gitlab.local/p/-/issues/1"]},
+        {
+            "site_name": "gitlab",
+            "site_url": "https://gitlab.local",
+            "benchmark": "webarena_verified",
+        },
+    ),
+    "targeting_error_for_site_not_in_catalog": (
+        {
+            "editor_calls": [
+                {
+                    "site": "shopping",
+                    "method": "create_product_review",
+                    "args": {"detail": "unplanned review body"},
+                }
+            ]
+        },
+        {"read_surface_urls": ["https://shopping.local/review/1"]},
+        {
+            "site_name": "shopping",
+            "site_url": "https://shopping.local",
+            "benchmark": "webarena_verified",
+        },
+    ),
+}
+
+
+async def _render_check_for_case(
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+    *,
+    site_catalog: Any,
+    strict_site_planning: bool,
+) -> tuple[Any, list[dict[str, Any]]]:
+    seed, metadata, instance = _FALL_THROUGH_CASES[case]
+    probe_calls: list[dict[str, Any]] = []
+
+    async def fake_verify_seed_renders(**kwargs: Any):
+        probe_calls.append(kwargs)
+        return probes.RenderOutcome.passed(
+            url=kwargs["urls"][0],
+            signature="observed",
+            snippet="observed",
+        )
+
+    monkeypatch.setattr(probes, "verify_seed_renders", fake_verify_seed_renders)
+    outcome = await probes._run_render_check(
+        browser=object(),
+        render_semaphore=None,
+        seed=seed,
+        metadata=metadata,
+        instance=instance,
+        site_catalog=site_catalog,
+        strict_site_planning=strict_site_planning,
+    )
+    return outcome, probe_calls
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case", sorted(_FALL_THROUGH_CASES))
+async def test_default_composition_falls_through_unplannable_read_surface(
+    monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    composition = RuntimeComposition.default()
+    assert composition.strict_site_planning is False
+
+    outcome, probe_calls = await _render_check_for_case(
+        monkeypatch,
+        case,
+        site_catalog=composition.site_catalog,
+        strict_site_planning=composition.strict_site_planning,
+    )
+
+    assert outcome.kind != "render_unverified"
+    assert outcome.ok is True
+    assert len(probe_calls) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case", sorted(_FALL_THROUGH_CASES))
+async def test_poc_composition_fails_closed_on_unplannable_read_surface(
+    monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    composition = classifieds_listing_reply_poc()
+    assert composition.strict_site_planning is True
+
+    outcome, probe_calls = await _render_check_for_case(
+        monkeypatch,
+        case,
+        site_catalog=composition.site_catalog,
+        strict_site_planning=composition.strict_site_planning,
+    )
+
+    assert outcome.ok is False
+    assert outcome.kind == "render_unverified"
+    assert probe_calls == []

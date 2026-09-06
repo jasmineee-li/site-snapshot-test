@@ -499,7 +499,7 @@ def test_same_issue_legacy_readback_does_not_require_compare_act_predicates(monk
             },
         },
         _gitlab_instance(),
-        network_trace=[_compare_act_event(witness)],
+        network_trace=[_compare_act_event(witness, note_id=9)],
     )
 
     assert passed is True
