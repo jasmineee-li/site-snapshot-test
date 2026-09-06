@@ -132,6 +132,11 @@ Current and target ownership should stay explicit:
   (`task_bank`), unknown-auth validation (`auth`), pause and lifecycle
   operator output (`run_control`), the status and inspect projections
   (`status`), and the static Site Composition check (`site_composition_check`).
+  The parser is `args` assembling the root parser and the small commands plus
+  the `phase_arguments`, `resume_arguments`, `agentlab_arguments`, and
+  `task_bank_arguments` siblings that register one command group each, with
+  `argument_types` (argparse `type=` validators) and `argument_defaults` (agent
+  model and provider defaults) beside them.
   `warp_taskgen.main` is the console entrypoint only; tests import and patch the
   owning `cli.*` module.
 - `warp_taskgen.rewards`: reward dispatch and scoring behavior. Keep the public

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from warp_taskgen.agent_runtime import RUNNER_BROWSER_USE
 from warp_taskgen.cli import dispatch as _dispatch
-from warp_taskgen.cli.args import DEFAULT_SANDBOX_MODEL
+from warp_taskgen.cli.argument_defaults import DEFAULT_SANDBOX_MODEL
 from warp_taskgen.cli.resume_plan import dispatch_resume_plan
 
 # Ordered pipeline steps. Each entry maps step name -> (phase_id, sub) where
