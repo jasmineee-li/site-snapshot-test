@@ -85,3 +85,19 @@ def test_main_is_a_thin_entrypoint() -> None:
 def test_cli_package_has_no_impl_module() -> None:
     importlib.invalidate_caches()
     assert importlib.util.find_spec("warp_taskgen.cli._impl") is None
+
+
+def test_canonical_feature_modules_own_the_retired_surfaces() -> None:
+    canonical_modules = {
+        "warp_taskgen.phase_2.runner_api": "runner_api.py",
+        "warp_taskgen.phase_2.text_fill": "text_fill/__init__.py",
+        "warp_taskgen.phase_2.exposure_contract": "exposure_contract/__init__.py",
+        "warp_taskgen.phase_1.novel_task_validation": "novel_task_validation/__init__.py",
+        "warp_taskgen.phase_2.phase_2c": "phase_2c/__init__.py",
+    }
+
+    for module_name, suffix in canonical_modules.items():
+        spec = importlib.util.find_spec(module_name)
+        assert spec is not None
+        assert spec.origin is not None
+        assert spec.origin.endswith(suffix)

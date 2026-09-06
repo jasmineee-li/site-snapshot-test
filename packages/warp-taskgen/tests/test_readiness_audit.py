@@ -133,82 +133,11 @@ def test_verify_fast_fails_on_token_findings() -> None:
     script = (repo_root / "scripts" / "verify_fast.sh").read_text()
 
     assert "--fail-on tracked-generated --fail-on tokens" in script
-    assert "--fail-on legacy-imports" in script
+    assert "--fail-on legacy-namespace-imports" in script
+    assert "--fail-on legacy-imports" not in script
 
 
-def test_legacy_import_audit_flags_retired_phase_paths(tmp_path, monkeypatch) -> None:
-    monkeypatch.chdir(tmp_path)
-    path = tmp_path / "worldsim" / "consumer.py"
-    path.parent.mkdir(parents=True)
-    path.write_text(
-        "\n".join(
-            [
-                "import worldsim.phases.phase_2_injections",
-                "from worldsim.phases.phase_4_adversarial import run",
-                "from worldsim.phases import phase_2c_config",
-            ]
-        )
-    )
-
-    findings = readiness_audit._legacy_phase_import_findings(["worldsim/consumer.py"])
-
-    assert [finding.module for finding in findings] == [
-        "worldsim.phases.phase_2_injections",
-        "worldsim.phases.phase_4_adversarial",
-        "worldsim.phases.phase_2c_config",
-    ]
-
-
-def test_legacy_import_audit_flags_phase_2_api_compat_path(tmp_path, monkeypatch) -> None:
-    monkeypatch.chdir(tmp_path)
-    path = tmp_path / "worldsim" / "consumer.py"
-    path.parent.mkdir(parents=True)
-    path.write_text(
-        "from worldsim.phases.phase_2_injections_api import generate_phase_2a_plans_api\n"
-    )
-
-    findings = readiness_audit._legacy_phase_import_findings(["worldsim/consumer.py"])
-
-    assert [finding.module for finding in findings] == [
-        "worldsim.phases.phase_2_injections_api",
-    ]
-
-
-def test_legacy_import_audit_flags_retired_feature_facades(tmp_path, monkeypatch) -> None:
-    monkeypatch.chdir(tmp_path)
-    path = tmp_path / "worldsim" / "consumer.py"
-    path.parent.mkdir(parents=True)
-    path.write_text(
-        "\n".join(
-            [
-                "from worldsim.phases import phase_1_generate_new_tasks_validation",
-                "from worldsim.phases import phase_2_exposure_contract",
-                "from worldsim.phases import phase_2_feasibility",
-                "from worldsim.phases import phase_2_text_fill",
-            ]
-        )
-    )
-
-    findings = readiness_audit._legacy_phase_import_findings(["worldsim/consumer.py"])
-
-    assert [finding.module for finding in findings] == [
-        "worldsim.phases.phase_1_generate_new_tasks_validation",
-        "worldsim.phases.phase_2_exposure_contract",
-        "worldsim.phases.phase_2_feasibility",
-        "worldsim.phases.phase_2_text_fill",
-    ]
-
-
-def test_legacy_import_audit_allows_cutover_tests(tmp_path, monkeypatch) -> None:
-    monkeypatch.chdir(tmp_path)
-    path = tmp_path / "tests" / "consumer.py"
-    path.parent.mkdir(parents=True)
-    path.write_text("import warp_taskgen.phases.phase_2_injections\n")
-
-    assert readiness_audit._legacy_phase_import_findings(["tests/consumer.py"]) == []
-
-
-def test_legacy_import_audit_flags_relative_imports_inside_phases_package(
+def test_legacy_namespace_audit_flags_relative_imports_inside_the_package(
     tmp_path, monkeypatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
@@ -224,16 +153,16 @@ def test_legacy_import_audit_flags_relative_imports_inside_phases_package(
         )
     )
 
-    findings = readiness_audit._legacy_phase_import_findings(["worldsim/phases/shim.py"])
+    findings = readiness_audit._legacy_namespace_import_findings(["worldsim/phases/shim.py"])
 
     assert [finding.module for finding in findings] == [
         "worldsim.phases.phase_2_injections",
         "worldsim.phases.phase_4_adversarial",
-        "worldsim.phases.phase_2c_config",
+        "worldsim.phases",
     ]
 
 
-def test_legacy_import_audit_relative_import_resolution_drops_levels() -> None:
+def test_legacy_namespace_audit_relative_import_resolution_drops_levels() -> None:
     assert (
         readiness_audit._resolve_relative_anchor("worldsim/phases/foo.py", 1) == "worldsim.phases"
     )
@@ -243,42 +172,6 @@ def test_legacy_import_audit_relative_import_resolution_drops_levels() -> None:
     )
     # Walks above the package root -> None.
     assert readiness_audit._resolve_relative_anchor("worldsim/phases/foo.py", 5) is None
-
-
-def test_active_facade_inventory_is_empty_after_namespace_cutover(tmp_path, monkeypatch) -> None:
-    monkeypatch.chdir(tmp_path)
-    path = tmp_path / "worldsim" / "consumer.py"
-    path.parent.mkdir(parents=True)
-    path.write_text(
-        "\n".join(
-            [
-                "import worldsim.main",
-                "from worldsim.phases.phase_2_text_fill import validate_text_post_hoc",
-                "from worldsim.phases import phase_2_feasibility",
-            ]
-        )
-    )
-
-    findings = readiness_audit._active_facade_import_findings(["worldsim/consumer.py"])
-
-    assert readiness_audit.ACTIVE_COMPAT_FACADE_MODULES == frozenset()
-    assert findings == []
-
-
-def test_active_facade_import_audit_is_advisory_for_tests(tmp_path, monkeypatch) -> None:
-    monkeypatch.chdir(tmp_path)
-    test_path = tmp_path / "tests" / "consumer.py"
-    test_path.parent.mkdir(parents=True)
-    test_path.write_text("from warp_taskgen.phases import phase_2_text_fill\n")
-
-    docs_path = tmp_path / "docs" / "consumer.py"
-    docs_path.parent.mkdir(parents=True)
-    docs_path.write_text("from warp_taskgen.phases import phase_2_text_fill\n")
-
-    assert (
-        readiness_audit._active_facade_import_findings(["tests/consumer.py", "docs/consumer.py"])
-        == []
-    )
 
 
 def test_legacy_namespace_audit_flags_active_production_imports(tmp_path, monkeypatch) -> None:
