@@ -59,7 +59,7 @@ _SITE_SELECTORS: dict[str, str] = {
     # notes thread has not appeared yet, and the 2-witness grep fails
     # with ``witnesses_absent``. Wait for an actual note element so the
     # body text contains the seeded payload when we grep it (mirrors
-    # the render-check gate at phase_2_render_check.py:_GITLAB_NOTE_SELECTOR).
+    # the render-check gate at sites/gitlab_render_probe.py:_GITLAB_NOTE_SELECTOR).
     "gitlab_issue": ".notes .note, .discussion-notes .note, ul.notes-list .note",
     "gitlab_mr": ".notes .note, .discussion-notes .note, ul.notes-list .note",
     "gitlab_dashboard_list": ".issuable-list, .todos-list",
