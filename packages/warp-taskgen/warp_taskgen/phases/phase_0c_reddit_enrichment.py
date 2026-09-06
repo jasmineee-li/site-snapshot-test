@@ -17,13 +17,13 @@ from urllib.parse import quote
 import requests
 
 from warp_taskgen.db_urls import replace_db_host
-from warp_taskgen.seeding import (
+from warp_taskgen.seeding.db import (
     _configure_read_only_connection,
     _connect_db,
     _parse_runtime_db_connection,
     _quote_identifier,
-    _resolve_reddit_table_name,
 )
+from warp_taskgen.seeding.reddit_context import _resolve_reddit_table_name
 
 logger = logging.getLogger(__name__)
 

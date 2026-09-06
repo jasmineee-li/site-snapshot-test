@@ -24,7 +24,6 @@ import inspect
 
 import pytest
 
-from warp_taskgen.editors import EDITOR_REGISTRY
 from warp_taskgen.editors._registry import (
     _REGISTRY,
     attach_surfaces_for_kind,
@@ -32,6 +31,7 @@ from warp_taskgen.editors._registry import (
     kind_contract,
     method_spec,
 )
+from warp_taskgen.seeding.site_contracts import default_seed_registry
 
 # Frozen snapshot of the pre-refactor attach_surfaces data. Any
 # intentional contract change MUST update both the decorator on the
@@ -128,10 +128,10 @@ LLM_TO_PYTHON_ARG_ALIASES: dict[tuple[str, str, str], str] = {
 
 
 def _editor_class(benchmark: str, site: str) -> type:
-    for (registered_benchmark, registered_site), cls in EDITOR_REGISTRY.items():
-        if registered_benchmark == benchmark and registered_site == site:
-            return cls
-    raise KeyError((benchmark, site))
+    registration = default_seed_registry().get(benchmark, site)
+    if registration is None:
+        raise KeyError((benchmark, site))
+    return registration.editor_factory
 
 
 class TestRegistryCoverage:
@@ -140,8 +140,8 @@ class TestRegistryCoverage:
         assert len(_REGISTRY) == 23
 
     def test_all_supported_methods_registered(self) -> None:
-        for (benchmark, site), cls in EDITOR_REGISTRY.items():
-            for method_name in cls.supported_methods:
+        for (benchmark, site), registration in default_seed_registry().registrations.items():
+            for method_name in registration.editor_factory.supported_methods:
                 assert (benchmark, site, method_name) in _REGISTRY, (
                     f"{benchmark}.{site}.{method_name} not in _REGISTRY — "
                     "missing @editor_method decoration"

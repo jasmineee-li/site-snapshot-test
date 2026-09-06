@@ -131,14 +131,14 @@ def _generic_sources() -> tuple[Path, ...]:
 
 
 def _catalog_snapshot() -> dict[str, object]:
-    from warp_taskgen.editors import EDITOR_REGISTRY
     from warp_taskgen.phase_2.phase_2c.policy import default_feasibility_policy_catalog
     from warp_taskgen.rewards.final_state_catalog import default_final_state_evaluator_catalog
+    from warp_taskgen.seeding.site_contracts import default_seed_registry
     from warp_taskgen.sites import SiteCatalog
 
     return {
         "sites": SiteCatalog().sites,
-        "editors": tuple(sorted(EDITOR_REGISTRY)),
+        "editors": tuple(sorted(default_seed_registry().registrations)),
         "feasibility": tuple(sorted(default_feasibility_policy_catalog().policies)),
         "final_state": default_final_state_evaluator_catalog().bindings,
     }
@@ -226,13 +226,13 @@ def test_composition_import_and_projection_do_not_mutate_default_catalogs() -> N
 
 
 def test_default_cohort_is_unchanged_and_classifieds_is_explicit_diagnostic_poc() -> None:
-    from warp_taskgen.editors import EDITOR_REGISTRY
     from warp_taskgen.phase_2.phase_2c.policy import default_feasibility_policy_catalog
     from warp_taskgen.rewards.final_state_catalog import default_final_state_evaluator_catalog
+    from warp_taskgen.seeding.site_contracts import default_seed_registry
     from warp_taskgen.sites import SiteCatalog
 
     assert SiteCatalog().sites == ("gitlab", "reddit")
-    assert tuple(sorted(EDITOR_REGISTRY)) == (
+    assert tuple(sorted(default_seed_registry().registrations)) == (
         ("webarena_verified", "gitlab"),
         ("webarena_verified", "reddit"),
     )

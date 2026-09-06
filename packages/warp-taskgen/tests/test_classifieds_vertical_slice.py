@@ -305,7 +305,7 @@ def test_generic_seed_preflight_and_apply_resolve_listing_anchor(
         "_delete_listing_reply",
         lambda _self, *, listing_id, reply_id, csrf_token: deleted.append((listing_id, reply_id)),
     )
-    monkeypatch.setattr(seeding.requests, "Session", lambda: session)
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: session)
 
     handle, metadata = seeding.apply_data_seed(
         seed,

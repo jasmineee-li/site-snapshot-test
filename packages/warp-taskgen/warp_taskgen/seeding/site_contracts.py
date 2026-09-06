@@ -1,9 +1,9 @@
 """Explicit contracts for site-owned seed execution.
 
-The active editor registry predates the Site cutover and remains a patchable
-compatibility surface.  ``SeedSiteRegistry`` is the small, immutable seam used
-by new callers: a seed run can bind the editor factories it is allowed to use
-without changing process-wide registration state.
+``SeedSiteRegistry`` is the small, immutable seam every seed run binds: a run
+declares the editor factories it is allowed to use without changing
+process-wide registration state.  :func:`default_seed_registry` builds the
+default WARP GitLab/Reddit binding.
 
 The result facts in this module deliberately describe only generic write and
 read evidence.  Site editors still own authentication, HTTP, mutation, and
@@ -111,9 +111,9 @@ class SeedSiteRegistration:
 class SeedSiteRegistry:
     """Immutable per-run registry of Site seed editor factories.
 
-    ``from_editor_registry`` is the compatibility adapter for the historical
-    mutable ``warp_taskgen.editors.EDITOR_REGISTRY``.  Callers that need an
-    isolated test Site should construct this registry directly and pass it to
+    ``from_editor_registry`` adapts any plain ``(benchmark, site) -> factory``
+    mapping.  Callers that need an isolated test Site should construct this
+    registry directly and pass it to
     :func:`warp_taskgen.seeding.apply_data_seed`; no global mapping is changed.
     """
 
@@ -180,6 +180,23 @@ class SeedSiteRegistry:
     def get(self, benchmark: str, site: str) -> SeedSiteRegistration | None:
         """Return a registered binding, or ``None`` for unsupported Sites."""
         return self.registrations.get((normalize_benchmark_name(benchmark), site.strip().lower()))
+
+
+def default_seed_registry() -> SeedSiteRegistry:
+    """Bind the default WARP GitLab/Reddit editors for one seed run.
+
+    The editors are imported inside the function so ``warp_taskgen.editors``
+    can keep importing seeding helpers without a package import cycle.
+    """
+
+    from warp_taskgen.editors import GitlabEditor, RedditEditor
+
+    return SeedSiteRegistry.from_registrations(
+        (
+            SeedSiteRegistration("webarena_verified", "gitlab", GitlabEditor),
+            SeedSiteRegistration("webarena_verified", "reddit", RedditEditor),
+        )
+    )
 
 
 @dataclass(frozen=True)
@@ -330,5 +347,6 @@ __all__ = [
     "ReadSurfaceFact",
     "SeedSiteRegistration",
     "SeedSiteRegistry",
+    "default_seed_registry",
     "normalize_identity_tokens",
 ]

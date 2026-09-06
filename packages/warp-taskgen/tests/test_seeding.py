@@ -6,6 +6,20 @@ from typing import ClassVar
 import pytest
 
 from warp_taskgen import _sandbox_validator, seeding
+from warp_taskgen.seeding.site_contracts import (
+    SeedSiteRegistration,
+    SeedSiteRegistry,
+    default_seed_registry,
+)
+
+
+def _registry_with(key, editor):
+    """Default GitLab/Reddit seed registry with one Site bound to a test editor."""
+    benchmark, site = key
+    registrations = dict(default_seed_registry().registrations)
+    replacement = SeedSiteRegistration(benchmark, site, editor)
+    registrations[replacement.key] = replacement
+    return SeedSiteRegistry(registrations)
 
 
 class _FakeResponse:
@@ -24,7 +38,7 @@ class _FakeResponse:
 
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
-            raise seeding.requests.HTTPError(f"status={self.status_code}")
+            raise seeding.execution.requests.HTTPError(f"status={self.status_code}")
 
     def json(self):
         if self._json_data is None:
@@ -194,9 +208,9 @@ def test_apply_data_seed_rejects_legacy_mechanisms_before_http(monkeypatch):
     """Legacy mechanisms must fail-fast at the validator, not after issuing HTTP."""
     sentinel: list = []
     monkeypatch.setattr(
-        seeding.requests, "request", lambda *a, **kw: sentinel.append((a, kw)) or None
+        seeding.execution.requests, "request", lambda *a, **kw: sentinel.append((a, kw)) or None
     )
-    monkeypatch.setattr(seeding.requests, "Session", lambda: None)
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: None)
     for mech, payload in (
         ("api", {"api_calls": [{"method": "GET", "path": "/x"}]}),
         ("form", {"api_calls": [{"method": "POST", "path": "/x", "body_form": {"k": "v"}}]}),
@@ -421,7 +435,7 @@ def test_collect_seed_runtime_errors_skips_db_check_for_http_db_row_verification
 
 
 def test_resolve_reddit_forum_supports_plural_table_name(monkeypatch):
-    seeding._REDDIT_TABLE_NAME_CACHE.clear()
+    seeding.reddit_context._REDDIT_TABLE_NAME_CACHE.clear()
 
     class _LookupCursor:
         def __init__(self):
@@ -456,7 +470,7 @@ def test_resolve_reddit_forum_supports_plural_table_name(monkeypatch):
         def close(self):
             return None
 
-    monkeypatch.setattr(seeding, "_connect_db", lambda parsed: _LookupConnection())
+    monkeypatch.setattr(seeding.db, "_connect_db", lambda parsed: _LookupConnection())
 
     forum = seeding._resolve_reddit_forum(
         {"instantiation_dict": {"forum": "Books"}},
@@ -467,7 +481,7 @@ def test_resolve_reddit_forum_supports_plural_table_name(monkeypatch):
 
 
 def test_resolve_reddit_forum_raises_clear_error_when_no_table_matches(monkeypatch):
-    seeding._REDDIT_TABLE_NAME_CACHE.clear()
+    seeding.reddit_context._REDDIT_TABLE_NAME_CACHE.clear()
 
     class _LookupCursor:
         def __init__(self):
@@ -500,7 +514,7 @@ def test_resolve_reddit_forum_raises_clear_error_when_no_table_matches(monkeypat
         def close(self):
             return None
 
-    monkeypatch.setattr(seeding, "_connect_db", lambda parsed: _LookupConnection())
+    monkeypatch.setattr(seeding.db, "_connect_db", lambda parsed: _LookupConnection())
 
     with pytest.raises(RuntimeError, match="reddit schema table resolution failed"):
         seeding._resolve_reddit_forum(
@@ -644,8 +658,8 @@ class _RejectingEditor(_FakeEditor):
 def test_apply_data_seed_normalizes_editor_call_benchmark_alias(monkeypatch):
     _FakeEditor.instances.clear()
     fake_session = _FakeSession([])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _FakeEditor)
 
     cleanup_handle, _metadata = seeding.apply_data_seed(
         {
@@ -660,6 +674,7 @@ def test_apply_data_seed_normalizes_editor_call_benchmark_alias(monkeypatch):
             ],
         },
         {"site_name": "reddit", "site_url": "http://reddit.test"},
+        seed_registry=seed_registry,
     )
 
     assert cleanup_handle is not None
@@ -670,8 +685,8 @@ def test_apply_data_seed_normalizes_editor_call_benchmark_alias(monkeypatch):
 def test_apply_data_seed_uses_instance_benchmark_when_call_omits_it(monkeypatch):
     _FakeEditor.instances.clear()
     fake_session = _FakeSession([])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("stwebagentbench", "reddit"), _FakeEditor)
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("stwebagentbench", "reddit"), _FakeEditor)
 
     cleanup_handle, _metadata = seeding.apply_data_seed(
         {
@@ -689,6 +704,7 @@ def test_apply_data_seed_uses_instance_benchmark_when_call_omits_it(monkeypatch)
             "site_name": "reddit",
             "site_url": "http://reddit.test",
         },
+        seed_registry=seed_registry,
     )
 
     assert cleanup_handle is not None
@@ -699,8 +715,8 @@ def test_apply_data_seed_uses_instance_benchmark_when_call_omits_it(monkeypatch)
 def test_apply_data_seed_supports_editor_calls_and_context_chaining(monkeypatch):
     _FakeEditor.instances.clear()
     fake_session = _FakeSession([])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _FakeEditor)
 
     cleanup_handle, _metadata = seeding.apply_data_seed(
         {
@@ -725,6 +741,7 @@ def test_apply_data_seed_supports_editor_calls_and_context_chaining(monkeypatch)
             ],
         },
         {"site_name": "reddit", "site_url": "http://reddit.test"},
+        seed_registry=seed_registry,
     )
 
     editor = _FakeEditor.instances[-1]
@@ -780,17 +797,16 @@ def _partial_mutation_seed() -> dict[str, object]:
 
 def test_partial_seed_cleanup_failure_keeps_primary_error_for_default_callers(monkeypatch):
     fake_session = _FakeSession([])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(
-        seeding.EDITOR_REGISTRY,
-        ("webarena_verified", "reddit"),
-        _PartialMutationFailingCleanupEditor,
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(
+        ("webarena_verified", "reddit"), _PartialMutationFailingCleanupEditor
     )
 
     with pytest.raises(seeding.EditorError) as raised:
         seeding.apply_data_seed(
             _partial_mutation_seed(),
             {"site_name": "reddit", "site_url": "http://reddit.test"},
+            seed_registry=seed_registry,
         )
 
     assert raised.value.kind == "request_failed"
@@ -802,11 +818,9 @@ def test_partial_seed_cleanup_failure_is_typed_for_strict_callers(monkeypatch):
     from warp_taskgen.runtime_composition import RequiredSeedCleanupError
 
     fake_session = _FakeSession([])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(
-        seeding.EDITOR_REGISTRY,
-        ("webarena_verified", "reddit"),
-        _PartialMutationFailingCleanupEditor,
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(
+        ("webarena_verified", "reddit"), _PartialMutationFailingCleanupEditor
     )
 
     with pytest.raises(RequiredSeedCleanupError) as raised:
@@ -814,6 +828,7 @@ def test_partial_seed_cleanup_failure_is_typed_for_strict_callers(monkeypatch):
             _partial_mutation_seed(),
             {"site_name": "reddit", "site_url": "http://reddit.test"},
             strict_cleanup=True,
+            seed_registry=seed_registry,
         )
 
     error = raised.value
@@ -829,18 +844,15 @@ def test_unreconciled_mutation_is_typed_for_strict_callers_even_when_cleanup_run
     from warp_taskgen.runtime_composition import RequiredSeedCleanupError
 
     fake_session = _FakeSession([])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(
-        seeding.EDITOR_REGISTRY,
-        ("webarena_verified", "reddit"),
-        _UnreconciledMutationEditor,
-    )
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _UnreconciledMutationEditor)
 
     with pytest.raises(RequiredSeedCleanupError) as raised:
         seeding.apply_data_seed(
             _partial_mutation_seed(),
             {"site_name": "reddit", "site_url": "http://reddit.test"},
             strict_cleanup=True,
+            seed_registry=seed_registry,
         )
 
     assert raised.value.primary_error.kind == "mutation_unreconciled"
@@ -852,9 +864,9 @@ def test_apply_data_seed_honors_editor_pre_call_delay(monkeypatch):
     _FakeEditor.instances.clear()
     fake_session = _FakeSession([])
     sleeps: list[float] = []
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
-    monkeypatch.setattr(seeding.time, "sleep", lambda seconds: sleeps.append(seconds))
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _FakeEditor)
+    monkeypatch.setattr(seeding.execution.time, "sleep", lambda seconds: sleeps.append(seconds))
 
     cleanup_handle, _metadata = seeding.apply_data_seed(
         {
@@ -880,6 +892,7 @@ def test_apply_data_seed_honors_editor_pre_call_delay(monkeypatch):
             ],
         },
         {"site_name": "reddit", "site_url": "http://reddit.test"},
+        seed_registry=seed_registry,
     )
 
     assert cleanup_handle is not None
@@ -890,8 +903,8 @@ def test_apply_data_seed_honors_editor_pre_call_delay(monkeypatch):
 def test_apply_data_seed_filters_unknown_editor_kwargs_before_validation(monkeypatch):
     _FakeEditor.instances.clear()
     fake_session = _FakeSession([])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _FakeEditor)
 
     cleanup_handle, _metadata = seeding.apply_data_seed(
         {
@@ -912,6 +925,7 @@ def test_apply_data_seed_filters_unknown_editor_kwargs_before_validation(monkeyp
             ],
         },
         {"site_name": "reddit", "site_url": "http://reddit.test"},
+        seed_registry=seed_registry,
     )
 
     editor = _FakeEditor.instances[-1]
@@ -939,8 +953,8 @@ def test_apply_data_seed_filters_unknown_editor_kwargs_before_validation(monkeyp
 def test_apply_data_seed_maps_reddit_submission_form_field_aliases(monkeypatch):
     _FakeEditor.instances.clear()
     fake_session = _FakeSession([])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _FakeEditor)
 
     cleanup_handle, _metadata = seeding.apply_data_seed(
         {
@@ -959,6 +973,7 @@ def test_apply_data_seed_maps_reddit_submission_form_field_aliases(monkeypatch):
             ],
         },
         {"site_name": "reddit", "site_url": "http://reddit.test"},
+        seed_registry=seed_registry,
     )
 
     editor = _FakeEditor.instances[-1]
@@ -1068,21 +1083,20 @@ def test_primary_created_resource_prefers_latest_render_surface():
         },
     ]
 
-    assert seeding._primary_created_resource(resources) == resources[1]
+    assert seeding.results._primary_created_resource(resources) == resources[1]
 
 
 def test_apply_data_seed_returns_editor_only_read_surface_urls(monkeypatch):
     """Editor-emitted URLs surface in metadata when no explicit override is set."""
     _ReadSurfaceEditor.instances.clear()
     fake_session = _FakeSession([])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(
-        seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _ReadSurfaceEditor
-    )
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _ReadSurfaceEditor)
 
     cleanup_handle, metadata = seeding.apply_data_seed(
         {"mechanism": "editor", "editor_calls": [_reddit_editor_call_submission()]},
         {"site_name": "reddit", "site_url": "http://reddit.test"},
+        seed_registry=seed_registry,
     )
 
     assert cleanup_handle is not None
@@ -1100,10 +1114,8 @@ def test_apply_data_seed_merges_explicit_override_with_editor_surface_urls(monke
     """Handoff §5.5: explicit task-level URLs union with editor contribution."""
     _ReadSurfaceEditor.instances.clear()
     fake_session = _FakeSession([])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(
-        seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _ReadSurfaceEditor
-    )
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _ReadSurfaceEditor)
 
     cleanup_handle, metadata = seeding.apply_data_seed(
         {"mechanism": "editor", "editor_calls": [_reddit_editor_call_submission()]},
@@ -1119,6 +1131,7 @@ def test_apply_data_seed_merges_explicit_override_with_editor_surface_urls(monke
                 ],
             },
         },
+        seed_registry=seed_registry,
     )
 
     assert cleanup_handle is not None
@@ -1138,10 +1151,10 @@ def test_apply_data_seed_explicit_override_only(monkeypatch):
     """Editor contributes nothing → provenance source is explicit_override."""
     _FakeEditor.instances.clear()
     fake_session = _FakeSession([])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
     # Register the non-emitting _FakeEditor so editor_calls succeed but
     # return no read_surface_urls.
-    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _FakeEditor)
 
     cleanup_handle, metadata = seeding.apply_data_seed(
         {"mechanism": "editor", "editor_calls": [_reddit_editor_call_submission()]},
@@ -1153,6 +1166,7 @@ def test_apply_data_seed_explicit_override_only(monkeypatch):
                 "read_surface_urls": ["/explicit/only"],
             },
         },
+        seed_registry=seed_registry,
     )
 
     assert cleanup_handle is not None
@@ -1195,8 +1209,8 @@ def test_apply_data_seed_multi_call_accumulates_editor_methods_and_picks_stronge
     """Every contributing editor call stamps provenance (handoff §12.9)."""
     _MultiCallEditor.instances.clear()
     fake_session = _FakeSession([])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _MultiCallEditor)
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _MultiCallEditor)
 
     cleanup_handle, metadata = seeding.apply_data_seed(
         {
@@ -1221,6 +1235,7 @@ def test_apply_data_seed_multi_call_accumulates_editor_methods_and_picks_stronge
             ],
         },
         {"site_name": "reddit", "site_url": "http://reddit.test"},
+        seed_registry=seed_registry,
     )
 
     assert cleanup_handle is not None
@@ -1243,10 +1258,8 @@ def test_apply_data_seed_hoists_write_tokens_into_metadata(monkeypatch):
     """Write identifiers (submission_id, comment_id) land on metadata for the render RYW fastpath."""
     _ReadSurfaceEditor.instances.clear()
     fake_session = _FakeSession([])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(
-        seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _ReadSurfaceEditor
-    )
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _ReadSurfaceEditor)
 
     cleanup_handle, metadata = seeding.apply_data_seed(
         {
@@ -1266,6 +1279,7 @@ def test_apply_data_seed_hoists_write_tokens_into_metadata(monkeypatch):
             ],
         },
         {"site_name": "reddit", "site_url": "http://reddit.test"},
+        seed_registry=seed_registry,
     )
 
     assert cleanup_handle is not None
@@ -1288,7 +1302,7 @@ def test_apply_data_seed_hoists_write_tokens_into_metadata(monkeypatch):
 
 def test_preflight_editor_seed_calls_chains_preview_context(monkeypatch):
     _FakeEditor.instances.clear()
-    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _FakeEditor)
 
     errors = seeding.preflight_editor_seed_calls(
         {
@@ -1313,6 +1327,7 @@ def test_preflight_editor_seed_calls_chains_preview_context(monkeypatch):
             ],
         },
         {"site_name": "reddit", "site_url": "http://reddit.test"},
+        seed_registry=seed_registry,
     )
 
     assert errors == []
@@ -1320,7 +1335,7 @@ def test_preflight_editor_seed_calls_chains_preview_context(monkeypatch):
 
 
 def test_preflight_editor_seed_calls_reports_editor_errors(monkeypatch):
-    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _RejectingEditor)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _RejectingEditor)
 
     errors = seeding.preflight_editor_seed_calls(
         {
@@ -1335,6 +1350,7 @@ def test_preflight_editor_seed_calls_reports_editor_errors(monkeypatch):
             ],
         },
         {"site_name": "reddit", "site_url": "http://reddit.test"},
+        seed_registry=seed_registry,
     )
 
     assert errors == [
@@ -1368,7 +1384,7 @@ def test_validate_data_seed_rejects_editor_api_calls_mix():
 
 def test_task_seed_site_treats_none_delivery_site_as_empty():
     assert (
-        seeding._task_seed_site(
+        seeding.runtime_errors._task_seed_site(
             {
                 "site": "shopping",
                 "delivery_channel": {"delivery_site": "none"},
@@ -1394,44 +1410,17 @@ def test_validate_data_seed_accepts_editor_calls():
     )
 
 
-def test_impl_validate_data_seed_observes_direct_editor_registry_patch(monkeypatch):
-    from warp_taskgen.seeding import _impl
-
-    class CustomEditor:
-        supported_methods = frozenset({"custom_method"})
-
-    monkeypatch.setattr(
-        _impl,
-        "EDITOR_REGISTRY",
-        {("webarena_verified", "reddit"): CustomEditor},
-    )
-
-    _impl.validate_data_seed(
-        {
-            "mechanism": "editor",
-            "editor_calls": [
-                {
-                    "benchmark": "webarena_verified",
-                    "site": "reddit",
-                    "method": "custom_method",
-                    "args": {"body": "payload"},
-                }
-            ],
-        }
-    )
-
-
-def test_impl_validate_data_seed_observes_direct_selector_guard_patch(monkeypatch):
-    from warp_taskgen.seeding import _impl
+def test_validate_data_seed_observes_direct_selector_guard_patch(monkeypatch):
+    from warp_taskgen.seeding import validation
 
     calls: list[tuple[str, dict[str, object]]] = []
 
     def fake_selector_guard(site_name: str, args: dict[str, object]) -> None:
         calls.append((site_name, args))
 
-    monkeypatch.setattr(_impl, "_validate_untrusted_selector_args", fake_selector_guard)
+    monkeypatch.setattr(validation, "_validate_untrusted_selector_args", fake_selector_guard)
 
-    _impl.validate_data_seed(
+    validation.validate_data_seed(
         {
             "mechanism": "editor",
             "editor_calls": [
@@ -1677,8 +1666,8 @@ def test_sandbox_validator_accepts_nested_review_body_field_reference():
 def test_apply_data_seed_rejects_unresolved_placeholders_in_supported_editor_kwargs(monkeypatch):
     _FakeEditor.instances.clear()
     fake_session = _FakeSession([])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _FakeEditor)
 
     with pytest.raises(
         RuntimeError,
@@ -1701,14 +1690,15 @@ def test_apply_data_seed_rejects_unresolved_placeholders_in_supported_editor_kwa
                 ],
             },
             {"site_name": "reddit", "site_url": "http://reddit.test"},
+            seed_registry=seed_registry,
         )
 
 
 def test_apply_data_seed_allows_identifier_braces_in_free_text_editor_body(monkeypatch):
     _FakeEditor.instances.clear()
     fake_session = _FakeSession([])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _FakeEditor)
 
     seeding.apply_data_seed(
         {
@@ -1727,6 +1717,7 @@ def test_apply_data_seed_allows_identifier_braces_in_free_text_editor_body(monke
             ],
         },
         {"site_name": "reddit", "site_url": "http://reddit.test"},
+        seed_registry=seed_registry,
     )
 
     assert _FakeEditor.instances[-1].calls[-1] == (
@@ -1827,7 +1818,7 @@ def test_benign_issue_iid_token_renders_in_editor_call_args():
         "benign_project_id": "159",
         "benign_issue_iid": "104",
     }
-    rendered = seeding._render_editor_seed_call(seed_template["editor_calls"][0], context)
+    rendered = seeding.context._render_editor_seed_call(seed_template["editor_calls"][0], context)
     args = rendered["args"]
     assert args["project_id"] == "159"
     assert args["issue_iid"] == "104"

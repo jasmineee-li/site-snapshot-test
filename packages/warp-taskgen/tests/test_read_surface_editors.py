@@ -20,6 +20,20 @@ from warp_taskgen.editors._read_surface import (
 from warp_taskgen.editors.base import EditorError
 from warp_taskgen.editors.gitlab import GitlabEditor
 from warp_taskgen.editors.reddit import RedditEditor
+from warp_taskgen.seeding.site_contracts import (
+    SeedSiteRegistration,
+    SeedSiteRegistry,
+    default_seed_registry,
+)
+
+
+def _registry_with(key, editor):
+    """Default GitLab/Reddit seed registry with one Site bound to a test editor."""
+    benchmark, site = key
+    registrations = dict(default_seed_registry().registrations)
+    replacement = SeedSiteRegistration(benchmark, site, editor)
+    registrations[replacement.key] = replacement
+    return SeedSiteRegistry(registrations)
 
 
 def test_collect_platform_urls_extracts_nested_paths():
@@ -470,12 +484,8 @@ class _FakeSession:
 def test_apply_data_seed_returns_tuple_with_metadata(monkeypatch):
     _RecordingFakeEditor.instances.clear()
     fake_session = _FakeSession()
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(
-        seeding.EDITOR_REGISTRY,
-        ("webarena_verified", "reddit"),
-        _RecordingFakeEditor,
-    )
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _RecordingFakeEditor)
 
     handle, metadata = seeding.apply_data_seed(
         {
@@ -490,6 +500,7 @@ def test_apply_data_seed_returns_tuple_with_metadata(monkeypatch):
             ],
         },
         {"site_name": "reddit", "site_url": "http://reddit.test"},
+        seed_registry=seed_registry,
     )
 
     assert handle is not None
@@ -522,12 +533,8 @@ def test_apply_data_seed_accumulates_across_multi_editor_calls(monkeypatch):
     """
     _RecordingFakeEditor.instances.clear()
     fake_session = _FakeSession()
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(
-        seeding.EDITOR_REGISTRY,
-        ("webarena_verified", "reddit"),
-        _RecordingFakeEditor,
-    )
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _RecordingFakeEditor)
 
     _handle, metadata = seeding.apply_data_seed(
         {
@@ -552,6 +559,7 @@ def test_apply_data_seed_accumulates_across_multi_editor_calls(monkeypatch):
             ],
         },
         {"site_name": "reddit", "site_url": "http://reddit.test"},
+        seed_registry=seed_registry,
     )
 
     urls = metadata["read_surface_urls"]
@@ -606,20 +614,16 @@ def test_apply_data_seed_surface_keys_do_not_bleed_into_seed_context(monkeypatch
 
     _ContextWatchingEditor.instances = []
     fake_session = _FakeSession()
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(
-        seeding.EDITOR_REGISTRY,
-        ("webarena_verified", "reddit"),
-        _ContextWatchingEditor,
-    )
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: fake_session)
+    seed_registry = _registry_with(("webarena_verified", "reddit"), _ContextWatchingEditor)
 
-    original_render = seeding._render_editor_seed_call
+    original_render = seeding.context._render_editor_seed_call
 
     def capturing_render(call: dict[str, Any], seed_context: dict[str, Any]) -> dict[str, Any]:
         captured_contexts.append(dict(seed_context))
         return original_render(call, seed_context)
 
-    monkeypatch.setattr(seeding, "_render_editor_seed_call", capturing_render)
+    monkeypatch.setattr(seeding.execution, "_render_editor_seed_call", capturing_render)
 
     seeding.apply_data_seed(
         {
@@ -644,6 +648,7 @@ def test_apply_data_seed_surface_keys_do_not_bleed_into_seed_context(monkeypatch
             ],
         },
         {"site_name": "reddit", "site_url": "http://reddit.test"},
+        seed_registry=seed_registry,
     )
 
     # The second call's seed_context must NOT contain read_surface_urls /

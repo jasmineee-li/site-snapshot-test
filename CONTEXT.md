@@ -39,9 +39,10 @@ One persisted execution of the WARP pipeline with a resolved set of effective in
 _Avoid_: Session, experiment
 
 **Runtime Composition**:
-An explicitly selected, immutable bundle of Site, seeding, feasibility,
-readback, and cleanup owners bound to one Run without changing process-wide
-defaults.
+An immutable bundle of Site, seeding, feasibility, readback, and cleanup owners
+resolved once per Run when the Run names one, and never registered process-wide.
+An unnamed Run carries no bundle; each reader resolves the default GitLab/Reddit
+seed binding on its own.
 _Avoid_: Feature flag, global registration, Site registration
 
 **Host-Owned**:
