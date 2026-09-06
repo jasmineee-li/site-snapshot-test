@@ -13,6 +13,7 @@ from warp_taskgen.phase_2.text_fill.checkpoints import (
     write_text_fill_checkpoint,
 )
 from warp_taskgen.phase_2.text_fill.pause import run_text_fill_units
+from warp_taskgen.phase_2.text_fill.request_archive import bind_text_fill_request_archive
 from warp_taskgen.run_definition_contracts import RunDefinition
 
 FillTextOperation = Callable[..., Awaitable[tuple[list[dict[str, Any]], list[dict[str, Any]]]]]
@@ -73,12 +74,13 @@ async def fill_plans_with_checkpoints(
 
     async def _run_one(plan: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any]]:
         task_id = text_fill_task_id(plan)
-        generated, diagnostics = await fill_operation(
-            [plan],
-            texts_per_plan=texts_per_plan,
-            concurrency=1,
-            model=model,
-        )
+        with bind_text_fill_request_archive(state_dir, checkpoint_dir.parent / "requests"):
+            generated, diagnostics = await fill_operation(
+                [plan],
+                texts_per_plan=texts_per_plan,
+                concurrency=1,
+                model=model,
+            )
         task = generated[0] if generated else None
         unit_diagnostics = (
             diagnostics[0]

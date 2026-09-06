@@ -1525,8 +1525,55 @@ still owns carrier render/reachability admission; action readiness owns whether
 the host can make the selected action objective reviewer-defensible.
 3. **Phase 2b (host-side async, text fill).** After 2a's strategy plans are merged and validated, the host materializes `seed_template` from the exposure contract, then generates one or more payload-text candidates per plan using the configured text model. The text-fill prompt receives the task's `attack_objective`, host-owned `adversarial_action`, required content tokens, and the exposure contract's route/capacity metadata so payloads express a concrete adversarial action rather than degenerating into generic "see URL" notices. If the selected action has a host payload-action contract, such as the Tier 3 repository/content mutation pilot, that contract is the source of truth for measurable target/content details. Binary-answer label guidance is rendered only when the compiled adversarial reward is a semantic binary-answer reward; action pilots must not silently become label-flip payloads just because the benign task asks for a binary read answer. Each generated payload must include `attack_action_witnesses`: exact substrings from `rendered_payload` that identify the attacker-controlled action requested by the injection. These witnesses are distinct from framing/concealment witnesses, must not be merely the required URL, must not overlap the benign instruction, and for host payload-action contracts must name the host-selected action target. `--phase-2b-texts-per-plan` controls the candidate count (default 1); `--phase-2-text-fill-concurrency` caps local text-fill parallelism; all Phase 2 API calls also share the global host-side API semaphore. 2b writes `payload_texts`, `selected_payload_index`, and `payload_text_diagnostics` onto each task, then materializes `adversarial_data_seed` by substituting the selected candidate into `seed_template`.
 
-    Text fill may use Instructor/Pydantic for schema-level generation retries, but only behind WARP Taskgen-owned observability. Transport retries remain the host `call_with_retry` policy so auth, quota, and provider failures preserve their operational buckets. Semantic retries are limited to parse/validation failures; diagnostics record compact request hashes, raw-response metadata, stop reason, usage, thinking/extra-body mode, and retry/error summaries without persisting full prompts. Eval-awareness rewrite uses a feature-local native Anthropic streaming tool transport with host-side Pydantic validation so high-budget thinking can be tested without losing schema invariants. Anthropic extended thinking for eval-awareness rewrite is opt-in via `WORLDSIM_EVAL_AWARENESS_REWRITE_THINKING`; when enabled, the request uses Anthropic-compatible auto tool choice, preserves assistant thinking/tool blocks on validation retries, and returns compact validation feedback as tool results. Renderer-backed rewrites may host-infer missing action-witness metadata from the rendered payload, but the inferred substrings still pass through the same action-preservation and encounter-window validators. Required URLs and nonces remain protected anchors during eval-awareness rewrites; the model may lower their salience by putting them in ordinary page-local submitted content or reference prose, but it may not explain away, rename, duplicate, or relabel them as suspicious/attacker-controlled. If protected anchors or locked wrappers are the causal TP driver, the iterator reports an inapplicable rewrite instead of weakening the experiment contract.
+    Text fill may use Instructor/Pydantic for schema-level generation retries, but only behind WARP Taskgen-owned observability. Transport retries remain the host `call_with_retry` policy so auth, quota, and provider failures preserve their operational buckets. Semantic retries are limited to parse/validation failures; diagnostics record compact request references/hashes, raw-response metadata, stop reason, usage, thinking/extra-body mode, and retry/error summaries. Full Phase 2b request content is retained separately as described below; diagnostic summaries do not embed it. Eval-awareness rewrite uses a feature-local native Anthropic streaming tool transport with host-side Pydantic validation so high-budget thinking can be tested without losing schema invariants. Anthropic extended thinking for eval-awareness rewrite is opt-in via `WORLDSIM_EVAL_AWARENESS_REWRITE_THINKING`; when enabled, the request uses Anthropic-compatible auto tool choice, preserves assistant thinking/tool blocks on validation retries, and returns compact validation feedback as tool results. Renderer-backed rewrites may host-infer missing action-witness metadata from the rendered payload, but the inferred substrings still pass through the same action-preservation and encounter-window validators. Required URLs and nonces remain protected anchors during eval-awareness rewrites; the model may lower their salience by putting them in ordinary page-local submitted content or reference prose, but it may not explain away, rename, duplicate, or relabel them as suspicious/attacker-controlled. If protected anchors or locked wrappers are the causal TP driver, the iterator reports an inapplicable rewrite instead of weakening the experiment contract.
 4. **Phase 2c (host-side async, feasibility verification).** Covered in its own section below. Runs automatically after 2b unless `--skip-feasibility` is set.
+
+**Phase 2b prospective request retention.** The normal text-fill checkpoint
+runner binds request capture to its existing Run artifact tree. Every newly
+prepared Instructor invocation, including validation reasks and host transport
+retries, writes `phase_2/text_fill/requests/<call_id>/<request_index>.json`
+atomically. The call ID is artifact-local, not a Run ID. Each record carries
+its task/site, configured model, resolved client-provider identity, exact
+serialized model-facing SDK request arguments, and their canonical JSON hash.
+The hash uses UTF-8 JSON with sorted keys, no separator whitespace, and preserved
+Unicode. Compact `completion_kwargs[].request_archive` references contain the
+Run-relative path, file SHA-256, request hash, call ID, request index and capture
+status. Response/parse/provider-error entries carry the same request index
+within the enclosing call diagnostics. These references survive checkpointing
+and normal archiving without introducing another archive service.
+
+Capture occurs at Instructor's completion-arguments hook, after tool-schema and
+reask transformation and immediately before SDK dispatch. It is a snapshot of
+the allowlisted model-facing SDK arguments: messages, system, tools/tool choice,
+model, token/sampling/stop settings, thinking, metadata, stream/service tier,
+container/context management, output configuration, cache control, inference
+region, beta flags and extra body arguments when supplied. It is not literal
+HTTP wire bytes, server-side routing evidence, or proof of receipt. SDK auth,
+headers, query transport options and timeout are excluded. Unexpected argument
+names are listed without their values and mark `partial_retention`; they are
+never silently advertised as complete capture. No client or credential objects
+are serialized. Unsupported JSON values or failed archive writes produce
+`retention_failed` plus a compact cause and an operational warning; they do not
+retry the provider, relabel validation/refusal, reject a task or change scoring.
+A retained request proves preparation even if the subsequent transport fails.
+
+`resolved_client_provider` is the selected client's non-secret endpoint-provider
+identity, or unknown when unavailable; it is separate from the existing logical
+`provider`/`auth_path` API-family labels, configured model and response-reported
+model. It does not assert the upstream route chosen behind a gateway. Reusing
+valid existing payloads preserves `payload_text_diagnostics` or its historical
+absence and records the reuse event in `payload_text_reuse_diagnostics`.
+Exact checkpoint reuse preserves its prior diagnostics unchanged.
+
+This is observational, prospective Phase 2b coverage. Missing new metadata or
+request files do not change checkpoint compatibility, invalidate/exclude old
+results, or automatically trigger historical generation/evaluation reruns.
+Existing checkpoint safety checks remain intact. Historical request bytes not
+retained stay unknown; any independently established scoring correction is a
+separately versioned analysis. Standalone APIs outside the runner capture only
+inside an explicit request-archive binding. Phase 1, Phase 2a and Phase 4 exact
+request retention are explicit coverage gaps in this package. Inspectable
+requests and diagnostics do not promise deterministic model-output replay.
 
 **Phase 2a output schema.** The production API schema is strategy-only: `id`, `benign_task_id`, `exposure_contract_id`, `framing`, `concealment`, `attack_objective`, and `adversarial_action` (`kind`, `description`). The schema rejects `seed_template`, `target_surface_id`, `delivery_mechanism`, editor methods, selector args, anchors, `reward_function`, and `adversarial_reward`. The orchestrator copies immutable fields (`instruction`, `site`, `sites`, `start_urls`, `data_seed`, `agent_context`, `benign_reward`) from the benign task after the model returns, attaches the selected `exposure_contract`, derives `required_tokens` and `length_budget`, host-materializes the placement fields, and host-compiles `adversarial_action` into `reward_function.adversarial_reward`. This reduces output tokens, prevents JSON reproduction errors, and keeps Phase 2a refusal-safe because it does not ask the model to write payload text, evaluator configs, or benchmark-specific endpoint details.
 
