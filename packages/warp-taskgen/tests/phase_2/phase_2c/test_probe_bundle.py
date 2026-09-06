@@ -11,7 +11,7 @@ import pytest
 
 from warp_taskgen.auth_tokens import acquire_tokens_for_instances
 from warp_taskgen.editors import EditorError
-from warp_taskgen.phase_2.phase_2c import fingerprints, probes, source_data_preflight, verifier
+from warp_taskgen.phase_2.phase_2c import fingerprints, probes, source_data_admission, verifier
 from warp_taskgen.phase_2.phase_2c.probe_bundle import Phase2cProbeBundle
 from warp_taskgen.phase_2.phase_2c.retry_timing import phase_2c_retry_sleep
 from warp_taskgen.phase_2.phase_2c.runner import verify_feasibility
@@ -65,7 +65,7 @@ def test_default_bundle_wires_the_real_siblings() -> None:
     bundle = Phase2cProbeBundle.default()
 
     assert bundle.acquire_tokens is acquire_tokens_for_instances
-    assert bundle.source_data_preflight is source_data_preflight._run_preflight_and_filter_raw
+    assert bundle.source_data_preflight is source_data_admission._run_preflight_and_filter_raw
     assert bundle.apply_seed is apply_data_seed_async
     assert bundle.render_check is probes._run_render_check
     assert bundle.reachability_check is probes._run_reachability_check

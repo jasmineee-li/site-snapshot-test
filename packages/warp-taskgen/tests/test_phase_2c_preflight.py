@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`warp_taskgen.phase_2.phase_2c.source_data_preflight`.
+"""Unit tests for the Phase 2c source-data preflight and its auth self-test.
 
 Bug I (2026-04-23): pre-seed HTTP probe + source-data quarantine.
 These tests exercise the classifier rules + the whole-run bailout.
@@ -10,10 +10,8 @@ import asyncio
 from typing import Any
 
 from warp_taskgen.phase_2.phase_2c.policy import default_feasibility_policy_catalog
-from warp_taskgen.phase_2.phase_2c.source_data_preflight import (
-    preflight_benign_targets,
-    self_test_preflight_auth,
-)
+from warp_taskgen.phase_2.phase_2c.preflight_auth_self_test import self_test_preflight_auth
+from warp_taskgen.phase_2.phase_2c.source_data_preflight import preflight_benign_targets
 from warp_taskgen.phase_2.phase_2c.webarena_policy import (
     classify_webarena_probe,
     location_is_login,
