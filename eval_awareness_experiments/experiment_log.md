@@ -46,7 +46,7 @@ module raises `json.decoder.JSONDecodeError` on the first table it opens, both
 before and after this change — the change moves that failure out of import and
 into `main()`, it does not fix it. Regeneration on an lfs-enabled checkout is
 unverified.
-**Next:** #308 item 2 (regenerate the n200 table) needs a machine with git-lfs.
+**Next:** #308 item 2 (regenerate the n200 table) needs a machine with git-lfs. Items 5 and 6 stay as they are: the vendored AgentLab tutorial is read-only, and `read_logs/` is cited by the mypy scope rationale in `pyproject.toml`. The `claude/general-session-rsdA2` defaults in `scripts/runpod/setup.sh` and `train_framing_probe.sh` are a further #308 item.
 
 ---
 
