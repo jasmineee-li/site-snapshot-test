@@ -1,6 +1,6 @@
 """Shared fakes, builders, and autouse fixtures for the Phase 2c feasibility tests.
 
-Moved verbatim from ``tests/test_phase_2_feasibility.py``. Uses the
+Moved verbatim from the former single-file Phase 2c feasibility suite. Uses the
 ``_FakeSession``/``_FakeResponse`` monkeypatch pattern from
 ``tests/test_seeding.py`` — the repo does not depend on ``respx``,
 ``aresponses``, or ``tenacity`` and these tests do not introduce them.

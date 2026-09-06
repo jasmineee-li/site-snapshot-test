@@ -84,7 +84,7 @@ def test_git_head_short_preserves_sync_stamp_lookup(monkeypatch, tmp_path):
 
     assert fingerprints._git_head_short() == "stamp12345678"
     # ``parents[3]`` is the package root from tests/phase_2/phase_2c/; it was
-    # ``parents[1]`` while this test lived in tests/test_phase_2_feasibility.py.
+    # ``parents[1]`` while this test lived in the former single-file Phase 2c feasibility suite.
     assert observed == [Path(__file__).resolve().parents[3] / "warp_taskgen"]
 
 
