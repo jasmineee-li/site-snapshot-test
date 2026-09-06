@@ -6,7 +6,14 @@ from pathlib import Path
 import pytest
 
 from warp_taskgen.config import BenchmarkInstance, VerificationProxy
-from warp_taskgen.phases import phase_0_recon
+from warp_taskgen.phases import (
+    phase_0_recon,
+    phase_0a_benchmark_manifest,
+    phase_0c_instance_reachability,
+    phase_0c_profile_enrichment,
+    phase_0c_profile_reuse,
+    phase_0c_tier_sandbox,
+)
 from warp_taskgen.phases.phase_0c_artifacts import text_sha256, write_json_atomic
 from warp_taskgen.phases.phase_0c_audit import audit_phase_0c_profiles
 
@@ -176,7 +183,7 @@ def test_enrich_reddit_profile_with_forums_merges_live_inventory(monkeypatch):
         },
     )
 
-    profile = phase_0_recon._enrich_reddit_profile_with_forums(
+    profile = phase_0c_profile_enrichment._enrich_reddit_profile_with_forums(
         site_name="reddit",
         profile={"site_name": "reddit"},
         instance=instance,
@@ -211,7 +218,7 @@ def test_enrich_reddit_profile_with_forums_passes_remote_runtime_db_host(monkeyp
         fake_enrich,
     )
 
-    phase_0_recon._enrich_reddit_profile_with_forums(
+    phase_0c_profile_enrichment._enrich_reddit_profile_with_forums(
         site_name="reddit",
         profile={"site_name": "reddit"},
         instance=instance,
@@ -250,7 +257,7 @@ def test_enrich_reddit_profile_with_forums_uses_explicit_host_inventory_instance
         fake_enrich,
     )
 
-    phase_0_recon._enrich_reddit_profile_with_forums(
+    phase_0c_profile_enrichment._enrich_reddit_profile_with_forums(
         site_name="reddit",
         profile={"site_name": "reddit"},
         instance=instance,
@@ -296,7 +303,7 @@ def test_enrich_reddit_profile_with_forums_keeps_only_cross_replica_common_forum
         fake_enrich,
     )
 
-    profile = phase_0_recon._enrich_reddit_profile_with_forums(
+    profile = phase_0c_profile_enrichment._enrich_reddit_profile_with_forums(
         site_name="reddit",
         profile={"site_name": "reddit"},
         instance=instances[0],
@@ -338,7 +345,7 @@ def test_enrich_agent_context_with_handles_passes_remote_runtime_web_host(monkey
         fake_enrich,
     )
 
-    context = phase_0_recon._enrich_agent_context_with_handles(
+    context = phase_0c_profile_enrichment._enrich_agent_context_with_handles(
         site_name="gitlab",
         agent_context={"site_context": {"platform_name": "GitLab"}},
         instance=instance,
@@ -390,7 +397,7 @@ def test_enrich_gitlab_profile_with_projects_merges_project_inventory(monkeypatc
         fake_enrich,
     )
 
-    profile = phase_0_recon._enrich_gitlab_profile_with_projects(
+    profile = phase_0c_profile_enrichment._enrich_gitlab_profile_with_projects(
         site_name="gitlab",
         profile={"site_name": "gitlab"},
         instance=instance,
@@ -426,7 +433,7 @@ def test_enrich_reddit_profile_with_forums_falls_back_on_failure(monkeypatch):
     )
 
     original = {"site_name": "reddit"}
-    profile = phase_0_recon._enrich_reddit_profile_with_forums(
+    profile = phase_0c_profile_enrichment._enrich_reddit_profile_with_forums(
         site_name="reddit",
         profile=original,
         instance=instance,
@@ -539,13 +546,13 @@ def test_phase_0a_repairs_webarena_verified_site_source_paths(tmp_path):
         "evaluation": {"harness_paths": [], "task_definition_paths": []},
     }
 
-    phase_0_recon._repair_manifest_paths(manifest, benchmark_root)
+    phase_0a_benchmark_manifest._repair_manifest_paths(manifest, benchmark_root)
 
     assert manifest["sites"] == [
         {"name": "gitlab", "source_path": "dev/environments/docker/sites/gitlab"},
         {"name": "reddit", "source_path": "dev/environments/docker/sites/reddit"},
     ]
-    missing, unsafe = phase_0_recon._validate_manifest_paths(manifest, benchmark_root)
+    missing, unsafe = phase_0a_benchmark_manifest._validate_manifest_paths(manifest, benchmark_root)
     assert missing == []
     assert unsafe == []
 
@@ -560,12 +567,12 @@ def test_phase_0a_does_not_crash_on_bare_site_container_source_path(tmp_path):
         "evaluation": {"harness_paths": [], "task_definition_paths": []},
     }
 
-    phase_0_recon._repair_manifest_paths(manifest, benchmark_root)
+    phase_0a_benchmark_manifest._repair_manifest_paths(manifest, benchmark_root)
 
     assert manifest["sites"] == [
         {"name": "reddit", "source_path": "docker"},
     ]
-    missing, unsafe = phase_0_recon._validate_manifest_paths(manifest, benchmark_root)
+    missing, unsafe = phase_0a_benchmark_manifest._validate_manifest_paths(manifest, benchmark_root)
     assert missing == ["sites[reddit].source_path: docker"]
     assert unsafe == []
 
@@ -580,12 +587,12 @@ def test_phase_0a_repairs_empty_webarena_verified_task_definition_paths(tmp_path
         "evaluation": {"harness_paths": [], "task_definition_paths": []},
     }
 
-    phase_0_recon._repair_manifest_paths(manifest, benchmark_root)
+    phase_0a_benchmark_manifest._repair_manifest_paths(manifest, benchmark_root)
 
     assert manifest["evaluation"]["task_definition_paths"] == [
         "assets/dataset/webarena-verified.json"
     ]
-    missing, unsafe = phase_0_recon._validate_manifest_paths(manifest, benchmark_root)
+    missing, unsafe = phase_0a_benchmark_manifest._validate_manifest_paths(manifest, benchmark_root)
     assert missing == []
     assert unsafe == []
 
@@ -603,7 +610,7 @@ def test_phase_0a_does_not_override_existing_task_definition_paths(tmp_path):
         "evaluation": {"harness_paths": [], "task_definition_paths": ["custom/tasks.json"]},
     }
 
-    phase_0_recon._repair_manifest_paths(manifest, benchmark_root)
+    phase_0a_benchmark_manifest._repair_manifest_paths(manifest, benchmark_root)
 
     assert manifest["evaluation"]["task_definition_paths"] == ["custom/tasks.json"]
 
@@ -619,13 +626,13 @@ def test_phase_0a_does_not_repair_unsafe_or_unmatched_source_paths(tmp_path):
         "evaluation": {"harness_paths": [], "task_definition_paths": []},
     }
 
-    phase_0_recon._repair_manifest_paths(manifest, benchmark_root)
+    phase_0a_benchmark_manifest._repair_manifest_paths(manifest, benchmark_root)
 
     assert manifest["sites"] == [
         {"name": "gitlab", "source_path": "env/docker/gitlab"},
         {"name": "reddit", "source_path": "../reddit"},
     ]
-    missing, unsafe = phase_0_recon._validate_manifest_paths(manifest, benchmark_root)
+    missing, unsafe = phase_0a_benchmark_manifest._validate_manifest_paths(manifest, benchmark_root)
     assert missing == ["sites[gitlab].source_path: env/docker/gitlab"]
     assert unsafe == [
         "sites[reddit].source_path: Manifest path must not traverse out of root: ../reddit"
@@ -648,7 +655,7 @@ async def test_run_phase_0c_fails_when_any_tier_output_is_missing(monkeypatch, t
             return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     with pytest.raises(RuntimeError, match="did not complete all required site profiles"):
         await phase_0_recon.run_phase_0c(
@@ -685,8 +692,10 @@ async def test_run_phase_0a_passes_explicit_sandbox_model(monkeypatch, tmp_path)
             "_summary": None,
         }
 
-    monkeypatch.setattr(phase_0_recon, "upload_to_volume", fake_upload_to_volume)
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0a_benchmark_manifest, "upload_to_volume", fake_upload_to_volume)
+    monkeypatch.setattr(
+        phase_0a_benchmark_manifest, "run_claude_in_sandbox", fake_run_claude_in_sandbox
+    )
 
     await phase_0_recon.run_phase_0a(
         benchmark_root,
@@ -745,7 +754,7 @@ async def test_run_phase_0c_mounts_staged_site_subset_via_read_only_volume(monke
             )
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -824,7 +833,7 @@ async def test_run_phase_0c_publishes_provenance_sidecars_and_trace(monkeypatch,
             )
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -916,7 +925,7 @@ async def test_run_phase_0c_reuses_valid_tier_artifacts_when_profile_is_missing(
             )
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
     out = tmp_path / "out"
     await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -931,7 +940,7 @@ async def test_run_phase_0c_reuses_valid_tier_artifacts_when_profile_is_missing(
         sandbox_calls.append(kwargs["label"])
         raise AssertionError("tier artifacts should have been reused")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fail_if_sandbox_runs)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fail_if_sandbox_runs)
 
     await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -992,7 +1001,7 @@ async def test_run_phase_0c_reprofiles_when_whole_site_tier_metadata_is_stale(
             )
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
     out = tmp_path / "out"
     await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1010,7 +1019,7 @@ async def test_run_phase_0c_reprofiles_when_whole_site_tier_metadata_is_stale(
         sandbox_calls.append(kwargs["label"])
         return await fake_run_claude_in_sandbox(*args, **kwargs)
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", record_rerun)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", record_rerun)
 
     result = await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1069,7 +1078,7 @@ async def test_run_phase_0c_reprofiles_tier2_when_tier1_input_hash_changes(monke
             )
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
     out = tmp_path / "out"
     await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1096,7 +1105,7 @@ async def test_run_phase_0c_reprofiles_tier2_when_tier1_input_hash_changes(monke
             return await fake_run_claude_in_sandbox(*args, **kwargs)
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", only_tier2_should_rerun)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", only_tier2_should_rerun)
 
     await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1126,7 +1135,7 @@ async def test_run_phase_0c_reprofiles_tier_when_required_sidecar_hash_changes(
             return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
     out = tmp_path / "out"
     await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1152,7 +1161,7 @@ async def test_run_phase_0c_reprofiles_tier_when_required_sidecar_hash_changes(
             return await fake_run_claude_in_sandbox(*args, **kwargs)
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", only_tier2_should_rerun)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", only_tier2_should_rerun)
 
     await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1222,7 +1231,7 @@ async def test_run_phase_0c_redacts_proxy_tokens_from_optional_sidecars(monkeypa
             )
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1267,7 +1276,7 @@ async def test_run_phase_0c_retries_malformed_required_sidecar(monkeypatch, tmp_
             return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     result = await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1296,7 +1305,7 @@ async def test_phase_0c_audit_catches_tier_artifact_tampering(monkeypatch, tmp_p
             return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
     out = tmp_path / "out"
     await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1399,7 +1408,7 @@ async def test_run_phase_0c_reuses_when_host_inventory_file_omits_site(monkeypat
             return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
     out = tmp_path / "phase_0c"
     await phase_0_recon.run_phase_0c(
         {"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1417,7 +1426,7 @@ async def test_run_phase_0c_reuses_when_host_inventory_file_omits_site(monkeypat
         sandbox_calls.append(kwargs["label"])
         raise AssertionError("profile should have been reused")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fail_if_sandbox_runs)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fail_if_sandbox_runs)
 
     await phase_0_recon.run_phase_0c(
         {"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1457,7 +1466,7 @@ async def test_correction_loop_fixes_invalid_tier_output(monkeypatch, tmp_path):
             )
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     result = await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1498,7 +1507,7 @@ async def test_correction_loop_hard_fails_after_max_retries(monkeypatch, tmp_pat
             )
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     with pytest.raises(RuntimeError, match="failed validation"):
         await phase_0_recon.run_phase_0c(
@@ -1508,7 +1517,7 @@ async def test_correction_loop_hard_fails_after_max_retries(monkeypatch, tmp_pat
             output_dir=tmp_path / "out",
         )
 
-    assert de_attempts == 1 + phase_0_recon.PROFILE_FIX_MAX_ITERATIONS
+    assert de_attempts == 1 + phase_0c_tier_sandbox.PROFILE_FIX_MAX_ITERATIONS
     assert not (tmp_path / "out" / "BENCHMARK_PROFILE_shopping.json").exists()
     assert not (tmp_path / "out" / "AGENT_CONTEXT_shopping.json").exists()
 
@@ -1531,7 +1540,7 @@ async def test_run_phase_0c_threads_explicit_sandbox_model(monkeypatch, tmp_path
             return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1594,7 +1603,7 @@ async def test_run_phase_0c_reprofiles_when_existing_outputs_are_stale(monkeypat
             return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     result = await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1659,7 +1668,7 @@ async def test_run_phase_0c_reprofiles_when_instance_site_url_changes(monkeypatc
             return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     result = await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1710,7 +1719,7 @@ def test_existing_phase_0c_outputs_reprofile_when_host_inventory_changes(tmp_pat
         encoding="utf-8",
     )
 
-    reusable = phase_0_recon._existing_site_outputs_are_reusable(
+    reusable = phase_0c_profile_reuse._existing_site_outputs_are_reusable(
         output_dir=output_dir,
         site_name=site_name,
         benchmark_root=benchmark_root,
@@ -1746,7 +1755,7 @@ async def test_run_phase_0c_stages_sanitized_instance_connectivity(monkeypatch, 
             return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1783,7 +1792,7 @@ async def test_run_phase_0c_writes_reachability_report(monkeypatch, tmp_path):
             )
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -1816,14 +1825,14 @@ def test_build_instance_site_url_map_rejects_sensitive_site_urls():
 
 def test_sanitize_instance_site_url_canonicalizes_equivalent_origins():
     assert (
-        phase_0_recon._sanitize_instance_site_url(
+        phase_0c_instance_reachability._sanitize_instance_site_url(
             "HTTP://SHOPPING.test:80/",
             site_name="shopping",
         )
         == "http://shopping.test"
     )
     assert (
-        phase_0_recon._sanitize_instance_site_url(
+        phase_0c_instance_reachability._sanitize_instance_site_url(
             "https://SHOPPING.test:443/base/",
             site_name="shopping",
         )
@@ -1833,7 +1842,7 @@ def test_sanitize_instance_site_url_canonicalizes_equivalent_origins():
 
 def test_phase_0c_modal_connectivity_rejects_host_local_urls():
     with pytest.raises(RuntimeError, match="Modal sandboxes"):
-        phase_0_recon._validate_phase_0c_modal_connectivity_urls(
+        phase_0c_instance_reachability._validate_phase_0c_modal_connectivity_urls(
             {
                 "gitlab": "http://172.17.0.1:8023",
                 "reddit": "http://127.0.0.1:9900",
@@ -1842,7 +1851,7 @@ def test_phase_0c_modal_connectivity_rejects_host_local_urls():
 
 
 def test_phase_0c_modal_connectivity_allows_public_proxy_urls():
-    phase_0_recon._validate_phase_0c_modal_connectivity_urls(
+    phase_0c_instance_reachability._validate_phase_0c_modal_connectivity_urls(
         {
             "gitlab": "http://8.8.8.8:18023",
             "reddit": "http://1.1.1.1:19900",
@@ -1974,7 +1983,7 @@ async def test_run_phase_0c_reprofiles_when_profile_metadata_is_malformed(monkey
             return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     result = await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
@@ -2046,7 +2055,7 @@ async def test_run_phase_0c_reprofiles_when_proxy_metadata_changes(monkeypatch, 
             return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
         raise AssertionError(f"unexpected sandbox label: {label}")
 
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(phase_0c_tier_sandbox, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     result = await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
