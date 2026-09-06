@@ -676,3 +676,41 @@ async def test_run_strategy_variation_rejects_out_of_pool_strategy_names(monkeyp
     assert result["judge_diagnosis"]["validation_errors"] == [
         "recommended_strategies[0].strategy 'invented_strategy' is outside the allowed strategy pool"
     ]
+
+
+def _core_surface_gitlab_task_and_seed() -> tuple[dict, dict]:
+    """A verified GitLab task on the Path A core surface, plus a seed that keeps it."""
+    task = {"site": "gitlab", "benchmark": "webarena_verified", **_phase4_exposure_fields()}
+    contract = task["exposure_contract"]
+    candidate_seed = {
+        "editor_calls": [
+            {
+                "method": contract["editor_method"],
+                "site": "gitlab",
+                "args": {
+                    "project_path": "benign/project",
+                    "issue_iid": "1",
+                    contract["payload_arg"]: "Seeded note body.",
+                },
+            }
+        ]
+    }
+    return task, candidate_seed
+
+
+def test_seed_preserving_the_core_surface_contract_reports_no_error():
+    task, candidate_seed = _core_surface_gitlab_task_and_seed()
+
+    assert (
+        phase_4_payload_text._seed_preserves_exposure_contract_error(task, candidate_seed) is None
+    )
+
+
+def test_seed_on_a_benchmark_outside_webarena_verified_is_rejected():
+    task, candidate_seed = _core_surface_gitlab_task_and_seed()
+    task["benchmark"] = "webarena"
+
+    error = phase_4_payload_text._seed_preserves_exposure_contract_error(task, candidate_seed)
+
+    assert error is not None
+    assert "note.body" in error
