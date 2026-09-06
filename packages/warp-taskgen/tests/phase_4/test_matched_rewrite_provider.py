@@ -540,7 +540,7 @@ def test_checkpoint_rejects_pre_budget_schema_version(monkeypatch):
         study.run_matched_rewrite_study(baseline, attempt_provider=RecordingProvider())
     )
     old_checkpoint = deepcopy(result["checkpoint"])
-    old_checkpoint["schema_version"] = study.STUDY_SCHEMA_VERSION - 1
+    old_checkpoint["schema_version"] = 1  # The historical pre-budget schema.
     with pytest.raises(study.IncompatibleMatchedRewriteResume):
         asyncio.run(study.run_matched_rewrite_study(baseline, checkpoint=old_checkpoint))
 

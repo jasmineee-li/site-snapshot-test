@@ -62,6 +62,8 @@ _CONTRIBUTOR_FIELDS: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "phase_4_variant_system phase_4_eval_awareness_max_iterations "
             "phase_4_matched_rewrite_study_condition "
             "phase_4_matched_rewrite_study_schedule "
+            "phase_4_matched_rewrite_study_arm_order "
+            "phase_4_matched_rewrite_study_assignment_seed "
             "phase_4_matched_rewrite_study_baseline_task "
             "phase_4_matched_rewrite_study_baseline_result "
             "phase_4_matched_rewrite_study_selected_payload "

@@ -25,7 +25,9 @@ from warp_taskgen.phase_4.matched_rewrite_identity import (
     BUDGET_FIELD,
     CALL_POLICY_FIELD,
     STUDY_ID,
-    STUDY_SCHEMA_VERSION,
+    assignment_inputs,
+    assignment_projection,
+    study_schema_version,
     validate_checkpoint,
 )
 from warp_taskgen.phase_4.matched_rewrite_study import (
@@ -194,6 +196,7 @@ def _study_definition(
 ) -> RunDefinition:
     inputs = {
         **source.input_projection(),
+        **assignment_inputs(request.config),
         "run_definition_schema_version": source.schema_version,
         "run_id": request.study_run_id,
         "source_run_id": source.run_id,
@@ -269,34 +272,45 @@ def materialize_retained_baseline(request: MatchedRewriteRunRequest) -> Admitted
     )
 
 
-def _validate_retained_result(
-    result: dict[str, object],
-    *,
-    baseline: AdmittedBaseline,
-    config: MatchedRewriteStudyConfig,
-) -> None:
-    expected = {
+def _result_identity(
+    baseline: AdmittedBaseline, config: MatchedRewriteStudyConfig
+) -> dict[str, object]:
+    """The same effective inputs bind admission and completed artifact reuse."""
+
+    return {
         "study_id": STUDY_ID,
-        "schema_version": STUDY_SCHEMA_VERSION,
+        "schema_version": study_schema_version(config),
+        **assignment_projection(config),
         "condition": config.condition,
         "schedule": config.schedule,
         "call_policy": config.resolve_call_policy(baseline.model_context.sandbox_model).to_dict(),
         "budget": config.budget.to_dict(),
         "baseline": baseline.to_dict(),
     }
+
+
+def _validate_retained_result(
+    result: dict[str, object],
+    *,
+    baseline: AdmittedBaseline,
+    config: MatchedRewriteStudyConfig,
+) -> None:
+    expected = _result_identity(baseline, config)
     for field, value in expected.items():
         if result.get(field) != value:
             raise ValueError(f"matched rewrite result {field!r} is incompatible")
+    status = result.get("status")
+    if status not in {"completed", "ineligible"}:
+        raise ValueError(
+            "matched rewrite result status is not complete; automatic redispatch is refused"
+        )
     checkpoint = result.get("checkpoint")
     if not isinstance(checkpoint, dict):
         raise ValueError("matched rewrite result is missing its completed checkpoint")
     validate_checkpoint(cast(JsonObject, checkpoint), baseline=baseline, config=config)
 
-    status = result.get("status")
     primary = result.get("primary")
     secondary = result.get("secondary")
-    if status not in {"completed", "ineligible"}:
-        raise ValueError("matched rewrite result status is not complete")
     if not isinstance(primary, dict) or not isinstance(secondary, dict):
         raise ValueError("matched rewrite result is missing primary or secondary endpoints")
     if primary.get("endpoint") != "primary_fixed_index_scheduled_attempt":
@@ -320,6 +334,8 @@ def _validate_retained_result(
     if denominators.get("scheduled_pairs") != 1 or denominators.get("scheduled_arms") != 2:
         raise ValueError("matched rewrite completed denominators are incompatible")
     pair = pairs[0]
+    if config.arm_order is not None and pair.get("arm_order") != list(config.arm_order):
+        raise ValueError("matched rewrite completed pair arm_order is incompatible")
     arms = pair.get("arms")
     if pair.get("pair_index") != 0 or pair.get("schedule") != config.schedule:
         raise ValueError("matched rewrite completed pair identity is incompatible")
@@ -363,6 +379,8 @@ async def run_retained_matched_rewrite(
         )
         return cast(dict[str, object], existing)
 
+    if request.config.arm_order is None:
+        raise ValueError("new matched rewrite runs require explicit arm_order and assignment_seed")
     ineligibility = matched_rewrite_ineligibility(baseline)
     if attempt_provider is None:
         if runtime is None and ineligibility is None:
@@ -370,6 +388,39 @@ async def run_retained_matched_rewrite(
         if runtime is not None and ineligibility is None:
             _validate_runtime_identity(runtime, baseline, request.config)
             attempt_provider = _provider_for_runtime(runtime)
+    # Persist the assignment before any provider dispatch. Interrupted studies
+    # retain this incomplete artifact and fail closed on reopen; only completed
+    # checkpoints are reusable. There is no inferred mid-arm resume schedule.
+    if ineligibility is None:
+        scheduled_arms = {
+            arm: {
+                "arm": arm,
+                "pair_index": 0,
+                "schedule": request.config.schedule,
+                "status": "scheduled",
+            }
+            for arm in request.config.arm_order
+        }
+        write_json_atomic(
+            request.result_path,
+            {
+                **_result_identity(baseline, request.config),
+                "status": "scheduled",
+                "primary": {
+                    "endpoint": "primary_fixed_index_scheduled_attempt",
+                    "pairs": [
+                        {
+                            "pair_index": 0,
+                            "schedule": request.config.schedule,
+                            "arm_order": list(request.config.arm_order),
+                            "arms": scheduled_arms,
+                        }
+                    ],
+                    "denominators": {"scheduled_pairs": 1, "scheduled_arms": 2},
+                },
+            },
+            failpoint_base="phase_4.matched_rewrite.assignment",
+        )
     result = await run_matched_rewrite_study(
         baseline,
         attempt_provider=attempt_provider,
@@ -421,8 +472,7 @@ def _validate_runtime_identity(
     observed_composition = getattr(runtime.runtime_composition, "name", None)
     if observed_composition != expected.runtime_composition:
         raise ValueError(
-            "matched rewrite runtime runtime_composition does not match "
-            "the retained Run Definition"
+            "matched rewrite runtime runtime_composition does not match the retained Run Definition"
         )
     call_policy = config.resolve_call_policy(expected.sandbox_model)
     if runtime.host_provider != call_policy.provider:

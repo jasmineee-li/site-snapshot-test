@@ -48,7 +48,12 @@ Current and target ownership should stay explicit:
   `warp_taskgen/phases/phase_0c_artifacts.py` owns provenance/reuse/trace artifacts,
   and `warp_taskgen/phases/phase_0c_audit.py` owns deterministic host audits. Do not
   move these concerns into Modal sandbox setup; `modal_sandbox.py` stays an
-  infrastructure-only runner.
+  infrastructure-only runner. Phase 0d auth bootstrap is split the same way:
+  `warp_taskgen/phases/phase_0d_auth_bootstrap.py` remains the runner,
+  `phase_0d_site_auth_specs.py` owns `AuthBootstrapError` and the per-site auth
+  spec parsers, `phase_0d_generator_dispatch.py` owns input hashing, dispatch
+  selection, generator loading, and declared-artifact trust, and
+  `phase_0d_form_login.py` owns the built-in Playwright form-login bootstrap.
 - `warp_taskgen.sites`: Site Targeting, profile identity, and carrier policy.
   Core-surface and active-carrier policy is Site-owned (`SiteCarrierPolicy` on
   each `*_profile.py` mixin) and reached only through
@@ -132,6 +137,11 @@ Current and target ownership should stay explicit:
   (`task_bank`), unknown-auth validation (`auth`), pause and lifecycle
   operator output (`run_control`), the status and inspect projections
   (`status`), and the static Site Composition check (`site_composition_check`).
+  The parser is `args` assembling the root parser and the small commands plus
+  the `phase_arguments`, `resume_arguments`, `agentlab_arguments`, and
+  `task_bank_arguments` siblings that register one command group each, with
+  `argument_types` (argparse `type=` validators) and `argument_defaults` (agent
+  model and provider defaults) beside them.
   `warp_taskgen.main` is the console entrypoint only; tests import and patch the
   owning `cli.*` module.
 - `warp_taskgen.rewards`: reward dispatch and scoring behavior. Keep the public
@@ -147,6 +157,9 @@ Current and target ownership should stay explicit:
   `vendor_webarena.py`; non-scoring attempt telemetry belongs in
   `action_attempt.py`.
 - `warp_taskgen.browser_use`: Browser Use runtime concerns when that runner is split.
+- `warp_taskgen.runners`: the AgentLab runner keeps the agent wrapper, reset, and
+  task runner; its four `agentlab_*` siblings own sidecar request construction,
+  sidecar process and result parsing, sidecar redaction, and Phase 4 artifacts.
 - `warp_taskgen.sandbox_validator`: sandbox/profile/task validation when that module
   is split. This domain has a stricter Modal runtime contract than ordinary host
   modules and should not be mechanically extracted.

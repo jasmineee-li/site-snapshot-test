@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol, cast
@@ -25,6 +27,7 @@ type JsonObject = dict[str, JsonValue]
 Condition = Literal["tp_guided_vs_ordinary"]
 Schedule = Literal["one_opportunity"]
 Arm = Literal["tp_guided", "ordinary"]
+ArmOrder = tuple[Arm, Arm]
 Stage = Literal["tp_diagnosis", "ordinary_critique", "proposal", "repair", "browser"]
 Confidence = Literal["low", "medium", "high"]
 
@@ -55,6 +58,63 @@ def _validate_json(value: object, *, path: str) -> None:
             _validate_json(item, path=f"{path}.{key}")
         return
     raise ValueError(f"{path} must contain JSON-shaped values")
+
+
+@dataclass(frozen=True, slots=True)
+class MatchedParentCell:
+    """Caller-frozen original parent, workflow family, and target-model identity."""
+
+    parent_id: str
+    family: str
+    model: str
+
+    def __post_init__(self) -> None:
+        for name in ("parent_id", "family", "model"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip() or value != value.strip():
+                raise ValueError(f"matched parent cell {name} must be a non-empty trimmed string")
+
+
+def assign_matched_arm_orders(
+    cells: Iterable[MatchedParentCell], *, seed: int
+) -> dict[MatchedParentCell, ArmOrder]:
+    """Balance first arms within each frozen family/model, independently of input order.
+
+    SHA-256 ranks original parents using the seed and explicit stratum identity.
+    Alternating first arms gives each stratum a count difference of at most one;
+    an independent seeded bit chooses which arm gets an odd stratum's extra cell.
+    Freeze the entire input cohort before dispatch; this is assignment, not scheduling.
+    """
+
+    if type(seed) is not int:
+        raise ValueError("matched assignment seed must be an integer")
+    strata: dict[tuple[str, str], list[MatchedParentCell]] = {}
+    seen: set[tuple[str, str]] = set()
+    for cell in cells:
+        if not isinstance(cell, MatchedParentCell):
+            raise ValueError("matched assignment cells must be MatchedParentCell values")
+        identity = (cell.parent_id, cell.model)
+        if identity in seen:
+            raise ValueError("matched assignment requires one cell per original parent/model")
+        seen.add(identity)
+        strata.setdefault((cell.family, cell.model), []).append(cell)
+
+    def rank(*parts: object) -> bytes:
+        return hashlib.sha256(json.dumps([seed, *parts], ensure_ascii=True).encode()).digest()
+
+    orders: dict[MatchedParentCell, ArmOrder] = {}
+    for (family, model), parents in sorted(strata.items()):
+        parents.sort(
+            key=lambda cell: (rank("parent", family, model, cell.parent_id), cell.parent_id)
+        )
+        offset = rank("first", family, model)[0] % 2
+        for index, cell in enumerate(parents):
+            orders[cell] = (
+                ("tp_guided", "ordinary")
+                if (index + offset) % 2 == 0
+                else ("ordinary", "tp_guided")
+            )
+    return orders
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,8 +160,22 @@ class MatchedRewriteStudyConfig:
     schedule: Schedule = STUDY_SCHEDULE
     call_policy: MatchedCallPolicy | None = None
     budget: MatchedStudyBudget | None = None
+    arm_order: ArmOrder | None = None
+    assignment_seed: int | None = None
 
     def __post_init__(self) -> None:
+        if (self.arm_order is None) != (self.assignment_seed is None):
+            raise ValueError(
+                "matched rewrite arm_order and assignment_seed must be supplied together"
+            )
+        if self.arm_order is not None:
+            if not isinstance(self.arm_order, tuple) or self.arm_order not in (
+                ("tp_guided", "ordinary"),
+                ("ordinary", "tp_guided"),
+            ):
+                raise ValueError("matched rewrite arm_order must contain each arm exactly once")
+            if type(self.assignment_seed) is not int:
+                raise ValueError("matched rewrite assignment_seed must be an integer")
         if self.condition != STUDY_CONDITION:
             raise ValueError(f"unsupported matched rewrite condition: {self.condition!r}")
         if self.schedule != STUDY_SCHEDULE:
@@ -470,6 +544,7 @@ __all__ = [
     "STUDY_SCHEDULE",
     "AdmittedBaseline",
     "Arm",
+    "ArmOrder",
     "AttemptOutcome",
     "AttemptProvider",
     "BaselineBinding",
@@ -481,6 +556,7 @@ __all__ = [
     "JsonValue",
     "MatchedAttemptRequest",
     "MatchedCallPolicy",
+    "MatchedParentCell",
     "MatchedRewriteStudyConfig",
     "MatchedStudyBudget",
     "ModelProviderContext",
@@ -493,5 +569,6 @@ __all__ = [
     "Stage",
     "TPGuidance",
     "Usage",
+    "assign_matched_arm_orders",
     "rewrite_constraints",
 ]
