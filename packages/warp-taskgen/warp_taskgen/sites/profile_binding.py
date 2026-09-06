@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from warp_taskgen.sites.contracts import (
+    SiteCarrierPolicy,
     SiteRouteContractFacts,
     SiteTargetingDefinitionError,
     SurfaceResolution,
@@ -75,6 +76,23 @@ class BoundProfileRoutes:
                 f"Site adapter {self._context.site!r} returned invalid route facts"
             )
         return facts
+
+    def carrier_policy(self) -> SiteCarrierPolicy:
+        """Return the Site's carrier policy for the bound benchmark, else closed."""
+
+        closed = SiteCarrierPolicy.closed(self._context.benchmark)
+        resolver = getattr(self._adapter, "carrier_policy", None)
+        if not callable(resolver):
+            return closed
+        try:
+            policy = resolver(benchmark=self._context.benchmark)
+        except Exception:
+            return closed
+        if not isinstance(policy, SiteCarrierPolicy):
+            return closed
+        if policy.benchmark != self._context.benchmark:
+            return closed
+        return policy
 
     def supports_profile_routes(self) -> bool:
         supported = getattr(self._adapter, "supported_benchmarks", frozenset())

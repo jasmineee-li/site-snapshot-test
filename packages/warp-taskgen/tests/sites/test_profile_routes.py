@@ -16,7 +16,6 @@ from warp_taskgen.sites import (
     SurfaceResolution,
     TargetingContext,
 )
-from warp_taskgen.surface_identity import has_surface_mapping
 
 
 def _profile(site: str, surface_id: str) -> dict[str, object]:
@@ -243,5 +242,114 @@ def test_profile_identity_aliases_must_agree() -> None:
 
 
 def test_surface_mapping_is_benchmark_specific() -> None:
-    assert has_surface_mapping(benchmark="webarena_verified", site="gitlab")
-    assert not has_surface_mapping(benchmark="unknown", site="gitlab")
+    assert (
+        SiteCatalog().bind(benchmark="webarena_verified", site="gitlab").supports_profile_routes()
+    )
+    assert not SiteCatalog().bind(benchmark="unknown", site="gitlab").supports_profile_routes()
+
+
+def test_fake_profile_route_site_satisfies_capability_without_carrier_policy() -> None:
+    adapter = FakeProfileRouteSite()
+    assert isinstance(adapter, SiteProfileRouteCapability)
+    assert not hasattr(adapter, "carrier_policy")
+    bound = SiteCatalog([adapter]).bind(site="fake", profile=_profile("fake", "body"))
+    assert bound.supports_profile_routes()
+    assert not bound.carrier_policy().is_core_surface("message.body")
+
+
+def _gitlab_profile(*surface_ids: str) -> dict[str, object]:
+    source_fields = {
+        "gitlab_issue_description": "Issue.description",
+        "gitlab_note_body_on_issue": "Note.body",
+        "gitlab_note_body_on_mr": "Note.body",
+        "issue_description_detail": "issues.description",
+    }
+    return {
+        "site_name": "gitlab",
+        "injection_surface": [
+            {"id": surface_id, "source_field": source_fields.get(surface_id, "")}
+            for surface_id in surface_ids
+        ],
+    }
+
+
+def _bind_gitlab(profile: Mapping[str, object], benchmark: str = "webarena_verified"):
+    return SiteCatalog().bind(benchmark=benchmark, site="gitlab", profile=profile)
+
+
+def test_canonicalize_surface_id_uses_webarena_verified_profile_aliases() -> None:
+    bound = _bind_gitlab({"site_name": "gitlab"})
+    assert bound.canonicalize_surface_id("gitlab_issue_description") == "issue.description"
+    assert bound.canonicalize_surface_id("gitlab_note_body_on_issue") == "note.body"
+
+
+def test_resolve_profile_surface_accepts_fresh_gitlab_profile_ids() -> None:
+    resolution = _bind_gitlab(_gitlab_profile("gitlab_issue_description")).resolve_profile_surface(
+        "issue.description",
+        kind="gitlab_search_result",
+        method="create_issue_description",
+    )
+
+    assert resolution is not None
+    assert resolution.canonical_surface_id == "issue.description"
+    assert resolution.profile_surface_id == "gitlab_issue_description"
+    assert "adapter_profile_id_alias" in resolution.evidence
+    assert resolution.as_record() == {
+        "benchmark": "webarena_verified",
+        "site": "gitlab",
+        "canonical_surface_id": "issue.description",
+        "profile_surface_id": "gitlab_issue_description",
+        "evidence": resolution.evidence,
+        "source_field": "Issue.description",
+    }
+
+
+def test_resolve_profile_surface_accepts_source_field_evidence() -> None:
+    profile = {
+        "site_name": "gitlab",
+        "injection_surface": [
+            {"id": "gitlab_live_surface_1", "source_field": "Issue.description"},
+        ],
+    }
+
+    resolution = _bind_gitlab(profile).resolve_profile_surface(
+        "issue.description",
+        kind="gitlab_search_result",
+        method="create_issue_description",
+    )
+
+    assert resolution is not None
+    assert resolution.profile_surface_id == "gitlab_live_surface_1"
+    assert "adapter_source_field_alias" in resolution.evidence
+
+
+def test_resolve_profile_surface_disambiguates_gitlab_issue_notes_by_method() -> None:
+    bound = _bind_gitlab(_gitlab_profile("gitlab_note_body_on_issue", "gitlab_note_body_on_mr"))
+
+    issue_resolution = bound.resolve_profile_surface(
+        "note.body", kind="gitlab_issue", method="create_issue_note"
+    )
+    mr_resolution = bound.resolve_profile_surface(
+        "note.body", kind="gitlab_mr", method="create_mr_note"
+    )
+
+    assert issue_resolution is not None
+    assert issue_resolution.profile_surface_id == "gitlab_note_body_on_issue"
+    assert mr_resolution is not None
+    assert mr_resolution.profile_surface_id == "gitlab_note_body_on_mr"
+
+
+def test_resolve_profile_surface_fails_closed_on_ambiguous_gitlab_note_without_context() -> None:
+    bound = _bind_gitlab(_gitlab_profile("gitlab_note_body_on_issue", "gitlab_note_body_on_mr"))
+    assert bound.resolve_profile_surface("note.body") is None
+
+
+def test_resolve_profile_surface_fails_closed_for_unknown_benchmark() -> None:
+    resolution = _bind_gitlab(
+        _gitlab_profile("gitlab_issue_description"), benchmark="unknown_benchmark"
+    ).resolve_profile_surface(
+        "issue.description",
+        kind="gitlab_search_result",
+        method="create_issue_description",
+    )
+    assert resolution is None

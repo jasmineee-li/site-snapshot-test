@@ -17,12 +17,7 @@ from warp_taskgen.phase_2.exposure_contract.phase4_exposure import (
 )
 from warp_taskgen.phase_2.exposure_contract.route_metadata import _surface_route_metadata
 from warp_taskgen.phase_2.exposure_contract.verification import _verification_contract
-from warp_taskgen.phases.phase_2_core_surfaces import (
-    active_carrier_ineligible_reason,
-    canonical_core_surface,
-    is_active_carrier_surface,
-    is_core_surface,
-)
+from warp_taskgen.sites import SiteCarrierPolicy
 
 
 def _contract_id(site: str, benign_task_id: str, kind: Any, anchors: Mapping[str, Any]) -> str:
@@ -46,6 +41,7 @@ def _surface_candidate(
     site: str,
     available: frozenset[str],
     spec: EditorMethodSpec,
+    policy: SiteCarrierPolicy,
 ) -> dict[str, Any] | None:
     template = _editor_args_template(
         spec,
@@ -56,7 +52,7 @@ def _surface_candidate(
         return None
     payload_arg = template.pop("__payload_arg__")
     editor_surface_id = spec.surface_id_per_kind.get(kind, spec.method)
-    target_surface_id = canonical_core_surface(site, editor_surface_id)
+    target_surface_id = policy.canonical_surface(editor_surface_id)
     effective_mode = _effective_mode_for_seeded_surface(
         base_mode=base_mode,
         site=site,
@@ -64,7 +60,7 @@ def _surface_candidate(
         editor_method=spec.method,
         target_surface_id=target_surface_id,
     )
-    if not is_core_surface(site, target_surface_id):
+    if not policy.is_core_surface(target_surface_id):
         phase4_exposure = _phase4_exposure_capability(
             "ineligible",
             reason="non_core_surface",
@@ -98,19 +94,9 @@ def _surface_candidate(
         return candidate
 
     seed_capability = _seed_capability(spec, payload_arg, target_surface_id)
-    if not is_active_carrier_surface(
-        site,
-        target_surface_id,
-        kind=kind,
-        method=spec.method,
-    ):
+    if not policy.is_active_carrier(target_surface_id, kind=kind, method=spec.method):
         reason = (
-            active_carrier_ineligible_reason(
-                site,
-                target_surface_id,
-                kind=kind,
-                method=spec.method,
-            )
+            policy.ineligible_reason(target_surface_id, kind=kind, method=spec.method)
             or "inactive_carrier_surface"
         )
         phase4_exposure = _phase4_exposure_capability(

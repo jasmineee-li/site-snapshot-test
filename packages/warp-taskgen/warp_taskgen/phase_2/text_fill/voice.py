@@ -12,8 +12,12 @@ from warp_taskgen.phase_2.text_fill.constants import (
     _SITE_TO_SITE_KIND,
     _SUFFIX_TO_CATEGORY,
 )
-from warp_taskgen.phases.phase_2_core_surfaces import CORE_SURFACES, canonical_core_surface
-from warp_taskgen.surface_identity import has_surface_mapping, resolve_profile_surface
+from warp_taskgen.sites import (
+    BoundSite,
+    SiteCarrierPolicy,
+    SiteTargetingDefinitionError,
+    default_catalog,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -218,29 +222,30 @@ def _find_surface_by_id(
     task_or_surface_id: dict[str, Any] | str,
 ) -> dict[str, Any] | None:
     site = str(site_profile.get("site") or site_profile.get("site_name") or "").strip().lower()
+    benchmark = "webarena_verified"
     if isinstance(task_or_surface_id, dict):
         task = task_or_surface_id
         target_surface_id = str(task.get("target_surface_id") or "")
-        resolution = resolve_profile_surface(
-            benchmark=str(task.get("benchmark") or "webarena_verified"),
-            site=site or str(task.get("site") or ""),
-            profile=site_profile,
-            target_surface_id=target_surface_id,
-            kind=_route_kind_from_task(task),
-            method=str(task.get("editor_method") or "") or _route_method_from_task(task),
-            editor_surface_id=str(task.get("editor_surface_id") or "") or None,
-        )
-        if resolution is not None and isinstance(resolution.profile_surface, dict):
-            return resolution.profile_surface
-        if has_surface_mapping(
-            benchmark=str(task.get("benchmark") or "webarena_verified"),
-            site=site or str(task.get("site") or ""),
-        ):
+        benchmark = str(task.get("benchmark") or benchmark)
+        task_site = site or str(task.get("site") or "")
+        bound = _bound_site(benchmark, task_site, profile=site_profile)
+        if bound is not None:
+            resolution = bound.resolve_profile_surface(
+                target_surface_id,
+                kind=_route_kind_from_task(task),
+                method=str(task.get("editor_method") or "") or _route_method_from_task(task),
+                editor_surface_id=str(task.get("editor_surface_id") or "") or None,
+            )
+            if resolution is not None and isinstance(resolution.profile_surface, dict):
+                return resolution.profile_surface
+        probe = bound if bound is not None else _bound_site(benchmark, task_site)
+        if probe is not None and probe.supports_profile_routes():
             return None
     else:
         target_surface_id = str(task_or_surface_id)
-    sites = (site,) if site else tuple(CORE_SURFACES)
-    canonical_targets = {canonical_core_surface(site_key, target_surface_id) for site_key in sites}
+    sites = (site,) if site else default_catalog().sites
+    policies = tuple(_carrier_policy(benchmark, site_key) for site_key in sites)
+    canonical_targets = {policy.canonical_surface(target_surface_id) for policy in policies}
     for surface in site_profile.get("injection_surface", []):
         if not isinstance(surface, dict):
             continue
@@ -248,11 +253,29 @@ def _find_surface_by_id(
         if surface_id == target_surface_id:
             return surface
         if any(
-            canonical_core_surface(site_key, str(surface_id or "")) in canonical_targets
-            for site_key in sites
+            policy.canonical_surface(str(surface_id or "")) in canonical_targets
+            for policy in policies
         ):
             return surface
     return None
+
+
+def _bound_site(
+    benchmark: str,
+    site: str,
+    profile: dict[str, Any] | None = None,
+) -> BoundSite | None:
+    try:
+        return default_catalog().bind(benchmark=benchmark, site=site, profile=profile)
+    except SiteTargetingDefinitionError:
+        return None
+
+
+def _carrier_policy(benchmark: str, site: str) -> SiteCarrierPolicy:
+    bound = _bound_site(benchmark, site)
+    if bound is None:
+        return SiteCarrierPolicy.closed(benchmark)
+    return bound.carrier_policy()
 
 
 def _route_kind_from_task(task: dict[str, Any]) -> str | None:

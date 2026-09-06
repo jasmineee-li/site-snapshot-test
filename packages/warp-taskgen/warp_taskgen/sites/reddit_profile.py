@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from warp_taskgen.benchmark_capabilities import normalize_benchmark_name
+from warp_taskgen.sites.carrier_policy import SiteCarrierPolicy
 from warp_taskgen.sites.contracts import SurfaceResolution
 from warp_taskgen.sites.profile_routes import (
     ProfileSurfaceMapping,
@@ -47,6 +48,13 @@ _MAPPING = ProfileSurfaceMapping(
     source_field_aliases=_SOURCE_FIELD_ALIASES,
 )
 
+_CARRIER_POLICY = SiteCarrierPolicy(
+    benchmark="webarena_verified",
+    surface_aliases=_PROFILE_ID_ALIASES,
+    core_surfaces=frozenset({"submission.title", "submission.body", "comment.body"}),
+    retired_carrier_surfaces=frozenset({"submission.title"}),
+)
+
 
 class RedditProfileIdentity:
     """Mixin implementing Reddit/Postmill's profile-surface vocabulary."""
@@ -80,6 +88,11 @@ class RedditProfileIdentity:
             method=method,
             editor_surface_id=editor_surface_id,
         )
+
+    def carrier_policy(self, *, benchmark: str) -> SiteCarrierPolicy | None:
+        if normalize_benchmark_name(benchmark or "") != _CARRIER_POLICY.benchmark:
+            return None
+        return _CARRIER_POLICY
 
 
 def mapping_for(benchmark: str) -> ProfileSurfaceMapping | None:

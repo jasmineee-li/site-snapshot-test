@@ -24,21 +24,13 @@ from warp_taskgen.phase_2.target_resolution.constants import (
 from warp_taskgen.phase_2.target_resolution.runner import (
     derive_benign_target_resource,
 )
-from warp_taskgen.phases.phase_2_core_surfaces import (
-    canonical_core_surface,
-    is_active_carrier_surface,
-    is_core_surface,
-)
 from warp_taskgen.placeholders import placeholder_for_site
 from warp_taskgen.sites import (
+    BoundSite,
     SiteTargetingDefinitionError,
     default_catalog,
     gitlab_routes,
     reddit_routes,
-)
-from warp_taskgen.surface_identity import (
-    canonicalize_surface_id,
-    surface_resolution_dict,
 )
 
 ROUTE_CONTRACTS_SCHEMA_VERSION = 1
@@ -78,19 +70,18 @@ def build_task_route_contracts(
             "benchmark": benchmark,
             "route_families": [],
         }
-    uncovered = _uncovered_surface_ids(site, profile, benchmark=benchmark, bound=bound)
-    covered = _covered_surface_ids(site, profile, benchmark=benchmark, bound=bound)
+    policy = bound.carrier_policy()
+    uncovered = _uncovered_surface_ids(profile, bound=bound)
+    covered = _covered_surface_ids(profile, bound=bound)
     route_families: list[dict[str, Any]] = []
 
     for spec in sorted(iter_specs(site=site, benchmark=benchmark), key=lambda item: item.method):
         for kind in sorted(spec.kinds):
             raw_surface = spec.surface_id_per_kind.get(kind, spec.method)
             canonical = bound.canonicalize_surface_id(raw_surface)
-            if not canonical:
-                canonical = canonical_core_surface(site, raw_surface)
-            if not canonical or not is_core_surface(site, canonical):
+            if not canonical or not policy.is_core_surface(canonical):
                 continue
-            if not is_active_carrier_surface(site, canonical, kind=kind, method=spec.method):
+            if not policy.is_active_carrier(canonical, kind=kind, method=spec.method):
                 continue
             profile_resolution = bound.resolve_profile_surface(
                 canonical,
@@ -111,7 +102,7 @@ def build_task_route_contracts(
                     continue
             else:
                 profile_surface = profile_resolution.profile_surface
-                surface_resolution = surface_resolution_dict(profile_resolution)
+                surface_resolution = profile_resolution.as_record()
             route = _route_family_for_spec(
                 site=site,
                 kind=kind,
@@ -881,11 +872,9 @@ def _answer_stability_guidance(
 
 
 def _uncovered_surface_ids(
-    site: str,
     profile: Mapping[str, Any],
     *,
-    benchmark: str = "webarena_verified",
-    bound: Any | None = None,
+    bound: BoundSite,
 ) -> set[str]:
     coverage = profile.get("existing_task_coverage")
     if not isinstance(coverage, Mapping):
@@ -900,22 +889,16 @@ def _uncovered_surface_ids(
             continue
         key = _surface_key(raw)
         out.add(key)
-        canonical = (
-            bound.canonicalize_surface_id(raw)
-            if bound is not None
-            else canonicalize_surface_id(benchmark=benchmark, site=site, raw_surface_id=raw)
-        )
+        canonical = bound.canonicalize_surface_id(raw)
         if canonical:
             out.add(_surface_key(canonical))
     return out
 
 
 def _covered_surface_ids(
-    site: str,
     profile: Mapping[str, Any],
     *,
-    benchmark: str = "webarena_verified",
-    bound: Any | None = None,
+    bound: BoundSite,
 ) -> set[str]:
     coverage = profile.get("existing_task_coverage")
     if not isinstance(coverage, Mapping):
@@ -930,11 +913,7 @@ def _covered_surface_ids(
             continue
         key = _surface_key(raw)
         out.add(key)
-        canonical = (
-            bound.canonicalize_surface_id(raw)
-            if bound is not None
-            else canonicalize_surface_id(benchmark=benchmark, site=site, raw_surface_id=raw)
-        )
+        canonical = bound.canonicalize_surface_id(raw)
         if canonical:
             out.add(_surface_key(canonical))
     return out

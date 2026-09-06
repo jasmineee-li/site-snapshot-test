@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 
 from warp_taskgen.benchmark_capabilities import normalize_benchmark_name
 from warp_taskgen.placeholders import apply_placeholders
+from warp_taskgen.sites.carrier_policy import SiteCarrierPolicy
 
 
 class SiteTargetingDefinitionError(ValueError):
@@ -255,6 +256,22 @@ class SurfaceResolution:
         object.__setattr__(self, "profile_surface", dict(self.profile_surface))
         object.__setattr__(self, "evidence", evidence)
 
+    def as_record(self) -> dict[str, Any]:
+        """Serialize the resolution using the historical artifact shape."""
+
+        payload: dict[str, Any] = {
+            "benchmark": self.benchmark,
+            "site": self.site,
+            "canonical_surface_id": self.canonical_surface_id,
+            "profile_surface_id": self.profile_surface_id,
+            "evidence": self.evidence,
+        }
+        if self.source_field:
+            payload["source_field"] = self.source_field
+        if self.editor_surface_id:
+            payload["editor_surface_id"] = self.editor_surface_id
+        return payload
+
 
 @dataclass(frozen=True)
 class SiteRouteContractFacts:
@@ -335,6 +352,18 @@ class SiteProfileRouteCapability(Protocol):
         profile: Mapping[str, Any],
         kind: str,
     ) -> SiteRouteContractFacts: ...
+
+
+@runtime_checkable
+class SiteCarrierPolicyCapability(Protocol):
+    """Optional Site feature capability for core-surface and carrier policy.
+
+    Separate from :class:`SiteProfileRouteCapability` so a Site can explain
+    profile identity without deciding which carriers are admissible.  A Site
+    without this capability binds to ``SiteCarrierPolicy.closed``.
+    """
+
+    def carrier_policy(self, *, benchmark: str) -> SiteCarrierPolicy | None: ...
 
 
 @dataclass(frozen=True)
@@ -435,6 +464,8 @@ __all__ = [
     "CanonicalRoute",
     "ResolvedTarget",
     "SiteAdapter",
+    "SiteCarrierPolicy",
+    "SiteCarrierPolicyCapability",
     "SiteProfileRouteCapability",
     "SiteRouteContractFacts",
     "SiteTargetingDefinitionError",

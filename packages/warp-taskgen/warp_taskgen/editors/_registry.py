@@ -383,7 +383,15 @@ def render_contract_table(context: ContractRenderContext) -> str:
     output replaces the :data:`EDITOR_CONTRACT_TABLE_SENTINEL` in
     ``warp_taskgen/prompts/generate-injections.md`` at prompt-load time.
     """
-    from warp_taskgen.phases.phase_2_core_surfaces import canonical_core_surface, is_core_surface
+    # Lazy: ``warp_taskgen.sites`` imports this module.
+    from warp_taskgen.sites import SiteCarrierPolicy, SiteTargetingDefinitionError, default_catalog
+
+    try:
+        policy = (
+            default_catalog().bind(benchmark=context.benchmark, site=context.site).carrier_policy()
+        )
+    except SiteTargetingDefinitionError:
+        policy = SiteCarrierPolicy.closed(context.benchmark)
 
     lines: list[str] = [
         (
@@ -426,10 +434,7 @@ def render_contract_table(context: ContractRenderContext) -> str:
             s
             for s in specs
             if _method_viable_under_anchors(s, available)
-            and is_core_surface(
-                s.site,
-                canonical_core_surface(s.site, s.surface_id_per_kind.get(kind, s.method)),
-            )
+            and policy.is_core_surface(s.surface_id_per_kind.get(kind, s.method))
         ]
 
         rendered_any = True
@@ -456,7 +461,7 @@ def render_contract_table(context: ContractRenderContext) -> str:
         lines.append("Eligible Path A methods for this kind:")
         for spec in viable_specs:
             editor_surface = spec.surface_id_per_kind.get(kind, spec.method)
-            surface = canonical_core_surface(spec.site, editor_surface) or editor_surface
+            surface = policy.canonical_surface(editor_surface) or editor_surface
             lines.append(f"- exposure uses `method={spec.method}` (target_surface_id=`{surface}`):")
             groups: dict[str, list[tuple[str, BindingSpec]]] = {}
             standalone: list[tuple[str, BindingSpec]] = []

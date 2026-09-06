@@ -394,10 +394,15 @@ def _seed_preserves_exposure_contract_error(
         return "exposure contract is not eligible"
 
     site = str(contract.get("site") or task.get("site") or "").strip()
+    benchmark = str(contract.get("benchmark") or task.get("benchmark") or "webarena_verified")
     target_surface_id = contract.get("target_surface_id")
-    from warp_taskgen.phases.phase_2_core_surfaces import is_core_surface
+    from warp_taskgen.sites import SiteCarrierPolicy, SiteTargetingDefinitionError, default_catalog
 
-    if not is_core_surface(site, str(target_surface_id) if target_surface_id else None):
+    try:
+        policy = default_catalog().bind(benchmark=benchmark, site=site).carrier_policy()
+    except SiteTargetingDefinitionError:
+        policy = SiteCarrierPolicy.closed(benchmark)
+    if not policy.is_core_surface(str(target_surface_id) if target_surface_id else None):
         return f"target surface {target_surface_id!r} is not a Path A core surface"
 
     expected_method = str(contract.get("editor_method") or "").strip()
