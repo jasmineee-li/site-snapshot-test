@@ -9,25 +9,25 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from tests.phase_1._fixtures import (
+    _gitlab_description_answer_profile_and_contracts,
+    _gitlab_description_answer_task,
+)
 from tests.phase_1.test_gitlab_compare_generated_content import (
     _act_card,
     _act_source,
     _card,
     _source_task,
 )
-from tests.test_phase_1_tasks import (
-    _gitlab_description_answer_profile_and_contracts,
-    _gitlab_description_answer_task,
-)
 from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
     compile_phase1_gitlab_compare_act_task,
 )
+from warp_taskgen.phase_1.novel_task_site_plan import EligibleSiteProfile
 from warp_taskgen.phase_1.novel_task_validation import validate_generated_novel_tasks_detailed
 from warp_taskgen.phase_1.novel_task_validation.answer_stability import (
     _validate_stable_answer_diversity,
 )
 from warp_taskgen.phases import phase_1_generate_new_tasks, phase_1_tasks
-from warp_taskgen.phases.phase_1_generate_new_tasks import EligibleSiteProfile
 from warp_taskgen.phases.phase_1_route_contracts import build_task_route_contracts
 from warp_taskgen.phases.phase_1_task_cards import task_card_index
 from warp_taskgen.phases.phase_1_tasks import _stamp_benchmark_metadata

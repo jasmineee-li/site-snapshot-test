@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from warp_taskgen.phase_1 import generated_workflows
+from warp_taskgen.phase_1 import generated_workflows, novel_task_cache
 from warp_taskgen.phase_1.gitlab_compare_act import (
     DEFAULT_GITLAB_COMPARE_ACT_NOTE,
     bind_gitlab_compare_act_target,
@@ -25,11 +25,9 @@ from warp_taskgen.phase_1.gitlab_compare_decide_reward import (
     grade_gitlab_compare_decide,
     materialize_gitlab_compare_decide_reward,
 )
+from warp_taskgen.phase_1.novel_task_generation_prompt import render_generate_benign_tasks_prompt
+from warp_taskgen.phase_1.novel_task_site_plan import EligibleSiteProfile
 from warp_taskgen.phases import phase_1_generate_new_tasks
-from warp_taskgen.phases.phase_1_generate_new_tasks import (
-    EligibleSiteProfile,
-    render_generate_benign_tasks_prompt,
-)
 from warp_taskgen.prompt_loading import load_prompt
 from warp_taskgen.seeding import apply_data_seed
 from warp_taskgen.seeding.site_contracts import SeedSiteRegistration, SeedSiteRegistry
@@ -625,7 +623,7 @@ def test_compare_prompt_and_pre_feature_cache_identity_are_not_reused(
         profile={},
     )
     monkeypatch.setattr(
-        phase_1_generate_new_tasks,
+        novel_task_cache,
         "GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION",
         7,
     )
@@ -635,7 +633,7 @@ def test_compare_prompt_and_pre_feature_cache_identity_are_not_reused(
         task_card_plan=plan,
     )
     monkeypatch.setattr(
-        phase_1_generate_new_tasks,
+        novel_task_cache,
         "GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION",
         8,
     )

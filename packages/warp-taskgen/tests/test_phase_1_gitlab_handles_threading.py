@@ -17,6 +17,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from warp_taskgen.phase_1 import novel_task_cache
 from warp_taskgen.phases import phase_1_generate_new_tasks
 
 
@@ -99,7 +100,7 @@ async def test_phase_1_threads_gitlab_handle_lists_into_each_task(monkeypatch, t
         ),
     )
     monkeypatch.setattr(
-        phase_1_generate_new_tasks,
+        novel_task_cache,
         "validate_generated_novel_tasks",
         lambda tasks, **kwargs: (tasks, []),
     )
