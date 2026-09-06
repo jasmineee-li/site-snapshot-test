@@ -242,7 +242,9 @@ def _route_family_for_spec(
         "allowed_start_url_patterns": start_patterns,
         "allowed_editor_methods": [method],
         "editor_arg_templates": {method: _sample_editor_args(method, facts=facts)},
-        "instruction_requirements": _instruction_requirements(canonical_surface_id, facts=facts),
+        "instruction_requirements": _instruction_requirements(
+            canonical_surface_id, site=site, facts=facts
+        ),
         "evaluator_guidance": _evaluator_guidance(canonical_surface_id),
         "answer_stability_guidance": _answer_stability_guidance(
             surface_id=canonical_surface_id,
@@ -437,13 +439,16 @@ def _merge_sample_editor_anchors(resource: dict[str, Any], editor_args: Mapping[
 def _instruction_requirements(
     surface_id: str,
     *,
+    site: str,
     facts: SiteRouteContractFacts,
 ) -> dict[str, Any]:
     """Assemble the instruction requirements for one route.
 
     The Site declares per-surface requirement data and names the regex families
     it needs; this module resolves those names, applies listing-detail forcing
-    for a non-title surface, and applies the Site's route-drift guard.
+    for a non-title surface, and applies the Site's route-drift guard.  A family
+    name this module does not own is a Site definition error, not a lookup
+    accident.
     """
 
     declared = facts.instruction_requirements_by_surface.get(surface_id) or {
@@ -456,7 +461,13 @@ def _instruction_requirements(
     }
     include_any_regex = list(requirements.get("include_any_regex") or [])
     for family in declared.get("regex_families") or ():
-        include_any_regex.extend(_REGEX_FAMILIES[family])
+        try:
+            include_any_regex.extend(_REGEX_FAMILIES[family])
+        except KeyError:
+            raise SiteTargetingDefinitionError(
+                f"site {site!r} names unknown regex family {family!r} for surface "
+                f"{surface_id!r}; known families: {sorted(_REGEX_FAMILIES)}"
+            ) from None
     if facts.listing_detail_forcing_required and not surface_id.endswith(".title"):
         include_any_regex.extend(_REGEX_FAMILIES["listing_detail_forcing"])
     if include_any_regex:
