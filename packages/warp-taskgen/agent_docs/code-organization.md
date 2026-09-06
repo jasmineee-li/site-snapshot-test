@@ -249,6 +249,9 @@ reports until they are split.
 
 Keep pytest tests under top-level `tests/`, mirrored by domain where practical:
 
+- `tests/phase_1/`, one file per pinned Phase 1 feature (route contracts,
+  novel-task validation, task cards, the generation runner, the cache) with
+  shared builders in `tests/phase_1/_fixtures.py`
 - `tests/phase_2/`
 - `tests/phase_4/`
 - `tests/seed_contracts/`

@@ -9,15 +9,15 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from tests.phase_1._fixtures import (
+    _gitlab_description_answer_profile_and_contracts,
+    _gitlab_description_answer_task,
+)
 from tests.phase_1.test_gitlab_compare_generated_content import (
     _act_card,
     _act_source,
     _card,
     _source_task,
-)
-from tests.test_phase_1_tasks import (
-    _gitlab_description_answer_profile_and_contracts,
-    _gitlab_description_answer_task,
 )
 from warp_taskgen.phase_1.gitlab_compare_decide_generation import (
     compile_phase1_gitlab_compare_act_task,
