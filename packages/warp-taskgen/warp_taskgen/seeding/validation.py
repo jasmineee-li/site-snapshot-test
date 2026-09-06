@@ -6,8 +6,7 @@ import re
 from typing import Any
 
 from warp_taskgen.benchmark_capabilities import normalize_benchmark_name
-from warp_taskgen.editors import EDITOR_REGISTRY
-from warp_taskgen.seeding.site_contracts import SeedSiteRegistry
+from warp_taskgen.seeding.site_contracts import SeedSiteRegistry, default_seed_registry
 
 _LOGICAL_RECORD_KEY_PATTERN = r"^[a-z][a-z0-9_-]{0,63}$"
 
@@ -74,6 +73,7 @@ def _validate_editor_calls(
 ) -> None:
     if not isinstance(editor_calls, list) or not editor_calls:
         raise ValueError("editor data seed must include a non-empty editor_calls list")
+    active_registry = seed_registry if seed_registry is not None else default_seed_registry()
     for call in editor_calls:
         if not isinstance(call, dict):
             raise ValueError("editor_calls entries must be objects")
@@ -104,16 +104,12 @@ def _validate_editor_calls(
         if method_name.startswith("_"):
             raise ValueError("editor_calls method must not be private")
         benchmark_key = normalize_benchmark_name(benchmark or "webarena_verified")
-        if seed_registry is None:
-            editor_cls = EDITOR_REGISTRY.get((benchmark_key, site.strip().lower()))
-            supported_methods = getattr(editor_cls, "supported_methods", ())
-        else:
-            registration = seed_registry.get(benchmark_key, site.strip().lower())
-            supported_methods = getattr(
-                registration.editor_factory if registration is not None else None,
-                "supported_methods",
-                (),
-            )
+        registration = active_registry.get(benchmark_key, site.strip().lower())
+        supported_methods = getattr(
+            registration.editor_factory if registration is not None else None,
+            "supported_methods",
+            (),
+        )
         if supported_methods and method_name not in supported_methods:
             raise ValueError(
                 f"editor_calls method {method_name!r} is not supported for {(benchmark_key, site.strip().lower())!r}"

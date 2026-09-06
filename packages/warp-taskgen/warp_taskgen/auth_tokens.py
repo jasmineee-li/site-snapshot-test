@@ -351,9 +351,9 @@ def acquire_token(auth_config: dict[str, Any], site_url: str) -> str:
     # 4. Legacy token_source
     if strategy == "token_source":
         token_source = str(auth_config.get("token_source")).strip()
-        from warp_taskgen import seeding as seeding_module
+        from warp_taskgen.seeding.db import _resolve_token_source_path
 
-        token_path = seeding_module._resolve_token_source_path(token_source.strip())
+        token_path = _resolve_token_source_path(token_source.strip())
         try:
             token_text = token_path.read_text(encoding="utf-8").strip()
         except OSError as exc:
