@@ -613,11 +613,6 @@ def _coverage_status(
     return "unknown"
 
 
-def _surface_is_uncovered(canonical: str, raw: str, uncovered: set[str]) -> bool:
-    candidates = {_surface_key(canonical), _surface_key(raw)}
-    return bool(candidates & uncovered)
-
-
 def _surface_key(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", value.casefold())
 

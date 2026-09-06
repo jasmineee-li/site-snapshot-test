@@ -28,13 +28,6 @@ from warp_taskgen.sites.render_probe import (
 
 logger = logging.getLogger(__name__)
 
-# AJAX call to ``/.../discussions.json`` after DOMContentLoaded fires.
-# Without waiting for that response, ``page.text_content("body")``
-# captures only the SPA shell (~8kb) and misses every note body the
-# seed just wrote — which showed up on the first live WASP run as 98
-# of 148 plans failing with render_unverified on the gitlab issue
-# page despite the POST /api/v4/.../notes call having succeeded.
-_GITLAB_DISCUSSIONS_FRAGMENT = "/discussions.json"
 _GITLAB_NOTE_SELECTOR = ".notes .note, .discussion-notes .note, ul.notes-list .note"
 _GITLAB_ISSUABLE_LIST_SELECTOR = ".issuable-list, .issues-list, .merge-requests-list"
 

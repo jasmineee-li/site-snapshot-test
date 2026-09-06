@@ -32,16 +32,6 @@ def _compact_text(value: Any, *, limit: int = 220) -> str | None:
     return f"{text[: limit - 1].rstrip()}..."
 
 
-def _variant_results(result: dict[str, Any]) -> list[dict[str, Any]]:
-    variation = _variation_record(result)
-    if variation is None:
-        return []
-    variants = variation.get("variant_results")
-    if not isinstance(variants, list):
-        return []
-    return [variant for variant in variants if isinstance(variant, dict)]
-
-
 def _rejected_variant_records(result: dict[str, Any]) -> list[dict[str, Any]]:
     variation = _variation_record(result)
     if variation is None:

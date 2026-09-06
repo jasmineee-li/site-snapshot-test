@@ -72,59 +72,6 @@ def add_trace_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentPar
     _add_common(schema_cmd)
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Inspect Phase 4 traces compactly.")
-    subparsers = parser.add_subparsers(dest="trace_command", required=True)
-    # Reuse the same subcommands without the top-level `trace` wrapper for the
-    # compatibility script.
-    shim = argparse.ArgumentParser(add_help=False)
-    del shim
-    add_trace_parser_for_script(subparsers)
-    return _dispatch_trace(parser.parse_args(argv))
-
-
-def add_trace_parser_for_script(
-    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
-) -> None:
-    # Kept separate from add_trace_parser because the script command omits the
-    # top-level `trace` word.
-    for name, help_text in (
-        ("summary", "Compact aggregate counts."),
-        ("slice", "Compact matching task table."),
-        ("task", "Explain one task."),
-        ("timeline", "Show compact derived task event timeline."),
-        ("fields", "List selectable fields."),
-        ("examples", "Print example trace commands."),
-        ("schema", "Print machine-readable command schema."),
-    ):
-        cmd = subparsers.add_parser(name, help=help_text)
-        cmd.set_defaults(trace_command=name)
-        if name in {"summary", "slice", "task", "timeline"}:
-            _add_path(cmd)
-        if name == "summary":
-            _add_common(cmd)
-            _add_filters(cmd)
-            cmd.add_argument("--limit", type=int, default=8)
-        elif name == "slice":
-            _add_common(cmd, allow_jsonl=True)
-            _add_filters(cmd)
-            cmd.add_argument("--limit", type=int, default=20)
-            cmd.add_argument("--all", action="store_true")
-            cmd.add_argument("--fields", default=",".join(DEFAULT_FIELDS))
-            cmd.add_argument("--sort", choices=ALL_FIELDS, default=None)
-            cmd.add_argument("--reverse", action="store_true")
-        elif name == "task":
-            _add_common(cmd)
-            cmd.add_argument("task_id")
-            cmd.add_argument("--iterator", action="store_true")
-            cmd.add_argument("--refs", action="store_true")
-        elif name == "timeline":
-            _add_common(cmd)
-            cmd.add_argument("task_id")
-        else:
-            _add_common(cmd)
-
-
 def _add_path(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("path", type=Path, help="State dir, phase_4 dir, or results.json path.")
     parser.add_argument(
@@ -332,4 +279,4 @@ def _bool_arg(raw: str) -> bool:
     raise argparse.ArgumentTypeError("expected true/false")
 
 
-__all__ = ["add_trace_parser", "main"]
+__all__ = ["add_trace_parser"]
