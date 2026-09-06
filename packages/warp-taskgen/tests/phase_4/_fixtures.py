@@ -25,6 +25,9 @@ from warp_taskgen.phase_4 import execution as phase_4_execution
 from warp_taskgen.phase_4 import preflight as phase_4_preflight
 from warp_taskgen.phase_4 import execution_helpers as phase_4_execution_helpers
 from warp_taskgen.phase_4 import eval_awareness_iterator as phase_4_eval_awareness_iterator
+from warp_taskgen.phase_4 import (
+    eval_awareness_iteration_feedback as phase_4_eval_awareness_iteration_feedback,
+)
 from warp_taskgen.phase_4 import metrics as phase_4_metrics
 from warp_taskgen.phase_4 import payload_text as phase_4_payload_text
 from warp_taskgen.phase_4 import placement_loop as phase_4_placement_loop

@@ -15,12 +15,32 @@ RESUME_MODULE = "resume"
 VARIANT_EVAL_MODULE = "variant_eval"
 PLACEMENT_LOOP_MODULE = "placement_loop"
 EVAL_AWARENESS_ITERATOR_MODULE = "eval_awareness_iterator"
+EVAL_AWARENESS_ITERATOR_SIBLINGS = (
+    "eval_awareness_cue_diagnosis",
+    "eval_awareness_iteration_feedback",
+    "eval_awareness_iterator_budget",
+)
 STRATEGY_VARIATION_MODULE = "strategy_variation"
 POSTPROCESS_MODULE = "postprocess"
 
 
 def _source(name: str) -> str:
     return (PHASE_4_ROOT / f"{name}.py").read_text()
+
+
+def _owning_source(name: str) -> str:
+    """Return the source that owns a module's behavior.
+
+    The eval-awareness iterator is split across the runner and its three
+    siblings, so its dependency guards read the whole family.
+    """
+
+    if name == EVAL_AWARENESS_ITERATOR_MODULE:
+        return "\n".join(
+            _source(module)
+            for module in (EVAL_AWARENESS_ITERATOR_MODULE, *EVAL_AWARENESS_ITERATOR_SIBLINGS)
+        )
+    return _source(name)
 
 
 def test_phase4_leaf_modules_have_explicit_imports_and_local_constants() -> None:
@@ -248,7 +268,7 @@ def test_resume_consumers_import_resume_owner_directly() -> None:
         "variant_eval": ("_load_saved_variant_result", "_phase_4_variant_fingerprint"),
     }
     for module, names in expectations.items():
-        source = _source(module)
+        source = _owning_source(module)
         assert "from warp_taskgen.phase_4.resume import" in source
         for name in names:
             assert name in source
@@ -338,11 +358,19 @@ def test_variant_eval_imports_in_either_order() -> None:
 
 
 def test_eval_awareness_iterator_owns_explicit_dependencies_and_runner_does_not_link_it() -> None:
-    source = _source(EVAL_AWARENESS_ITERATOR_MODULE)
+    source = _owning_source(EVAL_AWARENESS_ITERATOR_MODULE)
     runner = _source("runner")
     assert "install_context" not in source
     assert "ruff: noqa: F821" not in source
     assert "from warp_taskgen.phase_4._context" not in source
+    for sibling in EVAL_AWARENESS_ITERATOR_SIBLINGS:
+        sibling_source = _source(sibling)
+        assert "install_context" not in sibling_source
+        assert "ruff: noqa: F821" not in sibling_source
+        assert "from warp_taskgen.phase_4._context" not in sibling_source
+        assert f"from warp_taskgen.phase_4.{sibling} import" in _source(
+            EVAL_AWARENESS_ITERATOR_MODULE
+        )
     assert (
         "from warp_taskgen.phase_4 import eval_awareness_iterator as _eval_awareness_iterator"
         not in runner

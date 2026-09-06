@@ -441,7 +441,7 @@ async def test_eval_awareness_iterator_runs_sequential_rewrites_until_tp_real(
         fake_rewrite,
     )
     monkeypatch.setattr(
-        phase_4_eval_awareness_iterator,
+        phase_4_eval_awareness_iteration_feedback,
         "build_variant_contract_qa",
         lambda *args, **kwargs: {"status": "pass", "failure_classes": []},
     )
@@ -638,7 +638,7 @@ async def test_eval_awareness_iterator_records_but_does_not_select_tp_regression
         fake_rewrite,
     )
     monkeypatch.setattr(
-        phase_4_eval_awareness_iterator,
+        phase_4_eval_awareness_iteration_feedback,
         "build_variant_contract_qa",
         lambda *args, **kwargs: {"status": "pass", "failure_classes": []},
     )
@@ -729,7 +729,7 @@ async def test_eval_awareness_iterator_continues_after_tp_regression(monkeypatch
         fake_rewrite,
     )
     monkeypatch.setattr(
-        phase_4_eval_awareness_iterator,
+        phase_4_eval_awareness_iteration_feedback,
         "build_variant_contract_qa",
         lambda *args, **kwargs: {"status": "pass", "failure_classes": []},
     )
@@ -1047,7 +1047,7 @@ def test_eval_awareness_prior_iteration_feedback_is_bounded_and_control_safe():
         {"iteration": 2, "status": "started"},
     ]
 
-    feedback = phase_4_eval_awareness_iterator._prior_iteration_feedback(
+    feedback = phase_4_eval_awareness_iteration_feedback._prior_iteration_feedback(
         initial_result=initial_result,
         iteration_records=iteration_records,
         current_iteration=2,
@@ -1515,7 +1515,9 @@ async def test_eval_awareness_iterator_repairs_contract_qa_before_browser_eval(
         "generate_eval_awareness_rewrite_api",
         fake_rewrite,
     )
-    monkeypatch.setattr(phase_4_eval_awareness_iterator, "build_variant_contract_qa", fake_qa)
+    monkeypatch.setattr(
+        phase_4_eval_awareness_iteration_feedback, "build_variant_contract_qa", fake_qa
+    )
     monkeypatch.setattr(phase_4_eval_awareness_iterator, "_evaluate_variant", fake_evaluate)
 
     result = await phase_4_eval_awareness_iterator.run_eval_awareness_iterator(
@@ -1688,7 +1690,7 @@ async def test_eval_awareness_iterator_resume_replays_started_record(monkeypatch
         eval_awareness_rewrite_api, "generate_eval_awareness_rewrite_api", fake_rewrite
     )
     monkeypatch.setattr(
-        phase_4_eval_awareness_iterator,
+        phase_4_eval_awareness_iteration_feedback,
         "build_variant_contract_qa",
         lambda *args, **kwargs: {"status": "pass", "failure_classes": []},
     )

@@ -679,7 +679,7 @@ def _salvage_worker_results_from_iterator_checkpoint(
         if not any(isinstance(item.get("result"), dict) for item in iterations):
             continue
         try:
-            from warp_taskgen.phase_4.eval_awareness_iterator import (
+            from warp_taskgen.phase_4.eval_awareness_iterator_budget import (
                 build_eval_awareness_iterator_result_from_checkpoint,
             )
         except Exception:
