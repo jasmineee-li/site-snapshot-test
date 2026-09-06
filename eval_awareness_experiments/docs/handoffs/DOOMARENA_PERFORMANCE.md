@@ -212,8 +212,8 @@ each model's agent talks to its own dedicated docker:
   Per docker container: 4 sessions max (just the 4 arms of the same model)
 ```
 
-Setup script: `scripts/setup_doomarena_per_model_dockers.sh up`.
-Port mapping: `DOCKER_PORTS_MULTI.md`.
+Setup script: `eval_awareness_experiments/scripts/doomarena/docker_stacks_per_model.sh up`.
+Port mapping: `../../DOCKER_PORTS_MULTI.md`.
 
 ### What's still missing (open work)
 
@@ -224,7 +224,7 @@ need a launcher that:
 
 1. Spawns 24 parallel processes (4 arms × 6 models)
 2. Each process gets per-model env vars (GITLAB / REDDIT / ... pointing
-   at that model's stack — see `DOCKER_PORTS_MULTI.md`)
+   at that model's stack — see `../../DOCKER_PORTS_MULTI.md`)
 3. Each process runs its 1 cell (1 model × 1 arm × 4 splits)
 4. Splits within a cell run in parallel (already implemented)
 
@@ -318,8 +318,8 @@ If you have ideas, the relevant code is:
   (calls AgentLab Study under the hood)
 - `external_benchmarks/AgentLab/src/agentlab/experiments/loop.py` —
   upstream agent loop. The Playwright hang lives in this layer.
-- `scripts/setup_doomarena_per_model_dockers.sh` — docker stack setup
-- `DOCKER_PORTS_MULTI.md` — model→port mapping
+- `eval_awareness_experiments/scripts/doomarena/docker_stacks_per_model.sh` — docker stack setup
+- `../../DOCKER_PORTS_MULTI.md` — model→port mapping
 
 Open questions for the team:
 

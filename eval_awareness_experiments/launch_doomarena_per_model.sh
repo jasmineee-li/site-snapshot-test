@@ -16,7 +16,7 @@
 #   SPLITS="reddit shopping shopping_admin gitlab"
 #
 # Per-model docker stacks must be up:
-#   ./scripts/setup_doomarena_per_model_dockers.sh up
+#   ./eval_awareness_experiments/scripts/doomarena/docker_stacks_per_model.sh up
 #
 # Usage:
 #   ./eval_awareness_experiments/launch_doomarena_per_model.sh
@@ -93,7 +93,7 @@ echo "  skip_existing=${SKIP_EXISTING}"
 echo
 
 # (model_id | stack_slug | gitlab_port | reddit_port)
-# Stack slugs match scripts/setup_doomarena_per_model_dockers.sh.
+# Stack slugs match eval_awareness_experiments/scripts/doomarena/docker_stacks_per_model.sh.
 # Original GLM-5 stack uses ports 9002/8081 (no model slug suffix).
 MODEL_STACKS=(
     "z-ai/glm-5:thinking|glm|9002|8081"

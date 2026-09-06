@@ -114,13 +114,13 @@ start_urls. Most gotchas below stem from that one design choice.
 - One `prompt_injector.py` invocation = one `(user_goal_idx,
   injection_format)` pair × all 21 attackers = 21 task JSONs. Full
   cross-product = 8 invocations = 168 task JSONs (96 gitlab, 72
-  reddit). Wrapped in `scripts/wasp_plant_full.sh` — handles the
+  reddit). Wrapped in `eval_awareness_experiments/scripts/wasp/plant_full_pool.sh` — handles the
   task_id renumbering on merge (each plant restarts at task_id 1000;
   collisions resolved by adding the run-index offset).
-- Run via `scripts/wasp_n100_run.sh <preset>` — minimal launcher
+- Run via `eval_awareness_experiments/scripts/wasp/launch_glm5_n100_preset.sh <preset>` — minimal launcher
   that sets PYTHONPATH and points
   `run_wasp.py --task-dir /tmp/wasp_full`.
-- Cleanup via `scripts/wasp_cleanup_full.sh` — calls upstream
+- Cleanup via `eval_awareness_experiments/scripts/wasp/cleanup_planted_state.sh` — calls upstream
   `environment_cleanup.py` against the merged config file with
   `--delete-attacker-account` (gitlab attacker users get deleted;
   postmill has no programmatic self-delete so reddit attacker users

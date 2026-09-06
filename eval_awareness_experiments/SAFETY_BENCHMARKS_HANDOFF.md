@@ -509,6 +509,7 @@ bash eval_awareness_experiments/setup_benchmarks.sh wasp eia   # subset
 - Clones into `external_benchmarks/{wasp,injecagent,eia}` and installs
   `agentdojo` from PyPI. **Docker containers (VWA GitLab/Reddit for WASP) are
   NOT set up here** — see the existing WebArena container notes above.
+- Per-model Docker stacks and WASP planting: `eval_awareness_experiments/scripts/{wasp,doomarena}/`.
 - EIA `eval_results.zip` is **not** in the git repo. Fetch it from the authors'
   Globus endpoint and drop it at `external_benchmarks/eia/eval_results.zip`:
   `https://app.globus.org/file-manager?origin_id=6e0b9952-da25-4b74-a4f9-7450f0bb96b9&origin_path=%2F`

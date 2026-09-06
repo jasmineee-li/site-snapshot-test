@@ -8,10 +8,10 @@
 #   - DoomArena containers: gitlab_doom/forum_doom and per-model Doom stacks
 #
 # Usage:
-#   ./scripts/setup_wasp_per_model_dockers.sh up
-#   ./scripts/setup_wasp_per_model_dockers.sh health
-#   ./scripts/setup_wasp_per_model_dockers.sh stop
-#   ./scripts/setup_wasp_per_model_dockers.sh rm
+#   ./eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh up
+#   ./eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh health
+#   ./eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh stop
+#   ./eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh rm
 
 set -euo pipefail
 
@@ -141,7 +141,7 @@ case "$ACTION" in
         done
         echo
         echo "Containers started. GitLab usually needs 2-4 minutes before planting."
-        echo "Run: ./scripts/setup_wasp_per_model_dockers.sh health"
+        echo "Run: ./eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh health"
         ;;
     health)
         echo "=== WASP per-model docker health ==="

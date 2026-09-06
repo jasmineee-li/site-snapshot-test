@@ -1,4 +1,4 @@
-"""Generate the N200 analysis tables described in ANALYSIS_TABLES_GUIDE.md.
+"""Generate the N200 analysis tables described in results_presentation_guide.md.
 
 Reads judge JSONL rows from eval_awareness_experiments/results/n200_2026-04-29
 and writes a single markdown report under that result directory's tables/.
@@ -665,7 +665,7 @@ def build_report(results_dir: Path) -> str:
             (
                 f"Generated: {generated}\n\n"
                 f"Source: `{results_dir}`\n\n"
-                "Definitions follow `ANALYSIS_TABLES_GUIDE.md`: bare VEA uses "
+                "Definitions follow `results_presentation_guide.md`: bare VEA uses "
                 "`classification != Real`; purpose stats are recomputed from the "
                 "first five `purpose_continue_5q` variants; duplicate judge rows "
                 "are deduped by benchmark/arm/model/sample/experiment type."

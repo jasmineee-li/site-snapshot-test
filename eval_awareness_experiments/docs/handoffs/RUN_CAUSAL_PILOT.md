@@ -2,7 +2,7 @@
 
 One-page runbook. For experimental design, hypothesis, cost estimate,
 and full per-arm interpretation, see
-[`docs/CAUSAL_EVAL_AWARENESS_EXPERIMENT.md`](docs/CAUSAL_EVAL_AWARENESS_EXPERIMENT.md).
+[`docs/CAUSAL_EVAL_AWARENESS_EXPERIMENT.md`](../CAUSAL_EVAL_AWARENESS_EXPERIMENT.md).
 
 ## Prerequisites
 
@@ -156,7 +156,7 @@ Key contrasts to compute downstream:
   manipulation effectiveness".
 
 For the canonical 3-table presentation format used by all eval-awareness
-runs, see [`results_presentation_guide.md`](results_presentation_guide.md).
+runs, see [`results_presentation_guide.md`](../../results_presentation_guide.md).
 
 ## Where to ask questions
 

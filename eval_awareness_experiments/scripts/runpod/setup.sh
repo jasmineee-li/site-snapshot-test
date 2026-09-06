@@ -11,9 +11,9 @@
 # re-runs `uv sync` to bring the venv back to what `uv.lock` pins.
 #
 # Usage:
-#   bash scripts/runpod_setup.sh                      # default: claude/general-session-rsdA2
-#   BRANCH=main bash scripts/runpod_setup.sh
-#   REPO_DIR=/workspace/warp bash scripts/runpod_setup.sh
+#   bash eval_awareness_experiments/scripts/runpod/setup.sh                      # default: claude/general-session-rsdA2
+#   BRANCH=main bash eval_awareness_experiments/scripts/runpod/setup.sh
+#   REPO_DIR=/workspace/warp bash eval_awareness_experiments/scripts/runpod/setup.sh
 
 set -euo pipefail
 
@@ -129,5 +129,5 @@ nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader 2>/dev/null
 echo
 echo "Next steps:"
 echo "  cd $REPO_DIR && source .venv/bin/activate"
-echo "  bash scripts/runpod_train_framing_probe.sh                # trains framing probe on OpenCUA-32B"
-echo "  MODEL_SHORT=gui-owl-32b bash scripts/runpod_train_framing_probe.sh"
+echo "  bash eval_awareness_experiments/scripts/runpod/train_framing_probe.sh                # trains framing probe on OpenCUA-32B"
+echo "  MODEL_SHORT=gui-owl-32b bash eval_awareness_experiments/scripts/runpod/train_framing_probe.sh"

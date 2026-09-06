@@ -227,7 +227,7 @@ def _import_wasp_injector(modified_config_dir: Path, wasp_path: Path | None = No
 
     WASP isn't a pip-installable package (no setup.py/pyproject.toml), so we
     prepend the clone path to sys.path before importing. This matches what
-    `scripts/wasp_n100_run.sh` does via PYTHONPATH externally, but doing it
+    `eval_awareness_experiments/scripts/wasp/launch_glm5_n100_preset.sh` does via PYTHONPATH externally, but doing it
     here means *any* caller (matrix runner, smoke, direct, pytest) works
     without needing per-launcher env-var setup.
     """

@@ -2,8 +2,8 @@
 # WASP launcher with strict 1-cell-per-stack isolation.
 #
 # Prereqs:
-#   ./scripts/setup_wasp_per_model_dockers.sh up
-#   ./scripts/wasp_plant_per_model_dockers.sh
+#   ./eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh up
+#   ./eval_awareness_experiments/scripts/wasp/plant_per_model_stacks.sh
 #
 # Topology: selected (model x arm) cells go into a shared queue, and selected
 # WASP docker stacks act as generic workers. Each worker uses:

@@ -18,7 +18,7 @@ are not reliable steering vectors for the planned causal experiment.
 ## What was done
 
 1. **RunPod setup on a fresh pod** (network volume at `/workspace`).
-   `bash scripts/runpod_setup.sh` runs cleanly after the two fixes
+   `bash eval_awareness_experiments/scripts/runpod/setup.sh` runs cleanly after the two fixes
    listed below.
 2. **Pre-downloaded** `mPLUG/GUI-Owl-1.5-32B-Think` (~63 GB, 26 files)
    into `/workspace/hf_cache`.
@@ -45,7 +45,7 @@ are not reliable steering vectors for the planned causal experiment.
 
 ## Why this matters for the causal experiment
 
-The matrix script (`scripts/run_cua_eval_awareness_matrix.sh`) cells 3
+The matrix script (`eval_awareness_experiments/scripts/probes/run_cua_eval_awareness_matrix.sh`) cells 3
 and 4 work by ablating `−α·v` from the residual stream, where `v` is
 the probe's best-layer vector. The whole interpretation —
 "eval-awareness was causally responsible for the behavior change" —
@@ -77,8 +77,8 @@ export HF_HOME=/workspace/hf_cache
 python -c "from huggingface_hub import snapshot_download; snapshot_download('xlangai/OpenCUA-32B')"
 
 # Train both probes:
-bash scripts/train_probe_opencua_32b.sh                  # MCQ probe
-bash scripts/train_probe_framing_opencua_32b.sh          # framing probe
+bash eval_awareness_experiments/scripts/probes/train_probe_opencua_32b.sh                  # MCQ probe
+bash eval_awareness_experiments/scripts/probes/train_probe_framing_opencua_32b.sh          # framing probe
 
 # Cross-validate:
 python -m probes.validate_probes_cross \
@@ -137,7 +137,7 @@ cd warp
 git checkout claude/general-session-rsdA2
 
 # 1. Setup. Idempotent.
-bash scripts/runpod_setup.sh
+bash eval_awareness_experiments/scripts/runpod/setup.sh
 
 # 2. Fix torch — see Gotchas. Default install pulls cu130 wheels which
 #    are incompatible with the current pod's driver.
@@ -206,7 +206,7 @@ python -m probes.validate_probes_cross \
    table:
    <https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html>
 
-   `scripts/preflight_gpu.sh` now checks this and exits non-zero. Run it before
+   `eval_awareness_experiments/scripts/runpod/preflight_gpu.sh` now checks this and exits non-zero. Run it before
    training or serving. The silent CPU fallback described above is why it
    blocks rather than reports.
 

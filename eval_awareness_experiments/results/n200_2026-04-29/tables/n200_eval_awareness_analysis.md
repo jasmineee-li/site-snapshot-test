@@ -4,7 +4,7 @@ Generated: 2026-05-05T13:15:35+00:00
 
 Source: `eval_awareness_experiments/results/n200_2026-04-29`
 
-Definitions follow `ANALYSIS_TABLES_GUIDE.md`: bare VEA uses `classification != Real`; purpose stats are recomputed from the first five `purpose_continue_5q` variants; duplicate judge rows are deduped by benchmark/arm/model/sample/experiment type.
+Definitions follow `results_presentation_guide.md`: bare VEA uses `classification != Real`; purpose stats are recomputed from the first five `purpose_continue_5q` variants; duplicate judge rows are deduped by benchmark/arm/model/sample/experiment type.
 
 ## Table 1: Bare VEA Benchmark Average
 

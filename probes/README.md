@@ -108,5 +108,5 @@ The contrast `primed` vs `primed-steered` is the headline causal-effect
 estimate of evaluation awareness on benchmark behavior.
 
 See `eval_awareness_experiments/configs/opencua_*.yaml` for the
-per-cell run configs and `scripts/run_cua_eval_awareness_matrix.sh`
+per-cell run configs and `eval_awareness_experiments/scripts/probes/run_cua_eval_awareness_matrix.sh`
 for the orchestrator.

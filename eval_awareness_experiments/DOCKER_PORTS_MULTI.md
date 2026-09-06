@@ -5,7 +5,7 @@ parallel within an arm. Each model gets its own dedicated stack of
 WebArena services, so concurrent agent sessions across models don't
 collide on docker state.
 
-Setup script: `scripts/setup_doomarena_per_model_dockers.sh up`
+Setup script: `eval_awareness_experiments/scripts/doomarena/docker_stacks_per_model.sh up`
 (stop with `... stop`, full remove with `... rm`).
 
 ## Layout (DoomArena)
@@ -21,7 +21,7 @@ Setup script: `scripts/setup_doomarena_per_model_dockers.sh up`
 
 ## Layout (WASP)
 
-Setup script: `scripts/setup_wasp_per_model_dockers.sh up`
+Setup script: `eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh up`
 (stop with `... stop`, full remove with `... rm`).
 
 WASP's original `gitlab` :9001 + `forum` :8080 stack is still available
@@ -29,9 +29,9 @@ for single-stream runs. Per-model WASP runs use separate WASP-only
 containers and must be planted separately:
 
 ```bash
-./scripts/setup_wasp_per_model_dockers.sh up
-./scripts/setup_wasp_per_model_dockers.sh health
-./scripts/wasp_plant_per_model_dockers.sh
+./eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh up
+./eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh health
+./eval_awareness_experiments/scripts/wasp/plant_per_model_stacks.sh
 ```
 
 | stack | model | gitlab | forum (reddit) | task dir |
@@ -152,12 +152,12 @@ containers per site instead of 1.
 
 ```bash
 # stop only (preserves writable layer if you want to re-use later)
-./scripts/setup_doomarena_per_model_dockers.sh stop
-./scripts/setup_wasp_per_model_dockers.sh stop
+./eval_awareness_experiments/scripts/doomarena/docker_stacks_per_model.sh stop
+./eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh stop
 
 # stop + remove (frees writable layer + ~10 GB if heavily used)
-./scripts/setup_doomarena_per_model_dockers.sh rm
-./scripts/setup_wasp_per_model_dockers.sh rm
+./eval_awareness_experiments/scripts/doomarena/docker_stacks_per_model.sh rm
+./eval_awareness_experiments/scripts/wasp/docker_stacks_per_model.sh rm
 ```
 
 ## Known issues

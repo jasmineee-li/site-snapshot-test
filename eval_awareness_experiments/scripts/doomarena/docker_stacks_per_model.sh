@@ -16,9 +16,9 @@
 # 15 other containers ≈ 60-80GB RAM. Host has 1.9 TiB free.
 #
 # Usage:
-#   ./scripts/setup_doomarena_per_model_dockers.sh
-#   ./scripts/setup_doomarena_per_model_dockers.sh --stop    # stop the new ones
-#   ./scripts/setup_doomarena_per_model_dockers.sh --rm      # stop + remove
+#   ./eval_awareness_experiments/scripts/doomarena/docker_stacks_per_model.sh
+#   ./eval_awareness_experiments/scripts/doomarena/docker_stacks_per_model.sh --stop    # stop the new ones
+#   ./eval_awareness_experiments/scripts/doomarena/docker_stacks_per_model.sh --rm      # stop + remove
 #
 # After running: see eval_awareness_experiments/DOCKER_PORTS_MULTI.md
 # for the canonical model→port mapping.

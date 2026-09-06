@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Train a DoM eval-awareness probe for GUI-Owl-1.5-32B-Think.
-# See scripts/train_probe_opencua_32b.sh for env knobs.
+# See eval_awareness_experiments/scripts/probes/train_probe_opencua_32b.sh for env knobs.
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$REPO_ROOT"
 
 export HF_HOME=${HF_HOME:-/workspace/hf_cache}

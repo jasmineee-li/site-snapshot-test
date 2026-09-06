@@ -29,7 +29,6 @@ nohup*.out
 .codex
 .codex/
 eval_awareness_experiments/data/real/_auth/
-eval_awareness_experiments/results/
 read_logs/
 
 # Cloned external benchmark repos (BrowserGym, DoomArena, AgentDojo source,
@@ -41,4 +40,4 @@ external_benchmarks/
 logs/
 probes/trained/*
 !probes/trained/.gitkeep
-!probes/trained/manifest.yaml
+# one trained probe is tracked by force-add; new probe outputs stay ignored

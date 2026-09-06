@@ -96,7 +96,7 @@ dependencies = [
 # Local CUA model serving + DoM probe extraction.
 # Install with `uv sync --locked --extra cua --no-default-groups` on hosts that
 # will run probe training, steering, or vLLM serving for OpenCUA / GUI-Owl;
-# that is what `scripts/runpod_setup.sh` runs. `uv pip install -e '.[cua]'`
+# that is what `eval_awareness_experiments/scripts/runpod/setup.sh` runs. `uv pip install -e '.[cua]'`
 # resolves freshly and never reads `uv.lock` -- uv's pip interface does not --
 # so it is not the provisioning path.
 #
@@ -246,7 +246,7 @@ packages = ["probes", "models", "eval_awareness_experiments"]
 #       --python-platform x86_64-unknown-linux-gnu
 #
 # fails with "doesn't have a source distribution or wheel for the current
-# platform" -- which is the command `scripts/runpod_setup.sh` now runs on the
+# platform" -- which is the command `eval_awareness_experiments/scripts/runpod/setup.sh` now runs on the
 # GPU host. Lift the ceiling once a later release publishes that wheel.
 #
 # `required-environments` is the alternative uv's own error message suggests,
@@ -282,7 +282,8 @@ line-length = 100
 #    companion `extend-exclude`.
 #
 # The list mirrors [tool.ruff] `extend-exclude` below so both tools see the same
-# 96 first-party Python files. Without it, `black .` from the repo root rewrites
+# first-party Python files (count them with
+# `git ls-files '*.py' | grep -vE '^(AgentLab|vendors|packages|worldsim|webarena)/' | wc -l`). Without it, `black .` from the repo root rewrites
 # 21 files under `AgentLab/` — a vendored upstream tree CLAUDE.md marks
 # read-only — and 62 under `packages/`, which is formatted by `ruff format`
 # through its own config and never by Black.
@@ -303,8 +304,8 @@ force-exclude = '''
 '''
 
 # Root lint gate for the evaluation-awareness study tree
-# (`eval_awareness_experiments/`, `models/`, `probes/`, and the root-level
-# runner scripts). Black above stays authoritative for formatting; Ruff is
+# (`eval_awareness_experiments/`, `models/`, `probes/`, `scripts/`, and
+# `inspect_comparative.py`). Black above stays authoritative for formatting; Ruff is
 # lint-only here, so there is deliberately no [tool.ruff.format] section.
 #
 # Ruff resolves configuration hierarchically and does not merge a child config
@@ -394,8 +395,9 @@ known-first-party = [
 ]
 
 # Root type gate for the evaluation-awareness study tree. The scope below
-# resolves to exactly the same 96 first-party Python files that [tool.black]
-# `force-exclude` and [tool.ruff] `extend-exclude` select, so all three tools
+# resolves to exactly the same first-party Python files that [tool.black]
+# `force-exclude` and [tool.ruff] `extend-exclude` select (count them with
+# `git ls-files '*.py' | grep -vE '^(AgentLab|vendors|packages|worldsim|webarena)/' | wc -l`), so all three tools
 # agree on what "the first-party tree" means.
 #
 # Scope is stated positively with `files` rather than negatively with `exclude`

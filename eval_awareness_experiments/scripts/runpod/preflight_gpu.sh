@@ -10,7 +10,7 @@
 #   models/common/hf_openai_server.py   same pattern
 #
 # The run then completes on the wrong device and looks normal. This happened
-# once already, on driver 565.57.01 — see docs/HANDOFF_GUI_OWL_PROBE_RESULTS.md,
+# once already, on driver 565.57.01 — see eval_awareness_experiments/docs/handoffs/HANDOFF_GUI_OWL_PROBE_RESULTS.md,
 # gotcha 3. A 32B model on CPU wastes the whole booking.
 #
 # The floor is 580.95.05, not the 580.65.06 that CUDA 13.0 GA requires.
@@ -22,8 +22,8 @@
 # applies to every GPU host, not only hosts that install the `[cua]` extra.
 #
 # Usage:
-#   bash scripts/preflight_gpu.sh              # before training or serving
-#   bash scripts/preflight_gpu.sh --server     # again after a server starts
+#   bash eval_awareness_experiments/scripts/runpod/preflight_gpu.sh              # before training or serving
+#   bash eval_awareness_experiments/scripts/runpod/preflight_gpu.sh --server     # again after a server starts
 #
 # Set PREFLIGHT_ALLOW_CPU=1 to skip. Use that only on a machine you intend to
 # run on CPU.

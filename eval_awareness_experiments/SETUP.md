@@ -11,9 +11,10 @@ environment or install editable benchmark packages with an unscoped `pip`.
 From the repository root:
 
 ```bash
-uv sync --locked --group dev
-uv run playwright install chromium
-uv run python -m eval_awareness_experiments.run --help
+uv sync --locked --group dev && uv run playwright install chromium
+uv run python -m eval_awareness_experiments.run_safety_pipeline --help   # one benchmark x model x condition
+uv run python -m eval_awareness_experiments.run --config eval_awareness_experiments/configs/<experiment>.yaml
+uv run ruff check . && uv run black --check . && uv run mypy && uv run pytest
 ```
 
 Developer tooling is the PEP 735 `[dependency-groups]` `dev` group in the root
@@ -39,8 +40,10 @@ into a command, config committed to git, result, or handoff.
 
 ## Lint, format, types, and tests
 
-The root `[tool.ruff]` config lints this tree — `eval_awareness_experiments/`,
-`models/`, `probes/`, and the root-level runner scripts. Run it from the repository root before handing off a change:
+The root `[tool.ruff]` config lints this tree — `eval_awareness_experiments/`
+(including its `scripts/`), `models/`, `probes/`, the root `scripts/` gate
+router, and `inspect_comparative.py`. Run it from the repository root before
+handing off a change:
 
 ```bash
 uv run ruff check <changed-python-files>
@@ -52,8 +55,8 @@ excluded because `warp-taskgen` carries its own `[tool.ruff]` config and its
 own acceptance gate. Do not silence a finding with a blanket `ignore` when a
 targeted `per-file-ignores` entry or a `# noqa` with a reason will do.
 
-`[tool.mypy]` type-checks the same tree plus `scripts/` and
-`inspect_comparative.py`; `[tool.mypy] files` is the authoritative list. `[tool.pytest.ini_options]`
+`[tool.mypy]` type-checks the same tree; `[tool.mypy] files` is the
+authoritative list. `[tool.pytest.ini_options]`
 `testpaths` names the test modules that run on the locked environment alone.
 Run the remaining three gates from the repository root as well:
 

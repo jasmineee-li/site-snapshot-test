@@ -18,7 +18,7 @@
 # doomarena to skip cells 3 + 4 automatically.
 #
 # Usage:
-#   bash scripts/run_cua_eval_awareness_matrix.sh \
+#   bash eval_awareness_experiments/scripts/probes/run_cua_eval_awareness_matrix.sh \
 #       --model local/opencua-32b \
 #       --benchmark agentdojo \
 #       --probe-dir probes/trained/opencua-32b/ \
@@ -26,9 +26,9 @@
 #       --max-tasks 30
 #
 # Pre-reqs:
-#   1. vLLM server up for cells 1 + 2 (e.g. bash scripts/serve_opencua_32b.sh).
+#   1. vLLM server up for cells 1 + 2 (e.g. bash eval_awareness_experiments/scripts/serving/serve_opencua_32b.sh).
 #   2. Trained probe at --probe-dir for cells 3 + 4
-#      (bash scripts/train_probe_<model>.sh).
+#      (bash eval_awareness_experiments/scripts/probes/train_probe_<model>.sh).
 #   3. .env with OPENROUTER_API_KEY for the judges.
 #   4. For cells 3 + 4: at least one H100 free for HF model loading.
 #      (Can be the same GPU vLLM uses if you stop vLLM between rows; or
@@ -36,7 +36,7 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$REPO_ROOT"
 
 if [ -f .venv/bin/activate ]; then
