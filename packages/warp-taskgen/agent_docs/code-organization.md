@@ -147,6 +147,9 @@ Current and target ownership should stay explicit:
   `vendor_webarena.py`; non-scoring attempt telemetry belongs in
   `action_attempt.py`.
 - `warp_taskgen.browser_use`: Browser Use runtime concerns when that runner is split.
+- `warp_taskgen.runners`: the AgentLab runner keeps the agent wrapper, reset, and
+  task runner; its four `agentlab_*` siblings own sidecar request construction,
+  sidecar process and result parsing, sidecar redaction, and Phase 4 artifacts.
 - `warp_taskgen.sandbox_validator`: sandbox/profile/task validation when that module
   is split. This domain has a stricter Modal runtime contract than ordinary host
   modules and should not be mechanically extracted.
