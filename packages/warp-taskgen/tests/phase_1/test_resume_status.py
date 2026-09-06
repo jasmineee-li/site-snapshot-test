@@ -7,7 +7,11 @@ from warp_taskgen.adversarial_actions.capability_task_cards import (
     compile_capability_task_card_plan,
 )
 from warp_taskgen.cli.status import build_status_payload, format_status_payload
-from warp_taskgen.phases import phase_1_contract_bound_action_api, phase_1_generate_new_tasks
+from warp_taskgen.phase_1.contract_bound_action_api import (
+    contract_selection,
+    slot_compilation,
+)
+from warp_taskgen.phases import phase_1_generate_new_tasks
 from warp_taskgen.phases.phase_1_route_contracts import build_task_route_contracts
 
 
@@ -253,13 +257,13 @@ def _write_contract_bound_phase_1_run(run_root: Path) -> None:
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
     profile = _profile("gitlab")
     route_contracts = build_task_route_contracts(site_name="gitlab", profile=profile)
-    contract = phase_1_contract_bound_action_api.select_action_task_contracts(
+    contract = contract_selection.select_action_task_contracts(
         site_name="gitlab",
         task_card_plan=plan,
         route_contracts=route_contracts,
         requested_count=1,
     )[0]
-    task = phase_1_contract_bound_action_api.compile_action_task_slot(
+    task = slot_compilation.compile_action_task_slot(
         {
             "task_slug": "follow-up",
             "carrier_title": "Follow-up context",

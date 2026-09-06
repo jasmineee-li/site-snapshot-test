@@ -20,6 +20,11 @@ from warp_taskgen.modal_sandbox import (
     sandbox_paid_call_started,
     upload_to_volume,
 )
+from warp_taskgen.phase_1.contract_bound_action_api import (
+    contract_bound_prompt_inputs,
+    contract_bound_tool_schema_digest,
+    generate_contract_bound_action_tasks_api,
+)
 from warp_taskgen.phase_1.generated_workflows import (
     compile_model_owned_content,
     generation_prompt_addendum,
@@ -42,11 +47,6 @@ from warp_taskgen.phase_1.task_card_batch_generation import (
     collect_card_slices,
     rekey_sandbox_task_ids,
     task_card_generation_slices,
-)
-from warp_taskgen.phases.phase_1_contract_bound_action_api import (
-    contract_bound_prompt_inputs,
-    contract_bound_tool_schema_digest,
-    generate_contract_bound_action_tasks_api,
 )
 from warp_taskgen.phases.phase_1_route_contracts import (
     build_task_route_contracts,

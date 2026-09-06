@@ -14,8 +14,9 @@ from warp_taskgen.cost_tracker import (
 from warp_taskgen.cost_tracker import (
     tracker as cost_tracker,
 )
-from warp_taskgen.phases import (
-    phase_1_contract_bound_action_api as contract_api,
+from warp_taskgen.phase_1.contract_bound_action_api import SelectedActionTaskContract
+from warp_taskgen.phase_1.contract_bound_action_api import (
+    slot_generation as contract_api,
 )
 from warp_taskgen.phases import (
     phase_1_generate_new_tasks,
@@ -54,7 +55,7 @@ async def test_contract_bound_paid_response_is_persisted_before_slot_extraction(
 
     monkeypatch.setattr(contract_api, "_extract_slots", fail_after_paid_response)
 
-    contract = contract_api.SelectedActionTaskContract(
+    contract = SelectedActionTaskContract(
         site="gitlab",
         card_id="card-1",
         card={"id": "card-1"},
@@ -91,7 +92,7 @@ async def test_contract_bound_missing_usage_is_unknown_not_zero(monkeypatch, tmp
 
     monkeypatch.setattr(contract_api, "call_with_retry", fake_call_with_retry)
 
-    contract = contract_api.SelectedActionTaskContract(
+    contract = SelectedActionTaskContract(
         site="gitlab",
         card_id="card-1",
         card={"id": "card-1"},
@@ -134,7 +135,7 @@ async def test_contract_bound_partial_returned_usage_is_unknown_not_zero(
         return response
 
     monkeypatch.setattr(contract_api, "call_with_retry", fake_call_with_retry)
-    contract = contract_api.SelectedActionTaskContract(
+    contract = SelectedActionTaskContract(
         site="gitlab",
         card_id="card-1",
         card={"id": "card-1"},
@@ -171,7 +172,7 @@ async def test_contract_bound_paid_exception_records_one_unknown_observation(
         raise TimeoutError("provider unavailable")
 
     monkeypatch.setattr(contract_api, "call_with_retry", fail_call_with_retry)
-    contract = contract_api.SelectedActionTaskContract(
+    contract = SelectedActionTaskContract(
         site="gitlab",
         card_id="card-1",
         card={"id": "card-1"},
@@ -217,7 +218,7 @@ async def test_contract_bound_partial_errored_usage_is_unknown_not_zero(
         raise failure
 
     monkeypatch.setattr(contract_api, "call_with_retry", fail_call_with_retry)
-    contract = contract_api.SelectedActionTaskContract(
+    contract = SelectedActionTaskContract(
         site="gitlab",
         card_id="card-1",
         card={"id": "card-1"},
@@ -253,7 +254,7 @@ async def test_contract_bound_setup_exception_does_not_record_observation(
         "get_client",
         lambda: (_ for _ in ()).throw(RuntimeError("client setup failed")),
     )
-    contract = contract_api.SelectedActionTaskContract(
+    contract = SelectedActionTaskContract(
         site="gitlab",
         card_id="card-1",
         card={"id": "card-1"},
@@ -297,7 +298,7 @@ async def test_contract_bound_error_response_usage_is_retained(
         raise failure
 
     monkeypatch.setattr(contract_api, "call_with_retry", fail_call_with_retry)
-    contract = contract_api.SelectedActionTaskContract(
+    contract = SelectedActionTaskContract(
         site="gitlab",
         card_id="card-1",
         card={"id": "card-1"},

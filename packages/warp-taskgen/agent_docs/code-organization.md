@@ -54,6 +54,14 @@ Current and target ownership should stay explicit:
   exposure admissibility probe for a start pattern (pattern filtering, the
   sample task URL, instruction and editor arguments, and anchor merging). The
   siblings must not import the builder.
+- `warp_taskgen.phase_1.contract_bound_action_api`: contract-bound Phase 1
+  action-task generation split by behavior, with `contract_selection.py`
+  owning the deterministic card/route/anchor contracts and their anchor
+  validation, `instruction_validation.py` owning admission of model-emitted
+  slots and generated instructions, `prompt_rendering.py` owning prompt inputs
+  and messages, `slot_compilation.py` owning the compile of one accepted slot
+  into a host-owned benign task, and `slot_generation.py` owning the host API
+  call. The package `__init__` re-exports only the public entry points.
 - `warp_taskgen.adversarial_actions`: host-owned adversarial action behavior split by
   policies, allowed options, reward compilation, public mutation rewards,
   final-state compilers, and reward introspection. Import from the
