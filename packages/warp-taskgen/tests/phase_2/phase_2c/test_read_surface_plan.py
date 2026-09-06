@@ -5,8 +5,8 @@ from typing import Any
 import pytest
 
 from tests.sites.test_read_surface import FakeReadSurfaceSite
-from warp_taskgen.phase_2.phase_2c import _impl as phase_2c_impl
-from warp_taskgen.phase_2.phase_2c import probes
+from warp_taskgen.phase_2.phase_2c import probes, verifier
+from warp_taskgen.phase_2.phase_2c.probe_bundle import Phase2cProbeBundle
 from warp_taskgen.runtime_composition import classifieds_listing_reply_poc
 from warp_taskgen.seeding import SeedSiteRegistration, SeedSiteRegistry
 from warp_taskgen.sites import ReadbackDecision, ReadbackObservation, SiteCatalog
@@ -289,9 +289,8 @@ async def test_classifieds_composition_missing_reader_auth_skips_seed_and_render
         render_called = True
         raise AssertionError(f"render ran without reader auth: {args!r} {kwargs!r}")
 
-    monkeypatch.setattr(phase_2c_impl, "apply_data_seed_async", should_not_seed)
-    monkeypatch.setattr(phase_2c_impl, "_run_render_check", should_not_render)
-    result = await phase_2c_impl._verify_one(
+    bundle = Phase2cProbeBundle.default(apply_seed=should_not_seed, render_check=should_not_render)
+    result = await verifier._verify_one(
         {
             "id": "classifieds-reader-auth-missing",
             "site": "classifieds",
@@ -324,6 +323,7 @@ async def test_classifieds_composition_missing_reader_auth_skips_seed_and_render
         seed_registry=composition.seed_registry,
         site_catalog=composition.site_catalog,
         runtime_composition=composition,
+        probes=bundle,
     )
 
     assert result["feasibility"]["status"] == "infeasible"
@@ -365,13 +365,15 @@ async def test_classifieds_composition_cleanup_failure_invalidates_phase2c_verif
     async def fake_reachability(**kwargs: Any):
         return None
 
-    monkeypatch.setattr(phase_2c_impl, "apply_data_seed_async", fake_seed)
-    monkeypatch.setattr(phase_2c_impl, "_run_render_check", fake_render)
-    monkeypatch.setattr(phase_2c_impl, "_run_reachability_check", fake_reachability)
+    bundle = Phase2cProbeBundle.default(
+        apply_seed=fake_seed,
+        render_check=fake_render,
+        reachability_check=fake_reachability,
+    )
 
     warnings: list[str] = []
     with pytest.raises(RuntimeError, match="cleanup_failed"):
-        await phase_2c_impl._verify_one(
+        await verifier._verify_one(
             {
                 "id": "classifieds-cleanup-failure",
                 "site": "classifieds",
@@ -401,6 +403,7 @@ async def test_classifieds_composition_cleanup_failure_invalidates_phase2c_verif
             seed_registry=composition.seed_registry,
             site_catalog=composition.site_catalog,
             runtime_composition=composition,
+            probes=bundle,
         )
     assert warnings and "cleanup_failed" in warnings[0]
 
@@ -657,16 +660,15 @@ async def test_verify_one_threads_per_run_seed_and_site_catalogs(
 
     async def fake_render_check(**kwargs: Any):
         captured["site_catalog"] = kwargs.get("site_catalog")
-        return phase_2c_impl.RenderOutcome.passed(
+        return probes.RenderOutcome.passed(
             url="https://fake.local/messages/17",
             signature="fake payload body",
             snippet="fake payload body",
         )
 
-    monkeypatch.setattr(phase_2c_impl, "apply_data_seed_async", fake_apply)
-    monkeypatch.setattr(phase_2c_impl, "_run_render_check", fake_render_check)
+    bundle = Phase2cProbeBundle.default(apply_seed=fake_apply, render_check=fake_render_check)
 
-    result = await phase_2c_impl._verify_one(
+    result = await verifier._verify_one(
         {
             "id": "fake-task",
             "site": "fake",
@@ -694,6 +696,7 @@ async def test_verify_one_threads_per_run_seed_and_site_catalogs(
         browser=object(),
         seed_registry=seed_registry,
         site_catalog=site_catalog,
+        probes=bundle,
     )
 
     assert result["feasibility"]["status"] == "verified"

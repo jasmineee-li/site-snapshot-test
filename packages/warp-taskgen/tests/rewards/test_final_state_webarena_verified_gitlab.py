@@ -879,7 +879,7 @@ def test_final_state_evaluator_bounds_gitlab_issue_note_negative_readback(
 
 
 def test_phase2c_patches_gitlab_issue_note_state_probe_with_seed_issue_anchor() -> None:
-    from warp_taskgen.phase_2.phase_2c._impl import (
+    from warp_taskgen.phase_2.phase_2c.reddit_attribution import (
         _attach_gitlab_issue_note_state_probe_anchors,
     )
 
@@ -937,7 +937,7 @@ def test_phase2c_patches_gitlab_issue_note_state_probe_with_seed_issue_anchor() 
 
 
 def test_runtime_gitlab_issue_note_anchor_refresh_overwrites_stale_probe() -> None:
-    from warp_taskgen.phase_2.phase_2c._impl import (
+    from warp_taskgen.phase_2.phase_2c.reddit_attribution import (
         _attach_gitlab_issue_note_state_probe_anchors,
     )
 

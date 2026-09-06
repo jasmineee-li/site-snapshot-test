@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -20,20 +20,26 @@ from warp_taskgen.phase_2.phase_2c.exposure import (
 from warp_taskgen.phases.phase_2_reachability import (
     ReachabilityOutcome,
     derive_second_witness,
-    verify_reachable,
 )
+from warp_taskgen.phases.phase_2_reachability import verify_reachable as _verify_reachable
 from warp_taskgen.phases.phase_2_render_check import (
     RenderOutcome,
     _render_check_inputs_from_metadata,
     render_signature,
     render_signature_selection,
-    verify_seed_renders,
 )
+from warp_taskgen.phases.phase_2_render_check import verify_seed_renders as _verify_seed_renders
 from warp_taskgen.seeding.site_contracts import EditorSeedResult
 from warp_taskgen.sites import SiteCatalog, SiteTargetingDefinitionError, default_catalog
 from warp_taskgen.sites.read_surface import ReadSurfacePlanFailure
 
 logger = logging.getLogger(__name__)
+
+# Leaf browser probes. The verification loop injects them explicitly through
+# ``Phase2cProbeBundle``; they stay module attributes so leaf-level tests can
+# still patch ``probes.verify_seed_renders`` / ``probes.verify_reachable``.
+verify_reachable = _verify_reachable
+verify_seed_renders = _verify_seed_renders
 
 # Phase 2c render verification is a hard gate by default. The env-var opt-out
 # is intended for unit tests that mock the seed flow and don't need a browser,
@@ -71,41 +77,6 @@ _PROBE_LAUNCH_ARGS: tuple[str, ...] = (
     "--disable-gpu",
     "--no-sandbox",
 )
-
-_PATCHABLE_GLOBAL_NAMES = (
-    "ReachabilityOutcome",
-    "RenderOutcome",
-    "derive_second_witness",
-    "infer_benchmark_name",
-    "render_signature",
-    "render_signature_selection",
-    "verify_reachable",
-    "verify_seed_renders",
-    "_auth_probe_failure_kind",
-    "_first_rendered_payload",
-    "_instance_benchmark_or_none",
-    "_phase4_exposure_inadmissible_reason",
-    "_reachability_resource_for_task",
-    "_render_check_inputs_from_metadata",
-    "_required_url_token",
-    "_resolve_benign_browser_context_auth",
-    "_selected_rendered_payload",
-    "_BROWSER_PROBE_CAP",
-    "_PROBE_LAUNCH_ARGS",
-    "_RENDER_UNVERIFIED_KIND",
-    "_RENDER_UNVERIFIED_RETRY_DELAY_S",
-    "_SKIP_RENDER_CHECK_ENV",
-    "logger",
-)
-
-
-def _patchable_globals() -> dict[str, Any]:
-    return {name: globals()[name] for name in _PATCHABLE_GLOBAL_NAMES}
-
-
-def _restore_patchable_globals(values: dict[str, Any]) -> None:
-    for name, value in values.items():
-        globals()[name] = value
 
 
 async def _ensure_playwright_chromium_ready(async_playwright_factory: Any) -> None:
@@ -169,13 +140,23 @@ async def _run_reachability_check(
     metadata: dict[str, Any],
     instance: dict[str, Any],
     render_outcome: RenderOutcome,
+    verify_reachable: Callable[..., Awaitable[ReachabilityOutcome]] | None = None,
 ) -> ReachabilityOutcome:
-    """Run the Option A reachability probe guarded by the same semaphore."""
+    """Run the Option A reachability probe guarded by the same semaphore.
+
+    ``verify_reachable`` is the leaf browser probe; the verification loop
+    injects it through
+    :class:`~warp_taskgen.phase_2.phase_2c.probe_bundle.Phase2cProbeBundle`.
+    ``None`` binds this module's attribute at call time like the other leaf
+    helpers below.
+    """
 
     reachability_outcome_cls = ReachabilityOutcome
     derive_second_witness_fn = derive_second_witness
     render_signature_fn = render_signature
-    verify_reachable_fn = verify_reachable
+    verify_reachable_fn = (
+        verify_reachable if verify_reachable is not None else globals()["verify_reachable"]
+    )
     auth_probe_failure_kind_fn = _auth_probe_failure_kind
     first_rendered_payload_fn = _first_rendered_payload
     phase4_exposure_inadmissible_reason_fn = _phase4_exposure_inadmissible_reason
@@ -268,12 +249,24 @@ async def _run_render_check(
     instance: dict[str, Any],
     site_catalog: SiteCatalog | None = None,
     reader_preflight: Any | None = None,
+    verify_seed_renders: Callable[..., Awaitable[RenderOutcome]] | None = None,
 ) -> RenderOutcome:
+    """Run the render/readback probe for one seeded task.
+
+    ``verify_seed_renders`` is the leaf browser probe; the verification loop
+    injects it through
+    :class:`~warp_taskgen.phase_2.phase_2c.probe_bundle.Phase2cProbeBundle`.
+    ``None`` binds this module's attribute at call time like the other leaf
+    helpers below.
+    """
+
     render_outcome_cls = RenderOutcome
     render_check_inputs_from_metadata_fn = _render_check_inputs_from_metadata
     render_signature_fn = render_signature
     render_signature_selection_fn = render_signature_selection
-    verify_seed_renders_fn = verify_seed_renders
+    verify_seed_renders_fn = (
+        verify_seed_renders if verify_seed_renders is not None else globals()["verify_seed_renders"]
+    )
     auth_probe_failure_kind_fn = _auth_probe_failure_kind
     resolve_benign_browser_context_auth_fn = _resolve_benign_browser_context_auth
     logger_obj = logger
@@ -485,9 +478,7 @@ __all__ = [
     "_auth_probe_failure_kind",
     "_ensure_playwright_chromium_ready",
     "_instance_benchmark_or_none",
-    "_patchable_globals",
     "_resolve_benign_browser_context_auth",
-    "_restore_patchable_globals",
     "_run_reachability_check",
     "_run_render_check",
 ]

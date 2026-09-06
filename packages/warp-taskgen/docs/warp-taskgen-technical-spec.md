@@ -1623,8 +1623,9 @@ GitLab render verification may use resource-specific read-your-write probes as a
 - `phase 2 --feasibility-only` (or equivalently `phase 2c`): re-run 2c against an existing `logs/phase_2/adversarial_tasks.json` without regenerating 2a or 2b output.
 
 **Entry point.** The canonical Phase 2c implementation lives under
-`warp_taskgen/phase_2/phase_2c/` (`stage.py`, `runner.py`, `config.py`,
-`artifacts.py`, and `_impl.py`). The public runner shape is:
+`warp_taskgen/phase_2/phase_2c/` (`stage.py`, `runner.py`, `verifier.py`,
+`probe_bundle.py`, `config.py`, and `artifacts.py`). The public runner shape
+is:
 
     async def verify_feasibility(
         tasks_path: Path,
@@ -1643,6 +1644,7 @@ GitLab render verification may use resource-specific read-your-write probes as a
         verifier_version: str = "phase_2c-verifier-v1",
         policy_version: str = "phase_2c-policy-catalog-v1",
         catalog_version: str = "phase_2c-site-catalog-v1",
+        probes: Phase2cProbeBundle | None = None,
     ) -> FeasibilityReport: ...
 
     @dataclass(frozen=True)
@@ -1656,6 +1658,13 @@ GitLab render verification may use resource-specific read-your-write probes as a
         per_site_counts: dict[str, dict[str, int]]
         phase_2_status: str | None
         reused_checkpoints: int
+
+`probes` is a frozen `Phase2cProbeBundle` carrying every side-effecting
+collaborator the loop calls (token acquisition, source-data preflight, seed
+application, render and reachability probes with their leaf browser checks,
+retry sleep, host fingerprint, Chromium readiness, and the Playwright
+factory). `None` selects `Phase2cProbeBundle.default()`, the production
+wiring; tests inject fakes through the bundle instead of patching the loop.
 
 Per-task execution reuses the existing primitives: the verifier calls
 `apply_data_seed_async` from `warp_taskgen.seeding` (implemented in

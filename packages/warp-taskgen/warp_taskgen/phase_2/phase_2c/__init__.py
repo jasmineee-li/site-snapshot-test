@@ -27,6 +27,7 @@ from warp_taskgen.phase_2.phase_2c.constants import (
     FAILPOINT_REPORT,
 )
 from warp_taskgen.phase_2.phase_2c.outcomes import skipped_task_stanza
+from warp_taskgen.phase_2.phase_2c.probe_bundle import Phase2cProbeBundle
 from warp_taskgen.phase_2.phase_2c.runner import verify_feasibility
 from warp_taskgen.phase_2.phase_2c.types import FeasibilityReport
 
@@ -44,6 +45,7 @@ __all__ = [
     "CheckpointValidationError",
     "FeasibilityReport",
     "Phase2cCheckpointContext",
+    "Phase2cProbeBundle",
     "checkpoint_context",
     "checkpoint_is_fresh",
     "checkpoint_path",

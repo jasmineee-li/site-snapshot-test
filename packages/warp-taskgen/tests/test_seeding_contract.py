@@ -9,7 +9,7 @@ Covers:
   ``benign_target_resource`` or with a null kind.
 * :func:`warp_taskgen.seeding._collect_benign_tokens` walks nested values
   correctly.
-* :func:`warp_taskgen.phase_2.phase_2c._impl._verify_one` categorizes
+* :func:`warp_taskgen.phase_2.phase_2c.verifier._verify_one` categorizes
   ``UnboundTokenError`` as ``error.kind = "contract_violation"``,
   distinct from ``"schema_mismatch"``.
 """
@@ -195,6 +195,6 @@ class TestFeasibilityCategorization:
         # guard — a full integration test would require a live instance.
         from pathlib import Path
 
-        src = Path("warp_taskgen/phase_2/phase_2c/_impl.py").read_text()
+        src = Path("warp_taskgen/phase_2/phase_2c/verifier.py").read_text()
         assert "except UnboundTokenError" in src
         assert 'kind="contract_violation"' in src

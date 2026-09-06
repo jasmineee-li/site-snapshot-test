@@ -52,6 +52,7 @@ import hashlib
 import json
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
@@ -65,6 +66,7 @@ from warp_taskgen.phase_2.phase_2c.policy import (
     default_feasibility_policy_catalog,
     resolve_feasibility_policy,
 )
+from warp_taskgen.phase_2.phase_2c.probes import _instance_benchmark_or_none
 from warp_taskgen.phase_2.phase_2c.webarena_policy import (
     DEFAULT_LOGIN_REDIRECT_BAILOUT_RATIO,
     classify_webarena_probe,
@@ -72,39 +74,6 @@ from warp_taskgen.phase_2.phase_2c.webarena_policy import (
 from warp_taskgen.phases.phase_2_reachability import resolve_start_url
 
 logger = logging.getLogger(__name__)
-
-_PREFLIGHT_AUTH_REFRESH_LOCKS: dict[str, asyncio.Lock] = {}
-_agent_auth_type = _auth_preflight._agent_auth_type
-_preflight_request_context_options = _auth_preflight._preflight_request_context_options
-_PATCHABLE_GLOBAL_NAMES = (
-    "_PREFLIGHT_AUTH_REFRESH_LOCKS",
-    "_agent_auth_type",
-    "_preflight_request_context_options",
-    "infer_benchmark_name",
-    "logger",
-)
-
-
-def _patchable_globals() -> dict[str, Any]:
-    return {name: globals()[name] for name in _PATCHABLE_GLOBAL_NAMES}
-
-
-def _restore_patchable_globals(values: dict[str, Any]) -> None:
-    for name, value in values.items():
-        globals()[name] = value
-
-
-def _instance_benchmark_or_none(instance: dict[str, Any]) -> str | None:
-    values = [
-        instance.get("benchmark"),
-        instance.get("benchmark_name"),
-        instance.get("benchmark_adapter"),
-    ]
-    try:
-        return infer_benchmark_name(values)
-    except ValueError:
-        return None
-
 
 # Default knob values. The concurrency sits safely inside the replica's
 # 16-HTTP-slot puma budget; the timeout is shorter than the real probe's
@@ -580,8 +549,18 @@ async def _run_preflight_and_filter_raw(
     instances_by_site: dict[str, list[dict[str, Any]]],
     benchmark_root: Path | None = None,
     feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
+    probe_targets: Callable[..., Awaitable[tuple[list[dict[str, Any]], list[dict[str, Any]]]]] = (
+        preflight_benign_targets
+    ),
+    self_test_auth: Callable[..., Awaitable[PreflightClassification | None]] = (
+        self_test_preflight_auth
+    ),
 ) -> list[dict[str, Any]]:
     """Probe every task and mutate ``raw`` in place to drop quarantined tasks.
+
+    ``probe_targets`` and ``self_test_auth`` are the HTTP probe seams
+    (``preflight_benign_targets`` and ``self_test_preflight_auth`` by
+    default); tests pass fakes instead of patching this module.
 
     Uses a lazy Playwright ``APIRequestContext`` per (site, auth-context)
     pair — shares Playwright's TLS/proxy setup with the render_check path
@@ -603,6 +582,9 @@ async def _run_preflight_and_filter_raw(
 
     pw_handle = await async_playwright().start()
     contexts_created: list[Any] = []
+    # Instances are resolved sequentially below, so one lock per (site, URL)
+    # scoped to this call is enough to serialize a storage_state refresh.
+    auth_refresh_locks: dict[str, asyncio.Lock] = {}
 
     async def _factory(context_options: dict[str, Any] | None) -> Any:
         kwargs: dict[str, Any] = {}
@@ -634,7 +616,7 @@ async def _run_preflight_and_filter_raw(
             }
             if feasibility_policy_catalog is not None:
                 kwargs["feasibility_policy_catalog"] = feasibility_policy_catalog
-            return await self_test_preflight_auth(
+            return await self_test_auth(
                 **kwargs,
             )
         finally:
@@ -661,7 +643,7 @@ async def _run_preflight_and_filter_raw(
             auth_path_kwargs["feasibility_policy_catalog"] = feasibility_policy_catalog
         if (
             auth_self_test_path(site, **auth_path_kwargs) is None
-            or _agent_auth_type(instance) != "storage_state"
+            or _auth_preflight._agent_auth_type(instance) != "storage_state"
         ):
             return context_options, skip_reason
 
@@ -696,7 +678,7 @@ async def _run_preflight_and_filter_raw(
             )
 
         lock_key = f"{site}:{instance.get('site_url')}"
-        lock = _PREFLIGHT_AUTH_REFRESH_LOCKS.setdefault(lock_key, asyncio.Lock())
+        lock = auth_refresh_locks.setdefault(lock_key, asyncio.Lock())
         async with lock:
             from warp_taskgen.phases.phase_0d_auth_bootstrap import (
                 AuthBootstrapError,
@@ -734,7 +716,7 @@ async def _run_preflight_and_filter_raw(
                 updated_auth["storage_state"] = updated_storage_state
                 instance["agent_auth"] = updated_auth
 
-        refreshed_options, refreshed_skip = _preflight_request_context_options(
+        refreshed_options, refreshed_skip = _auth_preflight._preflight_request_context_options(
             instance,
             benchmark_root=benchmark_root,
         )
@@ -787,7 +769,7 @@ async def _run_preflight_and_filter_raw(
             resolved_instances: list[dict[str, Any]] = []
             for instance in site_instances:
                 resolved = dict(instance)
-                context_options, skip_reason = _preflight_request_context_options(
+                context_options, skip_reason = _auth_preflight._preflight_request_context_options(
                     instance,
                     benchmark_root=benchmark_root,
                 )
@@ -813,7 +795,7 @@ async def _run_preflight_and_filter_raw(
         }
         if feasibility_policy_catalog is not None:
             preflight_kwargs["feasibility_policy_catalog"] = feasibility_policy_catalog
-        keep, dropped = await preflight_benign_targets(raw, **preflight_kwargs)
+        keep, dropped = await probe_targets(raw, **preflight_kwargs)
     finally:
         for ctx in contexts_created:
             try:
