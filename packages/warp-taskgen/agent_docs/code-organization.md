@@ -26,7 +26,13 @@ Current and target ownership should stay explicit:
   verification contracts, and editor argument templates.
 - `warp_taskgen.phase_4`: adversarial execution, PVPO placement, postprocess judges,
   strategy variation, intermediate ASR post-hoc judging, resume, and results.
-  Phase 4 must not own benign task eligibility.
+  Phase 4 must not own benign task eligibility. The eval-awareness iterator keeps
+  the sequential loop in `eval_awareness_iterator.py` and reads three siblings:
+  `eval_awareness_cue_diagnosis.py` owns iteration triggers, protected witnesses,
+  and cue-diagnosis normalization; `eval_awareness_iteration_feedback.py` owns
+  prior-iteration feedback and contract-QA rejection; and
+  `eval_awareness_iterator_budget.py` owns budget accounting, iteration selection,
+  stop reasons, and the checkpoint-to-result projection.
 - `warp_taskgen.phase_4.result_summary`: Phase 4 result aggregation split by final
   metrics, task metadata labels, inspection index rows, action-tier metrics,
   variant regeneration audit, and top-level summary assembly.

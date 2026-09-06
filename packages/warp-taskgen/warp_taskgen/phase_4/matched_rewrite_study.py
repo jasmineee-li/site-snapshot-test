@@ -339,7 +339,7 @@ def matched_rewrite_ineligibility(baseline: AdmittedBaseline) -> str | None:
 def _select(baseline: AdmittedBaseline, rows: dict[Arm, dict[str, object]]) -> dict[str, object]:
     """Use the existing eval-awareness iterator selector for both arms."""
 
-    from warp_taskgen.phase_4.eval_awareness_iterator import _best_iterator_result
+    from warp_taskgen.phase_4.eval_awareness_iterator_budget import _best_iterator_result
 
     selected: dict[str, object] = {}
     for arm in ARMS:
