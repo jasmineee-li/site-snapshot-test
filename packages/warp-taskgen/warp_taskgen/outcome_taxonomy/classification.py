@@ -256,23 +256,6 @@ def _clamp_confidence_for_c1_signal(confidence: str, signals: TrajectorySignals)
     return confidence
 
 
-# Known A1 termination states produced by ``_resolve_termination_state``.
-# _classify_task_broke exhaustively covers these in Rules 1-5; any value
-# outside this set is a bug (either in A1 resolution or in the caller),
-# not a legitimate classification case — routed to task_broke_other with
-# low confidence so the sentinel tripwire fires loudly.
-_KNOWN_A1_VALUES: frozenset[str] = frozenset(
-    {
-        "worker_timeout",
-        "agent_exception",
-        "done_claimed_success",
-        "done_claimed_failure",
-        "hit_max_steps",
-        "done_no_answer",
-    }
-)
-
-
 def _classify_task_broke(signals: TrajectorySignals, task: dict[str, Any]) -> tuple[str, str, str]:
     """Apply the task_broke decision tree (handoff §6).
 
@@ -350,8 +333,10 @@ def _classify_task_broke(signals: TrajectorySignals, task: dict[str, Any]) -> tu
 
     # Tripwire: A1 value outside the documented enum. Real data never
     # reaches here because ``_resolve_termination_state`` returns only
-    # the six values in ``_KNOWN_A1_VALUES``. If you see this in a log,
-    # A1 resolution drifted and the taxonomy needs an update.
+    # ``worker_timeout``, ``agent_exception``, ``done_claimed_success``,
+    # ``done_claimed_failure``, ``hit_max_steps``, and ``done_no_answer``.
+    # If you see this in a log, A1 resolution drifted and the taxonomy
+    # needs an update.
     logger.error(
         "taxonomy tripwire: unknown A1 value %r — extend _classify_task_broke",
         signals.A1,

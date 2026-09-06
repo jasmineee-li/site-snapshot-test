@@ -148,7 +148,6 @@ def _sample_instructions(*, listing: bool, local_kind: str) -> dict[str, str]:
         note = "Read the latest comment on this item and summarize the note content."
     instructions = {
         "create_issue_description": description,
-        "create_mr_description": description,
         "create_issue_note": note,
         "create_mr_note": note,
     }

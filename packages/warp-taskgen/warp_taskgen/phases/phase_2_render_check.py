@@ -95,7 +95,6 @@ _GITLAB_REWRITTEN_TEXT_TOKEN_RE = re.compile(
     r"|"
     r"(?<![\w/])@[a-z0-9_.-]+"
 )
-_HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 
 def _trim_signature_candidate(text: str) -> str:
