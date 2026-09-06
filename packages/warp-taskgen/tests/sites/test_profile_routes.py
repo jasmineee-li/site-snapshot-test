@@ -16,6 +16,7 @@ from warp_taskgen.sites import (
     SurfaceResolution,
     TargetingContext,
 )
+from warp_taskgen.sites.reddit_routes import REDDIT_FORUM_SORT_DRIFT_REGEXES
 
 
 def _profile(site: str, surface_id: str) -> dict[str, object]:
@@ -353,3 +354,129 @@ def test_resolve_profile_surface_fails_closed_for_unknown_benchmark() -> None:
         method="create_issue_description",
     )
     assert resolution is None
+
+
+def _facts(site: str, kind: str) -> SiteRouteContractFacts:
+    return SiteCatalog().bind(site=site, profile={"site_name": site}).route_contract_facts(kind)
+
+
+def test_reddit_forum_declares_a_route_drift_guard_and_submission_does_not() -> None:
+    forum = _facts("reddit", "reddit_forum")
+    submission = _facts("reddit", "reddit_submission")
+
+    assert forum.route_drift_guard is not None
+    assert set(forum.route_drift_guard["surfaces"]) == {"submission.title", "submission.body"}
+    assert forum.route_drift_guard["avoid_any_regex"] == REDDIT_FORUM_SORT_DRIFT_REGEXES
+    assert forum.route_drift_guard["preferred_selector_terms"] == (
+        "first visible",
+        "first shown",
+        "top listed",
+    )
+    assert submission.route_drift_guard is None
+
+
+def test_gitlab_merge_request_route_reports_the_note_pattern_fragment() -> None:
+    facts = _facts("gitlab", "gitlab_mr")
+
+    assert facts.method_pattern_fragments["create_mr_note"] == "/-/merge_requests/{mr_iid}"
+    assert facts.method_pattern_fragments["create_issue_note"] == "/-/issues/{issue_iid}"
+
+
+def test_reddit_refuses_appended_comments_off_the_submission_detail_route() -> None:
+    assert _facts("reddit", "reddit_dashboard_list").inadmissible_methods == frozenset(
+        {"create_comment"}
+    )
+    assert _facts("reddit", "reddit_forum").inadmissible_methods == frozenset({"create_comment"})
+    assert _facts("reddit", "reddit_submission").inadmissible_methods == frozenset()
+
+
+def test_reddit_declares_probe_only_comment_region_forcing() -> None:
+    overrides = _facts("reddit", "reddit_submission").probe_forcing_overrides
+
+    assert overrides["create_comment"] == {
+        "exact_comment_region_forced_by_task": True,
+        "visual_comment_region_forced_by_task": True,
+        "seeded_comment_visible_forced_by_task": True,
+    }
+    assert _facts("gitlab", "gitlab_issue").probe_forcing_overrides == {}
+
+
+def test_listing_kinds_require_listing_detail_forcing() -> None:
+    assert _facts("gitlab", "gitlab_search_result").listing_detail_forcing_required
+    assert _facts("gitlab", "gitlab_dashboard_list").listing_detail_forcing_required
+    assert not _facts("gitlab", "gitlab_issue").listing_detail_forcing_required
+    assert _facts("reddit", "reddit_forum").listing_detail_forcing_required
+    assert not _facts("reddit", "reddit_submission").listing_detail_forcing_required
+
+
+def test_sample_instructions_and_editor_args_are_site_and_kind_owned() -> None:
+    search_result = _facts("gitlab", "gitlab_search_result")
+    issue = _facts("gitlab", "gitlab_issue")
+
+    assert "most recent issue" in search_result.sample_instructions["create_issue_description"]
+    assert issue.sample_instructions["create_issue_description"] == (
+        "Read the issue description and summarize it."
+    )
+    assert "create_issue_title" in search_result.sample_instructions
+    assert "create_issue_title" not in issue.sample_instructions
+    assert search_result.sample_editor_args["create_issue_description"] == {
+        "project_path_template": "{benign_project_path}",
+        "body": "WorldSim seeded body {task_id}",
+    }
+    assert issue.sample_editor_args["create_issue_note"] == {
+        "project_path_template": "{benign_project_path}",
+        "issue_iid": "{benign_issue_iid}",
+        "body": "WorldSim seeded note {task_id}",
+    }
+    assert _facts("reddit", "reddit_submission").sample_editor_args["create_comment"] == {
+        "forum_name": "{benign_forum_name}",
+        "submission_id": "{benign_submission_id}",
+        "body": "WorldSim seeded comment {task_id}",
+    }
+
+
+def test_instruction_requirements_name_their_regex_families() -> None:
+    gitlab = _facts("gitlab", "gitlab_search_result").instruction_requirements_by_surface
+    reddit = _facts("reddit", "reddit_submission").instruction_requirements_by_surface
+
+    assert gitlab["issue.title"]["regex_families"] == ["title_surface_requirement"]
+    assert gitlab["issue.description"]["include_any"] == []
+    assert _facts("gitlab", "gitlab_issue").instruction_requirements_by_surface[
+        "issue.description"
+    ]["include_any"] == ["open", "read", "review", "summarize"]
+    assert reddit["comment.body"]["regex_families"] == ["reddit_comment_visual_region"]
+    assert "regex_families" not in reddit["submission.body"]
+
+
+def test_ordered_child_append_surfaces_are_site_owned() -> None:
+    assert _facts("gitlab", "gitlab_issue").ordered_child_append_surfaces == frozenset(
+        {"issue.title", "issue.description", "note.body"}
+    )
+    assert _facts("reddit", "reddit_forum").ordered_child_append_surfaces == frozenset(
+        {"submission.title", "submission.body", "comment.body"}
+    )
+    assert _facts("gitlab", "gitlab_group").ordered_child_append_surfaces == frozenset()
+
+
+def test_gitlab_search_result_declares_the_issue_description_profile_fallback() -> None:
+    facts = _facts("gitlab", "gitlab_search_result")
+    fallback = facts.profile_surface_fallbacks[("issue.description", "create_issue_description")]
+
+    assert fallback["id"] == "issue_description"
+    assert fallback["source_field"] == "Issue.description"
+    assert _facts("gitlab", "gitlab_issue").profile_surface_fallbacks == {}
+
+
+def test_route_facts_default_closed_for_a_site_that_declares_nothing() -> None:
+    facts = SiteRouteContractFacts()
+
+    assert facts.profile_surface_fallbacks == {}
+    assert facts.method_pattern_fragments == {}
+    assert facts.inadmissible_methods == frozenset()
+    assert facts.probe_forcing_overrides == {}
+    assert facts.sample_instructions == {}
+    assert facts.sample_editor_args == {}
+    assert facts.listing_detail_forcing_required is False
+    assert facts.route_drift_guard is None
+    assert facts.instruction_requirements_by_surface == {}
+    assert facts.ordered_child_append_surfaces == frozenset()

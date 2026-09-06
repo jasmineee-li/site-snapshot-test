@@ -29,6 +29,23 @@ REMOVED_PYTHON_NAMES = (
     "SiteDoctorRequest",
     "ActiveSitePolicy",
 )
+SITE_NEUTRAL_SOURCES = ("phases/phase_1_route_contracts.py",)
+SITE_LITERALS = ('"gitlab"', '"reddit"')
+SITE_KIND_LITERALS = (
+    "gitlab_issue",
+    "gitlab_mr",
+    "gitlab_search_result",
+    "gitlab_dashboard_list",
+    "gitlab_user_profile",
+    "gitlab_snippet",
+    "gitlab_snippets_index",
+    "gitlab_project_milestone",
+    "gitlab_project_labels",
+    "gitlab_group",
+    "reddit_submission",
+    "reddit_forum",
+    "reddit_dashboard_list",
+)
 GENERIC_SOURCE_ROOTS = (
     "phase_1",
     "phase_2",
@@ -170,6 +187,22 @@ def test_run_definition_vocabulary_remains_run_owned() -> None:
         "legacy",
     }
     assert "site_composition_digest" not in json.dumps(definition.to_dict(), sort_keys=True)
+
+
+def site_literal_offenders(source: str) -> list[str]:
+    """Return the Site name and Site kind literals present in one module."""
+
+    return sorted(token for token in (*SITE_LITERALS, *SITE_KIND_LITERALS) if token in source)
+
+
+def test_phase_1_route_builder_stays_site_neutral() -> None:
+    offenders = {
+        relative: found
+        for relative in SITE_NEUTRAL_SOURCES
+        if (found := site_literal_offenders((SOURCE_ROOT / relative).read_text(encoding="utf-8")))
+    }
+
+    assert offenders == {}, f"Site rules remain in the generic route builder: {offenders!r}"
 
 
 def test_synthetic_site_noun_stays_out_of_generic_production_modules() -> None:
