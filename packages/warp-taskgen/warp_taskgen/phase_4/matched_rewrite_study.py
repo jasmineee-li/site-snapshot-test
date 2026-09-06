@@ -25,11 +25,15 @@ from warp_taskgen.phase_4.matched_rewrite_contracts import (
 )
 from warp_taskgen.phase_4.matched_rewrite_identity import (
     STUDY_ID,
-    STUDY_SCHEMA_VERSION,
     IncompatibleMatchedRewriteResume,
+    assignment_projection,
     checkpoint_payload,
+    study_schema_version,
     validate_baseline_binding,
     validate_checkpoint,
+)
+from warp_taskgen.phase_4.matched_rewrite_identity import (
+    STUDY_SCHEMA_VERSION as STUDY_SCHEMA_VERSION,
 )
 
 ARMS: tuple[Arm, Arm] = ("tp_guided", "ordinary")
@@ -404,12 +408,14 @@ async def run_matched_rewrite_study(
         return {
             "status": "resume_accepted",
             "study_id": STUDY_ID,
-            "schema_version": STUDY_SCHEMA_VERSION,
+            "schema_version": study_schema_version(settings),
+            **assignment_projection(settings),
         }
 
     result: dict[str, object] = {
         "study_id": STUDY_ID,
-        "schema_version": STUDY_SCHEMA_VERSION,
+        "schema_version": study_schema_version(settings),
+        **assignment_projection(settings),
         "condition": settings.condition,
         "schedule": settings.schedule,
         "call_policy": call_policy.to_dict(),
@@ -432,7 +438,10 @@ async def run_matched_rewrite_study(
     else:
         if attempt_provider is not None:
             attempt_provider.bind(baseline.binding)
-        rows = {arm: await _run_arm(baseline, settings, arm, attempt_provider) for arm in ARMS}
+        rows = {
+            arm: await _run_arm(baseline, settings, arm, attempt_provider)
+            for arm in (settings.arm_order or ARMS)
+        }
         result["status"] = "completed"
         evaluated = sum(row.get("status") == "evaluated" for row in rows.values())
         result["primary"] = {
@@ -441,6 +450,7 @@ async def run_matched_rewrite_study(
                 {
                     "pair_index": 0,
                     "schedule": settings.schedule,
+                    **({"arm_order": list(settings.arm_order)} if settings.arm_order else {}),
                     "fixed_inputs": _matched_inputs(baseline, settings),
                     "arms": rows,
                 }
