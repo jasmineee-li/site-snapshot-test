@@ -24,7 +24,7 @@ from warp_taskgen.phase_2.phase_2c import (
     fingerprints,
     probes,
     reddit_attribution,
-    source_data_preflight,
+    source_data_admission,
     verifier,
 )
 from warp_taskgen.phase_2.phase_2c import runner as feas
@@ -1710,7 +1710,7 @@ async def test_preflight_filter_removes_stale_storage_state_when_auth_is_non_sto
         lambda: _FakePlaywrightStarter(),
     )
 
-    dropped = await source_data_preflight._run_preflight_and_filter_raw(
+    dropped = await source_data_admission._run_preflight_and_filter_raw(
         raw,
         instances_by_site={
             "gitlab": [
@@ -1774,7 +1774,7 @@ async def test_preflight_context_creation_failure_does_not_probe_anonymously(tmp
     )
 
     with pytest.raises(RuntimeError, match="synthetic Playwright transport failure"):
-        await source_data_preflight._run_preflight_and_filter_raw(
+        await source_data_admission._run_preflight_and_filter_raw(
             raw,
             instances_by_site={
                 "gitlab": [
@@ -1836,7 +1836,7 @@ async def test_preflight_threads_benchmark_root_into_request_context_options(mon
         lambda: _FakePlaywrightStarter(),
     )
 
-    dropped = await source_data_preflight._run_preflight_and_filter_raw(
+    dropped = await source_data_admission._run_preflight_and_filter_raw(
         [task],
         instances_by_site={"gitlab": [_gitlab_instance(agent_auth={"type": "none"})]},
         benchmark_root=Path("/tmp/benchmark-root"),
@@ -1919,7 +1919,7 @@ async def test_preflight_refreshes_stale_gitlab_storage_state(tmp_path, monkeypa
         lambda: _FakePlaywrightStarter(),
     )
 
-    dropped = await source_data_preflight._run_preflight_and_filter_raw(
+    dropped = await source_data_admission._run_preflight_and_filter_raw(
         raw,
         instances_by_site={
             "gitlab": [
@@ -1998,7 +1998,7 @@ async def test_preflight_skips_source_data_quarantine_when_gitlab_refresh_still_
     )
 
     raw = [task]
-    dropped = await source_data_preflight._run_preflight_and_filter_raw(
+    dropped = await source_data_admission._run_preflight_and_filter_raw(
         raw,
         instances_by_site={
             "gitlab": [

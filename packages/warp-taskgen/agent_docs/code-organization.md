@@ -18,8 +18,11 @@ Current and target ownership should stay explicit:
 - `warp_taskgen.phase_2.phase_2c`: Phase 2c feasibility verification split by
   report types, constants, fingerprints, outcome stanzas, exposure projection,
   reddit attribution, admission guards, render/reachability probes,
-  source-data preflight, per-task verification, and runner orchestration. The
-  loop takes its collaborators through `probe_bundle.Phase2cProbeBundle`.
+  source-data preflight, the preflight auth self-test that decides whether the
+  benign agent's browser auth is still live, source-data admission that runs
+  that self-test and the benign-target preflight and then filters the raw task
+  list, per-task verification, and runner orchestration. The loop takes its
+  collaborators through `probe_bundle.Phase2cProbeBundle`.
 - `warp_taskgen.phase_2.exposure_contract`: deterministic Phase 2 exposure
   contracts split by signature, builder, seed-template materialization, exposure
   modes, candidate selection, Phase 4 exposure gates, route metadata,
