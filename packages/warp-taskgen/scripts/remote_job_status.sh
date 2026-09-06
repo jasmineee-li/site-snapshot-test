@@ -56,7 +56,22 @@ set -euo pipefail
 remote_dir="$1"
 job_id="$2"
 json_mode="$3"
-python3 - "$remote_dir" "$job_id" "$json_mode" <<'PY'
+# Run the status projection under the package environment synced by
+# sync_to_host.sh: from "$remote_dir", uv resolves "$remote_dir/.venv/bin/python",
+# the interpreter that has warp_taskgen and its dependencies installed. A bare
+# python3 does not.
+cd "$remote_dir"
+# Non-login remote shell: resolve uv the way sync_to_host.sh does, so a
+# standalone-installer uv under $HOME/.local/bin still works.
+uv_bin="$(command -v uv || true)"
+if [[ -z "$uv_bin" && -x "$HOME/.local/bin/uv" ]]; then
+  uv_bin="$HOME/.local/bin/uv"
+fi
+if [[ -z "$uv_bin" ]]; then
+  echo "ERROR: uv not found in PATH or at \$HOME/.local/bin/uv on the remote host" >&2
+  exit 2
+fi
+"$uv_bin" run --no-sync python - "$remote_dir" "$job_id" "$json_mode" <<'PY'
 import json
 import os
 import re
@@ -98,21 +113,27 @@ run_control = None
 cost_observation = None
 if state_root is not None and authoritative_state is not None:
     # The checked-out WARP status projection is the source for exact operator
-    # next_action text. Fall back to the state-only identity below when an old
-    # remote checkout cannot import the projection module.
-    try:
-        sys.path.insert(0, str(remote_dir))
-        from warp_taskgen.cli.status import build_status_payload
+    # next_action text. Fall back to the state-only identity below when the
+    # projection cannot read the state root.
+    sys.path.insert(0, str(remote_dir))
+    from warp_taskgen.cli.status import build_status_payload
 
+    try:
         status_payload = build_status_payload(state_root)
+    except ImportError:
+        # A missing projection dependency is a deployment fault on this host,
+        # not a degraded state root. Fail loudly instead of reporting the
+        # projected fields as absent.
+        raise
+    except Exception:
+        status_payload = None
+    if isinstance(status_payload, dict):
         candidate = status_payload.get("run_control")
         if isinstance(candidate, dict):
             run_control = candidate
         candidate = status_payload.get("cost_observation")
         if isinstance(candidate, dict):
             cost_observation = candidate
-    except Exception:
-        run_control = None
 
 def run_definition_identity() -> tuple[str | None, str | None]:
     definition = authoritative_state.get("run_definition") if isinstance(authoritative_state, dict) else None

@@ -78,6 +78,16 @@ import sys
 from pathlib import Path
 
 args = sys.argv[1:]
+if args[:1] == ["run"]:
+    rest = list(args[1:])
+    while rest and rest[0].startswith("-"):
+        rest.pop(0)
+    if rest[:1] == ["python"]:
+        # Stand in for the remote package environment: delegate to the
+        # interpreter that has warp_taskgen importable, the way
+        # `uv run --no-sync python` resolves `.venv/bin/python` on the host.
+        python_bin = {sys.executable!r}
+        os.execv(python_bin, [python_bin, *rest[1:]])
 root = Path({str(state_root)!r})
 mode = os.environ.get("FAKE_PAUSE_MODE", {pause_mode!r})
 if mode == "paused":
