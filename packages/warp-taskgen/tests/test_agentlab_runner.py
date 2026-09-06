@@ -2057,6 +2057,53 @@ def test_sidecar_result_redacts_request_secrets_echoed_in_logs(monkeypatch, tmp_
     assert persisted_event["response_content"] == '{"access_token":"<redacted>","title":"Secret"}'
 
 
+def test_sidecar_result_redacts_sensitive_response_fields_by_name(monkeypatch, tmp_path):
+    # The field-name table is the only thing that redacts these two values: they
+    # appear nowhere in the request, so the echoed-secret scrub cannot mask them.
+    def completed_run(cmd, **kwargs):
+        return agentlab_runner._SidecarProcessResult(
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "status": "success",
+                    "errors": [],
+                    "network_trace": [
+                        {
+                            "url": "http://gitlab.test/api/session",
+                            "method": "GET",
+                            "headers": {},
+                            "response_content": (
+                                '{"cookie":"c-not-echoed","apikey":"k-not-echoed","title":"Secret"}'
+                            ),
+                        }
+                    ],
+                }
+            ),
+            stderr="",
+            timed_out=False,
+            elapsed=0.0,
+        )
+
+    monkeypatch.setattr(agentlab_runner, "_run_sidecar_process_streaming", completed_run)
+    request = {"task_id": "task-1"}
+
+    agentlab_runner._run_sidecar_request(
+        request,
+        tmp_path,
+        subcommand="phase4-run",
+        timeout=3,
+    )
+    persisted_result = json.loads((tmp_path / "agentlab_sidecar_result.json").read_text())
+    serialized = json.dumps(persisted_result)
+
+    assert "c-not-echoed" not in serialized
+    assert "k-not-echoed" not in serialized
+    persisted_event = persisted_result["network_trace"][0]
+    assert persisted_event["response_content"] == (
+        '{"apikey":"<redacted>","cookie":"<redacted>","title":"Secret"}'
+    )
+
+
 def test_phase4_sidecar_helpers_normalize_final_message():
     worldsim_task = _load_sidecar_module("worldsim_task")
 
