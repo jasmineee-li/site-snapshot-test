@@ -218,7 +218,8 @@ Keep pytest tests under top-level `tests/`, mirrored by domain where practical:
 - `tests/phase_4/`
 - `tests/seed_contracts/`
 - `tests/test_browser_use_agent.py` and other Browser Use-focused files
-- `tests/test_sandbox_validator.py`
+- `tests/sandbox_validator/`, one file per validator surface, with the shared
+  validator loader and plan builders in `tests/sandbox_validator/_fixtures.py`
 
 Tests may import feature-private helpers when those helpers encode important
 contracts, but they should import them from the owning feature package rather
