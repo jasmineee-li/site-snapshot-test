@@ -106,13 +106,6 @@ class LegacyImportFinding:
 
 
 @dataclass(frozen=True)
-class ActiveFacadeImportFinding:
-    path: str
-    line: int
-    module: str
-
-
-@dataclass(frozen=True)
 class Audit:
     tracked_files: int
     code_files: int
@@ -122,37 +115,8 @@ class Audit:
     tracked_generated: list[str]
     deferred_tracked_generated: list[str]
     token_findings: list[TokenFinding]
-    legacy_phase_imports: list[LegacyImportFinding]
-    active_facade_imports: list[ActiveFacadeImportFinding]
     legacy_namespace_imports: list[LegacyImportFinding]
 
-
-LEGACY_PHASE_IMPORT_MODULES = frozenset(
-    {
-        "worldsim.phases.phase_2_injections",
-        "worldsim.phases.phase_2_injections_api",
-        "worldsim.phases.phase_2_output",
-        "worldsim.phases.phase_2_target_resolver",
-        "worldsim.phases.phase_2c_artifacts",
-        "worldsim.phases.phase_2c_config",
-        "worldsim.phases.phase_4_adversarial",
-        "worldsim.phases.phase_1_generate_new_tasks_validation",
-        "worldsim.phases.phase_2_exposure_contract",
-        "worldsim.phases.phase_2_feasibility",
-        "worldsim.phases.phase_2_text_fill",
-    }
-)
-
-LEGACY_PHASE_IMPORT_ALLOWED_PREFIXES = (
-    "docs/",
-    "tests/",
-)
-
-ACTIVE_COMPAT_FACADE_MODULES = frozenset()
-ACTIVE_COMPAT_FACADE_ALLOWED_PREFIXES = (
-    "docs/",
-    "tests/",
-)
 
 # The retired ``worldsim`` core namespace has no import allowlist. Historical
 # strings and fixtures remain readable, but executable imports must use
@@ -223,28 +187,6 @@ def _token_findings(paths: list[str]) -> list[TokenFinding]:
             if quoted_match and _looks_like_secret_value(quoted_match.group(1)):
                 findings.append(TokenFinding(path, index, "high_entropy"))
     return findings
-
-
-def _legacy_phase_import_findings(paths: list[str]) -> list[LegacyImportFinding]:
-    return [
-        LegacyImportFinding(finding.path, finding.line, finding.module)
-        for finding in _module_import_findings(
-            paths,
-            modules=LEGACY_PHASE_IMPORT_MODULES,
-            allowed_prefixes=LEGACY_PHASE_IMPORT_ALLOWED_PREFIXES,
-        )
-    ]
-
-
-def _active_facade_import_findings(paths: list[str]) -> list[ActiveFacadeImportFinding]:
-    return [
-        ActiveFacadeImportFinding(finding.path, finding.line, finding.module)
-        for finding in _module_import_findings(
-            paths,
-            modules=ACTIVE_COMPAT_FACADE_MODULES,
-            allowed_prefixes=ACTIVE_COMPAT_FACADE_ALLOWED_PREFIXES,
-        )
-    ]
 
 
 def _legacy_namespace_import_findings(paths: list[str]) -> list[LegacyImportFinding]:
@@ -329,10 +271,6 @@ def _resolve_relative_anchor(path: str, level: int) -> str | None:
     if not base_parts:
         return None
     return ".".join(base_parts)
-
-
-def _is_legacy_phase_module(module: str) -> bool:
-    return _is_tracked_module(module, LEGACY_PHASE_IMPORT_MODULES)
 
 
 def _is_tracked_module(module: str, modules: frozenset[str]) -> bool:
@@ -446,8 +384,6 @@ def build_audit() -> Audit:
         tracked_generated=blocking_generated,
         deferred_tracked_generated=deferred,
         token_findings=_token_findings(files),
-        legacy_phase_imports=_legacy_phase_import_findings(files),
-        active_facade_imports=_active_facade_import_findings(files),
         legacy_namespace_imports=_legacy_namespace_import_findings(files),
     )
 
@@ -461,8 +397,6 @@ def _print_text(audit: Audit) -> None:
     print(f"tracked_generated={len(audit.tracked_generated)}")
     print(f"deferred_tracked_generated={len(audit.deferred_tracked_generated)}")
     print(f"token_findings={len(audit.token_findings)}")
-    print(f"legacy_phase_imports={len(audit.legacy_phase_imports)}")
-    print(f"active_facade_imports={len(audit.active_facade_imports)}")
     print(f"legacy_namespace_imports={len(audit.legacy_namespace_imports)}")
     if audit.files_over_1200_loc:
         print("largest_files:")
@@ -486,18 +420,6 @@ def _print_text(audit: Audit) -> None:
             print(f"  {finding.path}:{finding.line} {finding.kind}")
         if len(audit.token_findings) > 25:
             print(f"  ... {len(audit.token_findings) - 25} more")
-    if audit.legacy_phase_imports:
-        print("legacy_phase_imports:")
-        for finding in audit.legacy_phase_imports[:25]:
-            print(f"  {finding.path}:{finding.line} {finding.module}")
-        if len(audit.legacy_phase_imports) > 25:
-            print(f"  ... {len(audit.legacy_phase_imports) - 25} more")
-    if audit.active_facade_imports:
-        print("active_facade_imports:")
-        for finding in audit.active_facade_imports[:25]:
-            print(f"  {finding.path}:{finding.line} {finding.module}")
-        if len(audit.active_facade_imports) > 25:
-            print(f"  ... {len(audit.active_facade_imports) - 25} more")
     if audit.legacy_namespace_imports:
         print("legacy_namespace_imports:")
         for finding in audit.legacy_namespace_imports[:25]:
@@ -509,11 +431,7 @@ def _print_text(audit: Audit) -> None:
 def _json_default(value: Any) -> Any:
     if isinstance(
         value,
-        LargeFile
-        | LargeFileExemption
-        | TokenFinding
-        | LegacyImportFinding
-        | ActiveFacadeImportFinding,
+        LargeFile | LargeFileExemption | TokenFinding | LegacyImportFinding,
     ):
         return asdict(value)
     raise TypeError(f"cannot serialize {type(value)!r}")
@@ -525,7 +443,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--fail-on",
         action="append",
-        choices=("legacy-imports", "legacy-namespace-imports", "tracked-generated", "tokens"),
+        choices=("legacy-namespace-imports", "tracked-generated", "tokens"),
         default=[],
         help="fail when the selected finding class is present",
     )
@@ -541,8 +459,6 @@ def main(argv: list[str] | None = None) -> int:
     if "tracked-generated" in args.fail_on and audit.tracked_generated:
         failed = True
     if "tokens" in args.fail_on and audit.token_findings:
-        failed = True
-    if "legacy-imports" in args.fail_on and audit.legacy_phase_imports:
         failed = True
     if "legacy-namespace-imports" in args.fail_on and audit.legacy_namespace_imports:
         failed = True

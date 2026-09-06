@@ -9,6 +9,13 @@ The technical spec is authoritative: `docs/warp-taskgen-technical-spec.md`.
 When code, a handoff, and the spec disagree, identify the drift and align the
 implementation with the spec before changing adjacent behavior.
 
+## First commands
+
+- Sync (from `packages/warp-taskgen/`): `uv sync --extra dev --locked`
+- One focused test (from `packages/warp-taskgen/`): `uv run pytest -x -q tests/<file>.py`
+- Acceptance lanes (from the repository root): `bash scripts/accept_taskgen.sh --help`
+- Ship (from the repository root): `bash scripts/accept_taskgen.sh`
+
 ## Route by task
 
 Read the one branch document that matches the work; the index files are maps,
@@ -59,8 +66,7 @@ not invitations to preload every reference.
 Research the relevant spec and branch document, plan the smallest scoped
 change, implement it in the canonical package source, and validate it with the
 narrowest meaningful checks before broadening. The repository root owns the
-topic-worktree and acceptance workflow; package acceptance is
-`bash scripts/accept_taskgen.sh` from the root.
+topic-worktree and acceptance workflow.
 
 Keep generated runtime output in `logs/`, preserve benign task/reward
 contracts across Phase 4 variants, and use existing helpers and quiet wrappers

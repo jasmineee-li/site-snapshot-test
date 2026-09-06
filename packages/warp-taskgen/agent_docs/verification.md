@@ -37,6 +37,9 @@ scripts/run_integration_tests.sh \
   --host-config configs/benchmark_hosts/r8a.local.yaml --quiet
 ```
 
+`configs/benchmark_hosts/r8a.local.yaml` is gitignored operator config;
+`agent_docs/remote-runs.md` (Canonical flow, step 1) covers validating it.
+
 Docs-only guidance changes do not require a live stack. They do require a
 truth check against the current spec, source, and command help. The setup
 preflight command is `uv run pytest -m preflight tests/preflight -q`; its
@@ -62,13 +65,14 @@ iterator or action fields into final ASR.
 ## Specialized checks
 
 - CLI: `uv run warp-taskgen --help`
-- Readiness: `uv run python scripts/readiness_audit.py --json`
+- Readiness: `uv run python scripts/readiness_audit.py --json`. The
+  `--fail-on` classes are `tracked-generated`, `tokens`, and
+  `legacy-namespace-imports`; `scripts/verify_fast.sh` runs all three.
 - Fresh-host gate: `uv run pytest -m preflight tests/preflight -q`
 - Crash/resume: `uv run pytest -m crash_resume tests/test_crash_resume_*.py -q`
 - WebArena adapter: `uv sync --directory packages/warp-taskgen-webarena-verified --locked`
 - AgentLab sidecar: `uv sync --directory packages/worldsim-agentlab-runner --locked`
-- Adapter smoke: `uv run pytest tests/test_agentlab_runner.py tests/phase_4/test_process_pool.py tests/rewards/test_vendor_webarena.py -q`
-- Trace observability: `uv run pytest tests/test_agentlab_runner.py tests/phase_4/test_process_pool.py tests/test_phase_4_trace_inspection.py -q`
+- Adapter smoke and trace observability: `uv run pytest tests/test_agentlab_runner.py tests/phase_4/test_process_pool.py tests/rewards/test_vendor_webarena.py tests/test_phase_4_trace_inspection.py -q`
 - Phase 0c audit: `uv run python scripts/audit_phase_0c_profiles.py logs/<run>/phase_0c`
 - Phase 4 summary: `uv run python scripts/summarize_phase_4_results.py logs/<run>`
 - Variant QA: `uv run python scripts/audit_phase_4_variants.py logs/<run>`

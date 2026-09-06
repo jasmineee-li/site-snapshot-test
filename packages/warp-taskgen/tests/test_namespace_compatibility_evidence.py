@@ -249,8 +249,6 @@ def test_active_source_readiness_has_no_legacy_namespace_imports() -> None:
     # generated-file, and token scans owned by the canonical audit command.
     paths = [path for path in readiness_audit._git_ls_files() if path.endswith(".py")]
     assert readiness_audit._legacy_namespace_import_findings(paths) == []
-    assert readiness_audit._legacy_phase_import_findings(paths) == []
-    assert readiness_audit._active_facade_import_findings(paths) == []
 
 
 def test_historical_fixture_is_secret_free() -> None:
