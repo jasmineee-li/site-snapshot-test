@@ -42,8 +42,19 @@ Current and target ownership should stay explicit:
   final-state compilers, and reward introspection. Import from the
   behavior-owned module or the package `__init__`; there is no `compiler.py`
   facade.
-- Phase 0c profile rigor is split by behavior:
-  `warp_taskgen/phases/phase_0_recon.py` remains the compatibility runner,
+- Phase 0 recon is split by behavior:
+  `warp_taskgen/phases/phase_0_recon.py` owns the phase entry point, the Phase 0c
+  loop, and per-site tiered profiling.
+  `warp_taskgen/phases/phase_0a_benchmark_manifest.py` owns Benchmark Discovery,
+  manifest path and eval-type validation, and the sandbox file map.
+  `warp_taskgen/phases/phase_0c_profile_reuse.py` owns the reuse decisions and the
+  tier metadata and input hashes they compare against.
+  `warp_taskgen/phases/phase_0c_instance_reachability.py` owns Benchmark Instance
+  URLs, proxy rewriting and redaction, and the reachability report.
+  `warp_taskgen/phases/phase_0c_tier_sandbox.py` owns staging, the per-tier sandbox
+  call, and the bounded correction retry loop.
+  `warp_taskgen/phases/phase_0c_profile_enrichment.py` owns host-side handle,
+  project, and forum enrichment of a profile.
   `warp_taskgen/phases/phase_0_evidence_index.py` owns neutral source indexes,
   `warp_taskgen/phases/phase_0c_artifacts.py` owns provenance/reuse/trace artifacts,
   and `warp_taskgen/phases/phase_0c_audit.py` owns deterministic host audits. Do not

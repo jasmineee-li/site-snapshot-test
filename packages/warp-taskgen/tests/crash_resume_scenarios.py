@@ -392,7 +392,7 @@ async def _run_phase_0d(mode: str, state_dir: Path) -> int:
 
 
 async def _run_phase_0c(mode: str, state_dir: Path) -> int:
-    from warp_taskgen.phases import phase_0_recon
+    from warp_taskgen.phases import phase_0_recon, phase_0c_tier_sandbox
 
     benchmark_root, site_file = _configure_phase_0c(state_dir)
 
@@ -500,7 +500,7 @@ async def _run_phase_0c(mode: str, state_dir: Path) -> int:
             }
         raise AssertionError(f"unexpected label {label}")
 
-    phase_0_recon.run_claude_in_sandbox = fake_run_claude_in_sandbox
+    phase_0c_tier_sandbox.run_claude_in_sandbox = fake_run_claude_in_sandbox
     phase_0_recon.upload_to_volume = fake_upload_to_volume
 
     await phase_0_recon.run_phase_0c(

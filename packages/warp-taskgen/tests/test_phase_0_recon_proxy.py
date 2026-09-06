@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from warp_taskgen.phases.phase_0_recon import _apply_proxy_to_url
+from warp_taskgen.phases.phase_0c_instance_reachability import _apply_proxy_to_url
 
 
 def test_apply_proxy_to_url_can_override_scheme() -> None:
