@@ -4,10 +4,8 @@ from collections.abc import Mapping
 
 import pytest
 
-from warp_taskgen.phases.phase_1_route_contracts import (
-    _instruction_requirements,
-    build_task_route_contracts,
-)
+from warp_taskgen.phase_1.route_contract_guidance import _instruction_requirements
+from warp_taskgen.phases.phase_1_route_contracts import build_task_route_contracts
 from warp_taskgen.sites import (
     CanonicalRoute,
     GitLabSite,
