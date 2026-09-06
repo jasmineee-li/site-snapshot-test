@@ -6,13 +6,14 @@ from typing import Any, ClassVar
 import pytest
 
 from warp_taskgen import seeding
-from warp_taskgen.editors import EDITOR_REGISTRY, GitlabEditor, RedditEditor
+from warp_taskgen.editors import GitlabEditor, RedditEditor
 from warp_taskgen.seeding.site_contracts import (
     CreatedResourceFact,
     EditorSeedResult,
     ReadSurfaceFact,
     SeedSiteRegistration,
     SeedSiteRegistry,
+    default_seed_registry,
 )
 
 
@@ -83,8 +84,8 @@ def test_explicit_seed_registry_runs_test_site_without_global_registration(monke
     _IsolatedEditor.instances.clear()
     monkeypatch.setattr(_IsolatedEditor, "fail_cleanup", False)
     session = _IsolatedSession()
-    monkeypatch.setattr(seeding.requests, "Session", lambda: session)
-    production_keys = set(EDITOR_REGISTRY)
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: session)
+    production_keys = set(default_seed_registry().registrations)
 
     handle, metadata = seeding.apply_data_seed(
         {
@@ -108,12 +109,12 @@ def test_explicit_seed_registry_runs_test_site_without_global_registration(monke
     handle.cleanup()
     assert _IsolatedEditor.instances[-1].cleaned is True
     assert session.closed is True
-    assert set(EDITOR_REGISTRY) == production_keys
-    assert ("webarena_verified", "test_site") not in EDITOR_REGISTRY
+    assert set(default_seed_registry().registrations) == production_keys
+    assert ("webarena_verified", "test_site") not in default_seed_registry().registrations
 
 
 def test_removed_test_site_fails_closed_while_active_site_snapshot_stays_available() -> None:
-    production = SeedSiteRegistry.from_editor_registry(EDITOR_REGISTRY)
+    production = default_seed_registry()
 
     assert production.get("webarena_verified", "gitlab") is not None
     assert production.get("webarena_verified", "reddit") is not None
@@ -214,7 +215,7 @@ def test_seed_metadata_preserves_feature_declared_identity_tokens(monkeypatch) -
     registry = SeedSiteRegistry.from_registrations(
         [SeedSiteRegistration("webarena_verified", "test_site", _IdentityEditor)]
     )
-    monkeypatch.setattr(seeding.requests, "Session", _IsolatedSession)
+    monkeypatch.setattr(seeding.execution.requests, "Session", _IsolatedSession)
 
     handle, metadata = seeding.apply_data_seed(
         {
@@ -312,7 +313,7 @@ def test_preflight_cleanup_attempts_every_editor_in_lifo_order(monkeypatch) -> N
             ),
         ]
     )
-    monkeypatch.setattr(seeding.requests, "Session", _PreflightSession)
+    monkeypatch.setattr(seeding.execution.requests, "Session", _PreflightSession)
 
     with pytest.raises(RuntimeError, match="cleanup failed for second"):
         seeding.preflight_editor_seed_calls(
@@ -344,7 +345,7 @@ def test_partial_seed_failure_cleans_all_and_preserves_primary_error(monkeypatch
     _IsolatedEditor.instances.clear()
     monkeypatch.setattr(_IsolatedEditor, "fail_cleanup", True)
     session = _IsolatedSession()
-    monkeypatch.setattr(seeding.requests, "Session", lambda: session)
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: session)
 
     with pytest.raises(RuntimeError, match="seed failed") as raised:
         seeding.apply_data_seed(
@@ -409,8 +410,8 @@ def test_typed_editor_result_normalizes_legacy_resource_and_surface_fields() -> 
     assert result.created_resources[0].as_mapping()["editor_method"] == "test_site.create_resource"
 
 
-def test_legacy_registry_adapter_preserves_active_editor_classes() -> None:
-    registry = SeedSiteRegistry.from_editor_registry(EDITOR_REGISTRY)
+def test_default_seed_registry_binds_the_active_editor_classes() -> None:
+    registry = default_seed_registry()
 
     assert registry.get("webarena_verified", "gitlab").editor_factory is GitlabEditor
     assert registry.get("webarena_verified", "reddit").editor_factory is RedditEditor
@@ -443,8 +444,8 @@ def test_default_path_preserves_legacy_apply_hook_signature(monkeypatch) -> None
     ) -> None:
         calls.append((call_index, str(call["method"])))
 
-    monkeypatch.setattr(seeding.requests, "Session", lambda: session)
-    monkeypatch.setattr(seeding, "_apply_editor_seed_call", _legacy_apply_hook)
+    monkeypatch.setattr(seeding.execution.requests, "Session", lambda: session)
+    monkeypatch.setattr(seeding.execution, "_apply_editor_seed_call", _legacy_apply_hook)
 
     handle, metadata = seeding.apply_data_seed(
         {
@@ -464,51 +465,3 @@ def test_default_path_preserves_legacy_apply_hook_signature(monkeypatch) -> None
     assert metadata == {}
     assert calls == [(0, "create_submission")]
     assert session.closed is True
-
-
-def test_default_path_snapshots_legacy_registry_once_per_seed(monkeypatch) -> None:
-    class _MutatingEditor(_IsolatedEditor):
-        site_name = "test_site"
-
-        def create_resource(self, *, body: str) -> dict[str, Any]:
-            seeding.EDITOR_REGISTRY[("stwebagentbench", "test_site")] = _IsolatedEditor
-            return {"resource_id": "first"}
-
-    monkeypatch.setitem(
-        seeding.EDITOR_REGISTRY,
-        ("webarena_verified", "test_site"),
-        _MutatingEditor,
-    )
-    monkeypatch.delitem(
-        seeding.EDITOR_REGISTRY,
-        ("stwebagentbench", "test_site"),
-        raising=False,
-    )
-    monkeypatch.setattr(seeding.requests, "Session", _IsolatedSession)
-
-    try:
-        with pytest.raises(seeding.EditorError) as raised:
-            seeding.apply_data_seed(
-                {
-                    "mechanism": "editor",
-                    "editor_calls": [
-                        {
-                            "benchmark": "webarena_verified",
-                            "site": "test_site",
-                            "method": "create_resource",
-                            "args": {"body": "first"},
-                        },
-                        {
-                            "benchmark": "stwebagentbench",
-                            "site": "test_site",
-                            "method": "create_resource",
-                            "args": {"body": "second"},
-                        },
-                    ],
-                },
-                {"site_name": "test_site", "site_url": "http://test.invalid"},
-            )
-    finally:
-        seeding.EDITOR_REGISTRY.pop(("stwebagentbench", "test_site"), None)
-
-    assert raised.value.kind == "unsupported_site"

@@ -63,10 +63,11 @@ def _phase_2a_eligible_tasks(
     ``create_comment`` have ``free_text`` body bindings that satisfy the
     last clause.
     """
-    from warp_taskgen.editors import EDITOR_REGISTRY
+    from warp_taskgen.seeding.site_contracts import default_seed_registry
 
     benchmark = normalize_benchmark_name(benchmark) or "webarena_verified"
-    editor_cls: Any = EDITOR_REGISTRY.get((benchmark, site))
+    registration = default_seed_registry().get(benchmark, site)
+    editor_cls: Any = registration.editor_factory if registration is not None else None
     supported = getattr(editor_cls, "supported_methods", frozenset()) if editor_cls else frozenset()
 
     eligible: list[dict] = []

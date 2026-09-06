@@ -29,7 +29,6 @@ from warp_taskgen.benchmark_capabilities import (
     infer_benchmark_name,
     normalize_benchmark_name,
 )
-from warp_taskgen.editors import EDITOR_REGISTRY
 from warp_taskgen.instance_selection import (
     _ordered_instance_dicts,
     replica_key,
@@ -57,7 +56,7 @@ from warp_taskgen.phase_2.phase_2c.probes import (
 from warp_taskgen.phase_2.phase_2c.types import FeasibilityReport, _ReplicaStats
 from warp_taskgen.phase_2.phase_2c.verifier import _verify_one
 from warp_taskgen.runtime_composition import RequiredSeedCleanupError, RuntimeComposition
-from warp_taskgen.seeding import SeedSiteRegistry
+from warp_taskgen.seeding import SeedSiteRegistry, default_seed_registry
 from warp_taskgen.sites import SiteCatalog
 
 logger = logging.getLogger(__name__)
@@ -283,11 +282,9 @@ async def verify_feasibility(
         # head so the representative is reproducible across runs.
         representative = _ordered_instance_dicts(site_instances)[0]
         benchmark = normalize_benchmark_name(representative.get("benchmark") or task_benchmark)
-        if seed_registry is None:
-            editor_cls = EDITOR_REGISTRY.get((benchmark, site))
-        else:
-            registration = seed_registry.get(benchmark, site)
-            editor_cls = registration.editor_factory if registration is not None else None
+        active_registry = seed_registry if seed_registry is not None else default_seed_registry()
+        registration = active_registry.get(benchmark, site)
+        editor_cls = registration.editor_factory if registration is not None else None
         if editor_cls is None:
             raise RuntimeError(
                 f"phase 2c pre-flight: no editor registered for (benchmark={benchmark!r}, site={site!r})"

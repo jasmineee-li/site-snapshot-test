@@ -2219,7 +2219,7 @@ def test_case_06_cleanup_error_yields_warning(tmp_path, monkeypatch):
 
 
 def test_named_composition_cleanup_failure_aborts_public_phase2c_runner(tmp_path, monkeypatch):
-    from warp_taskgen.editors import EDITOR_REGISTRY
+    from warp_taskgen.editors import GitlabEditor
     from warp_taskgen.phase_2.phase_2c.policy import default_feasibility_policy_catalog
     from warp_taskgen.runtime_composition import (
         RequiredSeedCleanupError,
@@ -2234,7 +2234,7 @@ def test_named_composition_cleanup_failure_aborts_public_phase2c_runner(tmp_path
 
     bundle = _bundle(apply_seed=seed_with_failing_cleanup)
     tasks_path = _write_tasks(tmp_path, [_task()])
-    editor = EDITOR_REGISTRY[("webarena_verified", "gitlab")]
+    editor = GitlabEditor
     monkeypatch.setattr(editor, "probe_base_state", classmethod(lambda _cls, _instance: None))
     composition = RuntimeComposition(
         name="strict-cleanup-test",
@@ -2268,7 +2268,7 @@ def test_named_composition_cleanup_failure_aborts_public_phase2c_runner(tmp_path
 def test_named_composition_partial_seed_cleanup_failure_aborts_public_phase2c_runner(
     tmp_path, monkeypatch
 ):
-    from warp_taskgen.editors import EDITOR_REGISTRY
+    from warp_taskgen.editors import GitlabEditor
     from warp_taskgen.phase_2.phase_2c.policy import default_feasibility_policy_catalog
     from warp_taskgen.runtime_composition import RequiredSeedCleanupError, RuntimeComposition
     from warp_taskgen.seeding.site_contracts import SeedSiteRegistration, SeedSiteRegistry
@@ -2288,7 +2288,7 @@ def test_named_composition_partial_seed_cleanup_failure_aborts_public_phase2c_ru
 
     bundle = _bundle(apply_seed=fake_apply, source_data_preflight=no_source_preflight)
     tasks_path = _write_tasks(tmp_path, [_task()])
-    editor = EDITOR_REGISTRY[("webarena_verified", "gitlab")]
+    editor = GitlabEditor
     monkeypatch.setattr(editor, "probe_base_state", classmethod(lambda _cls, _instance: None))
     composition = RuntimeComposition(
         name="strict-partial-seed-test",

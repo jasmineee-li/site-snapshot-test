@@ -6,6 +6,11 @@ from warp_taskgen.config import BenchmarkInstance
 from warp_taskgen.editors.base import EditorError
 from warp_taskgen.instance_selection import select_task_site_instance
 from warp_taskgen.phase_4 import preflight as phase_4_preflight
+from warp_taskgen.seeding.site_contracts import (
+    SeedSiteRegistration,
+    SeedSiteRegistry,
+    default_seed_registry,
+)
 
 
 class _ProbeEditor:
@@ -22,10 +27,13 @@ class _ProbeEditor:
 def _install_probe_editor(monkeypatch, behavior=None, *, benchmark: str = "webarena_verified"):
     _ProbeEditor.calls = []
     _ProbeEditor.behavior = behavior
-    monkeypatch.setitem(
-        phase_4_preflight.EDITOR_REGISTRY,
-        (benchmark, "gitlab"),
-        _ProbeEditor,
+    registrations = dict(default_seed_registry().registrations)
+    replacement = SeedSiteRegistration(benchmark, "gitlab", _ProbeEditor)
+    registrations[replacement.key] = replacement
+    monkeypatch.setattr(
+        phase_4_preflight,
+        "default_seed_registry",
+        lambda: SeedSiteRegistry(registrations),
     )
 
 
@@ -161,7 +169,7 @@ def test_probe_seed_base_state_for_task_targets_only_probes_selected_instance(mo
 
 
 def test_probe_seed_base_state_uses_task_benchmark(monkeypatch):
-    _install_probe_editor(monkeypatch, benchmark="custom_benchmark")
+    _install_probe_editor(monkeypatch, benchmark="stwebagentbench")
 
     result = phase_4_preflight._probe_seed_base_state(
         {
@@ -169,7 +177,7 @@ def test_probe_seed_base_state_uses_task_benchmark(monkeypatch):
             "site_url": "http://gitlab.test",
             "auth": {"type": "bearer_token", "token": "token"},
         },
-        benchmark="custom_benchmark",
+        benchmark="stwebagentbench",
     )
 
     assert result.ok is True

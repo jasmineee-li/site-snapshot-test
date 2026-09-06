@@ -11,7 +11,7 @@ from typing import Any
 
 from warp_taskgen.agent_runtime import AgentResult
 from warp_taskgen.config import BenchmarkInstance
-from warp_taskgen.editors import EDITOR_REGISTRY, EditorError
+from warp_taskgen.editors import EditorError
 from warp_taskgen.instance_selection import select_task_site_instance
 from warp_taskgen.phase_4.resume import (
     _fingerprint_payload,
@@ -22,7 +22,11 @@ from warp_taskgen.phase_4.resume import (
 from warp_taskgen.placeholders import normalize_site_name
 from warp_taskgen.pvpo_endpoint import validate_pvpo_cdp_url
 from warp_taskgen.resume_metadata import RESULT_FINGERPRINT_KEY
-from warp_taskgen.seeding import SeedSiteRegistry, preflight_editor_seed_calls
+from warp_taskgen.seeding import (
+    SeedSiteRegistry,
+    default_seed_registry,
+    preflight_editor_seed_calls,
+)
 from warp_taskgen.trajectory import save_result
 
 logger = logging.getLogger(__name__)
@@ -323,11 +327,9 @@ def _probe_seed_base_state(
             cache[cache_key] = result
         return result
     try:
-        if seed_registry is None:
-            editor_cls = EDITOR_REGISTRY.get((benchmark, site_name))
-        else:
-            registration = seed_registry.get(benchmark, site_name)
-            editor_cls = registration.editor_factory if registration is not None else None
+        active_registry = seed_registry if seed_registry is not None else default_seed_registry()
+        registration = active_registry.get(benchmark, site_name)
+        editor_cls = registration.editor_factory if registration is not None else None
         if editor_cls is None:
             result = BaseStateProbeResult(ok=True)
             if cache is not None:

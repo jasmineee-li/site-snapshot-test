@@ -5,6 +5,7 @@ import pytest
 from warp_taskgen.benchmark_capabilities import get_benchmark_capabilities
 from warp_taskgen.runtime_composition import (
     CLASSIFIEDS_LISTING_REPLY_POC,
+    DEFAULT_RUNTIME_COMPOSITION,
     ROCKET_CHAT_CONVERSATION_DECISION_POC,
     ROCKET_CHAT_CONVERSATION_NOTIFICATION_POC,
     RuntimeComposition,
@@ -62,6 +63,74 @@ def test_runtime_composition_defaults_to_none_and_unknown_fails_closed() -> None
 
     with pytest.raises(ValueError, match="unknown runtime composition"):
         runtime_composition_for_name("classifieds")
+
+
+def test_default_runtime_composition_binds_todays_default_catalogs() -> None:
+    from warp_taskgen.phase_2.phase_2c.policy import default_feasibility_policy_catalog
+    from warp_taskgen.seeding.site_contracts import default_seed_registry
+    from warp_taskgen.sites.catalog import default_catalog
+
+    composition = RuntimeComposition.default()
+
+    assert composition.name == DEFAULT_RUNTIME_COMPOSITION == "default"
+    assert set(composition.seed_registry.registrations) == {
+        ("webarena_verified", "gitlab"),
+        ("webarena_verified", "reddit"),
+    }
+    assert set(composition.seed_registry.registrations) == set(
+        default_seed_registry().registrations
+    )
+    assert composition.site_catalog is default_catalog()
+    assert set(composition.feasibility_policy_catalog.policies) == set(
+        default_feasibility_policy_catalog().policies
+    )
+    assert composition.benchmark_capabilities is None
+    assert composition.reader_preflight is None
+    assert composition.phase_2_admission is None
+    assert composition.reward_evidence_loader is None
+    assert composition.phase_2_generation is None
+    assert composition.strict_seed_cleanup is False
+
+
+def test_default_runtime_composition_registers_nothing_process_wide() -> None:
+    first = RuntimeComposition.default()
+    second = RuntimeComposition.default()
+
+    assert first is not second
+    assert first.seed_registry is not second.seed_registry
+    assert set(first.seed_registry.registrations) == set(second.seed_registry.registrations)
+
+
+def test_empty_seed_registry_composition_fails_closed_with_no_editor() -> None:
+    from dataclasses import replace
+
+    from warp_taskgen import seeding
+    from warp_taskgen.seeding.site_contracts import SeedSiteRegistry
+
+    composition = replace(
+        RuntimeComposition.default(),
+        seed_registry=SeedSiteRegistry.from_registrations(()),
+    )
+
+    with pytest.raises(seeding.EditorError) as raised:
+        seeding.apply_data_seed(
+            {
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "reddit",
+                        "method": "create_submission",
+                        "args": {"forum_name": "books", "title_template": "Thread"},
+                    }
+                ],
+            },
+            {"site_name": "reddit", "site_url": "http://reddit.test"},
+            seed_registry=composition.seed_registry,
+        )
+
+    assert raised.value.kind == "unsupported_site"
+    assert "no editor registered" in raised.value.detail
 
 
 def test_runtime_composition_is_frozen() -> None:

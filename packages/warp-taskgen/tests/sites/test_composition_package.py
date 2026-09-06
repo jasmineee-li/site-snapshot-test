@@ -96,14 +96,14 @@ def test_test_only_site_nouns_stay_out_of_generic_phase_code() -> None:
 def test_composition_import_does_not_mutate_the_runtime_site_catalog() -> None:
     """Static declarations are not production Site activation."""
 
-    from warp_taskgen.editors import EDITOR_REGISTRY
+    from warp_taskgen.seeding.site_contracts import default_seed_registry
 
     before = SiteCatalog().sites
-    editor_before = dict(EDITOR_REGISTRY)
+    editor_before = dict(default_seed_registry().registrations)
     importlib.import_module("warp_taskgen.site_composition")
     default_site_compositions()
     assert SiteCatalog().sites == before
-    assert dict(EDITOR_REGISTRY) == editor_before
+    assert dict(default_seed_registry().registrations) == editor_before
 
 
 def test_removed_composition_fails_closed_without_a_stale_edge() -> None:

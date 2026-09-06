@@ -1463,9 +1463,10 @@ def _load_session_from_storage_state(artifact_path: Path) -> requests.Session:
 
 
 def _editor_for_probe(site_name: str, instance: dict[str, Any], session: requests.Session) -> Any:
-    from warp_taskgen.editors import EDITOR_REGISTRY
+    from warp_taskgen.seeding.site_contracts import default_seed_registry
 
-    editor_cls = EDITOR_REGISTRY.get(("webarena_verified", site_name.strip().lower()))
+    registration = default_seed_registry().get("webarena_verified", site_name.strip().lower())
+    editor_cls = registration.editor_factory if registration is not None else None
     if editor_cls is None:
         return None
     return editor_cls(instance, session)

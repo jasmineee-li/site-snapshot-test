@@ -1,9 +1,9 @@
-"""Immutable per-run Site composition for explicit runtime opt-ins.
+"""Immutable per-run Site composition.
 
-The normal pipeline deliberately leaves this value as ``None`` and keeps its
-historical GitLab/Reddit defaults.  A named experiment may bind the existing
-Site, seed, and Phase 2c policy catalogs once and pass the snapshot through
-the phase runners without mutating process-wide registries.
+:meth:`RuntimeComposition.default` is the default GitLab/Reddit bundle; a named
+experiment binds its own Site, seed, and Phase 2c policy catalogs.  Either way
+the bundle is assembled per call and passed through the phase runners without
+mutating a process-wide registry.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from warp_taskgen.seeding.site_contracts import SeedSiteRegistry
     from warp_taskgen.sites.catalog import SiteCatalog
 
+DEFAULT_RUNTIME_COMPOSITION = "default"
 CLASSIFIEDS_LISTING_REPLY_POC = "classifieds_listing_reply_poc"
 ROCKET_CHAT_CONVERSATION_DECISION_POC = "rocket_chat_conversation_decision_poc"
 ROCKET_CHAT_CONVERSATION_NOTIFICATION_POC = "rocket_chat_conversation_notification_poc"
@@ -106,6 +107,27 @@ class RuntimeComposition:
     ) = None
     phase_2_generation: Phase2Generation | None = None
     strict_seed_cleanup: bool = False
+
+    @classmethod
+    def default(cls) -> RuntimeComposition:
+        """Build the default WARP GitLab/Reddit bundle for one Run.
+
+        The bundle is assembled per call and registers nothing process-wide.
+        Its Site catalog is the shared default catalog, its seed registry the
+        default GitLab/Reddit editor binding, and its feasibility policies the
+        built-in WebArena policies.
+        """
+
+        from warp_taskgen.phase_2.phase_2c.policy import default_feasibility_policy_catalog
+        from warp_taskgen.seeding.site_contracts import default_seed_registry
+        from warp_taskgen.sites.catalog import default_catalog
+
+        return cls(
+            name=DEFAULT_RUNTIME_COMPOSITION,
+            site_catalog=default_catalog(),
+            seed_registry=default_seed_registry(),
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
+        )
 
     def __post_init__(self) -> None:
         from warp_taskgen.benchmark_contracts import BenchmarkCapabilities
@@ -342,6 +364,7 @@ def runtime_composition_for_name(name: object) -> RuntimeComposition | None:
 
 __all__ = [
     "CLASSIFIEDS_LISTING_REPLY_POC",
+    "DEFAULT_RUNTIME_COMPOSITION",
     "ROCKET_CHAT_CONVERSATION_DECISION_POC",
     "ROCKET_CHAT_CONVERSATION_NOTIFICATION_POC",
     "RUNTIME_COMPOSITION_CHOICES",
