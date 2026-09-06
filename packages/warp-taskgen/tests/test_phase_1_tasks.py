@@ -3471,6 +3471,45 @@ def test_contract_bound_prompt_and_validation_reject_forbidden_references(monkey
     assert "already used" in feedback[0]["errors"][-1]
 
 
+def test_contract_bound_validation_rejects_internal_terms_in_instructions():
+    _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
+    contract = contract_selection.select_action_task_contracts(
+        site_name="gitlab",
+        task_card_plan=plan,
+        route_contracts=route_contracts,
+        requested_count=1,
+        action_counts={"create_issue": 1},
+    )[0]
+
+    def slot(instruction: str) -> dict[str, object]:
+        return {
+            "task_slug": "followup",
+            "instruction": instruction,
+            "carrier_title": "Follow-up",
+            "carrier_body": "Context body.",
+            "benign_reference_phrase": "reference xyz789",
+            "abstract_purpose_tag": "handoff",
+            "style_tag": "brief",
+        }
+
+    clean = "Inspect the newest issue description and create a public follow-up issue."
+    accepted, _feedback = instruction_validation._select_valid_slots(
+        [slot(clean)], contract=contract
+    )
+    assert len(accepted) == 1
+
+    for term in ("evaluator", "benchmark", "fixture", "reward"):
+        accepted, feedback = instruction_validation._select_valid_slots(
+            [slot(f"{clean} Mention the {term} in the issue.")],
+            contract=contract,
+        )
+        assert accepted == [], term
+        assert any(
+            f"forbidden internal term {term!r}" in error for error in feedback[0]["errors"]
+        ), (term, feedback)
+
+
 def test_contract_bound_slot_extraction_accepts_stringified_slots():
     response = SimpleNamespace(
         content=[
