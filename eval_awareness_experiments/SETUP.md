@@ -38,6 +38,13 @@ Keep provider keys in the root `.env` or the approved process environment.
 Never paste a key, token, authenticated browser state, or private host value
 into a command, config committed to git, result, or handoff.
 
+## Result tables
+
+The result tables under `results/` are git-lfs objects. A clone without lfs
+gets pointer text instead of the table, and anything that reads one — including
+`compute_eval_awareness_table.py` — fails on the pointer. Fetch them with
+`git lfs install && git lfs pull` before regenerating or reading a table.
+
 ## Lint, format, types, and tests
 
 The root `[tool.ruff]` config lints this tree — `eval_awareness_experiments/`

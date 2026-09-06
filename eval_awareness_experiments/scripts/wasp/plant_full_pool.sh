@@ -6,7 +6,7 @@
 # Total: ~168 task JSONs (21 × 2 × 4). Wall time ~8-12 minutes.
 set -euo pipefail
 
-REPO=/local_data/temp/max/browser-sim
+REPO="${REPO:-/local_data/temp/max/browser-sim}"
 WASP=$REPO/external_benchmarks/wasp/webarena_prompt_injections
 PLANT_ROOT=/tmp/wasp_full_plant
 FINAL=/tmp/wasp_full

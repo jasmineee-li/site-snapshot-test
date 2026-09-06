@@ -12,6 +12,44 @@ Slug conventions:
 
 ---
 
+## 2026-09-06 — study-tree-followups
+
+**Type:** cleanup
+**Groups:** repo-hygiene
+**What:** `compute_eval_awareness_table.py` no longer scans `results/` at import
+time: the two-benchmark loop moved into `main()` behind a `__main__` guard, and
+`ROOT` resolves from `__file__` instead of the process working directory, so the
+documented `uv run python -m eval_awareness_experiments.compute_eval_awareness_table`
+is unchanged while `import eval_awareness_experiments.compute_eval_awareness_table`
+is now side-effect free. `SETUP.md` gained a "Result tables" subsection stating
+that the tables under `results/` are git-lfs objects and naming
+`git lfs install && git lfs pull`. The owner-confirmation HTML comment above the
+section 3 row of the root `README.md` is deleted; the row's attribution to
+`eval_awareness_experiments/`, `probes/`, `models/` is correct and its text is
+unchanged. The RunPod bootstrap in `docs/handoffs/HANDOFF_CUA_EVAL_AWARENESS.md`
+runs `scripts/runpod/train_framing_probe.sh` from a checkout instead of curling a
+raw branch URL that was valid only on a since-abandoned branch. The four scripts
+that assigned the host repository path unconditionally now take the overridable
+`${REPO:-...}` shape `scripts/wasp/plant_stack.sh` already used; the default host
+path is unchanged.
+**Why:** #308 items 1, 3, 4, and 7, left open by the 2026-09-05 legible-study-tree
+entry below. Importing the table module for a doctest, a type check, or a REPL
+read should not walk the result tree.
+**Files:** `compute_eval_awareness_table.py`, `SETUP.md`, root `README.md`,
+`docs/handoffs/HANDOFF_CUA_EVAL_AWARENESS.md`,
+`scripts/doomarena/launch_glm5_n100_preset.sh`,
+`scripts/wasp/cleanup_planted_state.sh`,
+`scripts/wasp/launch_glm5_n100_preset.sh`, `scripts/wasp/plant_full_pool.sh`.
+**Results:** n/a; no run, no table regenerated. This machine has no git-lfs, so
+every tracked table under `results/` is pointer text here. That is why the table
+module raises `json.decoder.JSONDecodeError` on the first table it opens, both
+before and after this change — the change moves that failure out of import and
+into `main()`, it does not fix it. Regeneration on an lfs-enabled checkout is
+unverified.
+**Next:** #308 item 2 (regenerate the n200 table) needs a machine with git-lfs. Items 5 and 6 stay as they are: the vendored AgentLab tutorial is read-only, and `read_logs/` is cited by the mypy scope rationale in `pyproject.toml`. The `claude/general-session-rsdA2` defaults in `scripts/runpod/setup.sh` and `train_framing_probe.sh` are a further #308 item.
+
+---
+
 ## 2026-09-05 — legible-study-tree
 
 **Type:** cleanup

@@ -271,16 +271,16 @@ python -m probes.score_probe \
 ## Fresh RunPod from scratch (clone + venv + framing probe)
 
 If you've spun up a brand new RunPod with a fresh network volume and
-nothing on it, the orchestrator handles clone → venv → install →
-pre-download → train in one shot:
+nothing on it, clone this repository onto the volume and run the
+orchestrator from the checkout; it handles venv → install → pre-download →
+train in one shot. `scripts/runpod/setup.sh` pins `BRANCH` to an old session
+branch by default and checks it out, so pass the branch you want to run:
 
 ```bash
-# Bootstrap: download + run the orchestrator. It clones into
-# /workspace/warp, builds .venv with uv, installs [cua] extras,
-# pre-downloads OpenCUA-32B into /workspace/hf_cache, and trains the
-# framing probe.
-curl -LsSf https://raw.githubusercontent.com/jasmineee-li/warp/claude/general-session-rsdA2/scripts/runpod_train_framing_probe.sh \
-    | MODEL_SHORT=opencua-32b bash
+# Bootstrap: setup.sh skips the clone when /workspace/warp exists, checks out
+# $BRANCH, builds .venv with uv, installs [cua] extras, pre-downloads
+# OpenCUA-32B into /workspace/hf_cache, and trains the framing probe.
+BRANCH=main MODEL_SHORT=opencua-32b bash eval_awareness_experiments/scripts/runpod/train_framing_probe.sh
 ```
 
 Or if the repo is already cloned:

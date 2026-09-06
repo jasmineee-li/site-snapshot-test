@@ -3,6 +3,8 @@ eval-awareness paper's Table 2 (DoomArena & WASP, bare arm, n200).
 
 Usage: run from project root:
     uv run python -m eval_awareness_experiments.compute_eval_awareness_table
+
+The result tables it reads are git-lfs objects; see SETUP.md.
 """
 
 import json
@@ -12,7 +14,7 @@ from typing import Any
 
 from scipy.stats import spearmanr
 
-ROOT = Path("eval_awareness_experiments/results/n200_2026-04-29")
+ROOT = Path(__file__).resolve().parent / "results" / "n200_2026-04-29"
 
 
 def collect(benchmark: str):
@@ -89,6 +91,11 @@ def summarize(name: str, rows):
     print(f"  ASR mean across trajectories: {asr_mean:.2f}%")
 
 
-for bench in ["doomarena", "wasp"]:
-    rows = collect(bench)
-    summarize(bench, rows)
+def main() -> None:
+    for bench in ["doomarena", "wasp"]:
+        rows = collect(bench)
+        summarize(bench, rows)
+
+
+if __name__ == "__main__":
+    main()
