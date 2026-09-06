@@ -14,22 +14,16 @@ Current and target ownership should stay explicit:
   semantics still belong to the Phase 2 domain.
 - `warp_taskgen.phase_2.text_fill`: host-side payload realization behavior split by
   API calls, prompt rendering, payload views, seeding, validation, and voice
-  exemplars. The historical `warp_taskgen.phases.phase_2_text_fill` facade was
-  removed in Wave D; callers and patch points use this feature-owned package.
+  exemplars.
 - `warp_taskgen.phase_2.phase_2c`: Phase 2c feasibility verification split by
   report types, constants, fingerprints, outcome stanzas, exposure projection,
   reddit attribution, admission guards, render/reachability probes,
   source-data preflight, per-task verification, and runner orchestration. The
-  historical `warp_taskgen.phases.phase_2_feasibility` facade was removed in Wave D;
-  callers and patch points use this feature-owned package. The `_impl.py`
-  parity module is retired: the loop takes its collaborators through
-  `probe_bundle.Phase2cProbeBundle`.
+  loop takes its collaborators through `probe_bundle.Phase2cProbeBundle`.
 - `warp_taskgen.phase_2.exposure_contract`: deterministic Phase 2 exposure
   contracts split by signature, builder, seed-template materialization, exposure
   modes, candidate selection, Phase 4 exposure gates, route metadata,
-  verification contracts, and editor argument templates. The legacy
-  `warp_taskgen.phases.phase_2_exposure_contract` facade was removed in Wave D;
-  callers and patch points use this feature-owned package.
+  verification contracts, and editor argument templates.
 - `warp_taskgen.phase_4`: adversarial execution, PVPO placement, postprocess judges,
   strategy variation, intermediate ASR post-hoc judging, resume, and results.
   Phase 4 must not own benign task eligibility.
@@ -42,14 +36,12 @@ Current and target ownership should stay explicit:
 - `warp_taskgen.phase_1.novel_task_validation`: Phase 1 generated-task validation
   split by batch entry points, single-task orchestration, route alignment,
   task-card alignment, placement target checks, reward checks, answer stability,
-  and ordering/eligibility. The legacy
-  `warp_taskgen.phases.phase_1_generate_new_tasks_validation` facade was removed in
-  Wave D; callers and patch points use this feature-owned package.
+  and ordering/eligibility.
 - `warp_taskgen.adversarial_actions`: host-owned adversarial action behavior split by
   policies, allowed options, reward compilation, public mutation rewards,
-  final-state compilers, and reward introspection. Keep the old
-  `compiler.py` import surface as a facade while migrating callers to the
-  behavior-owned modules.
+  final-state compilers, and reward introspection. Import from the
+  behavior-owned module or the package `__init__`; there is no `compiler.py`
+  facade.
 - Phase 0c profile rigor is split by behavior:
   `warp_taskgen/phases/phase_0_recon.py` remains the compatibility runner,
   `warp_taskgen/phases/phase_0_evidence_index.py` owns neutral source indexes,
@@ -126,19 +118,22 @@ Current and target ownership should stay explicit:
   `verify_seed_renders` and reaches them through a Site-keyed lookup.
 - `warp_taskgen.seeding`: host-side seed validation, context rendering, editor-call
   execution, read-surface/result metadata, reddit/map context resolution,
-  runtime error validation, DB helpers, and editor-argument compatibility. The
-  `_impl.py` parity module is retired; behavior lives in the sibling module that
-  owns it and `__init__.py` re-exports an explicit, bounded surface. Patch the
-  owning sibling (for example `warp_taskgen.seeding.execution`), not the package
-  root. `site_contracts.default_seed_registry()` builds the default GitLab/Reddit
-  seed binding a Run uses when it does not carry its own.
-- `warp_taskgen.cli`: the WARP Taskgen CLI, split by owner: `env.py` runs the
-  import-time dotenv bootstrap first, `args.py` owns the parser and defaults,
-  `dispatch.py` owns `main` and phase dispatch, `resume.py` the resume flow,
-  `phase4_lock.py` the Phase 4 run lock and bounded async shutdown,
-  `proxy.py` verification-proxy setup, `task_bank.py` task-bank commands,
-  `auth.py` unknown-auth validation, and `status.py` the status and inspect
-  projections. `warp_taskgen.main` is the console entrypoint only.
+  runtime error validation, DB helpers, and editor-argument compatibility.
+  Behavior lives in the sibling module that owns it and `__init__.py` re-exports
+  an explicit, bounded surface. Patch the owning sibling (for example
+  `warp_taskgen.seeding.execution`), not the package root.
+  `site_contracts.default_seed_registry()` builds the default GitLab/Reddit seed
+  binding a Run uses when it does not carry its own.
+- `warp_taskgen.cli`: the WARP Taskgen CLI, split by owner: the parser
+  (`args`), the import-time dotenv bootstrap that runs first (`env`), dispatch
+  (`dispatch`), resume (`resume`, `resume_plan`, `derived_run`,
+  `run_identity`), the Phase 4 run lock and bounded async shutdown
+  (`phase4_lock`), verification-proxy setup (`proxy`), task-bank commands
+  (`task_bank`), unknown-auth validation (`auth`), pause and lifecycle
+  operator output (`run_control`), the status and inspect projections
+  (`status`), and the static Site Composition check (`site_composition_check`).
+  `warp_taskgen.main` is the console entrypoint only; tests import and patch the
+  owning `cli.*` module.
 - `warp_taskgen.rewards`: reward dispatch and scoring behavior. Keep the public
   facade thin; put behavior in reward-local modules by evidence type and
   benchmark surface. Request-level evidence belongs in `network_event.py` and
@@ -155,6 +150,10 @@ Current and target ownership should stay explicit:
 - `warp_taskgen.sandbox_validator`: sandbox/profile/task validation when that module
   is split. This domain has a stricter Modal runtime contract than ordinary host
   modules and should not be mechanically extracted.
+
+There is no `worldsim.phases.*` facade and no executable `worldsim` import in
+the tree; `agent_docs/verification.md` names the readiness check that keeps it
+that way.
 
 Avoid `utils.py`, `helpers.py`, and global shared `types.py`. If a helper is
 shared, name the domain it belongs to. Keep types next to the behavior that owns
@@ -194,9 +193,8 @@ than from compatibility wrappers once a package split exists.
 When moving public or widely imported modules, keep the old import path as a
 thin compatibility wrapper for one migration cycle. Wrappers may delegate and
 re-export canonical names, but they should not own behavior or contain a second
-implementation. They also should not monkeypatch dependencies, except for the
-explicitly documented patchable compatibility surfaces that preserve old test
-and hidden-consumer behavior during the current migration window.
+implementation. They also should not monkeypatch dependencies; no package
+`__init__` is a patchable surface.
 
 Update in-repo imports to the canonical feature package during the same change.
 Remove wrappers in a follow-up cleanup once hidden consumers have had a chance
@@ -207,11 +205,9 @@ touches research-critical paths because they separate behavior migration from
 import-path cutover. They should have tests that prove legacy imports delegate,
 and a follow-up PR should remove them when the migration window closes.
 
-Package-backed parity modules named `_impl.py` are also transition debt. They
-preserve behavior during a clean import cutover, but new behavior should land in
-the behavior-owned sibling module when practical. When editing an `_impl.py`
-area, prefer moving the touched function into the sibling module that owns the
-behavior and leaving a re-export behind, rather than growing `_impl.py` further.
+Do not add a package-backed `_impl.py` parity module. No package has one:
+behavior lives in the sibling module that owns it and the package `__init__`
+re-exports a bounded surface.
 
 ## Current Follow-Up Debt
 
@@ -222,25 +218,17 @@ sequencing reduces review risk:
 
 - First split behavior into domain-owned modules while preserving external
   import compatibility.
-- For package cutovers that still have `_impl.py` parity modules, drain those
-  modules incrementally. Move one behavioral cluster at a time into its sibling
-  module and run the focused tests before deleting any facade or re-export.
-  Phase 2c feasibility and seeding execution are done; the remaining priority
-  order is exposure contracts, Phase 4 result-summary, outcome taxonomy, Phase 1
-  validation, then CLI.
+- If a package cutover ever needs a parity module again, drain it
+  incrementally: move one behavioral cluster at a time into its sibling module
+  and run the focused tests before deleting any facade or re-export. No package
+  carries one today.
 - Then remove pure compatibility wrappers in follow-up changes after downstream
   imports are moved and one validation cycle has had a chance to reveal hidden
-  consumers. Some `warp_taskgen.phases.*` modules are still patchable compatibility
-  surfaces, not pure shims. Do not delete those wholesale. Update remaining
-  internal and downstream imports to canonical `warp_taskgen.phase_2.*`,
-  `warp_taskgen.phase_4.*`, and `warp_taskgen.seed_contracts.*` paths, then delete only
-  wrappers that `scripts/readiness_audit.py` identifies as legacy import
-  modules.
-- Unwind linked-context modules after wrapper removal. The `_context.py`
-  `install_context` / `link_modules` pattern is a transition mechanism that
-  preserves old monolith global lookup and monkeypatch behavior during the
-  split. Replace it with explicit imports domain by domain, starting with target
-  resolution because it is smaller and has focused tests.
+  consumers. No `warp_taskgen.phases.*` module is a patchable compatibility
+  surface; patch the module that defines the behavior.
+- The `_context.py` `install_context` / `link_modules` linkage is gone. The
+  `tests/**/test_*_context_boundary.py` suite, run by the root
+  `core-context-boundaries` lane, asserts it never returns.
 - Split sandbox validation as a separate design task.
   `warp_taskgen/_sandbox_validator.py` is urgent by size, but it runs inside Modal
   with stdlib-only and no-`warp_taskgen` import constraints. Sharing seed-contract
@@ -249,7 +237,7 @@ sequencing reduces review risk:
   `warp_taskgen.seed_contracts`.
 - Keep other large files visible as debt instead of allowlisting them. Examples
   include the Browser Use runner, seeding, GitLab editor, Phase 2 feasibility,
-  Phase 2 exposure contracts, the main CLI, and outcome taxonomy.
+  Phase 2 exposure contracts, the CLI parser, and outcome taxonomy.
 
 Only fold one of these follow-ups into an active PR when it reduces review risk
 for that PR. If it expands the behavioral surface under review, keep it separate.
