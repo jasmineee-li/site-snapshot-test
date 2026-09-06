@@ -48,7 +48,12 @@ Current and target ownership should stay explicit:
   `warp_taskgen/phases/phase_0c_artifacts.py` owns provenance/reuse/trace artifacts,
   and `warp_taskgen/phases/phase_0c_audit.py` owns deterministic host audits. Do not
   move these concerns into Modal sandbox setup; `modal_sandbox.py` stays an
-  infrastructure-only runner.
+  infrastructure-only runner. Phase 0d auth bootstrap is split the same way:
+  `warp_taskgen/phases/phase_0d_auth_bootstrap.py` remains the runner,
+  `phase_0d_site_auth_specs.py` owns `AuthBootstrapError` and the per-site auth
+  spec parsers, `phase_0d_generator_dispatch.py` owns input hashing, dispatch
+  selection, generator loading, and declared-artifact trust, and
+  `phase_0d_form_login.py` owns the built-in Playwright form-login bootstrap.
 - `warp_taskgen.sites`: Site Targeting, profile identity, and carrier policy.
   Core-surface and active-carrier policy is Site-owned (`SiteCarrierPolicy` on
   each `*_profile.py` mixin) and reached only through

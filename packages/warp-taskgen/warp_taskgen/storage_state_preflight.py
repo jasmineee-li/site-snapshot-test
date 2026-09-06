@@ -672,10 +672,10 @@ async def ensure_storage_state(
 
     try:
         from warp_taskgen.phases.phase_0d_auth_bootstrap import (
-            _extract_form_login_recipe,
             phase_0d_completion_path,
             reacquire_storage_state,
         )
+        from warp_taskgen.phases.phase_0d_site_auth_specs import _extract_form_login_recipe
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
             f"storage_state_stale: Phase 0d helpers unavailable for auto-mint: {exc}"
