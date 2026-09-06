@@ -30,22 +30,6 @@ REMOVED_PYTHON_NAMES = (
     "ActiveSitePolicy",
 )
 SITE_NEUTRAL_SOURCES = ("phases/phase_1_route_contracts.py",)
-SITE_LITERALS = ('"gitlab"', '"reddit"')
-SITE_KIND_LITERALS = (
-    "gitlab_issue",
-    "gitlab_mr",
-    "gitlab_search_result",
-    "gitlab_dashboard_list",
-    "gitlab_user_profile",
-    "gitlab_snippet",
-    "gitlab_snippets_index",
-    "gitlab_project_milestone",
-    "gitlab_project_labels",
-    "gitlab_group",
-    "reddit_submission",
-    "reddit_forum",
-    "reddit_dashboard_list",
-)
 GENERIC_SOURCE_ROOTS = (
     "phase_1",
     "phase_2",
@@ -189,10 +173,38 @@ def test_run_definition_vocabulary_remains_run_owned() -> None:
     assert "site_composition_digest" not in json.dumps(definition.to_dict(), sort_keys=True)
 
 
+def registered_site_literals() -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Derive the forbidden literals from the Sites the default catalog registers.
+
+    The Site names come from the catalog itself and the Site kind literals come
+    from the routes each registered Site declares, keeping the prefixed kinds a
+    Site owns.  Onboarding a Site therefore extends this guard without editing
+    a hand-enumerated list here.
+    """
+
+    from warp_taskgen.sites import default_catalog
+
+    catalog = default_catalog()
+    names = tuple(f'"{site}"' for site in catalog.sites)
+    kinds: set[str] = set()
+    for site in catalog.sites:
+        bound = catalog.bind(benchmark="webarena_verified", site=site)
+        prefix = f"{site}_"
+        for route in bound.routes():
+            for kind in (route.kind, route.compatibility_kind):
+                if kind and kind.startswith(prefix):
+                    kinds.add(kind)
+    # A guard with no literals passes vacuously; an empty catalog or unprefixed
+    # kinds must fail here rather than silently narrow the check.
+    assert names and kinds, (names, kinds)
+    return names, tuple(sorted(kinds))
+
+
 def site_literal_offenders(source: str) -> list[str]:
     """Return the Site name and Site kind literals present in one module."""
 
-    return sorted(token for token in (*SITE_LITERALS, *SITE_KIND_LITERALS) if token in source)
+    names, kinds = registered_site_literals()
+    return sorted(token for token in (*names, *kinds) if token in source)
 
 
 def test_phase_1_route_builder_stays_site_neutral() -> None:

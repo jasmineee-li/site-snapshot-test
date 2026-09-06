@@ -4,7 +4,10 @@ from collections.abc import Mapping
 
 import pytest
 
-from warp_taskgen.phases.phase_1_route_contracts import build_task_route_contracts
+from warp_taskgen.phases.phase_1_route_contracts import (
+    _instruction_requirements,
+    build_task_route_contracts,
+)
 from warp_taskgen.sites import (
     CanonicalRoute,
     GitLabSite,
@@ -446,6 +449,21 @@ def test_instruction_requirements_name_their_regex_families() -> None:
     ]["include_any"] == ["open", "read", "review", "summarize"]
     assert reddit["comment.body"]["regex_families"] == ["reddit_comment_visual_region"]
     assert "regex_families" not in reddit["submission.body"]
+
+
+def test_unknown_regex_family_reports_the_site_and_family_instead_of_key_error() -> None:
+    facts = SiteRouteContractFacts(
+        instruction_requirements_by_surface={
+            "message.body": {"regex_families": ["not_a_real_family"]}
+        }
+    )
+
+    with pytest.raises(SiteTargetingDefinitionError) as excinfo:
+        _instruction_requirements("message.body", site="fake", facts=facts)
+
+    message = str(excinfo.value)
+    assert "not_a_real_family" in message
+    assert "fake" in message
 
 
 def test_ordered_child_append_surfaces_are_site_owned() -> None:
