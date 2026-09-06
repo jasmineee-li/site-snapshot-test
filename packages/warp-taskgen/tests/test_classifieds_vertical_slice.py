@@ -311,6 +311,7 @@ def test_generic_seed_preflight_and_apply_resolve_listing_anchor(
         seed,
         instance,
         seed_registry=seed_registry,
+        seed_token_scope=composition.seed_token_scope,
     )
 
     assert posted["fields"]["id"] == "17"

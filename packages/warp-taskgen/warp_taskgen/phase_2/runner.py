@@ -47,6 +47,7 @@ from warp_taskgen.phase_2.text_fill.constants import (
 from warp_taskgen.phase_2.text_fill.service import fill_texts_for_tasks
 from warp_taskgen.run_definition import define_run
 from warp_taskgen.runtime_composition import (
+    DEFAULT_RUNTIME_COMPOSITION,
     benchmark_capabilities_for_runtime,
     runtime_composition_for_name,
 )
@@ -165,8 +166,11 @@ async def run(args: argparse.Namespace) -> int:
         "phase_2a_action_policy": phase_2a_action_policy,
         "exposure_contract_signature": exposure_contract_signature(),
     }
-    if runtime_composition_name:
-        state_metadata["runtime_composition"] = runtime_composition_name
+    # The default composition is what an unnamed Run resolves, so recording it
+    # would change ``pipeline_state.json`` for every existing Run. Only a named
+    # composition is written.
+    if runtime_composition.name != DEFAULT_RUNTIME_COMPOSITION:
+        state_metadata["runtime_composition"] = runtime_composition.name
     output_dir.mkdir(parents=True, exist_ok=True)
     plans_path = output_dir / "adversarial_plans.json"
     diagnostics_path = output_dir / "text_fill_diagnostics.json"
@@ -618,37 +622,36 @@ async def run(args: argparse.Namespace) -> int:
 
     # Before Phase 2c, give an explicit composition the same final-task check
     # for newly filled rows that reuse applies to cached rows.
-    if runtime_composition is not None:
-        for filled_task in filled_tasks:
-            feature_generation = generation_for_runtime(
-                runtime_composition,
-                benchmark=filled_task.get("benchmark"),
-                site=filled_task.get("site"),
+    for filled_task in filled_tasks:
+        feature_generation = generation_for_runtime(
+            runtime_composition,
+            benchmark=filled_task.get("benchmark"),
+            site=filled_task.get("site"),
+        )
+        if feature_generation is None:
+            continue
+        benign_parent = benign_by_id.get(str(filled_task.get("benign_task_id") or ""))
+        if benign_parent is None:
+            feature_error = "composition-owned task references an unknown benign parent"
+        else:
+            feature_error = feature_generation.validate_materialized_task(
+                filled_task,
+                benign_task=benign_parent,
+                runtime_composition=runtime_composition,
             )
-            if feature_generation is None:
-                continue
-            benign_parent = benign_by_id.get(str(filled_task.get("benign_task_id") or ""))
-            if benign_parent is None:
-                feature_error = "composition-owned task references an unknown benign parent"
-            else:
-                feature_error = feature_generation.validate_materialized_task(
-                    filled_task,
-                    benign_task=benign_parent,
-                    runtime_composition=runtime_composition,
-                )
-            if feature_error is not None:
-                logger.error("Phase 2 composition materialization failed: %s", feature_error)
-                save_state(
-                    "phase_2",
-                    status="failed",
-                    reason="composition_materialization_invalid",
-                    materialization_error=feature_error,
-                    phase_2_stage="text_fill",
-                    generation_failures=site_failures,
-                    text_fill_failures=text_fill_diagnostics,
-                    **state_metadata,
-                )
-                return 1
+        if feature_error is not None:
+            logger.error("Phase 2 composition materialization failed: %s", feature_error)
+            save_state(
+                "phase_2",
+                status="failed",
+                reason="composition_materialization_invalid",
+                materialization_error=feature_error,
+                phase_2_stage="text_fill",
+                generation_failures=site_failures,
+                text_fill_failures=text_fill_diagnostics,
+                **state_metadata,
+            )
+            return 1
 
     merged_output = _merge_preserving_unfiltered_sites(
         output_path,

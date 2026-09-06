@@ -244,3 +244,55 @@ async def test_text_fill_pause_wins_zero_success_terminal_race(monkeypatch, tmp_
     assert state["phase_2_stage"] == "text_fill"
     assert (tmp_path / "pause_request.json").exists()
     assert not (tmp_path / "phase_2" / "adversarial_tasks.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_default_composition_leaves_pipeline_state_bytes_unchanged(monkeypatch, tmp_path):
+    """An unnamed Run and an explicit ``default`` Run write identical state.
+
+    Every Run now resolves a Runtime Composition, but the default one is not
+    recorded, so ``pipeline_state.json`` is byte-identical to what a
+    pre-composition Run wrote.
+    """
+
+    async def _run_once(state_dir, runtime_composition):
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+        (state_dir / "phase_1").mkdir(parents=True)
+        (state_dir / "phase_1" / "benign_tasks.json").write_text(json.dumps([_benign_task()]))
+        (state_dir / "phase_0c").mkdir(parents=True)
+        (state_dir / "phase_0c" / "BENCHMARK_PROFILE_shopping.json").write_text(
+            json.dumps({"data_model": [], "injection_surface": [], "verification_capabilities": []})
+        )
+
+        async def fake_generate(site_name, site_tasks, **kwargs):
+            return SiteInjectionResult(
+                site_name,
+                [{"id": "adv-1", "benchmark": "webarena_verified"}],
+                [],
+            )
+
+        monkeypatch.setattr(generation, "_generate_injections_for_site", fake_generate)
+        args = Namespace(skip_feasibility=True, sandbox_model="demo")
+        if runtime_composition is not None:
+            args.runtime_composition = runtime_composition
+        rc = await phase_2_injections.run(args)
+        assert rc == 0
+        return (state_dir / "pipeline_state.json").read_bytes()
+
+    unnamed_dir = tmp_path / "unnamed"
+    explicit_dir = tmp_path / "explicit"
+    unnamed = await _run_once(unnamed_dir, None)
+    explicit_default = await _run_once(explicit_dir, "default")
+
+    # Normalize the only things that always differ between two runs of the
+    # same pipeline: the state directory each one wrote into, and the clock.
+    def _stable(raw, state_dir):
+        text = raw.decode().replace(str(state_dir), "<STATE_DIR>")
+        state = json.loads(text)
+        state.pop("updated_at", None)
+        state.pop("timestamp", None)
+        return state
+
+    assert _stable(unnamed, unnamed_dir) == _stable(explicit_default, explicit_dir)
+    assert b"runtime_composition" not in unnamed
+    assert b"runtime_composition" not in explicit_default

@@ -33,6 +33,7 @@ from warp_taskgen.phase_2.phase_2c.reddit_attribution import (
     _attach_gitlab_issue_note_state_probe_anchors,
 )
 from warp_taskgen.rewards import run_reward_function
+from warp_taskgen.runtime_composition import RuntimeComposition
 from warp_taskgen.seeding import apply_data_seed
 from warp_taskgen.seeding.site_contracts import SeedSiteRegistration, SeedSiteRegistry
 
@@ -496,6 +497,7 @@ async def test_phase2c_join_records_strict_binding_diagnostic() -> None:
         force_reverify=True,
         cleanup_warnings=[],
         browser=None,
+        runtime_composition=RuntimeComposition.default(),
         probes=bundle,
     )
 

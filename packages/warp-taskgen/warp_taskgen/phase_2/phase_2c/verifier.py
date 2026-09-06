@@ -28,8 +28,7 @@ from warp_taskgen.phase_2.phase_2c.reddit_attribution import (
 from warp_taskgen.phases.phase_2_reachability import ReachabilityOutcome
 from warp_taskgen.phases.phase_2_render_check import RenderOutcome
 from warp_taskgen.runtime_composition import RequiredSeedCleanupError, RuntimeComposition
-from warp_taskgen.seeding import SeedCleanupHandle, SeedSiteRegistry, UnboundTokenError
-from warp_taskgen.sites import SiteCatalog
+from warp_taskgen.seeding import SeedCleanupHandle, UnboundTokenError
 
 
 async def _verify_one(
@@ -43,16 +42,22 @@ async def _verify_one(
     cleanup_warnings: list[str],
     browser: Any = None,
     render_semaphore: asyncio.Semaphore | None = None,
-    seed_registry: SeedSiteRegistry | None = None,
-    site_catalog: SiteCatalog | None = None,
-    runtime_composition: RuntimeComposition | None = None,
+    runtime_composition: RuntimeComposition,
     checkpoint_context: _checkpoints.Phase2cCheckpointContext | None = None,
     checkpoint_work_unit: dict[str, bool] | None = None,
     probes: Phase2cProbeBundle,
 ) -> dict[str, Any]:
-    strict_cleanup = bool(
-        runtime_composition is not None and runtime_composition.strict_seed_cleanup
-    )
+    """Verify one task against one instance under the Run's composition.
+
+    ``runtime_composition`` is the whole per-Run bundle: its seed registry and
+    token scope bind the seed application, its Site catalog and planning
+    strictness bind the read-surface plan, and its cleanup strictness and
+    reader preflight bind the Atomic Work Unit.  A Run that named no
+    composition resolves :meth:`RuntimeComposition.default` before it gets
+    here.
+    """
+
+    strict_cleanup = runtime_composition.strict_seed_cleanup
     seed = task.get("adversarial_data_seed") or {}
     editor_calls = seed.get("editor_calls") if isinstance(seed, dict) else None
 
@@ -95,7 +100,7 @@ async def _verify_one(
     # missing/invalid anonymous-reader declaration fails closed without
     # leaving seeded state behind.  The render probe repeats the pure check
     # immediately before opening its reader context and records its metadata.
-    if runtime_composition is not None and runtime_composition.reader_preflight is not None:
+    if runtime_composition.reader_preflight is not None:
         try:
             reader_result = runtime_composition.reader_preflight(instance)
         except Exception as exc:
@@ -157,9 +162,10 @@ async def _verify_one(
     gitlab_compare_binding: Any = None
 
     async def _apply_and_keep_metadata() -> tuple[SeedCleanupHandle | None, dict[str, Any]]:
-        apply_kwargs: dict[str, Any] = {}
-        if seed_registry is not None:
-            apply_kwargs["seed_registry"] = seed_registry
+        apply_kwargs: dict[str, Any] = {
+            "seed_registry": runtime_composition.seed_registry,
+            "seed_token_scope": runtime_composition.seed_token_scope,
+        }
         if strict_cleanup:
             apply_kwargs["strict_cleanup"] = True
         return await probes.apply_seed(seed, bound_instance, **apply_kwargs)
@@ -292,10 +298,10 @@ async def _verify_one(
                 "metadata": metadata,
                 "instance": instance,
                 "verify_seed_renders": probes.verify_seed_renders,
+                "site_catalog": runtime_composition.site_catalog,
+                "strict_site_planning": runtime_composition.strict_site_planning,
             }
-            if site_catalog is not None:
-                render_kwargs["site_catalog"] = site_catalog
-            if runtime_composition is not None and runtime_composition.reader_preflight is not None:
+            if runtime_composition.reader_preflight is not None:
                 render_kwargs["reader_preflight"] = runtime_composition.reader_preflight
             render_outcome = await probes.render_check(**render_kwargs)
             if checkpoint_work_unit is not None:

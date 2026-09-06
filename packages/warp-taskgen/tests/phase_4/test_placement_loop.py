@@ -18,7 +18,7 @@ async def test_run_adversarial_task_uses_selected_payload_for_pvpo(monkeypatch, 
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance_dict):
+    async def fake_apply_seed(seed, instance_dict, **_kwargs):
         return None, {}
 
     def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
@@ -79,7 +79,7 @@ async def test_run_adversarial_task_passes_attack_witnesses_to_pvpo(monkeypatch,
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance_dict):
+    async def fake_apply_seed(seed, instance_dict, **_kwargs):
         return None, {}
 
     def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):

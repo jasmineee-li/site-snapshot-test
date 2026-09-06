@@ -235,6 +235,7 @@ def test_fake_policy_preflight_is_per_run_and_does_not_leak() -> None:
             [task],
             instances_by_site={"fake": [instance]},
             request_context_factory=factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
     assert keep == [task]

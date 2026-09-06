@@ -462,7 +462,7 @@ async def test_run_adversarial_task_persists_resume_fingerprint(monkeypatch, tmp
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance):
+    async def fake_apply_seed(seed, instance, **_kwargs):
         return None, {}
 
     def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):

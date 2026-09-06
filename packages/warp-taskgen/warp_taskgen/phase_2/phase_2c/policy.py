@@ -173,25 +173,20 @@ def resolve_feasibility_policy(
     benchmark: object,
     site: object,
     *,
-    feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
+    feasibility_policy_catalog: FeasibilityPolicyCatalog,
 ) -> FeasibilityPolicy | None:
-    """Resolve through an explicit catalog, defaulting to built-ins."""
-    active_catalog = (
-        feasibility_policy_catalog
-        if feasibility_policy_catalog is not None
-        else default_feasibility_policy_catalog()
-    )
-    return active_catalog.get(benchmark, site)
+    """Resolve through the Run's policy catalog."""
+    return feasibility_policy_catalog.get(benchmark, site)
 
 
 def task_probe_targets(
     task: dict[str, Any],
     instance_site_url: str,
     *,
-    feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
+    feasibility_policy_catalog: FeasibilityPolicyCatalog,
     benchmark: object | None = None,
 ) -> list[ProbeTarget]:
-    """Resolve probe targets through the canonical policy catalog."""
+    """Resolve probe targets through the Run's policy catalog."""
     site = str(task.get("site") or "").strip().lower()
     if benchmark is None:
         benchmark = next(

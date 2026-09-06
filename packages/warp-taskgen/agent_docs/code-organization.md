@@ -171,8 +171,12 @@ Current and target ownership should stay explicit:
   Behavior lives in the sibling module that owns it and `__init__.py` re-exports
   an explicit, bounded surface. Patch the owning sibling (for example
   `warp_taskgen.seeding.execution`), not the package root.
-  `site_contracts.default_seed_registry()` builds the default GitLab/Reddit seed
-  binding a Run uses when it does not carry its own.
+  `site_contracts.default_seed_registry()` builds the GitLab/Reddit seed binding
+  the `default` Runtime Composition carries, which is what a Run that names no
+  composition resolves. `tokens.py::_assert_benign_tokens_bound` takes the
+  composition's `seed_token_scope` explicitly (`kind` for the default
+  composition, `method` for the named POCs) instead of inferring it from
+  whether a registry was passed.
 - `warp_taskgen.cli`: the WARP Taskgen CLI, split by owner: the parser
   (`args`), the import-time dotenv bootstrap that runs first (`env`), dispatch
   (`dispatch`), resume (`resume`, `resume_plan`, `derived_run`,

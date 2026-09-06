@@ -30,7 +30,7 @@ from warp_taskgen.phases.phase_2_render_check import (
 )
 from warp_taskgen.phases.phase_2_render_check import verify_seed_renders as _verify_seed_renders
 from warp_taskgen.seeding.site_contracts import EditorSeedResult
-from warp_taskgen.sites import SiteCatalog, SiteTargetingDefinitionError, default_catalog
+from warp_taskgen.sites import SiteCatalog, SiteTargetingDefinitionError
 from warp_taskgen.sites.read_surface import ReadSurfacePlanFailure
 
 logger = logging.getLogger(__name__)
@@ -247,11 +247,17 @@ async def _run_render_check(
     seed: dict[str, Any],
     metadata: dict[str, Any],
     instance: dict[str, Any],
-    site_catalog: SiteCatalog | None = None,
+    site_catalog: SiteCatalog,
+    strict_site_planning: bool,
     reader_preflight: Any | None = None,
     verify_seed_renders: Callable[..., Awaitable[RenderOutcome]] | None = None,
 ) -> RenderOutcome:
     """Run the render/readback probe for one seeded task.
+
+    ``site_catalog`` is the Run's Site catalog and is always supplied;
+    ``strict_site_planning`` is the Runtime Composition property that decides
+    what an unplannable read surface means, rather than being inferred from
+    whether a catalog was passed.
 
     ``verify_seed_renders`` is the leaf browser probe; the verification loop
     injects it through
@@ -287,14 +293,14 @@ async def _run_render_check(
         selection.signature if selection is not None else render_signature_fn(seed, metadata)
     )
 
-    # Explicit catalogs are strict: they are the opt-in seam used by a new
-    # Site and must never fall back to the historical host/URL behavior. The
-    # default catalog plans active GitLab/Reddit checks when their evidence is
-    # complete, while unsupported historical Sites and signature-less facade
-    # calls retain the one-cycle compatibility path below.
-    strict_plan = site_catalog is not None
-    planning_catalog = site_catalog or default_catalog()
-    active_default_site = site_catalog is None and site_name in planning_catalog.sites
+    # A strict Run is the opt-in seam used by a new Site and must never fall
+    # back to the historical host/URL behavior. The default Run plans active
+    # GitLab/Reddit checks when their evidence is complete, while unsupported
+    # historical Sites and signature-less facade calls retain the one-cycle
+    # compatibility path below.
+    strict_plan = strict_site_planning
+    planning_catalog = site_catalog
+    active_default_site = (not strict_site_planning) and site_name in planning_catalog.sites
     benchmark = _instance_benchmark_or_none(instance)
     bound_site = None
     planning_error: str | None = None

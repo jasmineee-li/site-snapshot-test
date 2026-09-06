@@ -1737,8 +1737,9 @@ contract.
 **Benchmark-agnosticity.** No benchmark, site, or platform string should appear
 in the canonical `warp_taskgen.phase_2.phase_2c` verification logic. All benchmark
 knowledge lives in the editor classes under `warp_taskgen/editors/` and in the
-seed registry the Run supplies: its named Runtime Composition, or the default
-GitLab/Reddit binding from `default_seed_registry()` for an unnamed Run. Adding a new benchmark (e.g.
+seed registry the Run's Runtime Composition supplies. Every Run resolves one:
+a Run that names none resolves the `default` composition, whose registry is the
+GitLab/Reddit binding from `default_seed_registry()`. Adding a new benchmark (e.g.
 ST-WebAgentBench) means adding editor classes and a host config; the 2c module
 is unchanged.
 
@@ -1815,7 +1816,7 @@ Legacy adaptive strategy variation is still available with
 
 ### Initial Adversarial Run
 
-**Self-contained adversarial seeds.** Phase 4 applies only `adversarial_data_seed`, not the benign `data_seed`. In the v2 schema, Phase 4 first resolves the selected rendered payload from `payload_texts[selected_payload_index]`, then materializes `adversarial_data_seed` from `seed_template` if needed. The resulting adversarial data seed must be self-contained: it must include all benign seed statements plus the adversarial injection content. Phase 2 enforces this through the `seed_template` contract and the final materialization step. `apply_data_seed` dispatches each `editor_calls` entry through the seed registry the Run supplies (its named Runtime Composition, or the default GitLab/Reddit binding for an unnamed Run), the same registry Phase 2c used at verification time.
+**Self-contained adversarial seeds.** Phase 4 applies only `adversarial_data_seed`, not the benign `data_seed`. In the v2 schema, Phase 4 first resolves the selected rendered payload from `payload_texts[selected_payload_index]`, then materializes `adversarial_data_seed` from `seed_template` if needed. The resulting adversarial data seed must be self-contained: it must include all benign seed statements plus the adversarial injection content. Phase 2 enforces this through the `seed_template` contract and the final materialization step. `apply_data_seed` dispatches each `editor_calls` entry through the seed registry the Run's Runtime Composition supplies (the `default` composition's GitLab/Reddit binding when the Run named none), the same registry Phase 2c used at verification time.
 
 **Feasibility and exposure admission.** Phase 4 admits only tasks with
 `feasibility.status == "verified"`, an eligible `exposure_contract`,

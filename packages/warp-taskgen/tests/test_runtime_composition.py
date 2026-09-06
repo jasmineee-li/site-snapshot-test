@@ -8,6 +8,7 @@ from warp_taskgen.runtime_composition import (
     DEFAULT_RUNTIME_COMPOSITION,
     ROCKET_CHAT_CONVERSATION_DECISION_POC,
     ROCKET_CHAT_CONVERSATION_NOTIFICATION_POC,
+    RUNTIME_COMPOSITION_CHOICES,
     RuntimeComposition,
     classifieds_listing_reply_poc,
     rocket_chat_conversation_decision_poc,
@@ -24,6 +25,8 @@ def test_classifieds_runtime_composition_is_explicit_and_isolated() -> None:
     assert composition.seed_registry.get("visualwebarena", "classifieds") is not None
     assert composition.feasibility_policy_catalog.get("visualwebarena", "classifieds") is not None
     assert composition.strict_seed_cleanup is True
+    assert composition.seed_token_scope == "method"
+    assert composition.strict_site_planning is True
 
 
 def test_rocket_chat_runtime_composition_is_explicit_and_non_default() -> None:
@@ -59,9 +62,23 @@ def test_rocket_chat_notification_composition_is_explicit_and_feature_owned() ->
     )
 
 
-def test_runtime_composition_defaults_to_none_and_unknown_fails_closed() -> None:
-    assert runtime_composition_for_name(None) is None
-    assert runtime_composition_for_name("") is None
+def test_unnamed_run_resolves_the_default_composition_and_unknown_fails_closed() -> None:
+    from warp_taskgen.seeding.site_contracts import default_seed_registry
+    from warp_taskgen.sites.catalog import default_catalog
+
+    for name in (None, "", "  ", DEFAULT_RUNTIME_COMPOSITION, "  DEFAULT  "):
+        composition = runtime_composition_for_name(name)
+        assert composition.name == DEFAULT_RUNTIME_COMPOSITION
+        assert composition.site_catalog is default_catalog()
+        assert set(composition.seed_registry.registrations) == set(
+            default_seed_registry().registrations
+        )
+        assert composition.seed_token_scope == "kind"
+        assert composition.strict_site_planning is False
+
+    # Nothing is memoized: each resolution assembles its own bundle.
+    assert runtime_composition_for_name(None) is not runtime_composition_for_name(None)
+    assert DEFAULT_RUNTIME_COMPOSITION in RUNTIME_COMPOSITION_CHOICES
 
     with pytest.raises(ValueError, match="unknown runtime composition"):
         runtime_composition_for_name("classifieds")
@@ -92,6 +109,8 @@ def test_default_runtime_composition_binds_todays_default_catalogs() -> None:
     assert composition.reward_evidence_loader is None
     assert composition.phase_2_generation is None
     assert composition.strict_seed_cleanup is False
+    assert composition.seed_token_scope == "kind"
+    assert composition.strict_site_planning is False
 
 
 def test_default_runtime_composition_registers_nothing_process_wide() -> None:
@@ -151,6 +170,8 @@ def test_runtime_composition_rejects_wrong_catalog_types() -> None:
             site_catalog=object(),  # type: ignore[arg-type]
             seed_registry=composition.seed_registry,
             feasibility_policy_catalog=composition.feasibility_policy_catalog,
+            seed_token_scope=composition.seed_token_scope,
+            strict_site_planning=composition.strict_site_planning,
         )
 
 

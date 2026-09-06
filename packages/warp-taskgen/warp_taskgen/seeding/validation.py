@@ -11,13 +11,30 @@ from warp_taskgen.seeding.site_contracts import SeedSiteRegistry, default_seed_r
 _LOGICAL_RECORD_KEY_PATTERN = r"^[a-z][a-z0-9_-]{0,63}$"
 
 
+def _run_registry(seed_registry: SeedSiteRegistry | None) -> SeedSiteRegistry:
+    """Resolve the Run's Site editor binding for a validation call.
+
+    Callers that carry a Runtime Composition pass its registry.  The callers
+    that have none threaded to them yet resolve the default binding, which is
+    the same object :meth:`RuntimeComposition.default` builds.
+    """
+
+    return seed_registry if seed_registry is not None else default_seed_registry()
+
+
 def validate_data_seed(
     seed: dict[str, Any],
     *,
     allow_none: bool = False,
     seed_registry: SeedSiteRegistry | None = None,
 ) -> None:
-    """Validate a seed payload before it is persisted or executed."""
+    """Validate a seed payload before it is persisted or executed.
+
+    ``seed_registry`` is the Run's Site editor binding.  Callers that already
+    carry a Runtime Composition pass its registry; the remaining callers (Phase
+    1 novel-task validation, plan validation, the Phase 4 seed APIs) have no
+    composition threaded to them yet and resolve the default binding here.
+    """
     if not isinstance(seed, dict):
         raise ValueError("data seed must be an object")
 
@@ -26,10 +43,7 @@ def validate_data_seed(
     has_editor_calls = isinstance(editor_calls, list) and bool(editor_calls)
     if mechanism is None:
         if has_editor_calls:
-            if seed_registry is None:
-                _validate_editor_calls(editor_calls)
-            else:
-                _validate_editor_calls(editor_calls, seed_registry=seed_registry)
+            _validate_editor_calls(editor_calls, seed_registry=_run_registry(seed_registry))
             return
         if allow_none:
             return
@@ -49,10 +63,7 @@ def validate_data_seed(
             raise ValueError("editor data seed must include a non-empty editor_calls list")
         if seed.get("api_calls") is not None:
             raise ValueError("editor data seed must not include api_calls")
-        if seed_registry is None:
-            _validate_editor_calls(editor_calls)
-        else:
-            _validate_editor_calls(editor_calls, seed_registry=seed_registry)
+        _validate_editor_calls(editor_calls, seed_registry=_run_registry(seed_registry))
         return
 
     if mechanism in {"api", "form", "state_push"}:
@@ -69,11 +80,10 @@ def validate_data_seed(
 def _validate_editor_calls(
     editor_calls: Any,
     *,
-    seed_registry: SeedSiteRegistry | None = None,
+    seed_registry: SeedSiteRegistry,
 ) -> None:
     if not isinstance(editor_calls, list) or not editor_calls:
         raise ValueError("editor data seed must include a non-empty editor_calls list")
-    active_registry = seed_registry if seed_registry is not None else default_seed_registry()
     for call in editor_calls:
         if not isinstance(call, dict):
             raise ValueError("editor_calls entries must be objects")
@@ -104,7 +114,7 @@ def _validate_editor_calls(
         if method_name.startswith("_"):
             raise ValueError("editor_calls method must not be private")
         benchmark_key = normalize_benchmark_name(benchmark or "webarena_verified")
-        registration = active_registry.get(benchmark_key, site.strip().lower())
+        registration = seed_registry.get(benchmark_key, site.strip().lower())
         supported_methods = getattr(
             registration.editor_factory if registration is not None else None,
             "supported_methods",
