@@ -38,8 +38,7 @@ scripts/run_integration_tests.sh \
 ```
 
 `configs/benchmark_hosts/r8a.local.yaml` is gitignored operator config;
-`agent_docs/remote-runs.md` (Canonical flow, step 1) covers creating and
-validating it.
+`agent_docs/remote-runs.md` (Canonical flow, step 1) covers validating it.
 
 Docs-only guidance changes do not require a live stack. They do require a
 truth check against the current spec, source, and command help. The setup

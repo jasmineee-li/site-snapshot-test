@@ -225,7 +225,8 @@ sequencing reduces review risk:
 - Then remove pure compatibility wrappers in follow-up changes after downstream
   imports are moved and one validation cycle has had a chance to reveal hidden
   consumers. No `warp_taskgen.phases.*` module is a patchable compatibility
-  surface; patch the module that defines the behavior.
+  surface; patch the module that defines the behavior, or the module under
+  test where it binds an imported name.
 - The `_context.py` `install_context` / `link_modules` linkage is gone. The
   `tests/**/test_*_context_boundary.py` suite, run by the root
   `core-context-boundaries` lane, asserts it never returns.
