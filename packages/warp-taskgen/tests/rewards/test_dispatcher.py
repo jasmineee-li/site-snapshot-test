@@ -298,7 +298,7 @@ def test_homebrew_composite_eval_accepts_final_state_evaluator(monkeypatch) -> N
     ):
         assert method == "GET"
         assert path == "/api/v4/projects/igraph%2Figraph/issues/2336/notes"
-        return [{"body": witness}]
+        return [{"id": "77", "body": witness}]
 
     monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
 
@@ -346,6 +346,7 @@ def test_homebrew_composite_eval_accepts_final_state_evaluator(monkeypatch) -> N
                 "method": "POST",
                 "response_status": 200,
                 "post_data": "<redacted>",
+                "response_headers": {"Location": "/igraph/igraph/-/issues/2336#note_77"},
             },
         ],
     )

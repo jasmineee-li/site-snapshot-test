@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
 
 from warp_taskgen.rewards import final_state_webarena_verified_gitlab as gitlab_state
 from warp_taskgen.rewards.final_state_catalog import (
@@ -65,15 +65,16 @@ class GitLabFinalStateEvaluator:
             and request.evidence_policy.allows_ui_state_transition
             and _state_probe_kind(state_probe) in {"", "issue_contains"}
         ):
-            if not _gitlab_ui_issue_transition_seen(network_trace, instance, state_probe):
+            events = _gitlab_ui_issue_creation_events(network_trace, instance, state_probe)
+            if not events:
                 return False, (
                     f"final-state source event missing: {message}; "
-                    "no gitlab UI issue transition evidence"
+                    "gitlab creation proof unavailable: no action-linked UI issue transition evidence"
                 )
             passed, readback_message = gitlab_state._eval_gitlab_final_state(
                 request.action_kind,
                 request.witness,
-                [{}],
+                events,
                 network_trace,
                 instance,
                 state_probe,
@@ -83,9 +84,9 @@ class GitLabFinalStateEvaluator:
                     f"{readback_message} "
                     "(proof_channel=state_readback; support=ui_state_transition)"
                 )
-            message = f"{message}; {readback_message}" if message else readback_message
+            return False, readback_message
         if not events:
-            return False, f"final-state source event missing: {message}"
+            return False, f"final-state source event missing: {message}; creation proof unavailable"
         return gitlab_state._eval_gitlab_final_state(
             request.action_kind,
             request.witness,
@@ -96,42 +97,29 @@ class GitLabFinalStateEvaluator:
         )
 
 
-def _gitlab_ui_issue_transition_seen(
+def _gitlab_ui_issue_creation_events(
     network_trace: list[dict],
     instance: dict,
     state_probe: Mapping | None,
-) -> bool:
-    probe = state_probe if isinstance(state_probe, Mapping) else {}
-    allowed_projects = {
-        str(value).strip().strip("/")
-        for value in (probe.get("project_path"), probe.get("project_id"))
-        if value not in (None, "")
-    }
-    trace_projects = _gitlab_new_issue_form_projects(network_trace, instance)
-    observed_anchor = gitlab_state._gitlab_issue_anchor_from_network_trace(network_trace)
-    excluded_iids = gitlab_state._gitlab_excluded_issue_iids(probe)
-    if observed_anchor is not None and observed_anchor[1] not in excluded_iids:
-        trace_projects.add(observed_anchor[0])
-    if not trace_projects:
-        return False
-    return not allowed_projects or bool(trace_projects & allowed_projects)
-
-
-def _gitlab_new_issue_form_projects(
-    network_trace: list[dict],
-    instance: dict,
-) -> set[str]:
-    projects: set[str] = set()
+) -> list[dict]:
+    """A creation response redirect can support UI evidence; a detail GET cannot."""
+    events = []
     for event in network_trace:
+        if gitlab_state._network_event_method(event) != "POST":
+            continue
+        if gitlab_state._network_event_status(event) not in {200, 201, 202, 204, 302, 303}:
+            continue
         for event_url in _network_event_url_candidates(event, instance):
-            path = urlparse(event_url).path
-            marker = "/-/issues/new"
-            if marker not in path:
+            if urlparse(event_url).netloc != urlparse(str(instance.get("site_url") or "")).netloc:
                 continue
-            project_path = unquote(path.split(marker, 1)[0]).strip("/")
-            if project_path:
-                projects.add(project_path)
-    return projects
+            if not gitlab_state._gitlab_project_path_from_issue_create_ui_path(
+                urlparse(event_url).path
+            ):
+                continue
+            if gitlab_state._gitlab_response_locations(event):
+                events.append(event)
+            break
+    return events
 
 
 __all__ = ["GitLabFinalStateEvaluator"]
