@@ -53,7 +53,7 @@ Add host-side parity coverage before moving behavior:
 - Exercise editor registry snapshot behavior by writing a temporary
   `_editor_registry.json` and invoking the validator code as it runs in the
   sandbox.
-- Keep existing `tests/test_sandbox_validator.py` cases green throughout the
+- Keep the existing `tests/sandbox_validator/` cases green throughout the
   split.
 
 ## Acceptance Criteria
