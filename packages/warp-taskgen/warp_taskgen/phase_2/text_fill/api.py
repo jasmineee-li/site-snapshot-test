@@ -27,11 +27,13 @@ from warp_taskgen.phase_2.text_fill.constants import (
     TEXT_FILL_STRUCTURED_RETRIES,
 )
 from warp_taskgen.phase_2.text_fill.context import _content_capacity_for_surface
+from warp_taskgen.phase_2.text_fill.request_archive import text_fill_request_recorder
 from warp_taskgen.phase_2.text_fill.validation import _length_budget_bounds, validate_text_post_hoc
 from warp_taskgen.phase_4.anthropic_client import (
     call_with_retry,
     get_client,
     normalize_model_for_auth,
+    resolved_messages_provider,
     temperature_kwargs_for_model,
 )
 from warp_taskgen.phase_4.concurrency import get_api_semaphore
@@ -93,12 +95,20 @@ async def _call_text_fill_api(
         instructor_client = instructor.from_anthropic(client, mode=instructor.Mode.ANTHROPIC_TOOLS)
         normalized_model = normalize_model_for_auth(model)
         max_tokens = _text_fill_max_tokens(task)
+        client_provider = resolved_messages_provider()
         trace = InstructorCallTrace(
             phase="phase_2b",
             label="phase2b-text-fill",
             task_id=str(task.get("id") or ""),
             site=str(task.get("site") or ""),
             response_model_name=TextPayloadResponse.__name__,
+            resolved_client_provider=client_provider,
+            request_recorder=text_fill_request_recorder(
+                task_id=str(task.get("id") or ""),
+                site=str(task.get("site") or ""),
+                configured_model=model,
+                client_provider=client_provider,
+            ),
         )
         hooks = build_instructor_hooks(trace)
 
@@ -144,6 +154,10 @@ async def _call_text_fill_api(
                 "structured_text_fill_truncated: output hit max_tokens",
                 diagnostics=diagnostics,
             ) from exc
+        except Exception as exc:
+            diagnostics = trace.to_diagnostics()
+            diagnostics["selected_max_tokens"] = max_tokens
+            raise TextFillAPIError(str(exc), diagnostics=diagnostics) from exc
 
         elapsed = time.monotonic() - t0
         cost_tracker.record(

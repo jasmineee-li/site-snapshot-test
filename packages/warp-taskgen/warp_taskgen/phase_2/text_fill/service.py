@@ -237,7 +237,11 @@ def _finalize_task_payloads(
     finalized = json.loads(json.dumps(task))
     finalized["payload_texts"] = payloads
     finalized["selected_payload_index"] = 0
-    finalized["payload_text_diagnostics"] = diagnostics
+    if diagnostics.get("status") == "reused_existing":
+        # Preserve original generation evidence (or its historical absence).
+        finalized["payload_text_reuse_diagnostics"] = diagnostics
+    else:
+        finalized["payload_text_diagnostics"] = diagnostics
     selected = payloads[0]
     finalized["adversarial_data_seed"] = materialize_adversarial_seed(
         finalized["seed_template"],

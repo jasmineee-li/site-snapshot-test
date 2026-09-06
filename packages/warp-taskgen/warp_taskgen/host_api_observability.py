@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from json import JSONDecodeError
 from typing import Any
@@ -126,6 +126,8 @@ class InstructorCallTrace:
     provider: str = "anthropic"
     mode: str = "anthropic_tools"
     response_model_name: str | None = None
+    resolved_client_provider: str | None = None
+    request_recorder: Callable[[dict[str, Any]], dict[str, Any]] | None = None
     started_at: float = field(default_factory=time.monotonic)
     completion_kwargs: list[dict[str, Any]] = field(default_factory=list)
     completion_responses: list[dict[str, Any]] = field(default_factory=list)
@@ -134,26 +136,40 @@ class InstructorCallTrace:
     last_attempt_errors: list[dict[str, Any]] = field(default_factory=list)
 
     def record_completion_kwargs(self, *_args: Any, **kwargs: Any) -> None:
-        self.completion_kwargs.append(summarize_provider_kwargs(kwargs))
+        summary = summarize_provider_kwargs(kwargs)
+        if self.request_recorder is not None:
+            summary["request_archive"] = self.request_recorder(kwargs)
+        self.completion_kwargs.append(summary)
 
     def record_completion_response(self, response: Any) -> None:
-        self.completion_responses.append(summarize_provider_response(response))
+        summary = summarize_provider_response(response)
+        if summary is not None:
+            self._bind_request(summary)
+        self.completion_responses.append(summary)
 
     def record_parse_error(self, error: Exception) -> None:
-        self.parse_errors.append(summarize_exception(error))
+        entry = summarize_exception(error)
+        self._bind_request(entry)
+        self.parse_errors.append(entry)
 
     def record_completion_error(self, error: Exception, **metadata: Any) -> None:
         entry = summarize_exception(error)
         entry["metadata"] = _jsonable(metadata)
+        self._bind_request(entry)
         self.completion_errors.append(entry)
 
     def record_completion_last_attempt(self, error: Exception, **metadata: Any) -> None:
         entry = summarize_exception(error)
         entry["metadata"] = _jsonable(metadata)
+        self._bind_request(entry)
         self.last_attempt_errors.append(entry)
 
+    def _bind_request(self, entry: dict[str, Any]) -> None:
+        if self.request_recorder is not None and self.completion_kwargs:
+            entry["request_index"] = len(self.completion_kwargs)
+
     def to_diagnostics(self) -> dict[str, Any]:
-        return {
+        diagnostics = {
             "phase": self.phase,
             "label": self.label,
             "task_id": self.task_id,
@@ -169,6 +185,9 @@ class InstructorCallTrace:
             "completion_errors": self.completion_errors,
             "last_attempt_errors": self.last_attempt_errors,
         }
+        if self.request_recorder is not None or self.resolved_client_provider is not None:
+            diagnostics["resolved_client_provider"] = self.resolved_client_provider
+        return diagnostics
 
 
 def instructor_retry_exception_diagnostics(exc: InstructorRetryException) -> dict[str, Any]:
