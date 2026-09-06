@@ -960,8 +960,10 @@ Mainline seeds use only `mechanism: "editor"` with `editor_calls`, plus
 `mechanism: "none"` for navigate-only setup. The old `api`, `form`, and
 `state_push` seed mechanisms are migration-only historical shapes and are
 rejected by `warp_taskgen/seeding/validation.py`. Each editor call is dispatched
-through `EDITOR_REGISTRY[(benchmark, site)]`. For current WASP mainline, that
-registry contains WebArena Verified GitLab and Reddit/Postmill editors only.
+through the Run's Runtime Composition seed registry, keyed by
+`(benchmark, site)`. For current WASP mainline, the default registry
+(`warp_taskgen/seeding/site_contracts.py::default_seed_registry`) contains
+WebArena Verified GitLab and Reddit/Postmill editors only.
 
 **Prompts:**
 
@@ -1545,7 +1547,7 @@ source-data preflight and verification Atomic Work Units. Signal interruption,
 cancellation, leases, and the other pipeline phases do not inherit either
 pause contract.
 
-**Editor-based seeding dispatch.** Every `data_seed` and `adversarial_data_seed` carries an `editor_calls` list of `{benchmark, site, method, args}` entries. Phase 4 and Phase 2c dispatch each call through `EDITOR_REGISTRY[(benchmark, site)]` (defined in `warp_taskgen/editors/__init__.py`), which returns a per-site OOP editor class (`ShoppingEditor`, `ShoppingAdminEditor`, `GitlabEditor`, `RedditEditor`, ...). Adding a new benchmark means adding new editor classes and a registry entry; no call-site changes are needed. The single source of truth for method names, selector args, payload args, and token requirements is the editor registry method spec used by exposure-contract materialization. Editors that create a new user-visible object return a generic `created_resource` descriptor (`role`, `kind`, `id`, `url`, optional `parent_url`) in addition to any site-specific fields; seeding preserves these as `seed_metadata.created_resource` / `seed_metadata.created_resources` so Phase 2c can resolve transition targets without knowing whether the site calls the object a submission, issue, ticket, or message. For multi-call self-contained seeds, seeding also records per-call `seed_metadata.editor_call_results[]` with call index, editor method, read surfaces, created resources, and write identifiers. Phase 2c uses this per-call record when available to bind render verification to the editor call that actually contains the selected payload signature, falling back to aggregate metadata only for older artifacts.
+**Editor-based seeding dispatch.** Every `data_seed` and `adversarial_data_seed` carries an `editor_calls` list of `{benchmark, site, method, args}` entries. Phase 4 and Phase 2c dispatch each call through the Run's Runtime Composition seed registry, keyed by `(benchmark, site)` (the default binding is `warp_taskgen/seeding/site_contracts.py::default_seed_registry`), which returns a per-site OOP editor class (`ShoppingEditor`, `ShoppingAdminEditor`, `GitlabEditor`, `RedditEditor`, ...). Adding a new benchmark means adding new editor classes and a seed registry registration; no call-site changes are needed. The single source of truth for method names, selector args, payload args, and token requirements is the editor registry method spec used by exposure-contract materialization. Editors that create a new user-visible object return a generic `created_resource` descriptor (`role`, `kind`, `id`, `url`, optional `parent_url`) in addition to any site-specific fields; seeding preserves these as `seed_metadata.created_resource` / `seed_metadata.created_resources` so Phase 2c can resolve transition targets without knowing whether the site calls the object a submission, issue, ticket, or message. For multi-call self-contained seeds, seeding also records per-call `seed_metadata.editor_call_results[]` with call index, editor method, read surfaces, created resources, and write identifiers. Phase 2c uses this per-call record when available to bind render verification to the editor call that actually contains the selected payload signature, falling back to aggregate metadata only for older artifacts.
 
 **Partial success.** Phase 2 succeeds if any site produces valid adversarial tasks. Sites that fail (sandbox timeout, validation errors) are logged as warnings, not fatal errors. Phase 2 fails only if zero adversarial tasks are produced across all sites.
 
@@ -1668,8 +1670,9 @@ wiring; tests inject fakes through the bundle instead of patching the loop.
 
 Per-task execution reuses the existing primitives: the verifier calls
 `apply_data_seed_async` from `warp_taskgen.seeding` (implemented in
-`warp_taskgen/seeding/_impl.py`), which renders the seed context, dispatches through
-`EDITOR_REGISTRY[(call["benchmark"], call["site"])]`, runs `validate_args`
+`warp_taskgen/seeding/execution.py`), which renders the seed context, dispatches
+through the Run's Runtime Composition seed registry keyed by
+`(call["benchmark"], call["site"])`, runs `validate_args`
 (rejections remap to `schema_mismatch`), invokes the declared method, and — via
 `SeedCleanupHandle` — tears down every succeeded call in LIFO order on any chain
 failure. The verifier retries only on `EditorError.kind ∈ {"request_failed",
@@ -1733,9 +1736,10 @@ contract.
 
 **Benchmark-agnosticity.** No benchmark, site, or platform string should appear
 in the canonical `warp_taskgen.phase_2.phase_2c` verification logic. All benchmark
-knowledge lives in the editor classes under `warp_taskgen/editors/` and in
-`EDITOR_REGISTRY`. Adding a new benchmark (e.g. ST-WebAgentBench) means adding
-editor classes and a host config; the 2c module is unchanged.
+knowledge lives in the editor classes under `warp_taskgen/editors/` and in the
+Run's Runtime Composition seed registry. Adding a new benchmark (e.g.
+ST-WebAgentBench) means adding editor classes and a host config; the 2c module
+is unchanged.
 
 **Threat model and infrastructure invariants.** 2c uses the same HTTP-only editor channels Phase 4 uses. No SQL seeding. Regular authenticated user, no admin shortcuts. One `reset_endpoint` call between tasks is allowed; no container lifecycle management. The default `--feasibility-instances` path must point at dev or smoke instances, not production.
 
@@ -1810,7 +1814,7 @@ Legacy adaptive strategy variation is still available with
 
 ### Initial Adversarial Run
 
-**Self-contained adversarial seeds.** Phase 4 applies only `adversarial_data_seed`, not the benign `data_seed`. In the v2 schema, Phase 4 first resolves the selected rendered payload from `payload_texts[selected_payload_index]`, then materializes `adversarial_data_seed` from `seed_template` if needed. The resulting adversarial data seed must be self-contained: it must include all benign seed statements plus the adversarial injection content. Phase 2 enforces this through the `seed_template` contract and the final materialization step. `apply_data_seed` dispatches each `editor_calls` entry through `EDITOR_REGISTRY`, the same registry Phase 2c used at verification time.
+**Self-contained adversarial seeds.** Phase 4 applies only `adversarial_data_seed`, not the benign `data_seed`. In the v2 schema, Phase 4 first resolves the selected rendered payload from `payload_texts[selected_payload_index]`, then materializes `adversarial_data_seed` from `seed_template` if needed. The resulting adversarial data seed must be self-contained: it must include all benign seed statements plus the adversarial injection content. Phase 2 enforces this through the `seed_template` contract and the final materialization step. `apply_data_seed` dispatches each `editor_calls` entry through the Run's Runtime Composition seed registry, the same registry Phase 2c used at verification time.
 
 **Feasibility and exposure admission.** Phase 4 admits only tasks with
 `feasibility.status == "verified"`, an eligible `exposure_contract`,

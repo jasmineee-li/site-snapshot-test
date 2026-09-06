@@ -34,7 +34,9 @@ def test_rocket_chat_runtime_composition_is_explicit_and_non_default() -> None:
     assert composition.seed_registry.get("theagentcompany", "rocketchat") is not None
     assert composition.feasibility_policy_catalog.get("theagentcompany", "rocketchat") is not None
     assert composition.strict_seed_cleanup is True
-    assert runtime_composition_for_name(ROCKET_CHAT_CONVERSATION_DECISION_POC).name == composition.name
+    assert (
+        runtime_composition_for_name(ROCKET_CHAT_CONVERSATION_DECISION_POC).name == composition.name
+    )
     capabilities = get_benchmark_capabilities("theagentcompany")
     assert capabilities.supports("phase_2_generation") is False
     assert capabilities.supports("phase_2_feasibility") is False

@@ -120,9 +120,12 @@ Current and target ownership should stay explicit:
   operator output and catchable process signals after the phase stack unwinds.
 - `warp_taskgen.seeding`: host-side seed validation, context rendering, editor-call
   execution, read-surface/result metadata, reddit/map context resolution,
-  runtime error validation, DB helpers, and editor-argument compatibility. This
-  package remains a patchable public surface because many tests and hidden
-  callers monkeypatch `warp_taskgen.seeding` directly.
+  runtime error validation, DB helpers, and editor-argument compatibility. The
+  `_impl.py` parity module is retired; behavior lives in the sibling module that
+  owns it and `__init__.py` re-exports an explicit, bounded surface. Patch the
+  owning sibling (for example `warp_taskgen.seeding.execution`), not the package
+  root. `site_contracts.default_seed_registry()` builds the default GitLab/Reddit
+  seed binding a Run uses when it does not carry its own.
 - `warp_taskgen.cli`: the WARP Taskgen CLI, split by owner: `env.py` runs the
   import-time dotenv bootstrap first, `args.py` owns the parser and defaults,
   `dispatch.py` owns `main` and phase dispatch, `resume.py` the resume flow,
@@ -216,8 +219,9 @@ sequencing reduces review risk:
 - For package cutovers that still have `_impl.py` parity modules, drain those
   modules incrementally. Move one behavioral cluster at a time into its sibling
   module and run the focused tests before deleting any facade or re-export.
-  Priority order: Phase 2c feasibility, seeding execution, exposure contracts,
-  Phase 4 result-summary, outcome taxonomy, Phase 1 validation, then CLI.
+  Phase 2c feasibility and seeding execution are done; the remaining priority
+  order is exposure contracts, Phase 4 result-summary, outcome taxonomy, Phase 1
+  validation, then CLI.
 - Then remove pure compatibility wrappers in follow-up changes after downstream
   imports are moved and one validation cycle has had a chance to reveal hidden
   consumers. Some `warp_taskgen.phases.*` modules are still patchable compatibility
