@@ -311,6 +311,10 @@ async def run_adversarial_task(
     site's AGENT_CONTEXT resolve correctly.
     """
     task_id = task.get("id", "unknown")
+    # Every Run has a composition: a Run that named none uses the default one.
+    run_composition = (
+        runtime_composition if runtime_composition is not None else RuntimeComposition.default()
+    )
 
     # Wipe stale PVPO artefacts from a crashed prior run before re-entering.
     # ``run_adversarial_task`` is only called when resume decided the task is
@@ -436,16 +440,12 @@ async def run_adversarial_task(
                     seed_instance_dict["seed_target_surface_id"] = target_surface_id
                 try:
                     preflight_seed = raw_adv_seed if raw_adv_seed is not None else adv_seed
-                    preflight_kwargs: dict[str, Any] = {
-                        "benchmark": _seed_target_benchmark(task, seed_instance_dict),
-                        "base_state_cache": seed_probe_cache,
-                    }
-                    if runtime_composition is not None:
-                        preflight_kwargs["seed_registry"] = runtime_composition.seed_registry
                     preflight = await preflight_adversarial_seed(
                         preflight_seed,
                         seed_instance_dict,
-                        **preflight_kwargs,
+                        benchmark=_seed_target_benchmark(task, seed_instance_dict),
+                        base_state_cache=seed_probe_cache,
+                        seed_registry=run_composition.seed_registry,
                     )
                 except ValueError as exc:
                     preflight = PreflightReport(
@@ -493,11 +493,12 @@ async def run_adversarial_task(
                     await _reset_task_environment(task)
                     if reset_cache is not None:
                         reset_cache.mark_clean(task, extra_bindings=reset_cache_bindings)
-                apply_kwargs: dict[str, Any] = {}
-                if runtime_composition is not None:
-                    apply_kwargs["seed_registry"] = runtime_composition.seed_registry
-                    if runtime_composition.strict_seed_cleanup:
-                        apply_kwargs["strict_cleanup"] = True
+                apply_kwargs: dict[str, Any] = {
+                    "seed_registry": run_composition.seed_registry,
+                    "seed_token_scope": run_composition.seed_token_scope,
+                }
+                if run_composition.strict_seed_cleanup:
+                    apply_kwargs["strict_cleanup"] = True
                 seed_cleanup, seed_metadata = await apply_data_seed_async(
                     adv_seed,
                     seed_instance_dict,
@@ -976,7 +977,7 @@ async def run_adversarial_task(
                 logger.exception("seed cleanup failed for task %s", task_id)
                 if reset_cache is not None:
                     reset_cache.mark_dirty(task, extra_bindings=reset_cache_bindings)
-                if runtime_composition is not None and runtime_composition.strict_seed_cleanup:
+                if run_composition.strict_seed_cleanup:
                     # ``save_result`` runs before the common cleanup boundary so
                     # evaluators can inspect the completed browser trajectory.
                     # A required cleanup failure invalidates that completion:

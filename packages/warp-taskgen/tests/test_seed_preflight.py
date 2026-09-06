@@ -24,21 +24,17 @@ class _ProbeEditor:
             cls.behavior(instance)
 
 
-def _install_probe_editor(monkeypatch, behavior=None, *, benchmark: str = "webarena_verified"):
+def _install_probe_editor(behavior=None, *, benchmark: str = "webarena_verified"):
     _ProbeEditor.calls = []
     _ProbeEditor.behavior = behavior
     registrations = dict(default_seed_registry().registrations)
     replacement = SeedSiteRegistration(benchmark, "gitlab", _ProbeEditor)
     registrations[replacement.key] = replacement
-    monkeypatch.setattr(
-        phase_4_preflight,
-        "default_seed_registry",
-        lambda: SeedSiteRegistry(registrations),
-    )
+    return SeedSiteRegistry(registrations)
 
 
 def test_probe_seed_base_state_uses_cache(monkeypatch):
-    _install_probe_editor(monkeypatch)
+    registry = _install_probe_editor()
     cache: dict[tuple[str, str, str, str], phase_4_preflight.BaseStateProbeResult] = {}
     instance = {
         "site_name": "gitlab",
@@ -46,8 +42,8 @@ def test_probe_seed_base_state_uses_cache(monkeypatch):
         "auth": {"type": "bearer_token", "token": "token"},
     }
 
-    first = phase_4_preflight._probe_seed_base_state(instance, cache=cache)
-    second = phase_4_preflight._probe_seed_base_state(instance, cache=cache)
+    first = phase_4_preflight._probe_seed_base_state(instance, cache=cache, seed_registry=registry)
+    second = phase_4_preflight._probe_seed_base_state(instance, cache=cache, seed_registry=registry)
 
     assert first.ok is True
     assert second.ok is True
@@ -55,7 +51,7 @@ def test_probe_seed_base_state_uses_cache(monkeypatch):
 
 
 def test_probe_seed_base_state_cache_is_scoped_by_auth(monkeypatch):
-    _install_probe_editor(monkeypatch)
+    registry = _install_probe_editor()
     cache: dict[tuple[str, str, str, str], phase_4_preflight.BaseStateProbeResult] = {}
 
     first = phase_4_preflight._probe_seed_base_state(
@@ -65,6 +61,7 @@ def test_probe_seed_base_state_cache_is_scoped_by_auth(monkeypatch):
             "auth": {"type": "bearer_token", "token": "token-a"},
         },
         cache=cache,
+        seed_registry=registry,
     )
     second = phase_4_preflight._probe_seed_base_state(
         {
@@ -73,6 +70,7 @@ def test_probe_seed_base_state_cache_is_scoped_by_auth(monkeypatch):
             "auth": {"type": "bearer_token", "token": "token-b"},
         },
         cache=cache,
+        seed_registry=registry,
     )
 
     assert first.ok is True
@@ -81,8 +79,7 @@ def test_probe_seed_base_state_cache_is_scoped_by_auth(monkeypatch):
 
 
 def test_probe_seed_base_state_reports_auth_missing(monkeypatch):
-    _install_probe_editor(
-        monkeypatch,
+    registry = _install_probe_editor(
         behavior=lambda instance: (_ for _ in ()).throw(
             EditorError("auth_missing", "gitlab probe returned HTTP 401")
         ),
@@ -93,7 +90,8 @@ def test_probe_seed_base_state_reports_auth_missing(monkeypatch):
             "site_name": "gitlab",
             "site_url": "http://gitlab.test",
             "auth": {"type": "bearer_token", "token": "bad-token"},
-        }
+        },
+        seed_registry=registry,
     )
 
     assert result.ok is False
@@ -103,8 +101,7 @@ def test_probe_seed_base_state_reports_auth_missing(monkeypatch):
 
 
 def test_probe_seed_base_state_treats_unexpected_errors_as_base_state_missing(monkeypatch):
-    _install_probe_editor(
-        monkeypatch,
+    registry = _install_probe_editor(
         behavior=lambda instance: (_ for _ in ()).throw(RuntimeError("HTTP 302 redirect")),
     )
 
@@ -113,7 +110,8 @@ def test_probe_seed_base_state_treats_unexpected_errors_as_base_state_missing(mo
             "site_name": "gitlab",
             "site_url": "http://gitlab.test",
             "auth": {"type": "bearer_token", "token": "token"},
-        }
+        },
+        seed_registry=registry,
     )
 
     assert result.ok is False
@@ -155,21 +153,23 @@ def test_probe_seed_base_state_for_task_targets_only_probes_selected_instance(mo
     }
     expected = select_task_site_instance(task, "gitlab", instances)
 
-    def fake_probe(instance, benchmark="webarena_verified", cache=None):
+    def fake_probe(instance, benchmark="webarena_verified", cache=None, seed_registry=None):
         probed.append(instance["site_url"])
         assert benchmark == "webarena_verified"
         return phase_4_preflight.BaseStateProbeResult(ok=True)
 
     monkeypatch.setattr(phase_4_preflight, "_probe_seed_base_state", fake_probe)
 
-    errors = phase_4_preflight._probe_seed_base_state_for_task_targets([task], instances)
+    errors = phase_4_preflight._probe_seed_base_state_for_task_targets(
+        [task], instances, seed_registry=default_seed_registry()
+    )
 
     assert errors == []
     assert probed == [expected.site_url]
 
 
 def test_probe_seed_base_state_uses_task_benchmark(monkeypatch):
-    _install_probe_editor(monkeypatch, benchmark="stwebagentbench")
+    registry = _install_probe_editor(benchmark="stwebagentbench")
 
     result = phase_4_preflight._probe_seed_base_state(
         {
@@ -178,6 +178,7 @@ def test_probe_seed_base_state_uses_task_benchmark(monkeypatch):
             "auth": {"type": "bearer_token", "token": "token"},
         },
         benchmark="stwebagentbench",
+        seed_registry=registry,
     )
 
     assert result.ok is True

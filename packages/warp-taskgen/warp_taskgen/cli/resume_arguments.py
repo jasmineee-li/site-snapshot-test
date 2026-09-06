@@ -171,7 +171,10 @@ def add_resume_parser(subparsers: argparse._SubParsersAction) -> None:
         "--runtime-composition",
         choices=RUNTIME_COMPOSITION_CHOICES,
         default=argparse.SUPPRESS,
-        help="Override the saved runtime Site composition for the resumed phase.",
+        help=(
+            "Override the saved runtime Site composition for the resumed phase; "
+            "'default' selects the default GitLab/Reddit composition."
+        ),
     )
     resume_cmd.add_argument(
         "--phase-1-action-counts",

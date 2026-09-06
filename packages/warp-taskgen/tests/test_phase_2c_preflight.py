@@ -201,6 +201,7 @@ def test_self_test_preflight_auth_gitlab_alive():
             request_context=context,
             site="gitlab",
             site_url="http://gitlab.test",
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
 
@@ -223,6 +224,7 @@ def test_self_test_preflight_auth_gitlab_detects_login_redirect():
             request_context=context,
             site="gitlab",
             site_url="http://gitlab.test",
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
 
@@ -240,6 +242,7 @@ def test_self_test_preflight_auth_gitlab_detects_unauthorized():
             request_context=context,
             site="gitlab",
             site_url="http://gitlab.test",
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
 
@@ -255,6 +258,7 @@ def test_self_test_preflight_auth_skips_reddit():
             request_context=context,
             site="reddit",
             site_url="http://reddit.test",
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
 
@@ -307,6 +311,7 @@ def test_preflight_splits_quarantine_from_keep():
             [keep_task, drop_task],
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
     assert [t["id"] for t in keep] == ["adv_keep"]
@@ -334,6 +339,7 @@ def test_preflight_uses_canonical_benchmark_for_policy_lookup():
             [task],
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
 
@@ -361,6 +367,7 @@ def test_preflight_missing_benchmark_metadata_keeps_without_policy_probe():
             [task],
             instances_by_site={"gitlab": [instance]},
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
 
@@ -394,6 +401,7 @@ def test_preflight_redacts_sensitive_probe_url_fields():
             [task],
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
 
@@ -421,6 +429,7 @@ def test_gitlab_preflight_without_auth_keeps_task_without_probe():
             [task],
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
 
@@ -448,6 +457,7 @@ def test_preflight_quorum_counts_auth_skipped_replicas():
             [task],
             instances_by_site={"gitlab": [probed, skipped]},
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
 
@@ -473,6 +483,7 @@ def test_preflight_uses_instance_benchmark_over_task_metadata():
             [task],
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
 
@@ -504,6 +515,7 @@ def test_preflight_bailout_when_login_redirect_dominates():
             tasks,
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
     # Bailout: nothing quarantined, all tasks returned to keep.
@@ -539,6 +551,7 @@ def test_preflight_bailout_restores_original_task_objects_with_mixed_drops():
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
             bailout_ratio=0.25,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
 
@@ -561,6 +574,7 @@ def test_preflight_skips_tasks_with_no_benign_target():
             [malformed],
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
     assert keep == [malformed]
@@ -578,6 +592,7 @@ def test_preflight_skips_tasks_whose_site_has_no_instance():
             [task],
             instances_by_site={},  # no mystery instance
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
     assert keep == [task]
@@ -589,7 +604,12 @@ def test_preflight_empty_task_list_short_circuits():
         raise AssertionError("factory should not be called")
 
     keep, dropped = asyncio.run(
-        preflight_benign_targets([], instances_by_site={}, request_context_factory=_factory)
+        preflight_benign_targets(
+            [],
+            instances_by_site={},
+            request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
+        )
     )
     assert keep == [] and dropped == []
 
@@ -621,6 +641,7 @@ def test_preflight_unanimous_quarantine_across_replicas():
             [task],
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
     assert len(dropped) == 1
@@ -653,6 +674,7 @@ def test_preflight_majority_quarantine_with_replica_0_drift():
             [task],
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
     assert len(dropped) == 1
@@ -688,6 +710,7 @@ def test_preflight_minority_quarantine_passes_through():
             [task],
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
     assert keep == [task]
@@ -723,6 +746,7 @@ def test_preflight_rewrites_synthetic_hostname_to_live_url():
             [task],
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
     assert keep == [task]
@@ -777,6 +801,7 @@ def test_preflight_cleans_gitlab_editor_surface_project_path_authority():
             [task],
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
 
@@ -808,6 +833,7 @@ def test_preflight_reuses_request_context_across_same_site_tasks():
             tasks,
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
     assert factory_calls == 1, "factory should run once per (site, storage_state)"
@@ -834,6 +860,7 @@ def test_preflight_context_cache_is_race_safe_for_concurrent_same_key_tasks():
             tasks,
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
 
@@ -876,6 +903,7 @@ def test_preflight_serializes_shared_request_context_probes():
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
             concurrency=16,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
 
@@ -904,6 +932,7 @@ def test_preflight_transient_error_passes_task_through():
             [task],
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
     # 5xx is transient — task passes through, no quarantine.
@@ -946,6 +975,7 @@ def test_preflight_quarantines_stale_editor_surface_even_when_start_url_is_ok():
             [task],
             instances_by_site=instances_by_site,
             request_context_factory=_factory,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
     )
 

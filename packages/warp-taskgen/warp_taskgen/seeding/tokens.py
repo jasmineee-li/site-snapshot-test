@@ -114,10 +114,18 @@ def _assert_benign_tokens_bound(
     task: Any,
     *,
     seed_registry: SeedSiteRegistry | None = None,
+    seed_token_scope: str = "kind",
 ) -> None:
     """Raise :class:`UnboundTokenError` if ``value`` references any
-    ``{benign_<x>}`` token not in the contract's
-    :func:`available_tokens_for_kind` for the task's kind + anchors.
+    ``{benign_<x>}`` token the Run's token scope does not reach.
+
+    ``seed_token_scope`` is the Runtime Composition property that selects the
+    scope, never inferred from whether a registry was supplied.  ``"kind"``
+    (the default composition) reads the kind-scoped union
+    :func:`available_tokens_for_kind` publishes for the task's kind and
+    anchors.  ``"method"`` (the named POC compositions) reads only the
+    bindings the seed call's own editor method declares, intersected with the
+    task's anchors, and requires ``seed_registry``.
 
     No-op when the task lacks a ``benign_target_resource`` with a
     non-null kind (legacy tasks, pending-L3 records). The Option A
@@ -125,6 +133,8 @@ def _assert_benign_tokens_bound(
     benefits from the check because it catches cases where Phase 2a
     regeneration hasn't happened yet.
     """
+    if seed_token_scope not in ("kind", "method"):
+        raise ValueError("seed_token_scope must be 'kind' or 'method'")
     if not isinstance(task, dict):
         return
     resource = task.get("benign_target_resource")
@@ -145,10 +155,13 @@ def _assert_benign_tokens_bound(
         benchmark = _infer_task_benchmark(task)
     except ValueError as exc:
         raise ValueError(f"seed token contract benchmark metadata is invalid: {exc}") from exc
-    # An explicit Site registry is intentionally isolated from the historical
-    # process-wide editor contract registry.  Read its method declaration when
-    # available; the legacy path retains the existing global lookup and shapes.
-    if seed_registry is not None:
+    # A method-scoped Run is intentionally isolated from the historical
+    # process-wide editor contract registry: it reads only what the seed
+    # call's own editor method declares.  A kind-scoped Run keeps the
+    # historical union across every registered method for the kind.
+    if seed_token_scope == "method":
+        if seed_registry is None:
+            raise ValueError("method-scoped seed token checks require a seed_registry")
         declared = _declared_tokens_for_seed_call(
             value,
             task,

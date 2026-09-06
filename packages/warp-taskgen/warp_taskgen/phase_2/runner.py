@@ -47,6 +47,7 @@ from warp_taskgen.phase_2.text_fill.constants import (
 from warp_taskgen.phase_2.text_fill.service import fill_texts_for_tasks
 from warp_taskgen.run_definition import define_run
 from warp_taskgen.runtime_composition import (
+    DEFAULT_RUNTIME_COMPOSITION,
     benchmark_capabilities_for_runtime,
     runtime_composition_for_name,
 )
@@ -165,8 +166,11 @@ async def run(args: argparse.Namespace) -> int:
         "phase_2a_action_policy": phase_2a_action_policy,
         "exposure_contract_signature": exposure_contract_signature(),
     }
-    if runtime_composition_name:
-        state_metadata["runtime_composition"] = runtime_composition_name
+    # The default composition is what an unnamed Run resolves, so recording it
+    # would change ``pipeline_state.json`` for every existing Run. Only a named
+    # composition is written.
+    if runtime_composition.name != DEFAULT_RUNTIME_COMPOSITION:
+        state_metadata["runtime_composition"] = runtime_composition.name
     output_dir.mkdir(parents=True, exist_ok=True)
     plans_path = output_dir / "adversarial_plans.json"
     diagnostics_path = output_dir / "text_fill_diagnostics.json"

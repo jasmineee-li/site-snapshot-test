@@ -82,6 +82,14 @@ class _EditorInstanceCache(dict[tuple[str, str], Any]):
 
 
 def _coerce_seed_registry(seed_registry: SeedSiteRegistry | None) -> SeedSiteRegistry:
+    """Resolve the Run's Site editor binding for one seed application.
+
+    A caller that carries a Runtime Composition passes its registry; a caller
+    with none resolves the default binding, which is the same object
+    :meth:`RuntimeComposition.default` builds.  Everything below this point
+    reads the resolved registry unconditionally.
+    """
+
     if seed_registry is None:
         return default_seed_registry()
     if not isinstance(seed_registry, SeedSiteRegistry):
@@ -94,6 +102,7 @@ def apply_data_seed(
     instance: dict[str, Any],
     *,
     seed_registry: SeedSiteRegistry | None = None,
+    seed_token_scope: str = "kind",
     strict_cleanup: bool = False,
 ) -> tuple[SeedCleanupHandle | None, dict[str, Any]]:
     """Apply a data seed to a running benchmark instance.
@@ -121,14 +130,11 @@ def apply_data_seed(
     if not isinstance(strict_cleanup, bool):
         raise TypeError("strict_cleanup must be a bool")
 
-    resolved_registry = _coerce_seed_registry(seed_registry) if seed_registry is not None else None
-    if resolved_registry is None:
-        validate_data_seed(seed, allow_none=True)
-    else:
-        validate_data_seed(seed, allow_none=True, seed_registry=resolved_registry)
+    resolved_registry = _coerce_seed_registry(seed_registry)
+    validate_data_seed(seed, allow_none=True, seed_registry=resolved_registry)
 
     seed_context = _build_seed_context(seed, instance)
-    run_registry = resolved_registry or default_seed_registry()
+    run_registry = resolved_registry
     editor_instances: dict[tuple[str, str], Any] = _EditorInstanceCache(run_registry)
     session = requests.Session()
     cleanup_handle: SeedCleanupHandle | None = None
@@ -146,9 +152,9 @@ def apply_data_seed(
                 "read_surface_provenance": read_surface_provenance,
                 "created_resource_accumulator": created_resource_accumulator,
                 "editor_call_result_accumulator": editor_call_result_accumulator,
+                "seed_registry": resolved_registry,
+                "seed_token_scope": seed_token_scope,
             }
-            if resolved_registry is not None:
-                call_kwargs["seed_registry"] = resolved_registry
             _apply_editor_seed_call(
                 session,
                 call,
@@ -281,6 +287,7 @@ async def apply_data_seed_async(
     instance: dict[str, Any],
     *,
     seed_registry: SeedSiteRegistry | None = None,
+    seed_token_scope: str = "kind",
     strict_cleanup: bool = False,
 ) -> tuple[SeedCleanupHandle | None, dict[str, Any]]:
     """Apply a data seed without blocking the event loop."""
@@ -289,6 +296,7 @@ async def apply_data_seed_async(
         seed,
         instance,
         seed_registry=seed_registry,
+        seed_token_scope=seed_token_scope,
         strict_cleanup=strict_cleanup,
     )
 
@@ -300,15 +308,12 @@ def preflight_editor_seed_calls(
     seed_registry: SeedSiteRegistry | None = None,
 ) -> list[dict[str, Any]]:
     """Render and validate editor calls without firing mutations."""
-    resolved_registry = _coerce_seed_registry(seed_registry) if seed_registry is not None else None
-    if resolved_registry is None:
-        validate_data_seed(seed, allow_none=False)
-    else:
-        validate_data_seed(seed, allow_none=False, seed_registry=resolved_registry)
+    resolved_registry = _coerce_seed_registry(seed_registry)
+    validate_data_seed(seed, allow_none=False, seed_registry=resolved_registry)
     seed_context = _build_seed_context(seed, instance)
     errors: list[dict[str, Any]] = []
     session = requests.Session()
-    run_registry = resolved_registry or default_seed_registry()
+    run_registry = resolved_registry
     editor_instances: dict[tuple[str, str], Any] = _EditorInstanceCache(run_registry)
     try:
         for index, call in enumerate(seed.get("editor_calls", [])):
@@ -316,13 +321,13 @@ def preflight_editor_seed_calls(
                 continue
             try:
                 rendered = _render_editor_seed_call(call, seed_context)
-                editor_kwargs = {
-                    "session": session,
-                    "editor_instances": editor_instances,
-                }
-                if resolved_registry is not None:
-                    editor_kwargs["seed_registry"] = resolved_registry
-                editor = _get_editor_for_seed_call(rendered, instance, **editor_kwargs)
+                editor = _get_editor_for_seed_call(
+                    rendered,
+                    instance,
+                    session=session,
+                    editor_instances=editor_instances,
+                    seed_registry=resolved_registry,
+                )
                 method_name = rendered["method"]
                 args = rendered["args"]
                 editor_method = getattr(editor, method_name, None)
@@ -383,7 +388,7 @@ def _get_editor_for_seed_call(
     *,
     session: requests.Session,
     editor_instances: dict[tuple[str, str], Any],
-    seed_registry: SeedSiteRegistry | None = None,
+    seed_registry: SeedSiteRegistry,
 ) -> Any:
     benchmark = _infer_editor_call_benchmark(call, instance)
     site = str(call.get("site") or instance.get("site_name") or "").strip().lower()
@@ -398,10 +403,7 @@ def _get_editor_for_seed_call(
     if editor is not None:
         _assert_seed_editor_site(editor, site)
         return editor
-    registry = seed_registry or getattr(editor_instances, "seed_registry", None)
-    if registry is None:
-        registry = default_seed_registry()
-    registration = registry.get(benchmark, site)
+    registration = seed_registry.get(benchmark, site)
     if registration is None:
         raise EditorError(
             "unsupported_site",
@@ -436,7 +438,8 @@ def _apply_editor_seed_call(
     read_surface_provenance: dict[str, Any] | None = None,
     created_resource_accumulator: list[dict[str, Any]] | None = None,
     editor_call_result_accumulator: list[dict[str, Any]] | None = None,
-    seed_registry: SeedSiteRegistry | None = None,
+    seed_registry: SeedSiteRegistry,
+    seed_token_scope: str = "kind",
 ) -> None:
     from datetime import UTC, datetime
 
@@ -448,6 +451,7 @@ def _apply_editor_seed_call(
         call,
         instance.get("seed_task"),
         seed_registry=seed_registry,
+        seed_token_scope=seed_token_scope,
     )
     delay_s = _editor_call_pre_delay_s(call)
     if delay_s > 0:
@@ -456,13 +460,13 @@ def _apply_editor_seed_call(
 
     rendered = _render_editor_seed_call(call, seed_context)
     benchmark = _infer_editor_call_benchmark(rendered, instance)
-    editor_kwargs = {
-        "session": session,
-        "editor_instances": editor_instances,
-    }
-    if seed_registry is not None:
-        editor_kwargs["seed_registry"] = seed_registry
-    editor = _get_editor_for_seed_call(rendered, instance, **editor_kwargs)
+    editor = _get_editor_for_seed_call(
+        rendered,
+        instance,
+        session=session,
+        editor_instances=editor_instances,
+        seed_registry=seed_registry,
+    )
     method_name = str(rendered["method"]).strip()
     args = rendered["args"]
     editor_site_name = str(getattr(editor, "site_name", rendered.get("site") or "")).strip()

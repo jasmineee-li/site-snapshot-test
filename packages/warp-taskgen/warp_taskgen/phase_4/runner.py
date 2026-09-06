@@ -52,6 +52,7 @@ from warp_taskgen.phase_4.resume import (
 from warp_taskgen.placeholders import normalize_site_name
 from warp_taskgen.run_control import pause_aware_map, pause_requested
 from warp_taskgen.runtime_composition import (
+    DEFAULT_RUNTIME_COMPOSITION,
     benchmark_capabilities_for_runtime,
     runtime_composition_for_name,
 )
@@ -148,7 +149,11 @@ async def run(args: argparse.Namespace) -> int:
         phase_4_eval_awareness_max_iterations=phase_4_eval_awareness_max_iterations,
         skip_intermediate_asr=skip_intermediate_asr,
         intermediate_asr_max_steps_per_task=intermediate_asr_max_steps_per_task,
-        runtime_composition=runtime_composition_name or None,
+        runtime_composition=(
+            runtime_composition.name
+            if runtime_composition.name != DEFAULT_RUNTIME_COMPOSITION
+            else None
+        ),
     )
 
     admission = _load_admitted_phase_4_tasks(
@@ -197,9 +202,9 @@ async def run(args: argparse.Namespace) -> int:
         return 1
     benchmark = run_benchmark or config.benchmark_name
     try:
-        capabilities = benchmark_capabilities_for_runtime(
-            benchmark, runtime_composition
-        ).require("phase_4_execution")
+        capabilities = benchmark_capabilities_for_runtime(benchmark, runtime_composition).require(
+            "phase_4_execution"
+        )
     except ValueError:
         message = f"benchmark {benchmark!r} does not support WARP Taskgen Phase 4"
         logger.error("Phase 4 benchmark metadata gate failed: %s", message)
@@ -469,13 +474,11 @@ async def run(args: argparse.Namespace) -> int:
         len(tasks),
         len(active_instances),
     )
-    infrastructure_probe_kwargs: dict[str, Any] = {"cache": seed_probe_cache}
-    if runtime_composition is not None:
-        infrastructure_probe_kwargs["seed_registry"] = runtime_composition.seed_registry
     infrastructure_errors = _probe_seed_base_state_for_task_targets(
         tasks,
         active_instances,
-        **infrastructure_probe_kwargs,
+        cache=seed_probe_cache,
+        seed_registry=runtime_composition.seed_registry,
     )
     if infrastructure_errors:
         logger.error(

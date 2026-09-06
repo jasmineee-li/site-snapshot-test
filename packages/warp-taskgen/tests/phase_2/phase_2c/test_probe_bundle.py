@@ -17,6 +17,7 @@ from warp_taskgen.phase_2.phase_2c.retry_timing import phase_2c_retry_sleep
 from warp_taskgen.phase_2.phase_2c.runner import verify_feasibility
 from warp_taskgen.phases.phase_2_reachability import verify_reachable
 from warp_taskgen.phases.phase_2_render_check import RenderOutcome, verify_seed_renders
+from warp_taskgen.runtime_composition import RuntimeComposition
 from warp_taskgen.seeding import apply_data_seed_async
 from warp_taskgen.seeding.site_contracts import SeedSiteRegistration, SeedSiteRegistry
 
@@ -115,6 +116,7 @@ async def test_apply_seed_editor_error_yields_that_infeasible_kind() -> None:
         force_reverify=True,
         cleanup_warnings=[],
         browser=None,
+        runtime_composition=RuntimeComposition.default(),
         probes=bundle,
     )
 
@@ -169,6 +171,7 @@ async def test_render_unverified_retries_once_then_cleans_up_once() -> None:
         force_reverify=True,
         cleanup_warnings=warnings,
         browser=object(),
+        runtime_composition=RuntimeComposition.default(),
         probes=bundle,
     )
 

@@ -29,7 +29,7 @@ def auth_self_test_path(
     site: str,
     *,
     benchmark: str = "webarena_verified",
-    feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
+    feasibility_policy_catalog: FeasibilityPolicyCatalog,
 ) -> str | None:
     """Return a cheap authenticated endpoint path for sites that need one."""
     policy = resolve_feasibility_policy(
@@ -47,7 +47,7 @@ async def self_test_preflight_auth(
     site_url: str,
     benchmark: str = "webarena_verified",
     timeout_s: float = DEFAULT_PREFLIGHT_TIMEOUT_S,
-    feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
+    feasibility_policy_catalog: FeasibilityPolicyCatalog,
 ) -> PreflightClassification | None:
     """Probe whether the current request context has live browser auth.
 

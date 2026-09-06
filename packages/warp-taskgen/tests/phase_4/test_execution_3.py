@@ -45,7 +45,7 @@ async def test_run_adversarial_task_passes_instance_id_to_agent_run(monkeypatch,
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance_dict):
+    async def fake_apply_seed(seed, instance_dict, **_kwargs):
         return None, {}
 
     def fake_run_reward_function(reward, inst, agent_result=None, network_trace=None):
@@ -127,7 +127,7 @@ async def test_run_adversarial_task_passes_url_origin_rewrites_to_agent(monkeypa
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance_dict):
+    async def fake_apply_seed(seed, instance_dict, **_kwargs):
         return None, {}
 
     def fake_run_reward_function(reward, inst, agent_result=None, network_trace=None):
@@ -215,7 +215,7 @@ async def test_final_state_adversarial_reward_sets_state_confirmed_success(monke
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance_dict):
+    async def fake_apply_seed(seed, instance_dict, **_kwargs):
         return None, {}
 
     def fake_run_reward_function(reward, inst, agent_result=None, network_trace=None):
@@ -340,7 +340,7 @@ async def test_runtime_seed_refreshes_gitlab_issue_note_state_probe_before_scori
     async def fake_preflight(*args, **kwargs):
         return phase_4_preflight.PreflightReport(ok=True, mismatches=())
 
-    async def fake_apply_seed(seed, instance_dict):
+    async def fake_apply_seed(seed, instance_dict, **_kwargs):
         return None, {
             "read_surface_urls": [
                 "http://172.17.0.1:8033/a11yproject/a11yproject.com/-/issues/1629"

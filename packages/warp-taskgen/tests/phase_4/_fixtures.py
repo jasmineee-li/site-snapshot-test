@@ -176,11 +176,15 @@ def _bypass_editor_preflight(monkeypatch):
     integration concerns for seeded tests, not the orchestration scenarios
     this file exercises. Stub them so fixtures don't need a registered editor
     or a live instance."""
-    monkeypatch.setattr(phase_4_preflight, "preflight_editor_seed_calls", lambda seed, instance: [])
+    monkeypatch.setattr(
+        phase_4_preflight,
+        "preflight_editor_seed_calls",
+        lambda seed, instance, **_kwargs: [],
+    )
     monkeypatch.setattr(
         phase_4_preflight,
         "_probe_seed_base_state",
-        lambda instance, benchmark="webarena_verified", cache=None: (
+        lambda instance, benchmark="webarena_verified", cache=None, **_kwargs: (
             phase_4_preflight.BaseStateProbeResult(ok=True)
         ),
     )

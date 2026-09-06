@@ -28,11 +28,16 @@ from warp_taskgen.phase_2.phase_2c import (
     verifier,
 )
 from warp_taskgen.phase_2.phase_2c import runner as feas
-from warp_taskgen.phase_2.phase_2c.policy import PreflightClassification
+from warp_taskgen.phase_2.phase_2c.policy import (
+    PreflightClassification,
+    default_feasibility_policy_catalog,
+)
 from warp_taskgen.phase_2.phase_2c.probe_bundle import Phase2cProbeBundle
 from warp_taskgen.phases.phase_2_reachability import ReachabilityOutcome
 from warp_taskgen.phases.phase_2_render_check import RenderOutcome, render_signature
+from warp_taskgen.runtime_composition import RuntimeComposition
 from warp_taskgen.seeding.site_contracts import SeedSiteRegistration, SeedSiteRegistry
+from warp_taskgen.sites import default_catalog
 
 
 def test_reachability_resource_prefers_exposure_contract_verification_url():
@@ -710,6 +715,8 @@ async def test_run_render_check_passes_resolved_agent_auth(monkeypatch):
         )
 
     outcome = await probes._run_render_check(
+        site_catalog=default_catalog(),
+        strict_site_planning=False,
         browser=object(),
         render_semaphore=None,
         seed={
@@ -751,6 +758,8 @@ async def test_probes_render_check_uses_canonical_patch(monkeypatch):
     monkeypatch.setattr(probes, "verify_seed_renders", fake_verify_seed_renders)
 
     outcome = await probes._run_render_check(
+        site_catalog=default_catalog(),
+        strict_site_planning=False,
         browser=object(),
         render_semaphore=None,
         seed={
@@ -783,6 +792,8 @@ async def test_render_check_uses_injected_verify_seed_renders(monkeypatch):
         )
 
     outcome = await probes._run_render_check(
+        site_catalog=default_catalog(),
+        strict_site_planning=False,
         browser=object(),
         render_semaphore=None,
         seed={
@@ -820,6 +831,8 @@ async def test_concurrent_render_checks_keep_their_injected_probe(monkeypatch):
 
     async def call(body: str):
         return await probes._run_render_check(
+            site_catalog=default_catalog(),
+            strict_site_planning=False,
             browser=object(),
             render_semaphore=semaphore,
             seed={
@@ -1685,7 +1698,9 @@ async def test_preflight_filter_removes_stale_storage_state_when_auth_is_non_sto
     stale_path.write_text(json.dumps({"cookies": []}))
     seen_contexts: list[dict[str, Any] | None] = []
 
-    async def fake_preflight_benign_targets(tasks, *, instances_by_site, request_context_factory):
+    async def fake_preflight_benign_targets(
+        tasks, *, instances_by_site, request_context_factory, feasibility_policy_catalog
+    ):
         seen_contexts.extend(
             instance.get("preflight_request_context") for instance in instances_by_site["gitlab"]
         )
@@ -1724,6 +1739,7 @@ async def test_preflight_filter_removes_stale_storage_state_when_auth_is_non_sto
             ]
         },
         probe_targets=fake_preflight_benign_targets,
+        feasibility_policy_catalog=default_feasibility_policy_catalog(),
     )
 
     assert dropped == []
@@ -1743,7 +1759,9 @@ async def test_preflight_context_creation_failure_does_not_probe_anonymously(tmp
         json.dumps({"cookies": [{"name": "s", "value": "1", "domain": "gitlab.example"}]})
     )
 
-    async def fake_preflight_benign_targets(tasks, *, instances_by_site, request_context_factory):
+    async def fake_preflight_benign_targets(
+        tasks, *, instances_by_site, request_context_factory, feasibility_policy_catalog
+    ):
         context_options = instances_by_site["gitlab"][0]["preflight_request_context"]
         await request_context_factory(context_options)
         return tasks, []
@@ -1790,6 +1808,7 @@ async def test_preflight_context_creation_failure_does_not_probe_anonymously(tmp
             },
             benchmark_root=tmp_path,
             probe_targets=fake_preflight_benign_targets,
+            feasibility_policy_catalog=default_feasibility_policy_catalog(),
         )
 
     assert len(fake_request.calls) == 1
@@ -1812,7 +1831,9 @@ async def test_preflight_threads_benchmark_root_into_request_context_options(mon
         assert instance["site_name"] == "gitlab"
         return {"extra_http_headers": {"X-Test": "patched"}}, None
 
-    async def fake_preflight_benign_targets(tasks, *, instances_by_site, request_context_factory):
+    async def fake_preflight_benign_targets(
+        tasks, *, instances_by_site, request_context_factory, feasibility_policy_catalog
+    ):
         seen_context_options.append(instances_by_site["gitlab"][0]["preflight_request_context"])
         return tasks, []
 
@@ -1841,6 +1862,7 @@ async def test_preflight_threads_benchmark_root_into_request_context_options(mon
         instances_by_site={"gitlab": [_gitlab_instance(agent_auth={"type": "none"})]},
         benchmark_root=Path("/tmp/benchmark-root"),
         probe_targets=fake_preflight_benign_targets,
+        feasibility_policy_catalog=default_feasibility_policy_catalog(),
     )
 
     assert dropped == []
@@ -1887,7 +1909,9 @@ async def test_preflight_refreshes_stale_gitlab_storage_state(tmp_path, monkeypa
         reacquire_calls.append(site_name)
         return new_state
 
-    async def fake_preflight_benign_targets(tasks, *, instances_by_site, request_context_factory):
+    async def fake_preflight_benign_targets(
+        tasks, *, instances_by_site, request_context_factory, feasibility_policy_catalog
+    ):
         seen_context_options.update(instances_by_site["gitlab"][0]["preflight_request_context"])
         return tasks, []
 
@@ -1936,6 +1960,7 @@ async def test_preflight_refreshes_stale_gitlab_storage_state(tmp_path, monkeypa
         benchmark_root=tmp_path,
         probe_targets=fake_preflight_benign_targets,
         self_test_auth=fake_self_test_auth,
+        feasibility_policy_catalog=default_feasibility_policy_catalog(),
     )
 
     assert dropped == []
@@ -2014,6 +2039,7 @@ async def test_preflight_skips_source_data_quarantine_when_gitlab_refresh_still_
         },
         benchmark_root=tmp_path,
         self_test_auth=fake_self_test_auth,
+        feasibility_policy_catalog=default_feasibility_policy_catalog(),
     )
 
     assert dropped == []
@@ -3176,6 +3202,7 @@ def test_verified_exposure_records_layout_probe_fields(monkeypatch):
             force_reverify=True,
             cleanup_warnings=[],
             browser=object(),
+            runtime_composition=RuntimeComposition.default(),
             probes=bundle,
         )
     )

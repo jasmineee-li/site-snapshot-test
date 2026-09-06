@@ -24,7 +24,6 @@ from warp_taskgen.pvpo_endpoint import validate_pvpo_cdp_url
 from warp_taskgen.resume_metadata import RESULT_FINGERPRINT_KEY
 from warp_taskgen.seeding import (
     SeedSiteRegistry,
-    default_seed_registry,
     preflight_editor_seed_calls,
 )
 from warp_taskgen.trajectory import save_result
@@ -169,18 +168,15 @@ async def preflight_adversarial_seed(
     *,
     benchmark: str = "webarena_verified",
     base_state_cache: dict[tuple[str, str, str, str], BaseStateProbeResult] | None = None,
-    seed_registry: SeedSiteRegistry | None = None,
+    seed_registry: SeedSiteRegistry,
 ) -> PreflightReport:
     mismatches: list[SeedPreflightMismatch] = []
     try:
-        editor_preflight_kwargs: dict[str, Any] = {}
-        if seed_registry is not None:
-            editor_preflight_kwargs["seed_registry"] = seed_registry
         editor_errors = await asyncio.to_thread(
             preflight_editor_seed_calls,
             adv_seed,
             instance,
-            **editor_preflight_kwargs,
+            seed_registry=seed_registry,
         )
     except Exception as exc:
         editor_errors = [
@@ -233,13 +229,12 @@ async def preflight_adversarial_seed(
     if mismatches:
         return PreflightReport(ok=False, mismatches=tuple(mismatches))
     if _seed_uses_editor_calls(adv_seed):
-        base_state_kwargs: dict[str, Any] = {
-            "benchmark": benchmark,
-            "cache": base_state_cache,
-        }
-        if seed_registry is not None:
-            base_state_kwargs["seed_registry"] = seed_registry
-        base_state = _probe_seed_base_state(instance, **base_state_kwargs)
+        base_state = _probe_seed_base_state(
+            instance,
+            benchmark=benchmark,
+            cache=base_state_cache,
+            seed_registry=seed_registry,
+        )
         if not base_state.ok and base_state.mismatch is not None:
             return PreflightReport(ok=False, mismatches=(base_state.mismatch,))
     return PreflightReport(ok=True, mismatches=())
@@ -260,7 +255,7 @@ def _probe_seed_base_state_for_task_targets(
     instances: list[BenchmarkInstance],
     *,
     cache: dict[tuple[str, str, str, str], BaseStateProbeResult] | None = None,
-    seed_registry: SeedSiteRegistry | None = None,
+    seed_registry: SeedSiteRegistry,
 ) -> list[str]:
     errors: list[str] = []
     seen_cache_keys: set[tuple[str, str, str, str]] = set()
@@ -290,13 +285,12 @@ def _probe_seed_base_state_for_task_targets(
         if cache_key in seen_cache_keys:
             continue
         seen_cache_keys.add(cache_key)
-        probe_kwargs: dict[str, Any] = {
-            "benchmark": seed_benchmark,
-            "cache": cache,
-        }
-        if seed_registry is not None:
-            probe_kwargs["seed_registry"] = seed_registry
-        result = _probe_seed_base_state(instance_dict, **probe_kwargs)
+        result = _probe_seed_base_state(
+            instance_dict,
+            benchmark=seed_benchmark,
+            cache=cache,
+            seed_registry=seed_registry,
+        )
         if not result.ok and result.mismatch is not None:
             errors.append(result.mismatch.message)
     return errors
@@ -307,7 +301,7 @@ def _probe_seed_base_state(
     *,
     benchmark: str = "webarena_verified",
     cache: dict[tuple[str, str, str, str], BaseStateProbeResult] | None = None,
-    seed_registry: SeedSiteRegistry | None = None,
+    seed_registry: SeedSiteRegistry,
 ) -> BaseStateProbeResult:
     site_name, site_url, cache_key = _probe_seed_cache_parts(instance, benchmark=benchmark)
     if cache is not None and cache_key in cache:
@@ -327,8 +321,7 @@ def _probe_seed_base_state(
             cache[cache_key] = result
         return result
     try:
-        active_registry = seed_registry if seed_registry is not None else default_seed_registry()
-        registration = active_registry.get(benchmark, site_name)
+        registration = seed_registry.get(benchmark, site_name)
         editor_cls = registration.editor_factory if registration is not None else None
         if editor_cls is None:
             result = BaseStateProbeResult(ok=True)

@@ -61,7 +61,6 @@ from warp_taskgen.phase_2.phase_2c.policy import (
     FeasibilityPolicyCatalog,
     PreflightClassification,
     ProbeTarget,
-    default_feasibility_policy_catalog,
 )
 from warp_taskgen.phase_2.phase_2c.webarena_policy import (
     DEFAULT_LOGIN_REDIRECT_BAILOUT_RATIO,
@@ -198,7 +197,7 @@ async def preflight_benign_targets(
     concurrency: int = DEFAULT_PREFLIGHT_CONCURRENCY,
     timeout_s: float = DEFAULT_PREFLIGHT_TIMEOUT_S,
     bailout_ratio: float = DEFAULT_LOGIN_REDIRECT_BAILOUT_RATIO,
-    feasibility_policy_catalog: FeasibilityPolicyCatalog | None = None,
+    feasibility_policy_catalog: FeasibilityPolicyCatalog,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Probe every task's benign surface and split into (keep, dropped).
 
@@ -217,11 +216,7 @@ async def preflight_benign_targets(
     if not tasks:
         return [], []
 
-    active_catalog = (
-        feasibility_policy_catalog
-        if feasibility_policy_catalog is not None
-        else default_feasibility_policy_catalog()
-    )
+    active_catalog = feasibility_policy_catalog
 
     sem = asyncio.Semaphore(max(1, int(concurrency)))
     keep: list[dict[str, Any]] = []

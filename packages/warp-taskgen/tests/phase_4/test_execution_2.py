@@ -14,7 +14,7 @@ async def test_run_adversarial_task_does_not_mark_public_site_pre_authenticated(
     async def fake_reset(task):
         return None
 
-    async def fake_seed(seed, instance_dict):
+    async def fake_seed(seed, instance_dict, **_kwargs):
         return None, {}
 
     def fake_validate_seed(seed, allow_none=False):
@@ -65,7 +65,7 @@ async def test_run_adversarial_task_omits_benchmark_root_without_auth(monkeypatc
     async def fake_reset(task):
         return None
 
-    async def fake_seed(seed, instance_dict):
+    async def fake_seed(seed, instance_dict, **_kwargs):
         return None, {}
 
     def fake_validate_seed(seed, allow_none=False):
@@ -125,7 +125,7 @@ async def test_run_adversarial_task_seeds_against_delivery_site_instance(monkeyp
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance_dict):
+    async def fake_apply_seed(seed, instance_dict, **_kwargs):
         captured["seed_instance"] = instance_dict
         return None, {}
 
@@ -178,7 +178,7 @@ async def test_run_adversarial_task_does_not_fall_back_to_payload_zero(monkeypat
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance_dict):
+    async def fake_apply_seed(seed, instance_dict, **_kwargs):
         return None, {}
 
     def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
@@ -287,7 +287,7 @@ async def test_run_adversarial_task_fallback_delivery_site_uses_deterministic_re
     async def fake_reset(task):
         return None
 
-    async def fake_apply_seed(seed, instance_dict):
+    async def fake_apply_seed(seed, instance_dict, **_kwargs):
         captured["seed_instance"] = instance_dict
         return None, {}
 
@@ -428,7 +428,7 @@ async def test_run_adversarial_task_marks_cross_site_delivery_replica_dirty_in_r
     async def fake_reset(task):
         reset_calls.append(task["id"])
 
-    async def fake_apply_seed(seed, instance_dict):
+    async def fake_apply_seed(seed, instance_dict, **_kwargs):
         return None, {}
 
     def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
