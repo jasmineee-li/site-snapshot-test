@@ -64,6 +64,8 @@ Current and target ownership should stay explicit:
   Core-surface and active-carrier policy is Site-owned (`SiteCarrierPolicy` on
   each `*_profile.py` mixin) and reached only through
   `BoundSite.carrier_policy()`; a Site without the capability binds closed.
+  `bound_site.py` owns `BoundSite` and `catalog.py` owns the `SiteCatalog` that
+  binds it, so a caller that only needs the bound Site imports the leaf.
 - `warp_taskgen.seed_contracts`: shared seed/editor-call contract behavior used by
   Phase 2, Phase 4, seeding, and sandbox validation. This package must preserve
   sandbox packaging constraints and parity tests.
