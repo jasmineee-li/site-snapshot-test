@@ -3,11 +3,14 @@ from __future__ import annotations
 import pytest
 
 from warp_taskgen._sandbox_validator import validate_benign_tasks
+from warp_taskgen.phase_1.contract_bound_action_api import (
+    contract_selection,
+    slot_generation,
+)
 from warp_taskgen.phase_1.novel_task_validation.task_card_generation import (
     validate_task_card_generation_distribution,
 )
 from warp_taskgen.phases import (
-    phase_1_contract_bound_action_api,
     phase_1_generate_new_tasks,
     phase_1_tasks,
 )
@@ -142,7 +145,7 @@ def test_contract_selection_reports_the_failing_card_id_for_missing_route() -> N
     }
 
     with pytest.raises(ValueError, match="gitlab-card-missing-route"):
-        phase_1_contract_bound_action_api.select_action_task_contracts(
+        contract_selection.select_action_task_contracts(
             site_name="gitlab",
             task_card_plan={"task_cards": cards},
             route_contracts=route_contracts,
@@ -403,15 +406,13 @@ async def test_contract_bound_batch_uses_one_local_id_counter(monkeypatch) -> No
         ]
 
     monkeypatch.setattr(
-        phase_1_contract_bound_action_api,
+        slot_generation,
         "_filter_contract_to_validated_anchors",
         lambda contract, *, profile: contract,
     )
-    monkeypatch.setattr(
-        phase_1_contract_bound_action_api, "_generate_slots_for_contract", fake_slots
-    )
+    monkeypatch.setattr(slot_generation, "_generate_slots_for_contract", fake_slots)
 
-    tasks = await phase_1_contract_bound_action_api.generate_contract_bound_action_tasks_api(
+    tasks = await slot_generation.generate_contract_bound_action_tasks_api(
         site_name="gitlab",
         task_card_plan={"task_cards": cards},
         route_contracts=route_contracts,

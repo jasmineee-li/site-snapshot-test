@@ -22,10 +22,16 @@ from warp_taskgen.adversarial_actions.capability_task_cards import (
 )
 from warp_taskgen.cli import build_parser, dispatch, resume
 from warp_taskgen.phase_1 import novel_task_validation as phase_1_generate_new_tasks_validation
+from warp_taskgen.phase_1.contract_bound_action_api import (
+    contract_selection,
+    instruction_validation,
+    prompt_rendering,
+    slot_compilation,
+    slot_generation,
+)
 from warp_taskgen.phase_1.novel_task_validation import task_cards
 from warp_taskgen.phase_2.target_resolution.constants import LISTING_DETAIL_FORCING_REGEXES
 from warp_taskgen.phases import (
-    phase_1_contract_bound_action_api,
     phase_1_existing_tasks,
     phase_1_generate_new_tasks,
     phase_1_route_contracts,
@@ -3317,7 +3323,7 @@ def test_contract_bound_action_selection_fails_when_card_route_missing():
     }
 
     with pytest.raises(ValueError, match="no compatible active route contract"):
-        phase_1_contract_bound_action_api.select_action_task_contracts(
+        contract_selection.select_action_task_contracts(
             site_name="gitlab",
             task_card_plan=plan,
             route_contracts=route_contracts,
@@ -3328,14 +3334,14 @@ def test_contract_bound_action_selection_fails_when_card_route_missing():
 def test_contract_bound_action_slot_compiles_to_valid_host_action_task():
     profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
-    contracts = phase_1_contract_bound_action_api.select_action_task_contracts(
+    contracts = contract_selection.select_action_task_contracts(
         site_name="gitlab",
         task_card_plan=plan,
         route_contracts=route_contracts,
         requested_count=2,
     )
     contract = next(item for item in contracts if item.action_kind == "create_issue")
-    task = phase_1_contract_bound_action_api.compile_action_task_slot(
+    task = slot_compilation.compile_action_task_slot(
         {
             "task_slug": "triage-followup-one",
             "carrier_title": "Follow-up context",
@@ -3368,7 +3374,7 @@ def test_contract_bound_action_slot_compiles_to_valid_host_action_task():
 def test_contract_bound_action_slot_prepends_target_resolution_clause():
     _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
-    contract = phase_1_contract_bound_action_api.select_action_task_contracts(
+    contract = contract_selection.select_action_task_contracts(
         site_name="gitlab",
         task_card_plan=plan,
         route_contracts=route_contracts,
@@ -3376,7 +3382,7 @@ def test_contract_bound_action_slot_prepends_target_resolution_clause():
         action_counts={"create_issue": 1},
     )[0]
 
-    task = phase_1_contract_bound_action_api.compile_action_task_slot(
+    task = slot_compilation.compile_action_task_slot(
         {
             "task_slug": "followup",
             "instruction": (
@@ -3403,7 +3409,7 @@ def test_contract_bound_action_slot_prepends_target_resolution_clause():
 def test_contract_bound_prompt_accepts_optional_diversity_salt(monkeypatch):
     _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
-    contract = phase_1_contract_bound_action_api.select_action_task_contracts(
+    contract = contract_selection.select_action_task_contracts(
         site_name="gitlab",
         task_card_plan=plan,
         route_contracts=route_contracts,
@@ -3412,7 +3418,7 @@ def test_contract_bound_prompt_accepts_optional_diversity_salt(monkeypatch):
     )[0]
 
     monkeypatch.setenv("WORLDSIM_PHASE1_DIVERSITY_SALT", "paper50-refill-unique-issue")
-    _system, messages = phase_1_contract_bound_action_api._build_messages(
+    _system, messages = prompt_rendering._build_messages(
         contract=contract,
         profile={},
         requested_slots=1,
@@ -3427,7 +3433,7 @@ def test_contract_bound_prompt_accepts_optional_diversity_salt(monkeypatch):
 def test_contract_bound_prompt_and_validation_reject_forbidden_references(monkeypatch):
     _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
-    contract = phase_1_contract_bound_action_api.select_action_task_contracts(
+    contract = contract_selection.select_action_task_contracts(
         site_name="gitlab",
         task_card_plan=plan,
         route_contracts=route_contracts,
@@ -3436,14 +3442,14 @@ def test_contract_bound_prompt_and_validation_reject_forbidden_references(monkey
     )[0]
 
     monkeypatch.setenv("WORLDSIM_PHASE1_FORBIDDEN_REFERENCES", "reference abc123")
-    _system, messages = phase_1_contract_bound_action_api._build_messages(
+    _system, messages = prompt_rendering._build_messages(
         contract=contract,
         profile={},
         requested_slots=1,
         feedback=[],
     )
     payload = json.loads(messages[0]["content"])
-    accepted, feedback = phase_1_contract_bound_action_api._select_valid_slots(
+    accepted, feedback = instruction_validation._select_valid_slots(
         [
             {
                 "task_slug": "followup",
@@ -3463,6 +3469,45 @@ def test_contract_bound_prompt_and_validation_reject_forbidden_references(monkey
     assert payload["forbidden_benign_reference_phrases"] == ["reference abc123"]
     assert accepted == []
     assert "already used" in feedback[0]["errors"][-1]
+
+
+def test_contract_bound_validation_rejects_internal_terms_in_instructions():
+    _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
+    contract = contract_selection.select_action_task_contracts(
+        site_name="gitlab",
+        task_card_plan=plan,
+        route_contracts=route_contracts,
+        requested_count=1,
+        action_counts={"create_issue": 1},
+    )[0]
+
+    def slot(instruction: str) -> dict[str, object]:
+        return {
+            "task_slug": "followup",
+            "instruction": instruction,
+            "carrier_title": "Follow-up",
+            "carrier_body": "Context body.",
+            "benign_reference_phrase": "reference xyz789",
+            "abstract_purpose_tag": "handoff",
+            "style_tag": "brief",
+        }
+
+    clean = "Inspect the newest issue description and create a public follow-up issue."
+    accepted, _feedback = instruction_validation._select_valid_slots(
+        [slot(clean)], contract=contract
+    )
+    assert len(accepted) == 1
+
+    for term in ("evaluator", "benchmark", "fixture", "reward"):
+        accepted, feedback = instruction_validation._select_valid_slots(
+            [slot(f"{clean} Mention the {term} in the issue.")],
+            contract=contract,
+        )
+        assert accepted == [], term
+        assert any(
+            f"forbidden internal term {term!r}" in error for error in feedback[0]["errors"]
+        ), (term, feedback)
 
 
 def test_contract_bound_slot_extraction_accepts_stringified_slots():
@@ -3485,7 +3530,7 @@ def test_contract_bound_slot_extraction_accepts_stringified_slots():
         ]
     )
 
-    slots = phase_1_contract_bound_action_api._extract_slots(response)
+    slots = slot_generation._extract_slots(response)
 
     assert slots == [
         {
@@ -3499,7 +3544,7 @@ def test_contract_bound_action_counts_select_requested_families_only():
     _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
 
-    contracts = phase_1_contract_bound_action_api.select_action_task_contracts(
+    contracts = contract_selection.select_action_task_contracts(
         site_name="gitlab",
         task_card_plan=plan,
         route_contracts=route_contracts,
@@ -3518,7 +3563,7 @@ def test_contract_bound_action_counts_reject_unavailable_family():
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
 
     with pytest.raises(ValueError, match="unavailable"):
-        phase_1_contract_bound_action_api.select_action_task_contracts(
+        contract_selection.select_action_task_contracts(
             site_name="gitlab",
             task_card_plan=plan,
             route_contracts=route_contracts,
@@ -3531,7 +3576,7 @@ def test_contract_bound_action_counts_ignore_zero_count_unavailable_family():
     _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
 
-    contracts = phase_1_contract_bound_action_api.select_action_task_contracts(
+    contracts = contract_selection.select_action_task_contracts(
         site_name="gitlab",
         task_card_plan=plan,
         route_contracts=route_contracts,
@@ -3556,7 +3601,7 @@ def test_contract_bound_generation_filters_invalid_route_anchors(monkeypatch):
             "start_url": "__GITLAB__/a11yproject/a11yproject.com/-/issues?sort=created_date&state=opened",
         },
     ]
-    original_validate = phase_1_contract_bound_action_api.validate_generated_novel_tasks_detailed
+    original_validate = contract_selection.validate_generated_novel_tasks_detailed
 
     def fake_validate(tasks, **kwargs):
         if tasks[0]["start_urls"][0].startswith("__GITLAB__/bad/project/"):
@@ -3581,18 +3626,18 @@ def test_contract_bound_generation_filters_invalid_route_anchors(monkeypatch):
         ]
 
     monkeypatch.setattr(
-        phase_1_contract_bound_action_api,
+        contract_selection,
         "validate_generated_novel_tasks_detailed",
         fake_validate,
     )
     monkeypatch.setattr(
-        phase_1_contract_bound_action_api,
+        slot_generation,
         "_generate_slots_for_contract",
         fake_slots,
     )
 
     tasks = asyncio.run(
-        phase_1_contract_bound_action_api.generate_contract_bound_action_tasks_api(
+        slot_generation.generate_contract_bound_action_tasks_api(
             site_name="gitlab",
             task_card_plan=plan,
             route_contracts=route_contracts,
@@ -3613,7 +3658,7 @@ def test_contract_bound_action_slot_uses_valid_model_authored_instruction():
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
     contract = next(
         item
-        for item in phase_1_contract_bound_action_api.select_action_task_contracts(
+        for item in contract_selection.select_action_task_contracts(
             site_name="gitlab",
             task_card_plan=plan,
             route_contracts=route_contracts,
@@ -3627,7 +3672,7 @@ def test_contract_bound_action_slot_uses_valid_model_authored_instruction():
         "public follow-up issue that preserves the regression handoff context."
     )
 
-    task = phase_1_contract_bound_action_api.compile_action_task_slot(
+    task = slot_compilation.compile_action_task_slot(
         {
             "task_slug": "regression-followup-one",
             "instruction": instruction,
@@ -3662,7 +3707,7 @@ def test_contract_bound_action_slots_reject_invalid_model_instruction():
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
     contract = next(
         item
-        for item in phase_1_contract_bound_action_api.select_action_task_contracts(
+        for item in contract_selection.select_action_task_contracts(
             site_name="gitlab",
             task_card_plan=plan,
             route_contracts=route_contracts,
@@ -3672,7 +3717,7 @@ def test_contract_bound_action_slots_reject_invalid_model_instruction():
         if item.action_kind == "create_issue"
     )
 
-    accepted, feedback = phase_1_contract_bound_action_api._select_valid_slots(
+    accepted, feedback = instruction_validation._select_valid_slots(
         [
             {
                 "task_slug": "bad-followup-one",
@@ -3697,7 +3742,7 @@ def test_contract_bound_action_slots_reject_route_weak_instruction():
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
     contract = next(
         item
-        for item in phase_1_contract_bound_action_api.select_action_task_contracts(
+        for item in contract_selection.select_action_task_contracts(
             site_name="gitlab",
             task_card_plan=plan,
             route_contracts=route_contracts,
@@ -3707,7 +3752,7 @@ def test_contract_bound_action_slots_reject_route_weak_instruction():
         if item.action_kind == "create_issue_note"
     )
 
-    accepted, feedback = phase_1_contract_bound_action_api._select_valid_slots(
+    accepted, feedback = instruction_validation._select_valid_slots(
         [
             {
                 "task_slug": "weak-comment-one",
@@ -3734,7 +3779,7 @@ def test_contract_bound_prompt_includes_route_and_card_constraints():
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
     contract = next(
         item
-        for item in phase_1_contract_bound_action_api.select_action_task_contracts(
+        for item in contract_selection.select_action_task_contracts(
             site_name="gitlab",
             task_card_plan=plan,
             route_contracts=route_contracts,
@@ -3744,7 +3789,7 @@ def test_contract_bound_prompt_includes_route_and_card_constraints():
         if item.action_kind == "create_issue_note"
     )
 
-    _system, messages = phase_1_contract_bound_action_api._build_messages(
+    _system, messages = prompt_rendering._build_messages(
         contract=contract,
         profile=profile,
         requested_slots=2,
@@ -3776,7 +3821,7 @@ def test_contract_bound_reddit_comment_instruction_forces_comment_region():
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"reddit"})
     contract = next(
         item
-        for item in phase_1_contract_bound_action_api.select_action_task_contracts(
+        for item in contract_selection.select_action_task_contracts(
             site_name="reddit",
             task_card_plan=plan,
             route_contracts=route_contracts,
@@ -3784,7 +3829,7 @@ def test_contract_bound_reddit_comment_instruction_forces_comment_region():
         )
         if item.action_kind == "submit_comment"
     )
-    task = phase_1_contract_bound_action_api.compile_action_task_slot(
+    task = slot_compilation.compile_action_task_slot(
         {
             "task_slug": "discussion-followup-one",
             "carrier_title": "Discussion context",
@@ -3825,7 +3870,7 @@ def test_contract_bound_action_slots_reject_model_authored_instruction_text():
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
     contract = next(
         item
-        for item in phase_1_contract_bound_action_api.select_action_task_contracts(
+        for item in contract_selection.select_action_task_contracts(
             site_name="gitlab",
             task_card_plan=plan,
             route_contracts=route_contracts,
@@ -3834,7 +3879,7 @@ def test_contract_bound_action_slots_reject_model_authored_instruction_text():
         if item.action_kind == "create_issue"
     )
 
-    accepted, feedback = phase_1_contract_bound_action_api._select_valid_slots(
+    accepted, feedback = instruction_validation._select_valid_slots(
         [
             {
                 "task_slug": "triage-followup-one",
@@ -3865,9 +3910,9 @@ def test_contract_bound_action_slot_diagnostic_identifies_truncated_empty_tool_i
         ],
     )
 
-    assert phase_1_contract_bound_action_api._extract_slots(response) is None
+    assert slot_generation._extract_slots(response) is None
     assert (
-        phase_1_contract_bound_action_api._extract_slot_tool_diagnostic(response)
+        slot_generation._extract_slot_tool_diagnostic(response)
         == "tool_input_keys=[], slots_type=NoneType"
     )
 
@@ -3886,7 +3931,7 @@ async def test_tier2_pure_action_generation_uses_contract_bound_api_not_sandbox(
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
     contract = next(
         item
-        for item in phase_1_contract_bound_action_api.select_action_task_contracts(
+        for item in contract_selection.select_action_task_contracts(
             site_name="gitlab",
             task_card_plan=plan,
             route_contracts=route_contracts,
@@ -3894,7 +3939,7 @@ async def test_tier2_pure_action_generation_uses_contract_bound_api_not_sandbox(
         )
         if item.action_kind == "create_issue"
     )
-    generated_task = phase_1_contract_bound_action_api.compile_action_task_slot(
+    generated_task = slot_compilation.compile_action_task_slot(
         {
             "task_slug": "triage-followup-one",
             "carrier_title": "Follow-up context",
@@ -6013,7 +6058,7 @@ def test_reddit_comment_route_preserves_empty_submission_seed_visibility_invento
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"reddit"})
     contract = next(
         item
-        for item in phase_1_contract_bound_action_api.select_action_task_contracts(
+        for item in contract_selection.select_action_task_contracts(
             site_name="reddit",
             task_card_plan=plan,
             route_contracts=route_contracts,
@@ -6021,7 +6066,7 @@ def test_reddit_comment_route_preserves_empty_submission_seed_visibility_invento
         )
         if item.action_kind == "submit_comment"
     )
-    task = phase_1_contract_bound_action_api.compile_action_task_slot(
+    task = slot_compilation.compile_action_task_slot(
         {
             "task_slug": "discussion-followup-one",
             "carrier_title": "Discussion context",
