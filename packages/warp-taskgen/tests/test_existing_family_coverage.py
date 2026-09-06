@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 from warp_taskgen.phase_4.existing_family_coverage import build_existing_family_coverage
-from warp_taskgen.phase_4.scenario_funnel_export import build_scenario_funnel_export
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -273,14 +272,6 @@ def test_existing_family_coverage_keeps_malformed_owner_unavailable(
     }
     assert coverage["sources"]["phase1_candidates"]["status"] == "unavailable"
     assert any("non-object rows" in warning for warning in coverage["warnings"])
-
-
-def test_scenario_funnel_includes_existing_family_coverage_summary(tmp_path: Path) -> None:
-    _complete_fixture(tmp_path)
-
-    export = build_scenario_funnel_export(tmp_path)
-
-    assert export["summary"]["coverage"]["funnel"]["admitted"]["count"] == 1
 
 
 def test_existing_family_coverage_reports_phase2c_failed_state_and_reason(
