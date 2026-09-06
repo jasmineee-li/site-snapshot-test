@@ -112,6 +112,12 @@ Current and target ownership should stay explicit:
   runner and result-merge acceptance remain unchanged.
   `warp_taskgen.cli.run_control` is the thin parser/dispatch adapter that handles
   operator output and catchable process signals after the phase stack unwinds.
+- `warp_taskgen.sites`: Site-owned render-probe behavior lives beside the other
+  Site modules. `render_probe.py` is the Site-neutral leaf (`RenderOutcome`, the
+  one text normalizer, the one body-text wait) and must not be re-exported from
+  `sites/__init__.py`; `gitlab_render_probe.py` and `reddit_render_probe.py` own
+  their Site's fast paths. `phases/phase_2_render_check.py` keeps
+  `verify_seed_renders` and reaches them through a Site-keyed lookup.
 - `warp_taskgen.seeding`: host-side seed validation, context rendering, editor-call
   execution, read-surface/result metadata, reddit/map context resolution,
   runtime error validation, DB helpers, and editor-argument compatibility. This

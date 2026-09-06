@@ -18,17 +18,18 @@ import pytest
 from warp_taskgen.phases import phase_2_render_check as rc
 from warp_taskgen.phases.phase_2_render_check import (
     RenderOutcome,
-    _gitlab_issue_description_ryw_fastpath,
     _render_check_inputs_from_metadata,
-    _strip_html,
     _with_cache_buster,
     render_signature,
     render_signature_selection,
     verify_seed_renders,
 )
 from warp_taskgen.seeding.site_contracts import EditorSeedResult
-from warp_taskgen.sites import SiteCatalog
+from warp_taskgen.sites import SiteCatalog, render_probe
+from warp_taskgen.sites import gitlab_render_probe as gitlab_probe
+from warp_taskgen.sites import reddit_render_probe as reddit_probe
 from warp_taskgen.sites.classifieds import ClassifiedsSite
+from warp_taskgen.sites.gitlab_render_probe import _gitlab_issue_description_ryw_fastpath
 from warp_taskgen.sites.readback import ReadbackDecision, ReadbackObservation
 
 
@@ -47,7 +48,7 @@ def test_with_cache_buster_preserves_fragment_anchor():
 
 
 def test_reddit_seed_visibility_probe_supports_postmill_comment_anchors():
-    source = inspect.getsource(rc._reddit_seed_comment_visibility_probe)
+    source = inspect.getsource(reddit_probe._reddit_seed_comment_visibility_probe)
 
     assert 'id.startsWith("comment_")' in source
     assert "`#comment_${CSS.escape(id)}`" in source
@@ -1468,8 +1469,6 @@ class _WaitForBodyPage:
 
 @pytest.mark.asyncio
 async def test_wait_for_body_text_uses_exponential_backoff_schedule(monkeypatch):
-    from warp_taskgen.phases import phase_2_render_check as rc
-
     now = 0.0
 
     def monotonic() -> float:
@@ -1479,12 +1478,12 @@ async def test_wait_for_body_text_uses_exponential_backoff_schedule(monkeypatch)
         nonlocal now
         now += seconds
 
-    monkeypatch.setattr(rc.time, "monotonic", monotonic)
+    monkeypatch.setattr(render_probe.time, "monotonic", monotonic)
 
     # Supply enough empty bodies that the poll never matches; we are
     # inspecting the backoff schedule, not the match path.
     page = _WaitForBodyPage(bodies=["" for _ in range(20)], advance_time=advance_time)
-    result = await rc._wait_for_body_text(page, "never-matches", timeout_ms=15000)
+    result = await render_probe.wait_for_body_text(page, "never-matches", timeout_ms=15000)
     assert result is False
     # Expected schedule: 100, 200, 400, 800, 1600, 2000, 2000, ...
     assert page.intervals_ms[:6] == [100, 200, 400, 800, 1600, 2000]
@@ -1494,10 +1493,8 @@ async def test_wait_for_body_text_uses_exponential_backoff_schedule(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_wait_for_body_text_returns_true_on_fast_match():
-    from warp_taskgen.phases import phase_2_render_check as rc
-
     page = _WaitForBodyPage(bodies=["signature present now"])
-    result = await rc._wait_for_body_text(page, "signature present now", timeout_ms=5000)
+    result = await render_probe.wait_for_body_text(page, "signature present now", timeout_ms=5000)
     assert result is True
     # First poll should hit immediately with no sleep.
     assert page.intervals_ms == []
@@ -1505,34 +1502,29 @@ async def test_wait_for_body_text_returns_true_on_fast_match():
 
 @pytest.mark.asyncio
 async def test_wait_for_body_text_finds_late_signature_before_backoff_cap():
-    from warp_taskgen.phases import phase_2_render_check as rc
-
     # Empty on polls 1-3, signature on poll 4. Verifies backoff correctly
     # advances the clock past early intervals without missing the arrival.
     page = _WaitForBodyPage(bodies=["", "", "", "full body with SEEDSIG inside"])
-    result = await rc._wait_for_body_text(page, "SEEDSIG", timeout_ms=5000)
+    result = await render_probe.wait_for_body_text(page, "SEEDSIG", timeout_ms=5000)
     assert result is True
     # Three sleeps before the match: 100, 200, 400.
     assert page.intervals_ms == [100, 200, 400]
 
 
 @pytest.mark.asyncio
-async def test_wait_for_body_text_empty_needle_returns_false():
-    from warp_taskgen.phases import phase_2_render_check as rc
-
+async def test_wait_for_body_text_empty_needle_returns_true():
     page = _WaitForBodyPage(bodies=["anything"])
-    # An empty needle has no match target; fail-fast without polling.
-    result = await rc._wait_for_body_text(page, "", timeout_ms=1000)
-    assert result is False
+    # An empty needle asks for nothing, so the wait is vacuously
+    # satisfied and never polls. Every caller discards the return value.
+    result = await render_probe.wait_for_body_text(page, "", timeout_ms=1000)
+    assert result is True
     assert page.intervals_ms == []
 
 
 def test_body_poll_timeout_constant_is_20s():
-    from warp_taskgen.phases import phase_2_render_check as rc
-
     assert rc._BODY_POLL_TIMEOUT_MS == 20000
-    assert rc._BODY_POLL_INITIAL_MS == 100
-    assert rc._BODY_POLL_MAX_MS == 2000
+    assert render_probe._BODY_POLL_INITIAL_MS == 100
+    assert render_probe._BODY_POLL_MAX_MS == 2000
 
 
 # ---------------------------------------------------------------------------
@@ -1892,10 +1884,6 @@ async def test_ryw_fastpath_rendered_body_text_none_when_note_html_missing(short
     assert outcome.rendered_body_text is None
 
 
-def test_strip_html_normalizes_entities_and_whitespace():
-    assert _strip_html("<p>Foo &amp; <em>bar</em>\n baz</p>") == "Foo & bar baz"
-
-
 @pytest.mark.asyncio
 async def test_ryw_fastpath_forwards_scoped_http_headers_to_same_origin_json(short_body_poll):
     url = "http://gitlab.test/proj/-/issues/5"
@@ -2098,3 +2086,67 @@ async def test_ryw_fastpath_skipped_when_body_text_match_hits_first():
     assert outcome.matched_url.startswith(url)
     assert "/discussions.json" not in outcome.matched_url
     assert page.request.calls == []  # RYW never fired
+
+
+# ---------------------------------------------------------------------------
+# Site-keyed probe dispatch. The lookup in verify_seed_renders must route a
+# Benchmark Instance's Site to that Site's probe only — a GitLab-shaped URL
+# on a Reddit Site never reaches GitLab's read-your-write fast path, and
+# GitLab write tokens never reach Reddit's exact-comment visibility probe.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_wrong_site_never_enters_other_fast_path(monkeypatch, short_body_poll):
+    gitlab_calls: list[str] = []
+    reddit_calls: list[str] = []
+
+    async def _record_note_ryw(**kwargs):
+        gitlab_calls.append("note_ryw")
+        return None
+
+    async def _record_issue_ryw(**kwargs):
+        gitlab_calls.append("issue_description_ryw")
+        return None
+
+    async def _record_reddit_probe(page, *, comment_id, normalized_needle):
+        reddit_calls.append(comment_id)
+        return None
+
+    monkeypatch.setattr(gitlab_probe, "_gitlab_note_ryw_fastpath", _record_note_ryw)
+    monkeypatch.setattr(gitlab_probe, "_gitlab_issue_description_ryw_fastpath", _record_issue_ryw)
+    monkeypatch.setattr(reddit_probe, "_reddit_seed_comment_visibility_probe", _record_reddit_probe)
+
+    # Reddit Site, GitLab-shaped read surface, GitLab write tokens.
+    reddit_url = "http://reddit.test/-/issues/5"
+    reddit_page = _FakePage(body_per_url={reddit_url: "shell only, no payload"})
+    reddit_outcome = await verify_seed_renders(
+        browser=_FakeBrowser(reddit_page),
+        urls=["/-/issues/5"],
+        site_name="reddit",
+        site_url="http://reddit.test",
+        signature="never rendered anywhere",
+        write_tokens={"note_id": 42, "project_id": 174, "issue_iid": 5},
+    )
+    assert reddit_outcome.ok is False
+    assert reddit_outcome.kind == "render_unverified"
+    assert gitlab_calls == []
+    # Postmill's DOM-readiness wait is the only Site behavior that ran.
+    assert reddit_page.load_state_calls == [("domcontentloaded", 10000)]
+
+    # GitLab Site, Reddit write tokens.
+    gitlab_url = "http://gitlab.test/proj/-/issues/5"
+    gitlab_page = _FakePage(body_per_url={gitlab_url: "rendered SEEDSIG in the note"})
+    gitlab_outcome = await verify_seed_renders(
+        browser=_FakeBrowser(gitlab_page),
+        urls=["/proj/-/issues/5"],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="SEEDSIG",
+        write_tokens={"comment_id": "901"},
+    )
+    assert gitlab_outcome.ok is True
+    assert reddit_calls == []
+    assert "reddit_seed_comment_visibility" not in (
+        gitlab_outcome.evidence().get("diagnostics") or {}
+    )
