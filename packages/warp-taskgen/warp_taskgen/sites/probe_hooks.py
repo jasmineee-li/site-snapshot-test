@@ -2,7 +2,7 @@
 
 Neither hook is part of :class:`~warp_taskgen.sites.contracts.SiteAdapter`.
 A Site that lacks one simply yields ``None`` from the matching
-:class:`~warp_taskgen.sites.catalog.BoundSite` method, so a probe or listing
+:class:`~warp_taskgen.sites.bound_site.BoundSite` method, so a probe or listing
 heuristic fails closed instead of guessing a route.
 """
 
