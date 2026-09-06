@@ -43,6 +43,17 @@ Current and target ownership should stay explicit:
   split by batch entry points, single-task orchestration, route alignment,
   task-card alignment, placement target checks, reward checks, answer stability,
   and ordering/eligibility.
+- Phase 1 route contracts are split by behavior:
+  `warp_taskgen/phases/phase_1_route_contracts.py` remains the builder and owns
+  the schema version, profile shape and surface fallback, route family and
+  variant resolution, anchor policy, and surface coverage;
+  `warp_taskgen/phase_1/route_contract_guidance.py` owns the guidance the
+  route-contract digest hashes (instruction requirements with the regex-family
+  table, evaluator guidance, and answer stability); and
+  `warp_taskgen/phase_1/route_exposure_admissibility.py` owns the Phase 2
+  exposure admissibility probe for a start pattern (pattern filtering, the
+  sample task URL, instruction and editor arguments, and anchor merging). The
+  siblings must not import the builder.
 - `warp_taskgen.adversarial_actions`: host-owned adversarial action behavior split by
   policies, allowed options, reward compilation, public mutation rewards,
   final-state compilers, and reward introspection. Import from the

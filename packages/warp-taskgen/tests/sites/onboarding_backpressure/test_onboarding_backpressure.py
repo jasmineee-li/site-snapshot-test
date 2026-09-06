@@ -29,7 +29,11 @@ REMOVED_PYTHON_NAMES = (
     "SiteDoctorRequest",
     "ActiveSitePolicy",
 )
-SITE_NEUTRAL_SOURCES = ("phases/phase_1_route_contracts.py",)
+SITE_NEUTRAL_SOURCES = (
+    "phases/phase_1_route_contracts.py",
+    "phase_1/route_contract_guidance.py",
+    "phase_1/route_exposure_admissibility.py",
+)
 GENERIC_SOURCE_ROOTS = (
     "phase_1",
     "phase_2",
