@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from warp_taskgen.phase_1 import task_card_batch_generation
+from warp_taskgen.phase_1 import novel_task_generation_prompt, task_card_batch_generation
 from warp_taskgen.phase_1.novel_task_validation import GeneratedTaskValidationError
 from warp_taskgen.phases import phase_1_generate_new_tasks
 
@@ -179,7 +179,7 @@ def test_compare_act_feature_owner_never_uses_contract_bound_backend() -> None:
     }
 
     assert (
-        phase_1_generate_new_tasks._task_card_plan_is_host_action_only({"task_cards": [card]})
+        novel_task_generation_prompt._task_card_plan_is_host_action_only({"task_cards": [card]})
         is False
     )
 

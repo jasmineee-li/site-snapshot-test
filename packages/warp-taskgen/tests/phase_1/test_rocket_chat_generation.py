@@ -10,6 +10,11 @@ from unittest.mock import AsyncMock
 import pytest
 
 from warp_taskgen.phase_1.generated_workflows import host_compiled_evaluator_types
+from warp_taskgen.phase_1.novel_task_generation_prompt import (
+    _compile_phase1_feature_tasks,
+    _compile_phase1_model_owned_features,
+    render_generate_benign_tasks_prompt,
+)
 from warp_taskgen.phase_1.novel_task_validation import (
     validate_generated_novel_tasks_detailed,
 )
@@ -32,11 +37,6 @@ from warp_taskgen.phase_1.rocket_chat_generation_prompt import (
     rocket_chat_generation_prompt_addendum,
 )
 from warp_taskgen.phases import phase_1_generate_new_tasks as phase_1_generation
-from warp_taskgen.phases.phase_1_generate_new_tasks import (
-    _compile_phase1_feature_tasks,
-    _compile_phase1_model_owned_features,
-    render_generate_benign_tasks_prompt,
-)
 from warp_taskgen.phases.phase_1_tasks import _stamp_benchmark_metadata
 
 

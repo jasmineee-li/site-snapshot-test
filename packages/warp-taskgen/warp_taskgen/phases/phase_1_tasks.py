@@ -14,6 +14,28 @@ from warp_taskgen.phase_1.generated_workflows import (
     host_compiled_evaluator_types,
     restore_compiled_task,
 )
+from warp_taskgen.phase_1.novel_task_cache import (
+    compute_generate_new_tasks_resume_fingerprint,
+    compute_generate_new_tasks_shared_inputs_fingerprint,
+    compute_site_cache_fingerprint,
+    validate_existing_novel_tasks,
+)
+from warp_taskgen.phase_1.novel_task_cache import (
+    load_cached_novel_tasks as _load_cached_novel_tasks,
+)
+from warp_taskgen.phase_1.novel_task_cache import (
+    load_existing_novel_tasks as _load_existing_novel_tasks,
+)
+from warp_taskgen.phase_1.novel_task_site_plan import (
+    DEFAULT_NOVEL_TASKS_PER_SITE,
+    EligibleSiteProfile,
+    _action_counts_for_site,
+    _fail_if_task_card_plan_missing_sites,
+    _site_requested_count,
+)
+from warp_taskgen.phase_1.novel_task_site_plan import (
+    load_generate_new_tasks_eligible_sites as _load_generate_new_tasks_eligible_sites,
+)
 from warp_taskgen.phase_1.novel_task_validation import (
     merge_benign_tasks as _merge_benign_tasks,
 )
@@ -22,26 +44,8 @@ from warp_taskgen.phase_1.novel_task_validation import (
 )
 from warp_taskgen.phases.phase_1_existing_tasks import build_existing_task_wraps
 from warp_taskgen.phases.phase_1_generate_new_tasks import (
-    DEFAULT_NOVEL_TASKS_PER_SITE,
     GENERATE_NEW_TASKS_RESUME_METADATA_PATH,
-    EligibleSiteProfile,
-    _action_counts_for_site,
-    _fail_if_task_card_plan_missing_sites,
-    _site_requested_count,
-    compute_generate_new_tasks_resume_fingerprint,
-    compute_generate_new_tasks_shared_inputs_fingerprint,
-    compute_site_cache_fingerprint,
     run_generate_new_tasks,
-    validate_existing_novel_tasks,
-)
-from warp_taskgen.phases.phase_1_generate_new_tasks import (
-    load_cached_novel_tasks as _load_cached_novel_tasks,
-)
-from warp_taskgen.phases.phase_1_generate_new_tasks import (
-    load_existing_novel_tasks as _load_existing_novel_tasks,
-)
-from warp_taskgen.phases.phase_1_generate_new_tasks import (
-    load_generate_new_tasks_eligible_sites as _load_generate_new_tasks_eligible_sites,
 )
 from warp_taskgen.phases.phase_1_route_contracts import build_task_route_contracts
 from warp_taskgen.phases.phase_1_task_cards import (

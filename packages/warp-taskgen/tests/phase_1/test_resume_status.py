@@ -7,6 +7,7 @@ from warp_taskgen.adversarial_actions.capability_task_cards import (
     compile_capability_task_card_plan,
 )
 from warp_taskgen.cli.status import build_status_payload, format_status_payload
+from warp_taskgen.phase_1 import novel_task_cache, novel_task_generation_prompt
 from warp_taskgen.phase_1.contract_bound_action_api import (
     contract_selection,
     slot_compilation,
@@ -314,7 +315,7 @@ def test_status_shows_reusable_and_missing_phase_1_site_work_without_writes(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.delenv(phase_1_generate_new_tasks.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
+    monkeypatch.delenv(novel_task_generation_prompt.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
     _write_partial_phase_1_run(tmp_path)
 
     async def fail_if_called(*args, **kwargs):
@@ -368,9 +369,9 @@ def test_status_marks_cache_stale_when_current_backend_context_changes(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.delenv(phase_1_generate_new_tasks.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
+    monkeypatch.delenv(novel_task_generation_prompt.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
     _write_partial_phase_1_run(tmp_path)
-    monkeypatch.setenv(phase_1_generate_new_tasks.CONTRACT_BOUND_ACTION_API_ENV, "1")
+    monkeypatch.setenv(novel_task_generation_prompt.CONTRACT_BOUND_ACTION_API_ENV, "1")
 
     status = build_status_payload(tmp_path)["phase1_generation"]
 
@@ -434,7 +435,7 @@ def test_status_honors_valid_merged_output_before_missing_site_caches(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.delenv(phase_1_generate_new_tasks.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
+    monkeypatch.delenv(novel_task_generation_prompt.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
     _write_partial_phase_1_run(tmp_path)
     state = json.loads((tmp_path / "pipeline_state.json").read_text(encoding="utf-8"))
     manifest = json.loads(
@@ -452,7 +453,7 @@ def test_status_honors_valid_merged_output_before_missing_site_caches(
             sandbox_model="claude-sonnet-4-6",
         )
     )
-    resume_fingerprint = phase_1_generate_new_tasks.compute_generate_new_tasks_resume_fingerprint(
+    resume_fingerprint = novel_task_cache.compute_generate_new_tasks_resume_fingerprint(
         shared_inputs_fingerprint=shared_fingerprint,
         eligible_sites=eligible,
         novel_tasks_per_site=1,
@@ -483,7 +484,7 @@ def test_status_recognizes_merged_output_provenance_from_matching_site_caches(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.delenv(phase_1_generate_new_tasks.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
+    monkeypatch.delenv(novel_task_generation_prompt.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
     _write_partial_phase_1_run(tmp_path)
     state = json.loads((tmp_path / "pipeline_state.json").read_text(encoding="utf-8"))
     manifest = json.loads(
@@ -531,7 +532,7 @@ def test_status_recognizes_merged_output_provenance_from_matching_site_caches(
 
 
 def test_status_keeps_malformed_phase_1_cache_readable(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.delenv(phase_1_generate_new_tasks.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
+    monkeypatch.delenv(novel_task_generation_prompt.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
     _write_partial_phase_1_run(tmp_path)
     (tmp_path / "phase_1" / "novel_tasks_reddit.json").write_text("{not-json", encoding="utf-8")
 
@@ -544,7 +545,7 @@ def test_status_keeps_malformed_phase_1_cache_readable(monkeypatch, tmp_path: Pa
 
 
 def test_status_keeps_non_utf8_site_cache_readable(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.delenv(phase_1_generate_new_tasks.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
+    monkeypatch.delenv(novel_task_generation_prompt.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
     _write_partial_phase_1_run(tmp_path)
     (tmp_path / "phase_1" / "novel_tasks_reddit.json").write_bytes(b"\xff")
 
@@ -560,7 +561,7 @@ def test_status_does_not_claim_reuse_past_unreadable_merged_output(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.delenv(phase_1_generate_new_tasks.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
+    monkeypatch.delenv(novel_task_generation_prompt.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
     _write_partial_phase_1_run(tmp_path)
     (tmp_path / "phase_1" / "benign_tasks.json").write_bytes(b"\xff")
 
@@ -579,7 +580,7 @@ def test_status_keeps_requested_count_when_site_context_is_unavailable(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.delenv(phase_1_generate_new_tasks.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
+    monkeypatch.delenv(novel_task_generation_prompt.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
     _write_partial_phase_1_run(tmp_path)
     (tmp_path / "phase_0c" / "AGENT_CONTEXT_gitlab.json").write_text("{not-json", encoding="utf-8")
 
@@ -615,7 +616,7 @@ def test_status_keeps_ineligible_requested_site_failure_readable(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.delenv(phase_1_generate_new_tasks.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
+    monkeypatch.delenv(novel_task_generation_prompt.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
     _write_partial_phase_1_run(tmp_path)
     (tmp_path / "phase_0c" / "BENCHMARK_PROFILE_reddit.json").unlink()
 
@@ -627,7 +628,7 @@ def test_status_keeps_ineligible_requested_site_failure_readable(
 
 
 def test_status_keeps_malformed_profile_failure_readable(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.delenv(phase_1_generate_new_tasks.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
+    monkeypatch.delenv(novel_task_generation_prompt.CONTRACT_BOUND_ACTION_API_ENV, raising=False)
     _write_partial_phase_1_run(tmp_path)
     profile_path = tmp_path / "phase_0c" / "BENCHMARK_PROFILE_reddit.json"
     profile = json.loads(profile_path.read_text(encoding="utf-8"))
