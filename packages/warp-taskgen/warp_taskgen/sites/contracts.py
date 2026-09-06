@@ -278,14 +278,33 @@ class SiteRouteContractFacts:
     """Inventory/profile facts needed to describe one Phase 1 route.
 
     These facts are intentionally narrower than a Phase 1 route contract.
-    They carry only Site grammar and inventory evidence; editor eligibility,
-    exposure, instruction, and answer policy remain generic Phase 1 policy.
+    They carry only Site grammar, inventory evidence, and the per-Site rules a
+    generic Phase 1 route builder needs; editor eligibility, exposure envelope,
+    instruction assembly, and answer policy remain generic Phase 1 policy.
+
+    Every field defaults closed or empty, so a Site that declares nothing keeps
+    the generic Phase 1 behavior.  Regex families are referenced by name rather
+    than by value so a Site never imports Phase 2 target-resolution constants.
     """
 
     allowed_start_url_patterns: tuple[str, ...] = ()
     anchor_examples: tuple[Mapping[str, Any], ...] = ()
     requires_inventory_backed_start_url: bool = False
     route_variant: str | None = None
+    profile_surface_fallbacks: Mapping[tuple[str, str], Mapping[str, Any]] = field(
+        default_factory=dict
+    )
+    method_pattern_fragments: Mapping[str, str] = field(default_factory=dict)
+    inadmissible_methods: frozenset[str] = frozenset()
+    probe_forcing_overrides: Mapping[str, Mapping[str, bool]] = field(default_factory=dict)
+    sample_instructions: Mapping[str, str] = field(default_factory=dict)
+    sample_editor_args: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
+    listing_detail_forcing_required: bool = False
+    route_drift_guard: Mapping[str, Any] | None = None
+    instruction_requirements_by_surface: Mapping[str, Mapping[str, Any]] = field(
+        default_factory=dict
+    )
+    ordered_child_append_surfaces: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
         patterns = tuple(str(pattern).strip() for pattern in self.allowed_start_url_patterns)
@@ -304,6 +323,34 @@ class SiteRouteContractFacts:
         if self.route_variant is not None:
             variant = str(self.route_variant).strip()
             object.__setattr__(self, "route_variant", variant or None)
+        object.__setattr__(
+            self,
+            "profile_surface_fallbacks",
+            {key: dict(value) for key, value in self.profile_surface_fallbacks.items()},
+        )
+        object.__setattr__(self, "method_pattern_fragments", dict(self.method_pattern_fragments))
+        object.__setattr__(self, "inadmissible_methods", frozenset(self.inadmissible_methods))
+        object.__setattr__(
+            self,
+            "probe_forcing_overrides",
+            {key: dict(value) for key, value in self.probe_forcing_overrides.items()},
+        )
+        object.__setattr__(self, "sample_instructions", dict(self.sample_instructions))
+        object.__setattr__(
+            self,
+            "sample_editor_args",
+            {key: dict(value) for key, value in self.sample_editor_args.items()},
+        )
+        if self.route_drift_guard is not None:
+            object.__setattr__(self, "route_drift_guard", dict(self.route_drift_guard))
+        object.__setattr__(
+            self,
+            "instruction_requirements_by_surface",
+            {key: dict(value) for key, value in self.instruction_requirements_by_surface.items()},
+        )
+        object.__setattr__(
+            self, "ordered_child_append_surfaces", frozenset(self.ordered_child_append_surfaces)
+        )
 
     @property
     def start_url_patterns(self) -> tuple[str, ...]:
