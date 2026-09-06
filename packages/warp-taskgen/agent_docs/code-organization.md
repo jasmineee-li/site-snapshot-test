@@ -239,7 +239,11 @@ reports until they are split.
 
 Keep pytest tests under top-level `tests/`, mirrored by domain where practical:
 
-- `tests/phase_2/`
+- `tests/phase_2/`, whose `tests/phase_2/phase_2c/` files are split by probe or
+  stage (exposure targets, auth preflight, source-data admission, the render and
+  reachability probes, the `verify_feasibility` cases, replica fanout) with the
+  shared fakes, builders, and autouse fixtures in
+  `tests/phase_2/phase_2c/_fixtures.py`
 - `tests/phase_4/`
 - `tests/seed_contracts/`
 - `tests/test_browser_use_agent.py` and other Browser Use-focused files
