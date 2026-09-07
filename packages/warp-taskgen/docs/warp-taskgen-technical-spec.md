@@ -2294,6 +2294,31 @@ async def run_strategy_variation(task, initial_result, instances, agent_factory,
 
 ### Per-Task Output
 
+Default eval-awareness rewrite calls prospectively retain exact model-facing
+Anthropic SDK arguments in
+`<task_dir_root>/<safe-root-task-id>/eval_awareness_requests/<call-id>/<request-index>.json`.
+Each invocation has a unique call ID; initial proposals and host-QA repairs have
+separate calls. Application transport retries, semantic reasks, thinking-signature
+restarts, and token-budget retries retain their final constructed arguments under
+the same call. Capture happens after API-semaphore admission, immediately before
+stream dispatch. These are SDK inputs: `messages.stream` adds `stream=true` during
+serialization, and the archive does not claim literal HTTP bytes or SDK-internal
+retry identity. Client credentials, headers, and client state are excluded;
+unknown model-facing arguments are reported as partial retention.
+
+Each call's `diagnostics.json` joins request indices to response summaries,
+transport errors, parse outcomes, and the final rewrite status. Iterator records
+retain `rewrite_request_archives` references through their existing checkpoint
+and result projections, with `path_base=phase4_task_dir_root`; the ordinary Run
+archive recursively includes this subtree. References identify the root and
+parent task, iteration, and repair ordinal without inferring a Run ID from a
+path. Configured model and resolved client provider are separate from the actual
+request model; an injected client has unknown provider identity. Archive errors
+are observational and recorded by error type, including in compact references
+when sidecar writes fail. Existing checkpoint validation and legacy reuse remain
+unchanged: reused or skipped rewrites do not fabricate requests. Other Phase 4
+transports, including the matched rewrite study, are outside this retention path.
+
 Default eval-awareness iterator runs write a compact iterator object alongside
 the baseline browser result for every PVPO-valid baseline row. Rows that remain
 non-encounters after placement-fix or break the benign task record an iterator

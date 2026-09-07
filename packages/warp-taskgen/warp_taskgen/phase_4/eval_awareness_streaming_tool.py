@@ -27,6 +27,7 @@ from warp_taskgen.host_api_observability import (
 )
 from warp_taskgen.phase_4.anthropic_client import call_with_retry, temperature_kwargs_for_model
 from warp_taskgen.phase_4.concurrency import get_api_semaphore
+from warp_taskgen.phase_4.eval_awareness_request_archive import RewriteRequestArchive
 
 _STREAM_TIMEOUT_ENV = "WORLDSIM_EVAL_AWARENESS_REWRITE_STREAM_TIMEOUT_S"
 _STREAM_TIMEOUT_S = float(os.environ.get(_STREAM_TIMEOUT_ENV, "900"))
@@ -131,6 +132,7 @@ async def stream_pydantic_tool_call(
     force_tool: bool = True,
     transport_retries: int = 3,
     temperature: float | None = None,
+    request_archive: RewriteRequestArchive | None = None,
 ) -> StreamingToolResult:
     """Stream one Anthropic tool call and validate it with Pydantic.
 
@@ -171,11 +173,28 @@ async def stream_pydantic_tool_call(
             temperature=temperature,
         )
         trace.record_kwargs(kwargs)
+        request_index = 0
         try:
 
-            async def _transport_call(current_kwargs: dict[str, Any] = kwargs) -> Message:
+            async def _transport_call(
+                current_kwargs: dict[str, Any] = kwargs, semantic_attempt: int = attempt
+            ) -> Message:
+                nonlocal request_index
                 trace.transport_attempts += 1
-                return await _stream_once(client, current_kwargs)
+                async with get_api_semaphore():
+                    if request_archive is not None:
+                        request_index = request_archive.record_request(
+                            current_kwargs, semantic_attempt=semantic_attempt
+                        )
+                    try:
+                        response = await _stream_once(client, current_kwargs)
+                    except BaseException as exc:
+                        if request_archive is not None:
+                            request_archive.record_error(request_index, exc)
+                        raise
+                    if request_archive is not None:
+                        request_archive.record_response(request_index, response)
+                    return response
 
             completion = await call_with_retry(
                 _transport_call,
@@ -206,6 +225,8 @@ async def stream_pydantic_tool_call(
         trace.record_response(completion)
         last_completion = completion
         if getattr(completion, "stop_reason", None) == "max_tokens":
+            if request_archive is not None:
+                request_archive.record_parse(request_index, "truncated")
             raise StreamingToolTruncatedError(
                 "response_truncated: streamed tool response stopped at max_tokens",
                 diagnostics=trace.to_diagnostics(),
@@ -217,12 +238,16 @@ async def stream_pydantic_tool_call(
                 getattr(tool_block, "input", None),
                 context=context,
             )
+            if request_archive is not None:
+                request_archive.record_parse(request_index, "parsed")
             return StreamingToolResult(
                 parsed=parsed,
                 completion=completion,
                 diagnostics=trace.to_diagnostics(),
             )
         except (ValidationError, NoToolUseError, MultipleToolUseError) as exc:
+            if request_archive is not None:
+                request_archive.record_parse(request_index, type(exc).__name__)
             last_error = exc
             feedback = compact_validation_feedback(
                 exc,
@@ -288,9 +313,8 @@ class StreamingToolTruncatedError(Exception):
 
 
 async def _stream_once(client: AsyncAnthropic, kwargs: dict[str, Any]) -> Message:
-    async with get_api_semaphore():
-        async with client.messages.stream(**kwargs) as stream:
-            return await stream.get_final_message()
+    async with client.messages.stream(**kwargs) as stream:
+        return await stream.get_final_message()
 
 
 def _request_kwargs(

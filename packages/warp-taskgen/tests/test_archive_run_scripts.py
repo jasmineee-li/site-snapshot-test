@@ -248,3 +248,26 @@ def test_archive_help_describes_selected_artifact_root() -> None:
     assert completed.returncode == 0
     assert "one selected Run Artifact root" in completed.stdout
     assert "Derived Run collection" in completed.stdout
+
+
+def test_archive_includes_default_phase4_exact_rewrite_requests(tmp_path: Path) -> None:
+    from warp_taskgen.phase_4.eval_awareness_request_archive import RewriteRequestArchive
+
+    logs_dir = tmp_path / "logs"
+    run_id = "run-phase4-retention"
+    task_root = logs_dir / run_id / "phase_4" / "20260907_120000"
+    archive = RewriteRequestArchive(task_root, "task-1", "task-1", 1)
+    archive.record_request(
+        {"model": "claude-sonnet-4-6", "messages": [{"role": "user", "content": "exact"}]},
+        semantic_attempt=1,
+    )
+    archive.record_output({})
+    relative_directory = archive.directory.relative_to(logs_dir / run_id)
+    completed, calls, synced_files, _ = _run_archive(tmp_path, logs_dir=logs_dir, run_id=run_id)
+    assert completed.returncode == 0, completed.stderr
+    assert {
+        (relative_directory / "1.json").as_posix(),
+        (relative_directory / "diagnostics.json").as_posix(),
+    } <= set(synced_files)
+    sync = next(call for call in calls if call[:2] == ["s3", "sync"])
+    assert "--exclude" not in sync
