@@ -238,6 +238,15 @@ acceptance. No new provider, model or benchmark scope is implied.
 | Default Phase 4 rewrite retention / dedicated Astra worker | One focused integration using existing request storage/serializer, capturing actual application-level retry/reask requests and durable outcome joins. | Agreed owning files, real SDK/HTTP/SSE positive/negative tests, cancellation/write-failure and legacy compatibility, independent review and required checks. No new generic archive framework, Phase 1/2 edits or cue/variant/critic scope. |
 | Paper outputs / lead | Specify each planned figure/table against the accepted population and existing artifact owner before numbers arrive. | Output map below; final numbers require their stated evidence. No fabricated demo values or changed estimands. |
 
+Completed artifact evidence from this work is recorded in
+[the September 7 offline evidence report](offline-evidence-2026-09-07.md): all
+109 tracked original judge files recovered and verified, three historical
+attribution cases investigated with candidate-code replay, and two actual
+historical baseline sources rejected by the existing identity gate. These
+results do not mean corrected awareness data was recovered, historical scores
+were changed, or an eligible E5 baseline was found. The broader 300-row artifact
+ledger is being extended under its existing owner.
+
 The paper's contribution remains generated workflow breadth for IPI evaluation,
 plus a controlled test of TP-guided rewrite value. Request retention supports
 auditability; completing it alone is not the scientific contribution.
