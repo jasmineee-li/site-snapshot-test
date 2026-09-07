@@ -7,6 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 from unittest.mock import AsyncMock
+from uuid import UUID
 
 import httpx
 import pytest
@@ -24,6 +25,37 @@ from warp_taskgen.phase_2.text_fill.request_archive import bind_text_fill_reques
 from warp_taskgen.phase_2.text_fill.seed import materialize_adversarial_seed
 from warp_taskgen.phase_4 import anthropic_client
 from warp_taskgen.run_transition import resolve_run_request
+
+
+def test_pre_extraction_request_envelope_bytes_and_reference_are_preserved(tmp_path, monkeypatch):
+    # Measured by executing the pre-extraction recorder from dc39c9b9 with these
+    # fixed inputs, including Unicode and an omitted transport argument.
+    monkeypatch.setattr(request_archive, "uuid4", lambda: UUID(hex="1" * 32))
+    with bind_text_fill_request_archive(tmp_path, tmp_path / "phase_2/text_fill/requests"):
+        record = request_archive.text_fill_request_recorder(
+            task_id="task",
+            site="reddit",
+            configured_model="configured",
+            client_provider="openrouter",
+        )
+        reference = record(
+            {
+                "model": "claude-sonnet-4-6",
+                "messages": [{"role": "user", "content": "café"}],
+                "max_tokens": 64,
+                "extra_headers": {"authorization": "test-key"},
+            }
+        )
+    expected_hash = "090aebb6d03f3f0aa9bde2b88260fa5a804b018dc6eb7fe1e2307bac856b77ea"
+    assert reference == {
+        "call_id": "1" * 32,
+        "request_index": 1,
+        "status": "retained",
+        "path": f"phase_2/text_fill/requests/{'1' * 32}/1.json",
+        "sha256": expected_hash,
+        "request_sha256": "ef3d5cc143a2c585348f377ce01aee6f8f51be48673003e033107f635cc41cbd",
+    }
+    assert hashlib.sha256((tmp_path / reference["path"]).read_bytes()).hexdigest() == expected_hash
 
 
 def _task(task_id: str = "adv-1") -> dict:
