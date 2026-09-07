@@ -18,6 +18,9 @@ classification, and bounded concurrency. Semantic retries are for parse or
 validation failures. Diagnostics record compact request/response metadata,
 thinking mode, and provider extra-body mode without prompts, cookies, secrets,
 or raw trajectories.
+The default eval-awareness rewrite additionally retains exact model-facing SDK
+arguments in a separate feature-owned Run Artifact; its compact diagnostics keep
+references and summaries. See the spec's Phase 4 Per-Task Output contract.
 
 Phase 4 judge, variant, TP, VEA, placement-fix, cue diagnosis, and rewrite calls
 use the host Messages API. Sandbox work is reserved for the phases that need

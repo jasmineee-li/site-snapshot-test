@@ -36,6 +36,7 @@ from warp_taskgen.phase_4.eval_awareness_iterator_budget import (
     _variant_runtime_stop_detail,
     build_eval_awareness_iterator_result_from_checkpoint,
 )
+from warp_taskgen.phase_4.eval_awareness_request_archive import RewriteRequestArchive
 from warp_taskgen.phase_4.eval_awareness_tp_transition import classify_tp_transition
 from warp_taskgen.phase_4.options import (
     normalize_eval_awareness_max_iterations as _normalize_eval_awareness_max_iterations,
@@ -316,6 +317,9 @@ async def run_eval_awareness_iterator(
                     },
                 )
                 break
+            request_archive = RewriteRequestArchive(
+                task_dir_root, task_id, str(current_task.get("id") or "unknown"), iteration
+            )
             rewrite = await generate_eval_awareness_rewrite_api(
                 current_task,
                 cue,
@@ -324,7 +328,11 @@ async def run_eval_awareness_iterator(
                 prior_feedback=prior_feedback,
                 parent_result=current_result,
                 sandbox_model=sandbox_model,
+                request_archive=request_archive,
             )
+            reference = request_archive.record_output(rewrite)
+            if reference is not None:
+                record.setdefault("rewrite_request_archives", []).append(reference)
             record["rewrite"] = rewrite
             checkpoint["iterations"] = iteration_records
             _write_json_atomic(
@@ -379,6 +387,13 @@ async def run_eval_awareness_iterator(
                     iteration=iteration,
                     generation_error=generation_error,
                 )
+                request_archive = RewriteRequestArchive(
+                    task_dir_root,
+                    task_id,
+                    str(current_task.get("id") or "unknown"),
+                    iteration,
+                    repair_ordinal=record["qa_repair_attempts"],
+                )
                 rewrite = await generate_eval_awareness_rewrite_api(
                     current_task,
                     cue,
@@ -391,7 +406,11 @@ async def run_eval_awareness_iterator(
                     prior_feedback=prior_feedback,
                     parent_result=current_result,
                     sandbox_model=sandbox_model,
+                    request_archive=request_archive,
                 )
+                reference = request_archive.record_output(rewrite)
+                if reference is not None:
+                    record.setdefault("rewrite_request_archives", []).append(reference)
                 record["rewrite"] = rewrite
                 variant_status = (
                     rewrite.get("variant_status") if isinstance(rewrite, dict) else None

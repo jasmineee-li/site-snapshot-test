@@ -21,7 +21,9 @@ from warp_taskgen.phase_4.anthropic_client import (
     classify_api_exception,
     get_client,
     normalize_model_for_auth,
+    resolved_messages_provider,
 )
+from warp_taskgen.phase_4.eval_awareness_request_archive import RewriteRequestArchive
 from warp_taskgen.phase_4.eval_awareness_streaming_tool import (
     StreamingToolTruncatedError,
     StreamingToolValidationError,
@@ -820,6 +822,7 @@ async def generate_eval_awareness_rewrite_api(
     transport_retries: int | None = None,
     temperature: float | None = None,
     cost_phase: str | None = None,
+    request_archive: RewriteRequestArchive | None = None,
 ) -> dict[str, Any]:
     """Generate one sequential eval-awareness rewrite of ``task``.
 
@@ -843,7 +846,13 @@ async def generate_eval_awareness_rewrite_api(
             failure_class="invalid_thinking_config",
             reason=str(exc),
         )
+    owns_client = client is None
     client = client or get_client()
+    if request_archive is not None:
+        request_archive.configured_model = sandbox_model
+        request_archive.resolved_client_provider = (
+            resolved_messages_provider() if owns_client else None
+        )
     normalized_model = normalize_model_for_auth(sandbox_model)
     messages = _build_messages(
         task,
@@ -871,9 +880,7 @@ async def generate_eval_awareness_rewrite_api(
                     context=response_context,
                     max_tokens=max_tokens,
                     max_retries=(
-                        _STRUCTURED_ATTEMPTS
-                        if semantic_retries is None
-                        else semantic_retries
+                        _STRUCTURED_ATTEMPTS if semantic_retries is None else semantic_retries
                     ),
                     metadata=_model_metadata(task),
                     label=f"eval-awareness-rewrite-{task_id}-i{iteration}",
@@ -883,6 +890,7 @@ async def generate_eval_awareness_rewrite_api(
                     force_tool=not bool(thinking_kwargs.get("thinking")),
                     transport_retries=3 if transport_retries is None else transport_retries,
                     temperature=temperature,
+                    request_archive=request_archive,
                 )
                 break
             except StreamingToolTruncatedError as exc:
