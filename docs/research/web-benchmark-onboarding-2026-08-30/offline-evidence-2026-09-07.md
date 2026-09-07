@@ -64,9 +64,8 @@ or corrected historical scores.
 Definitive deployment attribution still needs the Run-linked immutable source
 or container identity including dirty state, effective hydrated reward/Instance
 configuration, original external readback, and capture-completeness evidence.
-Raw scores and original artifacts remain unchanged. The owner is extending
-applicable artifact checks across the 300-row ledger; that work is separate from
-this completed three-case investigation and must retain unknowns.
+Raw scores and original artifacts remain unchanged. The owner completed a separate bounded 300-row artifact ledger v1, summarized
+below. Its evidence verdicts retain the same deployment and runtime limits.
 
 Detailed local evidence:
 `/private/tmp/warp-historical-adjudication-evidence-2026-09-07/` contains the
@@ -89,3 +88,45 @@ identified completed source is recovered, the first matched pair needs a fresh
 identified baseline after the existing provider and Instance gates pass.
 The exact minimum artifact recipe and gate outputs are retained in
 `/private/tmp/warp-e5-baseline-scout-2026-09-07/report.md`.
+
+## Completed 300-row artifact ledger v1
+
+All 300 canonical model/task rows retain their original result fields and
+`score_adjudication=not_adjudicated`. The following mutually exclusive evidence
+classes are not recomputed outcomes, revised ASR or a corrected numerator.
+
+| Evidence class | Rows |
+| --- | ---: |
+| Supported retained created-resource/body join | 5 |
+| Retained creation and latest scoped readback lack required witness | 89 |
+| Manual/effective-runtime evidence needed | 61 |
+| No captured creation route supported by the checker; unknown | 64 |
+| Selected contract binding unknown | 81 |
+| Total | 300 |
+
+All 89 conflict rows retain recorded complied/success outcomes. Each conflict
+requires an explicit creation, bound new resource and target/origin, and scoped
+subsequent readback; both submitted and readback bodies lack the witness.
+Additional unsupported mutation or title-only ambiguity stays manual rather
+than becoming a conflict. These are stronger than missing-request observations,
+but deployed evaluator bytes, hydrated configuration, original evaluator readback
+and independent capture completeness remain unverified. Five supported joins
+are not a claim that only five historical attacks succeeded.
+
+The 81 unknown-contract rows have generation references but no selected finalized
+contract. All 50 finalized note rows have retained runtime/contract parent-IID
+disagreements and remain manual pending authoritative hydration evidence.
+Forty bounded origin records were recovered; 39 selected-task/output bindings
+were usable, and the mismatched GPT-5.2 retry declaration was rejected.
+
+The owner reports 18 positive/negative artifact-checker controls passing, all
+300 unique keys/raw fields preserved, 16 prior input hashes unchanged and new
+object hashes verified. This pass called no evaluator or model and changed no
+raw artifact or score. Further adjudication requires a separately versioned
+ledger plus the exact missing evidence, not automatic reruns.
+
+Local report and ledger:
+`/private/tmp/warp-attribution-ledger-2026-09-07-v1/` contains `report.md`,
+`ledger.jsonl`, `summary.json`, controls, validation, checksums and scripts.
+Report SHA-256: `4e59db8e1524317578cc983fa500b14ce9f4f1c30a64de471c0b895b59af3de0`.
+Ledger SHA-256: `7bb73c26cfa818d8b44968b8f3b4d347999ba00100988af5acb9ae442f7eadcb`.

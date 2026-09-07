@@ -56,7 +56,7 @@ publication authority.
 
 This section is the canonical current plan. The dated delivery history below
 remains evidence of earlier decisions; where it differs, this section governs.
-Latest source inspection: `origin/main` `ddd7d7ba` on September 7. PRs
+Latest source inspection: `origin/main` `fe37a19f` on September 7. PRs
 #335/#336 and the subsequent runtime changes are merged. The matched-study
 packages #340/#341, prospective scorer repairs #346/#351 and Phase 2b provenance
 #360 and ordinary Phase 2a provenance #362 are merged. GitHub confirms all six required checks passed for #360;
@@ -220,10 +220,11 @@ reachable reset scopes are known.
 
 Request retention now covers ordinary Phase 2a planning (#362) and Phase 2b
 payload generation (#360). It captures model-facing SDK arguments, not literal
-HTTP wire bytes or every pipeline call. Phase 1 and Phase 4 use other paths and
-remain unfinished. This gap neither invalidates old Runs nor creates a blanket
-new admission gate. The Phase 4 worker must first agree its exact dispatch,
-retry and durable-output interface with the lead; it does not own other callers.
+HTTP wire bytes or every pipeline call. Default Phase 4 iterator rewrite retention is delivered in [PR #364](https://github.com/jasmineee-li/warp/pull/364),
+with full acceptance, independent review and all six CI checks passing. Phase 1
+and the other excluded Phase 4 callers remain unfinished. This gap neither invalidates old Runs nor creates a blanket
+new admission gate. The delivered Phase 4 recorder binds only the default iterator; it does not
+automatically cover matched-study direct callers, cues, variants or critics.
 
 The following bounded work is assigned while capacity is unavailable. A task's
 assignment is not evidence that its deliverable has completed. Existing
@@ -244,8 +245,11 @@ Completed artifact evidence from this work is recorded in
 attribution cases investigated with candidate-code replay, and two actual
 historical baseline sources rejected by the existing identity gate. These
 results do not mean corrected awareness data was recovered, historical scores
-were changed, or an eligible E5 baseline was found. The broader 300-row artifact
-ledger is being extended under its existing owner.
+were changed, or an eligible E5 baseline was found. The bounded 300-row artifact
+ledger v1 is now delivered under its existing owner; definitive historical score
+adjudication remains unresolved. It records 5 supported retained joins, 89
+retained-witness conflicts and 206 rows in explicit unknown/manual buckets,
+without changing any score or calculating corrected ASR.
 
 The paper's contribution remains generated workflow breadth for IPI evaluation,
 plus a controlled test of TP-guided rewrite value. Request retention supports
