@@ -107,7 +107,7 @@ def _client(responses: list[httpx.Response]):
         return responses.pop(0)
 
     return AsyncAnthropic(
-        api_key="credential-sentinel-never-retain",
+        api_key="test-key",
         max_retries=0,
         http_client=httpx.AsyncClient(transport=httpx.MockTransport(handle)),
     ), bodies
@@ -143,6 +143,7 @@ def _assert_requests(archive, bodies):
         assert envelope["request_index"] == ref["request_index"] == index
         assert hashlib.sha256(raw).hexdigest() == ref["sha256"]
         assert "credential-sentinel" not in raw.decode()
+        assert "test-key" not in raw.decode()
     return [json.loads((archive.task_dir_root / ref["path"]).read_text()) for ref in refs]
 
 
