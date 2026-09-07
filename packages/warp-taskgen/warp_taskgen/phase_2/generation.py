@@ -28,6 +28,10 @@ from warp_taskgen.phase_2.output import (
     _sanitize_task_for_output,
 )
 from warp_taskgen.phase_2.pause_control import write_planning_shard_checkpoint
+from warp_taskgen.phase_2.planning_request_archive import (
+    bind_planning_request_archive,
+    finish_planning_shard,
+)
 from warp_taskgen.phase_2.planning_types import SiteInjectionResult
 from warp_taskgen.phase_2.runtime_generation import generation_for_runtime
 from warp_taskgen.phase_2.target_resolution.constants import (
@@ -189,6 +193,7 @@ async def _generate_injections_for_site(
                 exc,
             )
 
+    archive = None
     if prepared_feature_shard is not None:
         # An explicit composition may own a deterministic plan path outside
         # the ordinary model planner while preserving the same output contract.
@@ -199,25 +204,31 @@ async def _generate_injections_for_site(
         sanitized_agent_context = (
             _sanitize_agent_context_for_output(agent_context) if agent_context is not None else None
         )
-        adv_tasks = await _runner_api.generate_phase_2a_plans_api(
-            benign_tasks=sanitized_site_tasks,
-            benign_target_resources=benign_target_resources,
-            exposure_contracts=exposure_contracts,
-            cell_targets=cell_targets,
-            benchmark_profile=site_profile,
-            agent_context=sanitized_agent_context,
-            sandbox_model=sandbox_model,
+        with bind_planning_request_archive(
+            get_state_dir(),
             label=label,
             site=site_name,
-            benchmark=benchmark,
-            runtime_composition=runtime_composition,
-        )
+            input_task_ids=input_task_ids,
+        ) as archive:
+            adv_tasks = await _runner_api.generate_phase_2a_plans_api(
+                benign_tasks=sanitized_site_tasks,
+                benign_target_resources=benign_target_resources,
+                exposure_contracts=exposure_contracts,
+                cell_targets=cell_targets,
+                benchmark_profile=site_profile,
+                agent_context=sanitized_agent_context,
+                sandbox_model=sandbox_model,
+                label=label,
+                site=site_name,
+                benchmark=benchmark,
+                runtime_composition=runtime_composition,
+            )
     if not adv_tasks:
         logger.warning("Phase 2: API path %r produced no plans", label)
-        return SiteInjectionResult(
-            site_name,
-            [],
-            ["API path produced no adversarial plans"],
+        return finish_planning_shard(
+            archive,
+            SiteInjectionResult(site_name, [], ["API path produced no adversarial plans"]),
+            status="api_no_plans",
         )
     if prepared_feature_shard is None:
         try:
@@ -228,7 +239,11 @@ async def _generate_injections_for_site(
                 benign_tasks=all_site_tasks,
             )
         except ValueError as exc:
-            return SiteInjectionResult(site_name, [], [f"exposure materialization failed: {exc}"])
+            return finish_planning_shard(
+                archive,
+                SiteInjectionResult(site_name, [], [f"exposure materialization failed: {exc}"]),
+                status="exposure_materialization_failed",
+            )
 
     # Programmatically copy immutable fields from benign tasks instead of
     # relying on the LLM to reproduce them byte-for-byte.
@@ -239,7 +254,11 @@ async def _generate_injections_for_site(
         }
         _merge_immutable_fields(adv_tasks, all_site_tasks, **merge_kwargs)
     except ValueError as exc:
-        return SiteInjectionResult(site_name, [], [f"host reward compilation failed: {exc}"])
+        return finish_planning_shard(
+            archive,
+            SiteInjectionResult(site_name, [], [f"host reward compilation failed: {exc}"]),
+            status="reward_compilation_failed",
+        )
 
     if feature_generation is not None:
         enriched, errors = feature_generation.validate_and_enrich_plans(
@@ -257,12 +276,17 @@ async def _generate_injections_for_site(
         try:
             enriched = _materialize_validated_shard_tasks(validated, site_profile)
         except ValueError as exc:
-            return SiteInjectionResult(site_name, [], [f"plan enrichment failed: {exc}"])
+            return finish_planning_shard(
+                archive,
+                SiteInjectionResult(site_name, [], [f"plan enrichment failed: {exc}"]),
+                status="plan_enrichment_failed",
+            )
     enriched = _eligibility._select_balanced_subset(enriched, cell_targets)
     _target_stage._normalize_l4_benign_task_ids_in_place(enriched)
 
     # Persist this shard's validated output to disk immediately so a later
     # orchestrator failure (or another shard's failure) cannot discard it.
+    shard_path = None
     if enriched:
         shards_dir = get_state_dir() / "phase_2" / "shards"
         shards_dir.mkdir(parents=True, exist_ok=True)
@@ -283,9 +307,18 @@ async def _generate_injections_for_site(
         except (OSError, ValueError) as exc:
             checkpoint_error = f"failed to persist Run-bound shard checkpoint: {exc}"
             logger.error("Phase 2: shard %r %s", label, checkpoint_error)
-            return SiteInjectionResult(site_name, [], [*errors, checkpoint_error])
+            return finish_planning_shard(
+                archive,
+                SiteInjectionResult(site_name, [], [*errors, checkpoint_error]),
+                status="checkpoint_failed",
+            )
 
-    return SiteInjectionResult(site_name, enriched, errors)
+    return finish_planning_shard(
+        archive,
+        SiteInjectionResult(site_name, enriched, errors),
+        status="completed" if enriched else "host_rejected",
+        output_path=shard_path,
+    )
 
 
 def _materialize_validated_shard_tasks(

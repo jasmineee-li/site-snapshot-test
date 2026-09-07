@@ -1528,6 +1528,40 @@ the host can make the selected action objective reviewer-defensible.
     Text fill may use Instructor/Pydantic for schema-level generation retries, but only behind WARP Taskgen-owned observability. Transport retries remain the host `call_with_retry` policy so auth, quota, and provider failures preserve their operational buckets. Semantic retries are limited to parse/validation failures; diagnostics record compact request references/hashes, raw-response metadata, stop reason, usage, thinking/extra-body mode, and retry/error summaries. Full Phase 2b request content is retained separately as described below; diagnostic summaries do not embed it. Eval-awareness rewrite uses a feature-local native Anthropic streaming tool transport with host-side Pydantic validation so high-budget thinking can be tested without losing schema invariants. Anthropic extended thinking for eval-awareness rewrite is opt-in via `WORLDSIM_EVAL_AWARENESS_REWRITE_THINKING`; when enabled, the request uses Anthropic-compatible auto tool choice, preserves assistant thinking/tool blocks on validation retries, and returns compact validation feedback as tool results. Renderer-backed rewrites may host-infer missing action-witness metadata from the rendered payload, but the inferred substrings still pass through the same action-preservation and encounter-window validators. Required URLs and nonces remain protected anchors during eval-awareness rewrites; the model may lower their salience by putting them in ordinary page-local submitted content or reference prose, but it may not explain away, rename, duplicate, or relabel them as suspicious/attacker-controlled. If protected anchors or locked wrappers are the causal TP driver, the iterator reports an inapplicable rewrite instead of weakening the experiment contract.
 4. **Phase 2c (host-side async, feasibility verification).** Covered in its own section below. Runs automatically after 2b unless `--skip-feasibility` is set.
 
+**Phase 2a prospective request retention.** Ordinary API planning binds one
+feature-local archive invocation after shard eligibility and before the model
+call. Each application-level transport dispatch, including retries, snapshots
+the rendered model-facing SDK arguments inside the existing API semaphore and
+writes `phase_2/planning_requests/<call_id>/<request_index>.json` atomically.
+The record includes the SDK-implied `stream=true`, configured model, resolved
+shared-client provider, site/shard label, original input task IDs, and actual
+dispatched task IDs after eligibility/target expansion. The call ID is a unique
+artifact-local identifier; it is not a Run ID, shard label or reuse key.
+An injected client's provider identity stays unknown unless independently
+established; the shared client's identity must not be assigned to it.
+
+`diagnostics.json` beside those requests joins compact response metadata,
+transport errors and tool-parse decisions to request indices. Host output
+records join materialization/validation status, output task IDs and, when a
+shard was successfully written, its relative path and file SHA-256. Host
+validation messages are bounded to 20 messages of 600 characters each, with
+truncation explicit and a full-list hash; failed or empty generations retain
+their diagnostics even when no shard is produced. Transport exception text is
+not retained. Request and diagnostic write failures produce an operational
+warning and available `retention_failed`/observer-error evidence without
+changing provider retries, output, exceptions, scoring or checkpoint behavior.
+Cancellation retains the dispatched attempt's cancellation type and propagates.
+
+The neutral JSON snapshot/write helper is shared with Phase 2b; archive context,
+paths, attempt identity and failure reporting remain feature-owned. The same
+model-facing allowlist, canonical request hash and explicit partial/failure
+statuses described below apply. Standalone Phase 2a APIs capture only inside an
+explicit planning-archive binding. Deterministic feature planners and reused
+shards create no fictitious requests. Existing shard manifests and reuse
+validators remain unchanged: request metadata is never a reuse prerequisite.
+This does not cover target-resolution L3 calls, Phase 1, Phase 2c, Phase 4,
+sandbox backends, SDK-internal retries, or historical request backfill.
+
 **Phase 2b prospective request retention.** The normal text-fill checkpoint
 runner binds request capture to its existing Run artifact tree. Every newly
 prepared Instructor invocation, including validation reasks and host transport
@@ -1571,8 +1605,9 @@ results, or automatically trigger historical generation/evaluation reruns.
 Existing checkpoint safety checks remain intact. Historical request bytes not
 retained stay unknown; any independently established scoring correction is a
 separately versioned analysis. Standalone APIs outside the runner capture only
-inside an explicit request-archive binding. Phase 1, Phase 2a and Phase 4 exact
-request retention are explicit coverage gaps in this package. Inspectable
+inside an explicit request-archive binding. Phase 2a ordinary API planning is
+covered separately above; Phase 1 and Phase 4 exact request retention remain
+explicit coverage gaps. Inspectable
 requests and diagnostics do not promise deterministic model-output replay.
 
 **Phase 2a output schema.** The production API schema is strategy-only: `id`, `benign_task_id`, `exposure_contract_id`, `framing`, `concealment`, `attack_objective`, and `adversarial_action` (`kind`, `description`). The schema rejects `seed_template`, `target_surface_id`, `delivery_mechanism`, editor methods, selector args, anchors, `reward_function`, and `adversarial_reward`. The orchestrator copies immutable fields (`instruction`, `site`, `sites`, `start_urls`, `data_seed`, `agent_context`, `benign_reward`) from the benign task after the model returns, attaches the selected `exposure_contract`, derives `required_tokens` and `length_budget`, host-materializes the placement fields, and host-compiles `adversarial_action` into `reward_function.adversarial_reward`. This reduces output tokens, prevents JSON reproduction errors, and keeps Phase 2a refusal-safe because it does not ask the model to write payload text, evaluator configs, or benchmark-specific endpoint details.

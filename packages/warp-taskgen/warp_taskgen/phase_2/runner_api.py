@@ -49,6 +49,7 @@ accounting goes through the shared ``cost_tracker`` via the same
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -64,11 +65,13 @@ from warp_taskgen.editors._registry import (
     kind_anchors_from_resources,
 )
 from warp_taskgen.host_api_observability import synthesize_cost_summary
+from warp_taskgen.phase_2.planning_request_archive import current_planning_request_archive
 from warp_taskgen.phase_4.anthropic_client import (
     call_with_retry,
     classify_api_exception,
     get_client,
     normalize_model_for_auth,
+    resolved_messages_provider,
 )
 from warp_taskgen.phase_4.concurrency import get_api_semaphore
 from warp_taskgen.prompt_loading import load_prompt
@@ -449,7 +452,10 @@ async def generate_phase_2a_plans_api(
         runtime_composition=runtime_composition,
     )
 
+    uses_shared_client = client is None
     client = client or get_client()
+    client_provider = resolved_messages_provider() if uses_shared_client else None
+    archive = current_planning_request_archive()
     system, messages = _build_messages(
         benign_tasks=benign_tasks,
         benign_target_resources=benign_target_resources,
@@ -477,15 +483,34 @@ async def generate_phase_2a_plans_api(
         # rest of the code path is unchanged. Same pattern as
         # `warp_taskgen.phase_4.variant_api._call`.
         async with get_api_semaphore():
-            async with client.messages.stream(
-                model=normalize_model_for_auth(sandbox_model),
-                max_tokens=_MAX_OUTPUT_TOKENS,
-                system=system,
-                messages=messages,
-                tools=[tool],
-                tool_choice={"type": "tool", "name": tool["name"]},
-            ) as stream:
-                return await stream.get_final_message()
+            kwargs: dict[str, Any] = {
+                "model": normalize_model_for_auth(sandbox_model),
+                "max_tokens": _MAX_OUTPUT_TOKENS,
+                "system": system,
+                "messages": messages,
+                "tools": [tool],
+                "tool_choice": {"type": "tool", "name": tool["name"]},
+            }
+            request_index = (
+                archive.record_request(
+                    {**kwargs, "stream": True},  # Implied by the SDK streaming entrypoint.
+                    configured_model=sandbox_model,
+                    client_provider=client_provider,
+                    dispatched_task_ids=[str(task.get("id") or "") for task in benign_tasks],
+                )
+                if archive is not None
+                else None
+            )
+            try:
+                async with client.messages.stream(**kwargs) as stream:
+                    completion = await stream.get_final_message()
+            except (Exception, asyncio.CancelledError) as exc:
+                if archive is not None and request_index is not None:
+                    archive.record_error(request_index, exc)
+                raise
+            if archive is not None and request_index is not None:
+                archive.record_response(request_index, completion)
+            return completion
 
     t0 = time.monotonic()
     try:
@@ -507,7 +532,14 @@ async def generate_phase_2a_plans_api(
         site=site,
     )
 
-    plans = _extract_plans(response)
+    try:
+        plans = _extract_plans(response)
+    except Exception as exc:
+        if archive is not None:
+            archive.record_parse_error(exc)
+        raise
+    if archive is not None:
+        archive.record_parse(plans)
     if plans is None:
         logger.warning(
             "Phase 2a API call for shard %r returned no emit_adversarial_strategies tool_use "
@@ -548,9 +580,9 @@ def _infer_api_benchmark(
     if benchmark is None:
         raise ValueError("Phase 2a API tasks are missing benchmark metadata")
     try:
-        capabilities = benchmark_capabilities_for_runtime(
-            benchmark, runtime_composition
-        ).require("phase_2_generation")
+        capabilities = benchmark_capabilities_for_runtime(benchmark, runtime_composition).require(
+            "phase_2_generation"
+        )
     except ValueError as exc:
         raise ValueError(f"benchmark {benchmark!r} does not support WARP Taskgen Phase 2") from exc
     return capabilities.canonical_name
