@@ -56,10 +56,10 @@ publication authority.
 
 This section is the canonical current plan. The dated delivery history below
 remains evidence of earlier decisions; where it differs, this section governs.
-Latest source inspection: `origin/main` `3d9fe24f` on September 7. PRs
+Latest source inspection: `origin/main` `ddd7d7ba` on September 7. PRs
 #335/#336 and the subsequent runtime changes are merged. The matched-study
 packages #340/#341, prospective scorer repairs #346/#351 and Phase 2b provenance
-#360 are merged. GitHub confirms all six required checks passed for #360;
+#360 and ordinary Phase 2a provenance #362 are merged. GitHub confirms all six required checks passed for #360;
 its owner reports independent reviews and full local acceptance passed. No new
 scientific Run is implied by these source deliveries. Earlier source hashes and
 check results below remain historical evidence, not certification of a later
@@ -133,7 +133,7 @@ operational reconnaissance; this task must not resume its Run or duplicate it.
 | **E5: first real matched pair.** Prove the entire scientific intervention is executable. | Source support exists; no verified complete eligible local baseline in the inspected E3 artifacts. Historical Sonnet/GPT-5.2 archive names are leads, not accepted baselines. | Restore and validate one exact task/result/payload/witness/Run identity; bind provider/runner and per-arm limits; execute both arms. **Owner: lead assigns runtime owner after E3 scout, #214.** | **A + OpenRouter + isolated Instance + eligible artifact.** May precede E4 if a historical source passes existing materializer checks. | Real ordinary critique and TP diagnosis with matched opportunity; verified reset, retained failure/usage/outcomes; no manufactured legacy identity. One pair proves execution, not treatment effect. |
 | **E4: expanded target evaluation.** Measure attack performance and utility across the admitted workflow bank. | No expanded evaluated bank yet. Host configuration exists in an ignored worktree; replica declarations are not live isolation proof. A bounded SSH read-only probe timed out before authentication. | Freeze bank identity and target settings; evaluate admitted rows and export authoritative funnel. **Owner: expansion execution lane / lead, #213.** | **E3 + OpenRouter + verified Instances.** | Both settled targets, complete scheduled outcomes, PVPO/task-broke/non-encounter/utility distinctions, exact final-state evaluation and reset-safe scheduling. Exports must distinguish cause-bearing unavailable evaluator evidence from measured negatives rather than count raw False alone. No success-based admission filter. Unlocks representative E6 cohort and breadth results. |
 | **E6: matched cohort.** Measure TP-guided incremental value across workflows. | Accepted design above; no expanded matched results. | Freeze eligible parents per model and seeded orders, run cohort and analyze. **Owner: study execution lane / lead, #215.** | **E4 + E5 + B + capacity/Instances.** | All eligible feasible or pre-outcome frozen subset; seven-family primary reported only when supported; every scheduled cell and missingness retained; paired intervals and secondary endpoints reproducible. Unlocks the main matched-study claim. |
-| **Historical scoring attribution.** Ensure ASR witnesses match the requested new action. | Separate investigation reports a concrete Reddit source-witness contamination candidate via offline replay and GitLab attribution weaknesses from a mechanism screen; original evaluator/package association remains to be reconciled. The earlier 241/242 discrepancy was withdrawn. | Approved planning covers all 300 historical model-task rows (120 Reddit posts, 120 GitLab issues, 60 GitLab notes), with original-contract/source reconciliation and the settled policy of prospective exact rendered generation-request retention in existing archives with compact references. Merged [PR #360](https://github.com/jasmineee-li/warp/pull/360) covers Phase 2b requests per attempt/retry joined to response/validation diagnostics, resolved client-provider identity and reuse preservation; Phase 1/2a/4 remain explicit coverage gaps. **Owner: Plan WARP scoring attribution audit…**, task `01a07849-8154-7a60-8a54-316d788328f2`; its preserved local plan is `/private/tmp/warp-attribution-task-state-2026-09-06/attribution-audit-plan.md` after removal of the clean implementation worktree; the task retains historical-audit ownership. | **Now: planning/artifact reconciliation.** Phase 2b provenance is delivered; the historical audit remains pending. This owner is identifying remaining generation-path retention seams before the lead accepts another focused package. Historical numerical changes need exact evidence. | Preserve raw Runs and original scores, attribute any defect to exact source/artifacts, version corrected analysis separately. Missing new provenance must not invalidate/exclude old results or automatically trigger historical regeneration, re-evaluation or reruns; missing historical request bytes remain not retained. Inspectable requests do not guarantee deterministic output replay. Separately established scoring defects may still justify versioned corrections. New analyzer correctness does not validate historical or current evaluator attribution; resolve any confirmed applicable production defect before new browser studies. Unlocks trustworthy historical comparisons. |
+| **Historical scoring attribution.** Ensure ASR witnesses match the requested new action. | Separate investigation reports a concrete Reddit source-witness contamination candidate via offline replay and GitLab attribution weaknesses from a mechanism screen; original evaluator/package association remains to be reconciled. The earlier 241/242 discrepancy was withdrawn. | Approved planning covers all 300 historical model-task rows (120 Reddit posts, 120 GitLab issues, 60 GitLab notes), with original-contract/source reconciliation and the settled policy of prospective exact rendered generation-request retention in existing archives with compact references. Merged [PR #360](https://github.com/jasmineee-li/warp/pull/360) covers Phase 2b requests per attempt/retry joined to response/validation diagnostics, resolved client-provider identity and reuse preservation; Ordinary Phase 2a retention is also delivered in [PR #362](https://github.com/jasmineee-li/warp/pull/362); Phase 1/4 and the explicitly excluded transports remain coverage gaps. **Owner: Plan WARP scoring attribution audit…**, task `01a07849-8154-7a60-8a54-316d788328f2`; its preserved local plan is `/private/tmp/warp-attribution-task-state-2026-09-06/attribution-audit-plan.md` after removal of the clean implementation worktree; the task retains historical-audit ownership. | **Now: planning/artifact reconciliation.** Ordinary Phase 2a and Phase 2b provenance are delivered; historical score adjudication remains pending. This owner is identifying remaining generation-path retention seams before the lead accepts another focused package. Historical numerical changes need exact evidence. | Preserve raw Runs and original scores, attribute any defect to exact source/artifacts, version corrected analysis separately. Missing new provenance must not invalidate/exclude old results or automatically trigger historical regeneration, re-evaluation or reruns; missing historical request bytes remain not retained. Inspectable requests do not guarantee deterministic output replay. Separately established scoring defects may still justify versioned corrections. New analyzer correctness does not validate historical or current evaluator attribution; resolve any confirmed applicable production defect before new browser studies. Unlocks trustworthy historical comparisons. |
 | **Evaluation-awareness validity.** Separate measured framing/TP effects from latent-awareness claims. | Existing external five-phrasing classifier exports, Taskgen TP and probe analyses are different instruments. Manifest cell inventories are not completed denominators. Neutral system-prompt source exists; accepted neutral-result provenance was not found in inspected inventory. Paper-to-retained judge/actor/step settings and probe snapshots need reconciliation. | Claim-to-artifact table using existing Run identities and regeneration commands; resolve corrected snapshot, calibration, refusals/denominators and pending WASP paired discordances. **Owner: Astra lead coordinates awareness/paper owner; no duplicate exporter dispatched.** | **Now: read-only reconciliation**, then **upstream corrected results**. New cue/probe Runs require a **scope decision**. | Match every reported instrument, target/judge role, actor, step budget, calibration split and analysis population to artifacts. Explain unresolved differences without declaring all paper claims false. Do not call hypothetical framing neutral or infer mediation from association. Unlocks defensible causal language and validity limitations. |
 | **E7: analysis and paper preparation.** Make the evidence useful and the thesis assessable. | Existing historical paper/report; active manuscript is the paper repository's `icml/icml_final.tex` (audit at `48aa588`). New experimental claims are not yet measured. | Regenerate tables/plots, align methods and denominators, document provenance, limitations and bounded claims. **Owner: paper owner with Astra lead acceptance, #216.** | **Now:** table/claim planning and artifact reconciliation. Final numbers need **E4/E6 and historical/validity resolutions**. | Separate supplied structure/generated instances/admission/evaluation; report high/null/mixed results faithfully, distinguish bounded transfer and one-step rewrite claims. Follow paper-repository guidance; submission/publication is separate authorization. |
 
@@ -216,32 +216,53 @@ Source-delivery estimates concern review/CI cycles; live-study elapsed time
 cannot be inferred from those estimates until capacity, eligible rows and
 reachable reset scopes are known.
 
-### September 7 continuation and remaining request coverage
+### Capacity-independent work and paper outputs — September 7
 
-“Unfinished” distinguishes policy coverage from the completed Phase 2b package.
-Exact prospective requests are agreed; #360 captures the post-Instructor
-model-facing SDK arguments for payload generation, not every pipeline call or
-literal HTTP wire bytes. Phase 1 benign generation, Phase 2a attack planning and
-Phase 4 rewriting use other paths. Their retention coverage needs separate
-bounded integration and observable tests. This gap neither invalidates old Runs
-nor automatically blocks otherwise admitted scientific execution. Preserve the
-existing execution gates; do not introduce a blanket new provenance gate.
+Request retention now covers ordinary Phase 2a planning (#362) and Phase 2b
+payload generation (#360). It captures model-facing SDK arguments, not literal
+HTTP wire bytes or every pipeline call. Phase 1 and Phase 4 use other paths and
+remain unfinished. This gap neither invalidates old Runs nor creates a blanket
+new admission gate. The Phase 4 worker must first agree its exact dispatch,
+retry and durable-output interface with the lead; it does not own other callers.
 
-The lead has resumed three independent evidence lanes: the expansion owner
-refreshes compatibility, provider/Instance readiness and Run ownership; the
-attribution owner reconciles the 300 historical rows and proposes the next
-retention package; an Astra subagent checks awareness claims against retained
-artifacts and the paper. Requests to the owners are assignments, not completed
-results. Source work that follows needs an exact existing call/storage seam,
-exclusive file ownership, real-code positive/negative and legacy-compatibility
-tests, independent review and required checks. No universal recorder or new
-archive service is planned.
+The following bounded work is assigned while capacity is unavailable. A task's
+assignment is not evidence that its deliverable has completed. Existing
+expansion/scoring owners retain their lanes; Astra lead owns this plan and final
+acceptance. No new provider, model or benchmark scope is implied.
 
-The execution sequence remains admission and deployed-scoring proof → expanded
-target evaluation → matched cohort → analysis and paper results. One eligible
-historical matched pair may establish execution earlier under E5's existing
-gates. Awareness and historical reconciliation proceed alongside this sequence;
-retain supported high, null or mixed results without prejudging the outcome.
+| Package / owner | Capacity-independent deliverable | Completion evidence / what it unlocks |
+| --- | --- | --- |
+| Historical adjudication / attribution owner | Inspect representative GET-only Reddit, query-only GitLab and mismatched GLM bundle cases; bind original effective contracts/source to selected traces and attempt local original/public evaluator replay. | Per-case confirmed applicable finding or exact unresolved dependency, with commands/hashes; preserve raw scores and separate counterfactual mechanism tests from historical replay. Converts the completed 300-row inventory into interpretable historical evidence. |
+| Awareness recovery / Astra evidence subagent | Recover one pinned original N200 LFS judge object and verify SHA-256/size; compare its settings/denominators to the matching manifest, then identify corrected-export recovery requirements. | Actual recovered bytes or measured remote-access failure. Original exports must not be relabeled corrected. Establishes which paper claims can be regenerated and where the accepted corrected snapshot is still needed. |
+| E5 baseline preparation / expansion owner | Find one retained eligible baseline for the settled targets and exercise existing local matched-materializer validation without dispatch. | Exact task/payload/result/witness/Run identity passes, or a precise missing-artifact reason. No invented legacy identity. Prepares the first real pair once capacity and Instance access return. |
+| Default Phase 4 rewrite retention / dedicated Astra worker | One focused integration using existing request storage/serializer, capturing actual application-level retry/reask requests and durable outcome joins. | Agreed owning files, real SDK/HTTP/SSE positive/negative tests, cancellation/write-failure and legacy compatibility, independent review and required checks. No new generic archive framework, Phase 1/2 edits or cue/variant/critic scope. |
+| Paper outputs / lead | Specify each planned figure/table against the accepted population and existing artifact owner before numbers arrive. | Output map below; final numbers require their stated evidence. No fabricated demo values or changed estimands. |
+
+The paper's contribution remains generated workflow breadth for IPI evaluation,
+plus a controlled test of TP-guided rewrite value. Request retention supports
+auditability; completing it alone is not the scientific contribution.
+
+| Planned output | Evidence and population | Interpretation supported |
+| --- | --- | --- |
+| Corpus table and admission funnel | E3 candidate → validated → admitted → evaluated counts by all seven frozen families; exact task/world lineage, decision/action and Site. | Shows what was generated and tested; generated candidates are not automatically admitted tasks or new workflow diversity. |
+| Expanded performance table | E4 results for each settled target: ASR, utility, encounter, task-broke and unavailable evaluator evidence with scheduled denominators. | Measures attack effectiveness across the admitted bank. High ASR remains an interesting result; unavailable readback is not resistance. |
+| Paired effect figure | Existing matched analysis report from every scheduled E6 cell: seven-family fixed macro difference and parent-clustered interval per model; task-weighted/per-family secondary views. | Estimates incremental TP-guided value over ordinary rewriting. Missing family/outcome handling remains exactly as accepted; no new threshold or hypothesis-test battery. |
+| Rewrite outcome table | Same report: gains/losses, TP-Real, joint success/TP, utility, completed unusable proposals and infrastructure unknowns; selector outcome separately labeled. | Distinguishes more effective attacks from changed measured evaluation salience and failed opportunities; no latent-awareness mediation claim. |
+| Scoring/provenance appendix | Historical adjudication plus prospective scorer and retention evidence; original/selected/repaired identity, exact source and cause-bearing missing evidence. | Explains what each score establishes and any separately versioned corrections. Metadata absence alone does not invalidate old results. |
+| Awareness validity table | Recovered accepted external judge/continuation/classifier outputs, settings, calibration/probe split and corrected paired outcomes. | Distinguishes external five-question instruments, Taskgen TP and VEA, source defaults and measured configurations. Recover evidence before deciding on new experiments. |
+
+Reuse the existing matched report command and field mapping in
+[`matched-rewrite-analysis.md`](../../../packages/warp-taskgen/docs/matched-rewrite-analysis.md).
+The report cannot prove cohort completeness if scheduled files are omitted; bind
+inputs to the frozen cohort before paper export. Avoid building another analyzer
+or synthetic fixtures that reimplement it. A rendering gap, if discovered, can
+be a separate small package using the authoritative report unchanged.
+
+The live sequence remains admission and deployed-scoring proof → expanded
+evaluation → matched cohort → analysis and paper results. One eligible historical
+pair may establish execution earlier under E5's existing gates. No repeated
+capacity polling is useful without changed access/capacity. Plane, cross-Site
+workflows and new model/cue/probe scope remain separate decisions below.
 
 ### Deferred options: planning, not implementation authorization
 
