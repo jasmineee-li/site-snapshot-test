@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol, cast
 
+from warp_taskgen.host_restoration import HostRestorationScope
 from warp_taskgen.phase_4.matched_rewrite_accounting import (
     MatchedCallPolicy,
     MatchedStudyBudget,
@@ -528,6 +529,9 @@ class Phase4Runtime:
     agent_execution: JsonObject | None = None
     browser_worker_semaphore: object | None = None
     runtime_composition: object | None = None
+    # Optional pair-scoped host restoration lease. The retained-study caller
+    # owns acquire/release and passes the same lease to both ordered arms.
+    restoration_scope: HostRestorationScope | None = None
     host_client: object | None = None
     # Resolved, non-secret identity of ``host_client``. Callers that inject a
     # client must bind this alongside it; the default client is also checked

@@ -20,6 +20,14 @@ from warp_taskgen.agent_config import (
 from warp_taskgen.agent_prompt import build_agent_prompt
 from warp_taskgen.agent_runtime import AgentRunner
 from warp_taskgen.config import BenchmarkInstance
+from warp_taskgen.host_restoration import (
+    HostRestorationError,
+    HostRestorationScope,
+    acquire_restoration_scope,
+    restoration_enabled,
+    restoration_scope_id,
+    validate_task_restoration_topology,
+)
 from warp_taskgen.instance_selection import select_task_site_instance
 from warp_taskgen.phase_1.gitlab_compare_act import is_gitlab_compare_act_task
 from warp_taskgen.phase_1.gitlab_compare_act_reward import (
@@ -68,12 +76,17 @@ from warp_taskgen.phase_4.resume import (
     _seed_target_benchmark,
 )
 from warp_taskgen.placeholders import merge_placeholder_maps
+from warp_taskgen.restoration_readback import (
+    RestorationReadback,
+    capture_restoration_baseline_async,
+    verify_restoration_baseline_async,
+)
 from warp_taskgen.resume_metadata import RESULT_FINGERPRINT_KEY
 from warp_taskgen.rewards import run_reward_function
 from warp_taskgen.runtime_composition import RequiredSeedCleanupError, RuntimeComposition
 from warp_taskgen.seeding import apply_data_seed_async
 from warp_taskgen.task_reset_cache import TaskResetCache, result_likely_mutated_state
-from warp_taskgen.trajectory import save_result
+from warp_taskgen.trajectory import save_result, save_result_payload
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +94,33 @@ _REWARD_EVALUATION_TIMEOUT_S = float(os.environ.get("WORLDSIM_PHASE4_REWARD_TIME
 _AGENTLAB_BROWSER_STEP_TIMEOUT_RETRIES = int(
     os.environ.get("WORLDSIM_AGENTLAB_BROWSER_STEP_TIMEOUT_RETRIES", "1")
 )
+
+
+def _bound_execution_instance_dict(
+    task: dict[str, Any], instance: BenchmarkInstance
+) -> dict[str, Any]:
+    """Return the mutable task-bound copy consumed by Phase 4 execution.
+
+    ``bind_task_to_instance`` serializes a copy into runtime metadata.  Auth
+    refresh must update that copy, because both the agent context and any
+    delivery-site seed resolve their instance from the task metadata after
+    binding.  Falling back to the normal projection preserves direct legacy
+    callers that have no binding metadata.
+    """
+
+    runtime = task.get(RUNTIME_METADATA_KEY)
+    if isinstance(runtime, dict):
+        bound = runtime.get("bound_instance")
+        if isinstance(bound, dict):
+            return bound
+    projected = execution_instance_dict(instance, task)
+    if restoration_enabled(projected):
+        # Direct managed callers need the same refreshed copy at the core
+        # boundary. Preserve the original instance and unmanaged callers.
+        runtime = runtime if isinstance(runtime, dict) else {}
+        runtime["bound_instance"] = projected
+        task[RUNTIME_METADATA_KEY] = runtime
+    return projected
 
 
 def _pre_action_agentlab_infra_failure(result: Any) -> str | None:
@@ -286,7 +326,7 @@ def _is_final_state_evaluator(reward: Any) -> bool:
     )
 
 
-async def run_adversarial_task(
+async def _run_adversarial_task_core(
     task: dict[str, Any],
     agent: AgentRunner,
     instance: BenchmarkInstance,
@@ -300,6 +340,7 @@ async def run_adversarial_task(
     resume_fingerprint: str | None = None,
     seed_probe_cache: dict[tuple[str, str], BaseStateProbeResult] | None = None,
     runtime_composition: RuntimeComposition | None = None,
+    restoration_scope: HostRestorationScope | None = None,
 ) -> dict[str, Any]:
     """Run one adversarial task: reset -> seed adversarial data -> agent -> evaluate.
 
@@ -489,9 +530,9 @@ async def run_adversarial_task(
                         resume_fingerprint=resume_fingerprint,
                     )
                     return result_payload
-                if should_reset:
+                if should_reset and restoration_scope is None:
                     await _reset_task_environment(task)
-                    if reset_cache is not None:
+                    if reset_cache is not None and restoration_scope is None:
                         reset_cache.mark_clean(task, extra_bindings=reset_cache_bindings)
                 apply_kwargs: dict[str, Any] = {
                     "seed_registry": run_composition.seed_registry,
@@ -547,9 +588,9 @@ async def run_adversarial_task(
                     provenance = seed_metadata.get("read_surface_provenance") or {}
                     if provenance:
                         task["read_surface_provenance"] = provenance
-            elif should_reset:
+            elif should_reset and restoration_scope is None:
                 await _reset_task_environment(task)
-                if reset_cache is not None:
+                if reset_cache is not None and restoration_scope is None:
                     reset_cache.mark_clean(task, extra_bindings=reset_cache_bindings)
 
             # Run agent
@@ -649,12 +690,12 @@ async def run_adversarial_task(
                 )
                 _write_agentlab_retry_audit(task_dir, agentlab_infra_retries)
         except Exception:
-            if reset_cache is not None:
+            if reset_cache is not None and restoration_scope is None:
                 reset_cache.mark_dirty(task, extra_bindings=reset_cache_bindings)
             raise
 
         task_likely_mutated = task_likely_mutated or result_likely_mutated_state(task, result)
-        if reset_cache is not None:
+        if reset_cache is not None and restoration_scope is None:
             if task_likely_mutated:
                 reset_cache.mark_dirty(task, extra_bindings=reset_cache_bindings)
             else:
@@ -993,3 +1034,201 @@ async def run_adversarial_task(
                     raise RequiredSeedCleanupError(
                         f"required seed cleanup failed for task {task_id}"
                     ) from exc
+
+
+def _write_restoration_failure(
+    task_dir: Path,
+    task: dict[str, Any],
+    error: BaseException,
+) -> None:
+    """Replace any scoreable sentinel with an explicit unknown restoration result."""
+
+    reason = (
+        getattr(error, "reason_code", None)
+        or getattr(error, "reason", None)
+        or type(error).__name__
+    )
+    existing: dict[str, Any] = {}
+    result_path = task_dir / "result.json"
+    try:
+        raw = json.loads(result_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raw = None
+    if isinstance(raw, dict):
+        existing.update(raw)
+    existing.update(
+        {
+            "task_id": task.get("id", existing.get("task_id", "unknown")),
+            "passed": False,
+            "status": "error",
+            "final_status": "error",
+            "outcome": "error",
+            "restoration_status": "unknown",
+            "restoration_failure": str(reason),
+            "error": f"host restoration did not reach a terminal verified state: {reason}",
+        }
+    )
+    save_result_payload(task_dir, existing)
+
+
+async def run_adversarial_task(
+    task: dict[str, Any],
+    agent: AgentRunner,
+    instance: BenchmarkInstance,
+    task_dir: Path,
+    *,
+    benchmark_root: Path | None = None,
+    sandbox_model: str = "claude-sonnet-4-6",
+    all_instances: list[Any] | None = None,
+    site_profile: dict[str, Any] | None = None,
+    reset_cache: TaskResetCache | None = None,
+    resume_fingerprint: str | None = None,
+    seed_probe_cache: dict[tuple[str, str], BaseStateProbeResult] | None = None,
+    runtime_composition: RuntimeComposition | None = None,
+    restoration_scope: HostRestorationScope | None = None,
+) -> dict[str, Any]:
+    """Run one task under an optional host-owned restoration lease.
+
+    Managed instances always restore before the first seed and after every
+    terminal path.  An externally supplied scope (the matched pair path) is
+    reused without reacquiring or releasing the host lease.
+    """
+
+    owns_scope = restoration_scope is None
+    try:
+        validate_task_restoration_topology(task)
+    except Exception as exc:
+        _write_restoration_failure(task_dir, task, exc)
+        raise
+    if restoration_scope is None:
+        bound_instance = _bound_execution_instance_dict(task, instance)
+        scope_id = restoration_scope_id()
+        try:
+            restoration_scope = await acquire_restoration_scope(
+                bound_instance,
+                scope_id=scope_id,
+            )
+        except Exception as exc:
+            _write_restoration_failure(task_dir, task, exc)
+            raise
+    else:
+        bound_instance = _bound_execution_instance_dict(task, instance)
+        if not restoration_scope.matches_instance(bound_instance):
+            error = HostRestorationError(
+                "scope_instance_mismatch",
+                "scope does not match bound execution instance",
+            )
+            _write_restoration_failure(task_dir, task, error)
+            raise error
+
+    if restoration_scope is None:
+        return await _run_adversarial_task_core(
+            task,
+            agent,
+            instance,
+            task_dir,
+            benchmark_root=benchmark_root,
+            sandbox_model=sandbox_model,
+            all_instances=all_instances,
+            site_profile=site_profile,
+            reset_cache=reset_cache,
+            resume_fingerprint=resume_fingerprint,
+            seed_probe_cache=seed_probe_cache,
+            runtime_composition=runtime_composition,
+        )
+
+    pre_operation = restoration_scope.operation_id()
+    final_operation = restoration_scope.operation_id()
+    pre_restored = False
+    readback_baseline: RestorationReadback | None = None
+    core_result: dict[str, Any] | None = None
+    primary_failure: BaseException | None = None
+    try:
+        await restoration_scope.restore(pre_operation)
+        pre_restored = True
+        from warp_taskgen.storage_state_preflight import refresh_instance_auth
+
+        await refresh_instance_auth(
+            bound_instance,
+            benchmark_root=benchmark_root,
+            benchmark_name=str(
+                bound_instance.get("benchmark_name") or getattr(instance, "benchmark_name", "")
+            ).strip()
+            or None,
+        )
+        readback_baseline = await capture_restoration_baseline_async(
+            bound_instance,
+            task=task,
+        )
+        core_result = await _run_adversarial_task_core(
+            task,
+            agent,
+            instance,
+            task_dir,
+            benchmark_root=benchmark_root,
+            sandbox_model=sandbox_model,
+            all_instances=all_instances,
+            site_profile=site_profile,
+            reset_cache=reset_cache,
+            resume_fingerprint=resume_fingerprint,
+            seed_probe_cache=seed_probe_cache,
+            runtime_composition=runtime_composition,
+            restoration_scope=restoration_scope,
+        )
+        return core_result
+    except Exception as exc:
+        primary_failure = exc
+        _write_restoration_failure(task_dir, task, exc)
+        raise
+    finally:
+        if pre_restored:
+            final_failure: BaseException | None = None
+            try:
+                await restoration_scope.restore(final_operation)
+                from warp_taskgen.storage_state_preflight import refresh_instance_auth
+
+                await refresh_instance_auth(
+                    bound_instance,
+                    benchmark_root=benchmark_root,
+                    benchmark_name=str(
+                        bound_instance.get("benchmark_name")
+                        or getattr(instance, "benchmark_name", "")
+                    ).strip()
+                    or None,
+                )
+                if readback_baseline is None:
+                    raise HostRestorationError(
+                        "readback_unavailable",
+                        "managed task did not capture a fixed baseline",
+                    )
+                readback_evidence = await verify_restoration_baseline_async(
+                    readback_baseline,
+                    bound_instance,
+                    task=task,
+                )
+                if core_result is not None:
+                    core_result["restoration_readback"] = readback_evidence
+                    saved_result = json.loads((task_dir / "result.json").read_text())
+                    if not isinstance(saved_result, dict):
+                        raise HostRestorationError("result_artifact_invalid")
+                    saved_result["restoration_readback"] = readback_evidence
+                    save_result_payload(task_dir, saved_result)
+            except Exception as exc:
+                final_failure = exc
+                _write_restoration_failure(task_dir, task, exc)
+            if owns_scope:
+                try:
+                    await restoration_scope.release(operation_id=final_operation)
+                except Exception as exc:
+                    if final_failure is None:
+                        final_failure = exc
+                        _write_restoration_failure(task_dir, task, exc)
+            if final_failure is not None and primary_failure is None:
+                raise final_failure
+        elif owns_scope:
+            try:
+                await restoration_scope.release(operation_id=pre_operation)
+            except Exception:
+                # Preserve the original pre-restore/auth failure; the failed
+                # release is still represented by the unknown result writer.
+                pass

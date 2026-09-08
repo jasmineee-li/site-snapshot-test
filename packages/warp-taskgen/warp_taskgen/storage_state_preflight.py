@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -624,19 +625,21 @@ async def ensure_storage_state(
     *,
     benchmark_root: Path | None,
     benchmark_name: str | None,
+    force_refresh: bool = False,
 ) -> Path | None:
     """Resolve a storage_state artifact, auto-minting if missing or stale.
 
     Returns the resolved artifact path when available, or ``None`` when the
     instance has no ``storage_state`` auth configured. Raises ``RuntimeError``
     when the artifact is missing, stale, structurally unusable, or auto-mint
-    fails or is unavailable.
+    fails or is unavailable. ``force_refresh`` bypasses the local artifact
+    freshness shortcut and routes through the same Phase 0d owner.
     """
     artifact_path, error = _resolve_storage_state_artifact_for_preflight(
         instance,
         benchmark_root=benchmark_root,
     )
-    if error is None and artifact_path is not None:
+    if not force_refresh and error is None and artifact_path is not None:
         try:
             payload = json.loads(artifact_path.read_text(encoding="utf-8"))
         except OSError as exc:
@@ -660,7 +663,11 @@ async def ensure_storage_state(
             "storage_state for %s is stale per sidecar TTL; re-minting",
             instance.site_name,
         )
-    elif error is not None and not error.message.startswith("storage_state artifact missing"):
+    elif (
+        not force_refresh
+        and error is not None
+        and not error.message.startswith("storage_state artifact missing")
+    ):
         raise RuntimeError(error.message)
 
     # Either the artifact is missing, or the sidecar says it is stale.
@@ -719,3 +726,49 @@ async def ensure_storage_state(
             f"storage_state_stale: auto-minted storage_state for {instance.site_name} is still stale"
         )
     return output_path
+
+
+async def refresh_instance_auth(
+    instance: BenchmarkInstance | dict[str, Any],
+    *,
+    benchmark_root: Path | None,
+    benchmark_name: str | None,
+) -> None:
+    """Refresh every configured auth channel after host recreation.
+
+    This deliberately bypasses both storage-state and bearer-token freshness
+    caches.  It still routes through the existing Phase 0d/token owners and
+    updates the supplied in-memory instance, so callers do not rewrite cookies
+    or clear process-global caches themselves.
+    """
+
+    mapping_instance = instance if isinstance(instance, dict) else None
+    model_instance = (
+        BenchmarkInstance.model_validate(instance) if mapping_instance is not None else instance
+    )
+    auth = model_instance.agent_auth if isinstance(model_instance.agent_auth, dict) else None
+    if isinstance(auth, dict) and str(auth.get("type") or "").strip() == "storage_state":
+        refreshed_path = await ensure_storage_state(
+            model_instance,
+            benchmark_root=benchmark_root,
+            benchmark_name=benchmark_name,
+            force_refresh=True,
+        )
+        if refreshed_path is not None:
+            storage_state = auth.get("storage_state")
+            if isinstance(storage_state, dict):
+                storage_state["path"] = str(refreshed_path)
+
+    from warp_taskgen.auth_tokens import acquire_tokens_for_instances
+
+    token_errors = await asyncio.to_thread(
+        acquire_tokens_for_instances,
+        [model_instance],
+        force_refresh=True,
+    )
+    if token_errors:
+        raise RuntimeError("auth refresh failed: " + "; ".join(token_errors))
+    if mapping_instance is not None:
+        mapping_instance["agent_auth"] = model_instance.agent_auth
+        mapping_instance["auth"] = model_instance.auth
+        mapping_instance["api_auth"] = model_instance.api_auth

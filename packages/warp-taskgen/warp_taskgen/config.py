@@ -293,6 +293,37 @@ def has_effective_agent_auth(value: Any) -> bool:
     return auth_type in {"storage_state", "http_basic", "http_headers"}
 
 
+class HostRestorationBinding(BaseModel):
+    """Pinned connection details for a host-owned restoration daemon.
+
+    The socket is intentionally separate from ``site_url`` and all ordinary
+    benchmark auth.  The daemon chooses the host-side target from this binding
+    and its own configuration; request payloads only carry the configured
+    instance ID and exact site URL as a consistency check.
+    """
+
+    socket_path: str = Field(..., description="Unix-domain socket for the host owner.")
+    instance_id: str = Field(..., description="Configured replica/instance identifier.")
+
+    @field_validator("socket_path")
+    @classmethod
+    def _validate_socket_path(cls, value: str) -> str:
+        normalized = str(value).strip()
+        if not normalized:
+            raise ValueError("HostRestorationBinding.socket_path must be non-empty")
+        if not Path(normalized).is_absolute():
+            raise ValueError("HostRestorationBinding.socket_path must be absolute")
+        return normalized
+
+    @field_validator("instance_id")
+    @classmethod
+    def _validate_instance_id(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("HostRestorationBinding.instance_id must be non-empty")
+        return normalized
+
+
 class BenchmarkInstance(BaseModel):
     """One pre-running benchmark instance.
 
@@ -324,6 +355,15 @@ class BenchmarkInstance(BaseModel):
         None,
         description="HTTP endpoint called between tasks to restore initial state. "
         "Optional but strongly recommended for Phase 3/4 reproducibility.",
+    )
+    restoration: HostRestorationBinding | None = Field(
+        None,
+        exclude_if=lambda value: value is None,
+        description=(
+            "Optional connection-only host restoration owner binding. Managed "
+            "instances require the configured Unix socket and instance ID; "
+            "unmanaged instances retain legacy reset behavior."
+        ),
     )
     url_placeholders: dict[str, str] = Field(
         default_factory=dict,

@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from typing import Any
 
 from warp_taskgen._async_utils import retrying
 from warp_taskgen.editors import EditorError
+from warp_taskgen.host_restoration import (
+    HostRestorationError,
+    acquire_restoration_scope,
+    restoration_scope_id,
+    validate_task_restoration_topology,
+)
 from warp_taskgen.phase_1.gitlab_compare_decide import GitLabBindingError
 from warp_taskgen.phase_2.phase_2c import checkpoints as _checkpoints
 from warp_taskgen.phase_2.phase_2c.admission_guards import _answer_target_collision_reason
@@ -27,11 +34,16 @@ from warp_taskgen.phase_2.phase_2c.reddit_attribution import (
 )
 from warp_taskgen.phases.phase_2_reachability import ReachabilityOutcome
 from warp_taskgen.phases.phase_2_render_check import RenderOutcome
+from warp_taskgen.restoration_readback import (
+    RestorationReadback,
+    capture_restoration_baseline_async,
+    verify_restoration_baseline_async,
+)
 from warp_taskgen.runtime_composition import RequiredSeedCleanupError, RuntimeComposition
 from warp_taskgen.seeding import SeedCleanupHandle, UnboundTokenError
 
 
-async def _verify_one(
+async def _verify_one_core(
     task: dict[str, Any],
     instance: dict[str, Any],
     *,
@@ -471,6 +483,135 @@ async def _verify_one(
         )
     result["feasibility"] = feasibility
     return result
+
+
+async def _verify_one(
+    task: dict[str, Any],
+    instance: dict[str, Any],
+    *,
+    retry_count: int,
+    fingerprint_base: dict[str, str],
+    ttl_hours: float | None,
+    force_reverify: bool,
+    cleanup_warnings: list[str],
+    browser: Any = None,
+    render_semaphore: asyncio.Semaphore | None = None,
+    runtime_composition: RuntimeComposition,
+    checkpoint_context: _checkpoints.Phase2cCheckpointContext | None = None,
+    checkpoint_work_unit: dict[str, bool] | None = None,
+    probes: Phase2cProbeBundle,
+) -> dict[str, Any]:
+    """Run one Phase 2c Atomic Work Unit under the host owner when configured."""
+
+    validate_task_restoration_topology(task)
+    scope_id = restoration_scope_id()
+    restoration_scope = await acquire_restoration_scope(instance, scope_id=scope_id)
+    if restoration_scope is not None and not restoration_scope.matches_instance(instance):
+        raise HostRestorationError(
+            "scope_instance_mismatch",
+            "scope does not match selected Phase 2c instance",
+        )
+    if restoration_scope is None:
+        return await _verify_one_core(
+            task,
+            instance,
+            retry_count=retry_count,
+            fingerprint_base=fingerprint_base,
+            ttl_hours=ttl_hours,
+            force_reverify=force_reverify,
+            cleanup_warnings=cleanup_warnings,
+            browser=browser,
+            render_semaphore=render_semaphore,
+            runtime_composition=runtime_composition,
+            checkpoint_context=checkpoint_context,
+            checkpoint_work_unit=checkpoint_work_unit,
+            probes=probes,
+        )
+
+    pre_operation = restoration_scope.operation_id()
+    final_operation = restoration_scope.operation_id()
+    pre_restored = False
+    readback_baseline: RestorationReadback | None = None
+    core_result: dict[str, Any] | None = None
+    primary_failure: BaseException | None = None
+    try:
+        await restoration_scope.restore(pre_operation)
+        pre_restored = True
+        from warp_taskgen.storage_state_preflight import refresh_instance_auth
+
+        raw_root = instance.get("benchmark_root")
+        benchmark_root = Path(raw_root) if isinstance(raw_root, str) and raw_root else None
+        await refresh_instance_auth(
+            instance,
+            benchmark_root=benchmark_root,
+            benchmark_name=str(
+                instance.get("benchmark", instance.get("benchmark_name", ""))
+            ).strip()
+            or None,
+        )
+        readback_baseline = await capture_restoration_baseline_async(instance, task=task)
+        core_result = await _verify_one_core(
+            task,
+            instance,
+            retry_count=retry_count,
+            fingerprint_base=fingerprint_base,
+            ttl_hours=ttl_hours,
+            force_reverify=force_reverify,
+            cleanup_warnings=cleanup_warnings,
+            browser=browser,
+            render_semaphore=render_semaphore,
+            runtime_composition=runtime_composition,
+            checkpoint_context=checkpoint_context,
+            checkpoint_work_unit=checkpoint_work_unit,
+            probes=probes,
+        )
+        return core_result
+    except Exception as exc:
+        primary_failure = exc
+        raise
+    finally:
+        if pre_restored:
+            final_failure: BaseException | None = None
+            try:
+                await restoration_scope.restore(final_operation)
+                from warp_taskgen.storage_state_preflight import refresh_instance_auth
+
+                raw_root = instance.get("benchmark_root")
+                benchmark_root = Path(raw_root) if isinstance(raw_root, str) and raw_root else None
+                await refresh_instance_auth(
+                    instance,
+                    benchmark_root=benchmark_root,
+                    benchmark_name=str(
+                        instance.get("benchmark", instance.get("benchmark_name", ""))
+                    ).strip()
+                    or None,
+                )
+                if readback_baseline is None:
+                    raise HostRestorationError(
+                        "readback_unavailable",
+                        "managed Phase 2c task did not capture a fixed baseline",
+                    )
+                readback_evidence = await verify_restoration_baseline_async(
+                    readback_baseline,
+                    instance,
+                    task=task,
+                )
+                if core_result is not None:
+                    core_result["restoration_readback"] = readback_evidence
+            except Exception as exc:
+                final_failure = exc
+            try:
+                await restoration_scope.release(operation_id=final_operation)
+            except Exception as exc:
+                if final_failure is None:
+                    final_failure = exc
+            if final_failure is not None and primary_failure is None:
+                raise final_failure
+        elif restoration_scope is not None:
+            try:
+                await restoration_scope.release(operation_id=pre_operation)
+            except Exception:
+                pass
 
 
 __all__ = ["_verify_one"]

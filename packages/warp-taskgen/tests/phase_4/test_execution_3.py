@@ -3,6 +3,154 @@
 from ._fixtures import *  # noqa: F403,F401
 
 
+def test_auth_refresh_target_is_the_bound_execution_instance_copy():
+    """Auth updates must reach the payload later projected for execution."""
+
+    instance = BenchmarkInstance(
+        site_name="gitlab",
+        site_url="http://172.17.0.1:8033",
+        agent_auth={
+            "type": "storage_state",
+            "storage_state": {"path": "auth/old.json"},
+        },
+    )
+    task, missing = prepare_task_for_execution(
+        {
+            "id": "adv-bound-auth",
+            "benchmark": "webarena_verified",
+            "site": "gitlab",
+            "sites": ["gitlab"],
+            "instruction": "Open the dashboard",
+            "start_urls": ["http://172.17.0.1:8033/dashboard"],
+            "data_seed": {"mechanism": "none"},
+            "reward_function": {
+                "benign_reward": {"type": "noop"},
+                "adversarial_reward": {"type": "noop"},
+            },
+            "adversarial_data_seed": {"mechanism": "none"},
+        },
+        [instance],
+    )
+    assert missing == []
+    task = bind_task_to_instance(task, instance, [instance])
+
+    bound = phase_4_execution._bound_execution_instance_dict(task, instance)
+    bound["agent_auth"]["storage_state"]["path"] = "auth/fresh.json"
+
+    projected = phase_4_execution.execution_instance_dict(instance, task)
+    assert projected["agent_auth"]["storage_state"]["path"] == "auth/fresh.json"
+
+
+@pytest.mark.asyncio
+async def test_direct_managed_run_uses_refreshed_copy_without_mutating_original(
+    monkeypatch, tmp_path
+):
+    """An unbound managed caller must feed refreshed auth into the core runner."""
+
+    instance = BenchmarkInstance(
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        agent_auth={
+            "type": "storage_state",
+            "storage_state": {"path": "auth/old.json"},
+        },
+        restoration={
+            "socket_path": str(tmp_path / "owner.sock"),
+            "instance_id": "gitlab-r1",
+        },
+    )
+    task, missing = prepare_task_for_execution(
+        {
+            "id": "adv-direct-managed-auth",
+            "benchmark": "webarena_verified",
+            "site": "gitlab",
+            "sites": ["gitlab"],
+            "instruction": "Open the dashboard",
+            "start_urls": ["http://gitlab.test/dashboard"],
+            "data_seed": {"mechanism": "none"},
+            "reward_function": {
+                "benign_reward": {"type": "noop"},
+                "adversarial_reward": {"type": "noop"},
+            },
+            "adversarial_data_seed": {"mechanism": "none"},
+        },
+        [instance],
+    )
+    assert missing == []
+
+    class FakeScope:
+        def __init__(self):
+            self.restore_calls = 0
+            self.release_calls = 0
+
+        def operation_id(self):
+            return f"operation-{self.restore_calls + 1}"
+
+        async def restore(self, operation_id):
+            self.restore_calls += 1
+
+        async def release(self, *, operation_id=None):
+            self.release_calls += 1
+
+    scope = FakeScope()
+    refreshed_targets: list[dict[str, object]] = []
+    captured: dict[str, object] = {}
+
+    async def fake_acquire(*args, **kwargs):
+        return scope
+
+    async def fake_refresh(instance_payload, **kwargs):
+        assert isinstance(instance_payload, dict)
+        refreshed_targets.append(instance_payload)
+        instance_payload["agent_auth"]["storage_state"]["path"] = "auth/fresh.json"
+
+    async def fake_capture(instance_payload, *, task):
+        return {"captured": True}
+
+    async def fake_verify(baseline, instance_payload, *, task):
+        return {"status": "verified"}
+
+    def fake_run_reward_function(reward, inst, agent_result=None, network_trace=None):
+        return True, "ok"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, **kwargs):
+            captured.update(kwargs)
+            return AgentResult(
+                elapsed=0.1,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_4_execution, "acquire_restoration_scope", fake_acquire)
+    monkeypatch.setattr(
+        "warp_taskgen.storage_state_preflight.refresh_instance_auth", fake_refresh
+    )
+    monkeypatch.setattr(phase_4_execution, "capture_restoration_baseline_async", fake_capture)
+    monkeypatch.setattr(phase_4_execution, "verify_restoration_baseline_async", fake_verify)
+    monkeypatch.setattr(phase_4_execution, "run_reward_function", fake_run_reward_function)
+
+    result = await phase_4_execution.run_adversarial_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instance,
+        task_dir=tmp_path,
+    )
+
+    auth = captured["auth_mechanism"]
+    assert auth["storage_state"]["path"] == "auth/fresh.json"
+    assert len(refreshed_targets) == 2
+    assert all(target is task["_worldsim_runtime"]["bound_instance"] for target in refreshed_targets)
+    assert instance.agent_auth["storage_state"]["path"] == "auth/old.json"
+    assert result["restoration_readback"]["status"] == "verified"
+    assert scope.restore_calls == 2
+    assert scope.release_calls == 1
+
+
 @pytest.mark.asyncio
 async def test_run_adversarial_task_passes_instance_id_to_agent_run(monkeypatch, tmp_path):
     """Phase 4 dispatch must thread per-replica ``instance_id`` to ``agent.run``."""

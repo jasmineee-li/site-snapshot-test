@@ -496,6 +496,7 @@ def acquire_tokens_for_instances(
     instances: list[Any],
     *,
     auth_fields: tuple[str, ...] = ("auth", "api_auth"),
+    force_refresh: bool = False,
 ) -> list[str]:
     """Acquire and cache tokens for all instances that need them.
 
@@ -537,7 +538,12 @@ def acquire_tokens_for_instances(
     max_workers = min(max(1, len(unique_requirements)), _TOKEN_ACQUIRE_MAX_WORKERS)
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_map = {
-            cache_key: executor.submit(resolve_bearer_token, auth, site_url=site_url)
+            cache_key: executor.submit(
+                resolve_bearer_token,
+                auth,
+                site_url=site_url,
+                force_refresh=force_refresh,
+            )
             for cache_key, (_, _, site_url, _, auth, _) in unique_requirements.items()
         }
         for cache_key, future in future_map.items():
@@ -561,7 +567,9 @@ def acquire_tokens_for_instances(
     return errors
 
 
-def resolve_bearer_token(auth_config: dict[str, Any], *, site_url: str) -> str:
+def resolve_bearer_token(
+    auth_config: dict[str, Any], *, site_url: str, force_refresh: bool = False
+) -> str:
     """Resolve a bearer token and validate it against the live instance.
 
     This is the single point of truth for bearer auth. Callers should not read
@@ -574,7 +582,7 @@ def resolve_bearer_token(auth_config: dict[str, Any], *, site_url: str) -> str:
     validation_endpoint = _validation_endpoint_for(auth_config)
     cache_key = _cache_key(site_url, auth_config)
 
-    cached = _get_cached_token(cache_key)
+    cached = None if force_refresh else _get_cached_token(cache_key)
     if cached is not None:
         cached_token, validated_at = cached
         if time.monotonic() - validated_at <= _TOKEN_VALIDATION_TTL_SECONDS:

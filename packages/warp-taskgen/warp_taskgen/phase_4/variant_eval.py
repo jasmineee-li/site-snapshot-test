@@ -12,6 +12,7 @@ from typing import Any
 from warp_taskgen.agent_config import bind_task_to_instance, task_reset_endpoints
 from warp_taskgen.agent_runtime import AgentRunner
 from warp_taskgen.config import BenchmarkInstance
+from warp_taskgen.host_restoration import HostRestorationScope
 from warp_taskgen.phase_4.execution_helpers import _effective_adversarial_seed
 from warp_taskgen.phase_4.payload_text import (
     _seed_preserves_exposure_contract_error,
@@ -187,6 +188,7 @@ async def _rerun_adversarial_task(
     agent_execution: dict[str, Any] | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
     runtime_composition: RuntimeComposition | None = None,
+    restoration_scope: HostRestorationScope | None = None,
 ) -> dict[str, Any]:
     """Run one revised adversarial task against a live benchmark instance."""
     # Keep execution lazy: execution imports placement_loop, which imports
@@ -226,6 +228,7 @@ async def _rerun_adversarial_task(
                 site_profile=site_profile,
                 resume_fingerprint=resume_fingerprint,
                 runtime_composition=runtime_composition,
+                restoration_scope=restoration_scope,
             )
         finally:
             await agent.teardown()
@@ -253,6 +256,7 @@ async def _evaluate_variant(
     agent_execution: dict[str, Any] | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
     runtime_composition: RuntimeComposition | None = None,
+    restoration_scope: HostRestorationScope | None = None,
 ) -> dict[str, Any]:
     # See _rerun_adversarial_task: importing execution only after this module
     # has initialized breaks the execution -> placement_loop -> variant_eval
@@ -312,6 +316,7 @@ async def _evaluate_variant(
                         site_profile=site_profile,
                         resume_fingerprint=source_fingerprint,
                         runtime_composition=runtime_composition,
+                        restoration_scope=restoration_scope,
                     )
             finally:
                 await agent.teardown()
