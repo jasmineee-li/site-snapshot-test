@@ -206,7 +206,7 @@ def validate_volumes(
             raise RestorationError("unexpected_db_mount")
         if mode not in {"ro", "rw"}:
             raise RestorationError("unexpected_mount")
-        if mode != "ro" and target not in _ALLOWED_READONLY_CONFIG_TARGETS:
+        if mode != "ro" or target not in _ALLOWED_READONLY_CONFIG_TARGETS:
             raise RestorationError("unexpected_mount")
         volumes.append((source, target, mode))
     config = image.get("Config") if isinstance(image, dict) else None
@@ -228,11 +228,8 @@ def service_contract(service: dict[str, Any], image: dict[str, Any]) -> dict[str
         raise RestorationError("config_drift")
     image_ref = service.get("image")
     image_kind, expected_digest, expected_image_id = image_pin(image_ref)
-    network_mode = service.get("network_mode")
-    if network_mode is not None:
-        network_mode_text = str(network_mode).strip().lower()
-        if network_mode_text in {"host", "container"} or network_mode_text.startswith("container:"):
-            raise RestorationError("network_mode_unsupported")
+    if service.get("network_mode") != "bridge" or service.get("networks"):
+        raise RestorationError("network_mode_unsupported")
     validate_ports(service)
     volumes = validate_volumes(service, image)
     platform = service.get("platform")

@@ -189,6 +189,9 @@ Compose files, the exact instance ID, a private socket directory and an
 operation-artifact directory. This is Benchmark Host tooling; the Taskgen
 runtime only connects to the supplied Unix socket. The control socket is
 separate from browser HTTP and benchmark authentication.
+This initial owner supports explicit `network_mode: bridge` with loopback
+published ports and no additional attached networks. Other network topologies
+fail closed; enabling restoration does not convert the existing instance pool.
 
 Managed execution must hold exclusive ownership through the complete
 seed/browser/readback/cleanup unit; a matched study retains one owner across
@@ -198,6 +201,9 @@ selected container/configuration, mounts and routing before recreating only
 that service. A duplicate request must not recreate it again. Uncertain,
 conflicting or failed restoration remains unavailable and prevents further
 mutation until resolved; it is not a measured model negative.
+Reading an already completed artifact retains the existing exact-checkpoint
+rules and performs no live restoration. Reusing an instance for a subsequent
+mutable work unit requires a new restoration boundary before that work begins.
 
 Taskgen refreshes the selected instance’s authentication through its central
 auth owners after recreation, bypassing freshness caches. Host recreation and

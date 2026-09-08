@@ -75,6 +75,22 @@ def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def _environment_values(values: Any) -> dict[str, str]:
+    if values is None:
+        return {}
+    if not isinstance(values, list):
+        raise RestorationError("config_drift")
+    result: dict[str, str] = {}
+    for entry in values:
+        if not isinstance(entry, str) or "=" not in entry:
+            raise RestorationError("config_drift")
+        key, value = entry.split("=", 1)
+        if key in result:
+            raise RestorationError("config_drift")
+        result[key] = value
+    return result
+
+
 def _normalise_mounts(mounts: Any) -> tuple[tuple[str, str, str], ...]:
     """Convert Docker inspect mounts into the resolved Compose shape."""
 
@@ -367,6 +383,7 @@ class RestoreDaemon:
         service: dict[str, Any],
         contract: dict[str, Any],
         container: dict[str, Any],
+        image: dict[str, Any],
     ) -> dict[str, str]:
         configured_ports = resolved_ports(service)
         site_port = urlsplit(self.target.site_url).port
@@ -388,6 +405,22 @@ class RestoreDaemon:
             except ValueError as exc:
                 raise RestorationError("non_loopback_port") from exc
         config = container.get("Config") if isinstance(container.get("Config"), dict) else {}
+        image_config = image.get("Config") or {}
+        expected_env = _environment_values(image_config.get("Env"))
+        overrides = service.get("environment") or {}
+        if not isinstance(overrides, dict):
+            raise RestorationError("config_drift")
+        for key, value in overrides.items():
+            if value is None:
+                expected_env.pop(key, None)
+            else:
+                expected_env[str(key)] = str(value)
+        if _environment_values(config.get("Env")) != expected_env:
+            raise RestorationError("config_drift")
+        if (container.get("HostConfig") or {}).get("NetworkMode") != "bridge":
+            raise RestorationError("config_drift")
+        if set((container.get("NetworkSettings") or {}).get("Networks") or {}) != {"bridge"}:
+            raise RestorationError("config_drift")
         actual_labels = config.get("Labels") if isinstance(config.get("Labels"), dict) else {}
         configured_labels = service.get("labels") if isinstance(service.get("labels"), dict) else {}
         for key, value in configured_labels.items():
@@ -396,7 +429,7 @@ class RestoreDaemon:
         return _readonly_mount_hashes(contract["volumes"], base_dir=self.compose_path.parent)
 
     def _preflight(self) -> dict[str, Any]:
-        service, _image, contract = self._service()
+        service, image, contract = self._service()
         configured_name = service.get("container_name")
         if configured_name is None:
             configured_name = self.target.container_name or self.instance_id
@@ -417,7 +450,7 @@ class RestoreDaemon:
         )
         if _normalise_mounts(container.get("Mounts", [])) != expected_mounts:
             raise RestorationError("config_drift")
-        readonly_hashes = self._validate_instance_shape(service, contract, container)
+        readonly_hashes = self._validate_instance_shape(service, contract, container, image)
         return {
             "service_hash": contract["service_hash"],
             "image_ref": contract["image_ref"],

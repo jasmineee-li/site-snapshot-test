@@ -39,6 +39,8 @@ def _service(*, image: str = IMAGE_ID, volumes: list[str] | None = None) -> dict
     return {
         "image": image,
         "pull_policy": "never",
+        "network_mode": "bridge",
+        "environment": {"WA_ENV_CTRL_EXTERNAL_SITE_URL": SITE_URL},
         "ports": ["127.0.0.1:18080:80"],
         "volumes": volumes or [],
         "labels": {"warp.restore.owner": "test"},
@@ -91,12 +93,18 @@ class FakeDocker:
         return {
             "Id": container_id,
             "Image": IMAGE_ID,
-            "Config": {"Image": service["image"], "Labels": service.get("labels", {})},
+            "Config": {
+                "Image": service["image"],
+                "Labels": service.get("labels", {}),
+                "Env": [f"{key}={value}" for key, value in service.get("environment", {}).items()],
+            },
+            "HostConfig": {"NetworkMode": "bridge"},
             "Mounts": mounts,
             "NetworkSettings": {
+                "Networks": {"bridge": {}},
                 "Ports": {
                     "80/tcp": [{"HostIp": "127.0.0.1", "HostPort": "18080"}],
-                }
+                },
             },
         }
 
@@ -195,6 +203,16 @@ def test_acquire_rejects_mutable_image_and_db_mount(tmp_path: Path) -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "volume", ["config:/etc/gitlab/gitlab.rb:rw", "unapproved:/application/data:ro"]
+)
+def test_only_readonly_allowlisted_config_mount_is_accepted(tmp_path: Path, volume: str) -> None:
+    daemon = _daemon(tmp_path, FakeDocker(_service(volumes=[volume])))
+    response = _request(daemon, action="acquire")
+    assert response["status"] == "error"
+    assert response["reason"] == "unexpected_mount"
+
+
 def test_conflicting_lease_is_fail_closed(tmp_path: Path) -> None:
     daemon = _daemon(tmp_path, FakeDocker(_service()))
     first = _request(daemon, action="acquire")
@@ -220,6 +238,36 @@ def test_config_drift_blocks_restore_before_recreate(tmp_path: Path) -> None:
 
     assert response == {"status": "error", "reason": "config_drift"}
     assert docker.recreate_count == 0
+
+
+@pytest.mark.parametrize("drift", ["environment", "network_mode", "extra_network"])
+def test_actual_routing_drift_blocks_restore(tmp_path: Path, drift: str) -> None:
+    docker = FakeDocker(_service())
+    daemon = _daemon(tmp_path, docker)
+    acquired = _request(daemon, action="acquire")
+    assert acquired["status"] == "acquired"
+    if drift == "environment":
+        docker.container["Config"]["Env"] = ["WA_ENV_CTRL_EXTERNAL_SITE_URL=http://127.0.0.1:18081"]
+    elif drift == "network_mode":
+        docker.container["HostConfig"]["NetworkMode"] = "host"
+    else:
+        docker.container["NetworkSettings"]["Networks"]["unrelated-network"] = {}
+    response = _request(
+        daemon, action="restore", lease_token=acquired["lease_token"], operation_id=OPERATION_ID
+    )
+    assert response["status"] == "error"
+    assert response["reason"] == "config_drift"
+    assert docker.recreate_count == 0
+
+
+def test_unimplemented_compose_networking_fails_closed(tmp_path: Path) -> None:
+    service = _service()
+    service.pop("network_mode")
+    service["networks"] = {"custom": {"ipv4_address": "192.0.2.10"}}
+    daemon = _daemon(tmp_path, FakeDocker(service))
+    response = _request(daemon, action="acquire")
+    assert response["status"] == "error"
+    assert response["reason"] == "network_mode_unsupported"
 
 
 def test_duplicate_operation_returns_terminal_result_without_second_recreate(

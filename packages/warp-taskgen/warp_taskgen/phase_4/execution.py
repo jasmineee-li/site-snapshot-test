@@ -24,6 +24,7 @@ from warp_taskgen.host_restoration import (
     HostRestorationError,
     HostRestorationScope,
     acquire_restoration_scope,
+    restoration_enabled,
     restoration_scope_id,
     validate_task_restoration_topology,
 )
@@ -112,7 +113,14 @@ def _bound_execution_instance_dict(
         bound = runtime.get("bound_instance")
         if isinstance(bound, dict):
             return bound
-    return execution_instance_dict(instance, task)
+    projected = execution_instance_dict(instance, task)
+    if restoration_enabled(projected):
+        # Direct managed callers need the same refreshed copy at the core
+        # boundary. Preserve the original instance and unmanaged callers.
+        runtime = runtime if isinstance(runtime, dict) else {}
+        runtime["bound_instance"] = projected
+        task[RUNTIME_METADATA_KEY] = runtime
+    return projected
 
 
 def _pre_action_agentlab_infra_failure(result: Any) -> str | None:
