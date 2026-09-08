@@ -64,6 +64,277 @@ def test_flatten_entry_non_document_loads(tmp_path):
     assert trace[0]["resource_type"] == "XHR"
 
 
+def test_request_ids_are_scoped_to_cdp_sessions(tmp_path):
+    rec = _recorder(tmp_path)
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "same",
+            "timestamp": 1.0,
+            "type": "Document",
+            "request": {"url": "http://site.test/session-a", "method": "GET"},
+        },
+        "session-a",
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "same",
+            "timestamp": 2.0,
+            "type": "Document",
+            "request": {"url": "http://site.test/session-b", "method": "GET"},
+        },
+        "session-b",
+    )
+
+    trace = rec._finalize_trace()
+
+    assert [(entry["session_id"], entry["url"]) for entry in trace] == [
+        ("session-a", "http://site.test/session-a"),
+        ("session-b", "http://site.test/session-b"),
+    ]
+
+
+def test_late_redirect_extra_info_stays_on_previous_hop(tmp_path):
+    rec = _recorder(tmp_path)
+    session_id = "page-session-1"
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "submit-1",
+            "timestamp": 1.0,
+            "type": "Document",
+            "request": {
+                "url": "http://reddit.test/submit/news",
+                "method": "POST",
+                "postData": "submission%5Bbody%5D=created+post",
+            },
+        },
+        session_id,
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "submit-1",
+            "timestamp": 1.1,
+            "type": "Document",
+            "redirectHasExtraInfo": True,
+            "redirectResponse": {
+                "status": 302,
+                "headers": {"Location": "/f/news/6/slug"},
+            },
+            "request": {
+                "url": "http://reddit.test/f/news/6/slug",
+                "method": "GET",
+            },
+        },
+        session_id,
+    )
+    rec._on_response_received(
+        {
+            "requestId": "submit-1",
+            "response": {"status": 200, "headers": {"Content-Type": "text/html"}},
+            "hasExtraInfo": False,
+        },
+        session_id,
+    )
+    # Chrome may deliver both extra-info events after the redirect request.
+    rec._on_request_will_be_sent_extra_info(
+        {
+            "requestId": "submit-1",
+            "headers": {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Cookie": "session=secret",
+            },
+            "associatedCookies": [],
+        },
+        session_id,
+    )
+    rec._on_response_received_extra_info(
+        {
+            "requestId": "submit-1",
+            "statusCode": 302,
+            "headers": {
+                "Location": "/f/news/6/slug",
+                "Set-Cookie": "session=secret",
+            },
+            "blockedCookies": [],
+            "exemptedCookies": [],
+        },
+        session_id,
+    )
+
+    trace = rec._finalize_trace()
+
+    assert [entry["method"] for entry in trace] == ["POST", "GET"]
+    assert trace[0]["headers"]["Content-Type"] == "application/x-www-form-urlencoded"
+    assert trace[0]["response_headers"]["Set-Cookie"] == "session=secret"
+    assert "Content-Type" not in trace[1]["headers"]
+    assert "Set-Cookie" not in trace[1]["response_headers"]
+    redacted = rec._redact_trace_entry(trace[0], redact_payloads=False)
+    assert redacted["headers"]["Cookie"] == "<redacted>"
+    assert redacted["response_headers"]["Set-Cookie"] == "<redacted>"
+
+
+def test_missing_redirect_response_extra_info_does_not_contaminate_next_hop(tmp_path):
+    rec = _recorder(tmp_path)
+    session_id = "page-session-1"
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "submit-1",
+            "timestamp": 1.0,
+            "type": "Document",
+            "request": {"url": "http://reddit.test/submit/news", "method": "POST"},
+        },
+        session_id,
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "submit-1",
+            "timestamp": 1.1,
+            "type": "Document",
+            "redirectHasExtraInfo": True,
+            "redirectResponse": {
+                "status": 302,
+                "headers": {"Location": "/f/news/6/slug"},
+            },
+            "request": {"url": "http://reddit.test/f/news/6/slug", "method": "GET"},
+        },
+        session_id,
+    )
+    rec._on_response_received(
+        {
+            "requestId": "submit-1",
+            "response": {"status": 302, "headers": {"Location": "/f/news/6/slug"}},
+            "hasExtraInfo": True,
+        },
+        session_id,
+    )
+    # The redirect's response ExtraInfo is absent. A later same-status response must
+    # remain unavailable because the old true-flag slot is missing; retaining
+    # it on the GET would project ambiguous metadata across the redirect.
+    rec._on_response_received_extra_info(
+        {
+            "requestId": "submit-1",
+            "statusCode": 302,
+            "headers": {"Content-Type": "text/html"},
+            "blockedCookies": [],
+            "exemptedCookies": [],
+        },
+        session_id,
+    )
+
+    trace = rec._finalize_trace()
+
+    assert trace[0]["response_headers"] == {"Location": "/f/news/6/slug"}
+    assert "Content-Type" not in trace[0]["response_headers"]
+    assert "Content-Type" not in trace[1]["response_headers"]
+
+
+def test_redirect_false_flag_skips_prior_extra_info_slot(tmp_path):
+    rec = _recorder(tmp_path)
+    session_id = "page-session-1"
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "same-1",
+            "timestamp": 1.0,
+            "type": "Document",
+            "request": {"url": "http://site.test/submit", "method": "POST"},
+        },
+        session_id,
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "same-1",
+            "timestamp": 1.1,
+            "type": "Document",
+            "redirectHasExtraInfo": False,
+            "redirectResponse": {"status": 302, "headers": {"Location": "/final"}},
+            "request": {"url": "http://site.test/final", "method": "GET"},
+        },
+        session_id,
+    )
+    # The current hop's ExtraInfo can arrive before its responseReceived.
+    rec._on_request_will_be_sent_extra_info(
+        {"requestId": "same-1", "headers": {"X-Hop": "final"}},
+        session_id,
+    )
+    rec._on_response_received_extra_info(
+        {"requestId": "same-1", "statusCode": 200, "headers": {"X-Hop": "final"}},
+        session_id,
+    )
+    rec._on_response_received(
+        {
+            "requestId": "same-1",
+            "response": {"status": 200, "headers": {}},
+            "hasExtraInfo": True,
+        },
+        session_id,
+    )
+
+    trace = rec._finalize_trace()
+
+    assert "X-Hop" not in trace[0]["headers"]
+    assert trace[1]["headers"]["X-Hop"] == "final"
+    assert trace[1]["response_headers"]["X-Hop"] == "final"
+
+
+def test_same_status_redirect_extra_info_is_fifo_by_hop(tmp_path):
+    rec = _recorder(tmp_path)
+    session_id = "page-session-1"
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "same-status",
+            "timestamp": 1.0,
+            "type": "Document",
+            "request": {"url": "http://site.test/first", "method": "POST"},
+        },
+        session_id,
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "same-status",
+            "timestamp": 1.1,
+            "type": "Document",
+            "redirectHasExtraInfo": True,
+            "redirectResponse": {"status": 302, "headers": {"Location": "/second"}},
+            "request": {"url": "http://site.test/second", "method": "GET"},
+        },
+        session_id,
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "same-status",
+            "timestamp": 1.2,
+            "type": "Document",
+            "redirectHasExtraInfo": True,
+            "redirectResponse": {"status": 302, "headers": {"Location": "/final"}},
+            "request": {"url": "http://site.test/final", "method": "GET"},
+        },
+        session_id,
+    )
+    rec._on_response_received(
+        {
+            "requestId": "same-status",
+            "response": {"status": 200, "headers": {}},
+            "hasExtraInfo": False,
+        },
+        session_id,
+    )
+    for hop in ("first", "second"):
+        rec._on_request_will_be_sent_extra_info(
+            {"requestId": "same-status", "headers": {"X-Hop": hop}},
+            session_id,
+        )
+        rec._on_response_received_extra_info(
+            {"requestId": "same-status", "statusCode": 302, "headers": {"X-Hop": hop}},
+            session_id,
+        )
+
+    trace = rec._finalize_trace()
+
+    assert [entry["headers"]["X-Hop"] for entry in trace[:2]] == ["first", "second"]
+    assert [entry["response_headers"]["X-Hop"] for entry in trace[:2]] == ["first", "second"]
+    assert "X-Hop" not in trace[2]["headers"]
+    assert "X-Hop" not in trace[2]["response_headers"]
+
+
 def test_redirect_chain_preserves_hops(tmp_path):
     rec = _recorder(tmp_path)
     # First request: /short
@@ -83,7 +354,11 @@ def test_redirect_chain_preserves_hops(tmp_path):
             "timestamp": 1.05,
             "wallTime": 1700000000.05,
             "type": "Document",
-            "redirectResponse": {"status": 302, "url": "http://site.test/short"},
+            "redirectResponse": {
+                "status": 302,
+                "url": "http://site.test/short",
+                "headers": {"Location": "http://site.test/medium"},
+            },
             "request": {"url": "http://site.test/medium", "method": "GET"},
         }
     )
@@ -94,7 +369,11 @@ def test_redirect_chain_preserves_hops(tmp_path):
             "timestamp": 1.10,
             "wallTime": 1700000000.10,
             "type": "Document",
-            "redirectResponse": {"status": 301, "url": "http://site.test/medium"},
+            "redirectResponse": {
+                "status": 301,
+                "url": "http://site.test/medium",
+                "headers": {"Location": "http://site.test/owner/repo/-/issues/42"},
+            },
             "request": {
                 "url": "http://site.test/owner/repo/-/issues/42",
                 "method": "GET",
@@ -102,12 +381,152 @@ def test_redirect_chain_preserves_hops(tmp_path):
         }
     )
     trace = rec._finalize_trace()
-    assert len(trace) == 1
-    entry = trace[0]
-    assert entry["url"] == "http://site.test/owner/repo/-/issues/42"
-    assert entry["redirect_chain"] == [
+    assert len(trace) == 3
+    assert [entry["url"] for entry in trace] == [
+        "http://site.test/short",
+        "http://site.test/medium",
+        "http://site.test/owner/repo/-/issues/42",
+    ]
+    assert [entry["response_status"] for entry in trace] == [302, 301, None]
+    assert [entry["response_headers"]["Location"] for entry in trace[:2]] == [
+        "http://site.test/medium",
+        "http://site.test/owner/repo/-/issues/42",
+    ]
+    assert trace[-1]["redirect_chain"] == [
         {"url": "http://site.test/short", "status": 302},
         {"url": "http://site.test/medium", "status": 301},
+    ]
+
+
+def test_redirect_hops_preserve_request_body_and_bound_response_identity(tmp_path):
+    rec = _recorder(tmp_path)
+    body = "submission%5Bbody%5D=created+post"
+    session_id = "page-session-1"
+
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "submit-1",
+            "timestamp": 1.0,
+            "wallTime": 1700000000.0,
+            "type": "Document",
+            "request": {
+                "url": "http://reddit.test/submit/news",
+                "method": "POST",
+                "headers": {
+                    "Authorization": "Bearer secret",
+                    "Cookie": "session=secret",
+                },
+                "postData": body,
+            },
+        },
+        session_id,
+    )
+    rec._on_response_received(
+        {
+            "requestId": "submit-1",
+            "response": {
+                "status": 302,
+                "statusText": "Found",
+                "headers": {
+                    "Location": "/f/news/6/slug",
+                    "Set-Cookie": "session=secret",
+                },
+            },
+        },
+        session_id,
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "submit-1",
+            "timestamp": 1.1,
+            "wallTime": 1700000000.1,
+            "type": "Document",
+            "redirectResponse": {
+                "status": 302,
+                "headers": {"Location": "/f/news/6/slug"},
+            },
+            "request": {
+                "url": "http://reddit.test/f/news/6/slug",
+                "method": "GET",
+                "headers": {"Referer": "http://reddit.test/submit/news"},
+            },
+        },
+        session_id,
+    )
+    rec._on_response_received(
+        {
+            "requestId": "submit-1",
+            "response": {
+                "status": 303,
+                "statusText": "See Other",
+                "headers": {"Location": "/f/news/6/slug?canonical=1"},
+            },
+        },
+        session_id,
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "submit-1",
+            "timestamp": 1.2,
+            "wallTime": 1700000000.2,
+            "type": "Document",
+            "redirectResponse": {
+                "status": 303,
+                "headers": {"Location": "/f/news/6/slug?canonical=1"},
+            },
+            "request": {
+                "url": "http://reddit.test/f/news/6/slug?canonical=1",
+                "method": "GET",
+                "headers": {"Referer": "http://reddit.test/f/news/6/slug"},
+            },
+        },
+        session_id,
+    )
+    rec._on_response_received(
+        {
+            "requestId": "submit-1",
+            "response": {
+                "status": 200,
+                "headers": {"Content-Type": "text/html"},
+            },
+        },
+        session_id,
+    )
+
+    trace = rec._finalize_trace()
+
+    assert [entry["method"] for entry in trace] == ["POST", "GET", "GET"]
+    assert [entry["url"] for entry in trace] == [
+        "http://reddit.test/submit/news",
+        "http://reddit.test/f/news/6/slug",
+        "http://reddit.test/f/news/6/slug?canonical=1",
+    ]
+    assert trace[0]["post_data"] == body
+    assert trace[0]["response_status"] == 302
+    assert trace[0]["response_headers"]["Location"] == "/f/news/6/slug"
+    assert all(entry["request_id"] == "submit-1" for entry in trace)
+    assert all(entry["session_id"] == session_id for entry in trace)
+    assert trace[-1]["redirect_chain"] == [
+        {"url": "http://reddit.test/submit/news", "status": 302},
+        {"url": "http://reddit.test/f/news/6/slug", "status": 303},
+    ]
+
+    persisted_post = rec._redact_trace_entry(trace[0], redact_payloads=False)
+    assert persisted_post["headers"]["Authorization"] == "<redacted>"
+    assert persisted_post["headers"]["Cookie"] == "<redacted>"
+    assert persisted_post["response_headers"]["Set-Cookie"] == "<redacted>"
+    assert persisted_post["post_data"] == body
+
+    persisted_trace = [rec._redact_trace_entry(entry, redact_payloads=False) for entry in trace]
+    rec._write_trace(persisted_trace)
+    persisted = json.loads((tmp_path / "network_trace.json").read_text())
+    assert [entry["method"] for entry in persisted] == ["POST", "GET", "GET"]
+    assert persisted[0]["response_headers"]["Set-Cookie"] == "<redacted>"
+    har = json.loads((tmp_path / "network.har").read_text())
+    assert [entry["request"]["method"] for entry in har["log"]["entries"]] == [
+        "POST",
+        "GET",
+        "GET",
     ]
 
 

@@ -7,6 +7,7 @@ import logging
 import sys
 import time
 from contextlib import suppress
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse, urlsplit, urlunsplit
@@ -94,8 +95,17 @@ class _NetworkTraceRecorder:
         self._sensitive_header_names = {
             str(name).lower() for name in (sensitive_header_names or set()) if str(name).strip()
         }
-        # Raw CDP entries keyed by requestId.
-        self._requests: dict[str, dict[str, Any]] = {}
+        # Raw CDP entries for the currently active hop, keyed by CDP session
+        # and requestId. Request IDs are only unique within a session.
+        self._requests: dict[tuple[str | None, str], dict[str, Any]] = {}
+        # Completed redirect hops are retained separately because Chrome reuses
+        # one requestId for every hop in a redirect chain.
+        self._completed_request_hops: list[dict[str, Any]] = []
+        # ExtraInfo events can arrive before or after their main events, and
+        # redirects reuse one requestId. Keep a per-session FIFO of hop flags
+        # and ExtraInfo events so late metadata stays bound by protocol order.
+        self._extra_info_states: dict[tuple[str | None, str], dict[str, Any]] = {}
+        self._request_sequence = 0
         # Top-frame navigation events for C1b URL matching + HAR pages[].
         self._nav_events: list[dict[str, Any]] = []
         self._nav_seq: int = 0
@@ -200,20 +210,168 @@ class _NetworkTraceRecorder:
             except Exception as e:
                 logger.debug("Network trace enable failed for target %s: %s", target_id, e)
 
+    def _new_entry(self, request_id: str, session_id: str | None = None) -> dict[str, Any]:
+        """Create a raw CDP entry with a stable event-order sequence."""
+        self._request_sequence += 1
+        return {
+            "request_id": request_id,
+            "session_id": session_id,
+            "url": "",
+            "method": "GET",
+            "_sequence": self._request_sequence,
+        }
+
+    @staticmethod
+    def _request_key(request_id: str, session_id: str | None) -> tuple[str | None, str]:
+        return session_id, request_id
+
+    @staticmethod
+    def _new_extra_info_state() -> dict[str, Any]:
+        return {
+            "hops": [],
+            "request_events": [],
+            "response_events": [],
+            "resolved": set(),
+        }
+
+    def _extra_info_state(self, request_id: str, session_id: str | None) -> dict[str, Any]:
+        key = self._request_key(request_id, session_id)
+        return self._extra_info_states.setdefault(key, self._new_extra_info_state())
+
+    def _ensure_extra_info_hop(
+        self,
+        request_id: str,
+        session_id: str | None,
+        entry: dict[str, Any],
+    ) -> dict[str, Any]:
+        state = self._extra_info_state(request_id, session_id)
+        for hop in reversed(state["hops"]):
+            if hop["entry"] is entry:
+                return hop
+        hop = {"entry": entry, "has_extra_info": None}
+        state["hops"].append(hop)
+        return hop
+
+    def _ensure_extra_info_state_for_event(
+        self,
+        request_id: str,
+        session_id: str | None,
+        entry: dict[str, Any],
+    ) -> dict[str, Any]:
+        self._ensure_extra_info_hop(request_id, session_id, entry)
+        return self._extra_info_state(request_id, session_id)
+
+    @staticmethod
+    def _set_extra_info_flag(hop: dict[str, Any], event: dict[str, Any], key: str) -> None:
+        if key in event:
+            hop["has_extra_info"] = bool(event[key])
+
+    @staticmethod
+    def _merge_request_extra(entry: dict[str, Any], event: dict[str, Any]) -> None:
+        extra_headers = _NetworkTraceRecorder._headers(event.get("headers"))
+        if extra_headers:
+            entry.setdefault("request_headers_extra", {}).update(extra_headers)
+        entry["associated_cookies"] = event.get("associatedCookies", [])
+
+    @staticmethod
+    def _merge_response_extra(entry: dict[str, Any], event: dict[str, Any]) -> None:
+        status_code = event.get("statusCode")
+        if entry.get("response_status") is None and status_code is not None:
+            entry["response_status"] = status_code
+        extra_headers = _NetworkTraceRecorder._headers(event.get("headers"))
+        if extra_headers:
+            entry.setdefault("response_headers_extra", {}).update(extra_headers)
+        entry["blocked_cookies"] = event.get("blockedCookies", [])
+        entry["exempted_cookies"] = event.get("exemptedCookies", [])
+
+    def _resolve_extra_info_state(self, state: dict[str, Any], kind: str) -> None:
+        """Merge one FIFO ExtraInfo stream only when its hop flags are complete.
+
+        A true flag promises one event for the hop; a false flag is an explicit
+        placeholder. If a capture ends with unknown flags or a count mismatch,
+        leave that stream unmerged so a later hop's metadata cannot be projected
+        backward onto an earlier hop.
+        """
+        if kind in state["resolved"]:
+            return
+        events = state[f"{kind}_events"]
+        if not events:
+            return
+
+        hops = state["hops"]
+        flags = [hop["has_extra_info"] for hop in hops]
+        expected = sum(flag is True for flag in flags)
+        if any(flag is None for flag in flags) or expected != len(events):
+            state[f"{kind}_events"] = []
+            state["resolved"].add(kind)
+            return
+
+        event_index = 0
+        merge = self._merge_request_extra if kind == "request" else self._merge_response_extra
+        for hop in hops:
+            if hop["has_extra_info"]:
+                merge(hop["entry"], events[event_index])
+                event_index += 1
+        state[f"{kind}_events"] = []
+        state["resolved"].add(kind)
+
+    def _resolve_extra_info(self) -> None:
+        for state in self._extra_info_states.values():
+            self._resolve_extra_info_state(state, "request")
+            self._resolve_extra_info_state(state, "response")
+
     def _entry(self, request_id: str, session_id: str | None = None) -> dict[str, Any]:
-        """Get or create a raw CDP entry for *request_id*."""
-        entry = self._requests.setdefault(
-            request_id,
-            {
-                "request_id": request_id,
-                "session_id": session_id,
-                "url": "",
-                "method": "GET",
-            },
-        )
+        """Get or create the active raw CDP entry for one CDP session."""
+        key = self._request_key(request_id, session_id)
+        entry = self._requests.get(key)
+        if entry is None and session_id is not None:
+            # A few clients deliver an early event without its session ID.
+            # Adopt that unscoped entry once the session becomes known.
+            unscoped_key = self._request_key(request_id, None)
+            conflicting_sessions = {
+                candidate_key[0]
+                for candidate_key in self._requests
+                if candidate_key[1] == request_id and candidate_key[0] not in {None, session_id}
+            }
+            entry = None if conflicting_sessions else self._requests.pop(unscoped_key, None)
+            if entry is not None:
+                entry["session_id"] = session_id
+                self._requests[key] = entry
+                state = self._extra_info_states.pop(unscoped_key, None)
+                if state:
+                    self._extra_info_states.setdefault(key, state)
+        if entry is None and session_id is None:
+            # If an event omits the session ID, reuse a uniquely matching
+            # active request; never merge two sessions with the same ID.
+            matches = [
+                (candidate_key, candidate)
+                for candidate_key, candidate in self._requests.items()
+                if candidate_key[1] == request_id
+            ]
+            if len(matches) == 1:
+                _, entry = matches[0]
+        if entry is None:
+            entry = self._new_entry(request_id, session_id)
+            self._requests[key] = entry
         if session_id is not None:
             entry["session_id"] = session_id
         return entry
+
+    @staticmethod
+    def _bind_redirect_response(entry: dict[str, Any], response: dict[str, Any]) -> None:
+        """Bind the response carried by a redirect event to its request hop."""
+        if "status" in response:
+            entry["response_status"] = response.get("status")
+        if "statusText" in response:
+            entry["response_status_text"] = response.get("statusText")
+        if "mimeType" in response:
+            entry["response_mime_type"] = response.get("mimeType")
+        if "headers" in response:
+            headers = dict(entry.get("response_headers") or {})
+            headers.update(_NetworkTraceRecorder._headers(response.get("headers")))
+            entry["response_headers"] = headers
+        if "fromDiskCache" in response:
+            entry["response_from_cache"] = response.get("fromDiskCache")
 
     @staticmethod
     def _headers(headers: Any) -> dict[str, str]:
@@ -236,19 +394,33 @@ class _NetworkTraceRecorder:
             return
 
         entry = self._entry(request_id, session_id)
+        key = self._request_key(request_id, session_id)
+        self._ensure_extra_info_hop(request_id, session_id, entry)
 
         # Preserve redirect hops. CDP fires one requestWillBeSent per hop with
         # the same requestId; the new event carries ``redirectResponse`` (the
-        # prior hop's response). Record the URL we had + that response's status
-        # before overwriting.
+        # prior hop's response). Close the previous request before starting a
+        # fresh active entry so its method/body and response remain bound.
         redirect_response = event.get("redirectResponse")
         if redirect_response and entry.get("url"):
-            entry.setdefault("redirect_chain", []).append(
+            redirect_chain = list(entry.get("redirect_chain") or [])
+            redirect_chain.append(
                 {
                     "url": entry["url"],
                     "status": redirect_response.get("status"),
                 }
             )
+            completed_hop = deepcopy(entry)
+            self._bind_redirect_response(completed_hop, redirect_response)
+            self._completed_request_hops.append(completed_hop)
+            state = self._extra_info_states[key]
+            old_hop = next(hop for hop in reversed(state["hops"]) if hop["entry"] is entry)
+            old_hop["entry"] = completed_hop
+            self._set_extra_info_flag(old_hop, event, "redirectHasExtraInfo")
+            entry = self._new_entry(request_id, session_id)
+            entry["redirect_chain"] = redirect_chain
+            self._requests[key] = entry
+            self._ensure_extra_info_hop(request_id, session_id, entry)
 
         entry.update(
             {
@@ -274,13 +446,8 @@ class _NetworkTraceRecorder:
             return
 
         entry = self._entry(request_id, session_id)
-        # Extra-info headers are the *actual* wire headers (after cookie
-        # injection, etc.) so they take precedence over the request headers.
-        extra_headers = self._headers(event.get("headers"))
-        if extra_headers:
-            entry.setdefault("request_headers_extra", {}).update(extra_headers)
-        # Cookies associated with this request (sent by browser).
-        entry["associated_cookies"] = event.get("associatedCookies", [])
+        state = self._ensure_extra_info_state_for_event(request_id, session_id, entry)
+        state["request_events"].append(event)
 
     def _on_response_received(self, event: dict[str, Any], session_id: str | None = None) -> None:
         if not self._recording:
@@ -292,6 +459,8 @@ class _NetworkTraceRecorder:
             return
 
         entry = self._entry(request_id, session_id)
+        hop = self._ensure_extra_info_hop(request_id, session_id, entry)
+        self._set_extra_info_flag(hop, event, "hasExtraInfo")
         entry["response_status"] = response.get("status")
         entry["response_status_text"] = response.get("statusText")
         entry["response_mime_type"] = response.get("mimeType")
@@ -309,14 +478,8 @@ class _NetworkTraceRecorder:
             return
 
         entry = self._entry(request_id, session_id)
-        # Wire-level response headers (may differ from response_headers above
-        # due to CORS filtering, etc.).
-        extra_resp_headers = self._headers(event.get("headers"))
-        if extra_resp_headers:
-            entry.setdefault("response_headers_extra", {}).update(extra_resp_headers)
-        # Response cookies the browser blocked or exempted.
-        entry["blocked_cookies"] = event.get("blockedCookies", [])
-        entry["exempted_cookies"] = event.get("exemptedCookies", [])
+        state = self._ensure_extra_info_state_for_event(request_id, session_id, entry)
+        state["response_events"].append(event)
 
     def _on_loading_finished(self, event: dict[str, Any], session_id: str | None = None) -> None:
         if not self._recording:
@@ -439,6 +602,10 @@ class _NetworkTraceRecorder:
             "is_document_load": resource_type == "Document",
             "resource_type": resource_type,
         }
+        if raw.get("request_id") is not None:
+            flat["request_id"] = raw["request_id"]
+        if raw.get("session_id") is not None:
+            flat["session_id"] = raw["session_id"]
         redirect_chain = raw.get("redirect_chain")
         if redirect_chain:
             flat["redirect_chain"] = list(redirect_chain)
@@ -446,8 +613,15 @@ class _NetworkTraceRecorder:
 
     def _finalize_trace(self) -> list[dict[str, Any]]:
         """Return flat, evaluator-ready entries sorted by CDP timestamp."""
-        raw_entries = list(self._requests.values())
-        raw_entries.sort(key=lambda e: (e.get("timestamp") is None, e.get("timestamp", 0)))
+        self._resolve_extra_info()
+        raw_entries = [*self._completed_request_hops, *self._requests.values()]
+        raw_entries.sort(
+            key=lambda e: (
+                e.get("timestamp") is None,
+                e.get("timestamp", 0),
+                e.get("_sequence", 0),
+            )
+        )
         flat_entries = [self._flatten_entry(e) for e in raw_entries]
 
         # Assign HAR ``pageref`` to each entry based on the most recent
