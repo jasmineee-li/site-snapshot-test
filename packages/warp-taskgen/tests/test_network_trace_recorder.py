@@ -126,6 +126,14 @@ def test_late_redirect_extra_info_stays_on_previous_hop(tmp_path):
         },
         session_id,
     )
+    rec._on_response_received(
+        {
+            "requestId": "submit-1",
+            "response": {"status": 200, "headers": {"Content-Type": "text/html"}},
+            "hasExtraInfo": False,
+        },
+        session_id,
+    )
     # Chrome may deliver both extra-info events after the redirect request.
     rec._on_request_will_be_sent_extra_info(
         {
@@ -159,6 +167,9 @@ def test_late_redirect_extra_info_stays_on_previous_hop(tmp_path):
     assert trace[0]["response_headers"]["Set-Cookie"] == "session=secret"
     assert "Content-Type" not in trace[1]["headers"]
     assert "Set-Cookie" not in trace[1]["response_headers"]
+    redacted = rec._redact_trace_entry(trace[0], redact_payloads=False)
+    assert redacted["headers"]["Cookie"] == "<redacted>"
+    assert redacted["response_headers"]["Set-Cookie"] == "<redacted>"
 
 
 def test_missing_redirect_response_extra_info_does_not_contaminate_next_hop(tmp_path):
@@ -187,12 +198,21 @@ def test_missing_redirect_response_extra_info_does_not_contaminate_next_hop(tmp_
         },
         session_id,
     )
-    # The redirect's response ExtraInfo is absent. A later 200 response must
-    # belong to the active GET even though the old hop still has a pending flag.
+    rec._on_response_received(
+        {
+            "requestId": "submit-1",
+            "response": {"status": 302, "headers": {"Location": "/f/news/6/slug"}},
+            "hasExtraInfo": True,
+        },
+        session_id,
+    )
+    # The redirect's response ExtraInfo is absent. A later same-status response must
+    # remain unavailable because the old true-flag slot is missing; retaining
+    # it on the GET would project ambiguous metadata across the redirect.
     rec._on_response_received_extra_info(
         {
             "requestId": "submit-1",
-            "statusCode": 200,
+            "statusCode": 302,
             "headers": {"Content-Type": "text/html"},
             "blockedCookies": [],
             "exemptedCookies": [],
@@ -203,7 +223,116 @@ def test_missing_redirect_response_extra_info_does_not_contaminate_next_hop(tmp_
     trace = rec._finalize_trace()
 
     assert trace[0]["response_headers"] == {"Location": "/f/news/6/slug"}
-    assert trace[1]["response_headers"]["Content-Type"] == "text/html"
+    assert "Content-Type" not in trace[0]["response_headers"]
+    assert "Content-Type" not in trace[1]["response_headers"]
+
+
+def test_redirect_false_flag_skips_prior_extra_info_slot(tmp_path):
+    rec = _recorder(tmp_path)
+    session_id = "page-session-1"
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "same-1",
+            "timestamp": 1.0,
+            "type": "Document",
+            "request": {"url": "http://site.test/submit", "method": "POST"},
+        },
+        session_id,
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "same-1",
+            "timestamp": 1.1,
+            "type": "Document",
+            "redirectHasExtraInfo": False,
+            "redirectResponse": {"status": 302, "headers": {"Location": "/final"}},
+            "request": {"url": "http://site.test/final", "method": "GET"},
+        },
+        session_id,
+    )
+    # The current hop's ExtraInfo can arrive before its responseReceived.
+    rec._on_request_will_be_sent_extra_info(
+        {"requestId": "same-1", "headers": {"X-Hop": "final"}},
+        session_id,
+    )
+    rec._on_response_received_extra_info(
+        {"requestId": "same-1", "statusCode": 200, "headers": {"X-Hop": "final"}},
+        session_id,
+    )
+    rec._on_response_received(
+        {
+            "requestId": "same-1",
+            "response": {"status": 200, "headers": {}},
+            "hasExtraInfo": True,
+        },
+        session_id,
+    )
+
+    trace = rec._finalize_trace()
+
+    assert "X-Hop" not in trace[0]["headers"]
+    assert trace[1]["headers"]["X-Hop"] == "final"
+    assert trace[1]["response_headers"]["X-Hop"] == "final"
+
+
+def test_same_status_redirect_extra_info_is_fifo_by_hop(tmp_path):
+    rec = _recorder(tmp_path)
+    session_id = "page-session-1"
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "same-status",
+            "timestamp": 1.0,
+            "type": "Document",
+            "request": {"url": "http://site.test/first", "method": "POST"},
+        },
+        session_id,
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "same-status",
+            "timestamp": 1.1,
+            "type": "Document",
+            "redirectHasExtraInfo": True,
+            "redirectResponse": {"status": 302, "headers": {"Location": "/second"}},
+            "request": {"url": "http://site.test/second", "method": "GET"},
+        },
+        session_id,
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "same-status",
+            "timestamp": 1.2,
+            "type": "Document",
+            "redirectHasExtraInfo": True,
+            "redirectResponse": {"status": 302, "headers": {"Location": "/final"}},
+            "request": {"url": "http://site.test/final", "method": "GET"},
+        },
+        session_id,
+    )
+    rec._on_response_received(
+        {
+            "requestId": "same-status",
+            "response": {"status": 200, "headers": {}},
+            "hasExtraInfo": False,
+        },
+        session_id,
+    )
+    for hop in ("first", "second"):
+        rec._on_request_will_be_sent_extra_info(
+            {"requestId": "same-status", "headers": {"X-Hop": hop}},
+            session_id,
+        )
+        rec._on_response_received_extra_info(
+            {"requestId": "same-status", "statusCode": 302, "headers": {"X-Hop": hop}},
+            session_id,
+        )
+
+    trace = rec._finalize_trace()
+
+    assert [entry["headers"]["X-Hop"] for entry in trace[:2]] == ["first", "second"]
+    assert [entry["response_headers"]["X-Hop"] for entry in trace[:2]] == ["first", "second"]
+    assert "X-Hop" not in trace[2]["headers"]
+    assert "X-Hop" not in trace[2]["response_headers"]
 
 
 def test_redirect_chain_preserves_hops(tmp_path):

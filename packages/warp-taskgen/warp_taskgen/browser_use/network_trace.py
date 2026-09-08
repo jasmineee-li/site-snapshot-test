@@ -101,10 +101,10 @@ class _NetworkTraceRecorder:
         # Completed redirect hops are retained separately because Chrome reuses
         # one requestId for every hop in a redirect chain.
         self._completed_request_hops: list[dict[str, Any]] = []
-        # ExtraInfo events for a redirect can arrive after the next
-        # requestWillBeSent. Keep the closed hop addressable until its expected
-        # extras arrive, without projecting any missing event.
-        self._pending_redirect_extras: dict[tuple[str | None, str], list[dict[str, Any]]] = {}
+        # ExtraInfo events can arrive before or after their main events, and
+        # redirects reuse one requestId. Keep a per-session FIFO of hop flags
+        # and ExtraInfo events so late metadata stays bound by protocol order.
+        self._extra_info_states: dict[tuple[str | None, str], dict[str, Any]] = {}
         self._request_sequence = 0
         # Top-frame navigation events for C1b URL matching + HAR pages[].
         self._nav_events: list[dict[str, Any]] = []
@@ -225,6 +225,101 @@ class _NetworkTraceRecorder:
     def _request_key(request_id: str, session_id: str | None) -> tuple[str | None, str]:
         return session_id, request_id
 
+    @staticmethod
+    def _new_extra_info_state() -> dict[str, Any]:
+        return {
+            "hops": [],
+            "request_events": [],
+            "response_events": [],
+            "resolved": set(),
+        }
+
+    def _extra_info_state(self, request_id: str, session_id: str | None) -> dict[str, Any]:
+        key = self._request_key(request_id, session_id)
+        return self._extra_info_states.setdefault(key, self._new_extra_info_state())
+
+    def _ensure_extra_info_hop(
+        self,
+        request_id: str,
+        session_id: str | None,
+        entry: dict[str, Any],
+    ) -> dict[str, Any]:
+        state = self._extra_info_state(request_id, session_id)
+        for hop in reversed(state["hops"]):
+            if hop["entry"] is entry:
+                return hop
+        hop = {"entry": entry, "has_extra_info": None}
+        state["hops"].append(hop)
+        return hop
+
+    def _ensure_extra_info_state_for_event(
+        self,
+        request_id: str,
+        session_id: str | None,
+        entry: dict[str, Any],
+    ) -> dict[str, Any]:
+        self._ensure_extra_info_hop(request_id, session_id, entry)
+        return self._extra_info_state(request_id, session_id)
+
+    @staticmethod
+    def _set_extra_info_flag(hop: dict[str, Any], event: dict[str, Any], key: str) -> None:
+        if key in event:
+            hop["has_extra_info"] = bool(event[key])
+
+    @staticmethod
+    def _merge_request_extra(entry: dict[str, Any], event: dict[str, Any]) -> None:
+        extra_headers = _NetworkTraceRecorder._headers(event.get("headers"))
+        if extra_headers:
+            entry.setdefault("request_headers_extra", {}).update(extra_headers)
+        entry["associated_cookies"] = event.get("associatedCookies", [])
+
+    @staticmethod
+    def _merge_response_extra(entry: dict[str, Any], event: dict[str, Any]) -> None:
+        status_code = event.get("statusCode")
+        if entry.get("response_status") is None and status_code is not None:
+            entry["response_status"] = status_code
+        extra_headers = _NetworkTraceRecorder._headers(event.get("headers"))
+        if extra_headers:
+            entry.setdefault("response_headers_extra", {}).update(extra_headers)
+        entry["blocked_cookies"] = event.get("blockedCookies", [])
+        entry["exempted_cookies"] = event.get("exemptedCookies", [])
+
+    def _resolve_extra_info_state(self, state: dict[str, Any], kind: str) -> None:
+        """Merge one FIFO ExtraInfo stream only when its hop flags are complete.
+
+        A true flag promises one event for the hop; a false flag is an explicit
+        placeholder. If a capture ends with unknown flags or a count mismatch,
+        leave that stream unmerged so a later hop's metadata cannot be projected
+        backward onto an earlier hop.
+        """
+        if kind in state["resolved"]:
+            return
+        events = state[f"{kind}_events"]
+        if not events:
+            return
+
+        hops = state["hops"]
+        flags = [hop["has_extra_info"] for hop in hops]
+        expected = sum(flag is True for flag in flags)
+        if any(flag is None for flag in flags) or expected != len(events):
+            state[f"{kind}_events"] = []
+            state["resolved"].add(kind)
+            return
+
+        event_index = 0
+        merge = self._merge_request_extra if kind == "request" else self._merge_response_extra
+        for hop in hops:
+            if hop["has_extra_info"]:
+                merge(hop["entry"], events[event_index])
+                event_index += 1
+        state[f"{kind}_events"] = []
+        state["resolved"].add(kind)
+
+    def _resolve_extra_info(self) -> None:
+        for state in self._extra_info_states.values():
+            self._resolve_extra_info_state(state, "request")
+            self._resolve_extra_info_state(state, "response")
+
     def _entry(self, request_id: str, session_id: str | None = None) -> dict[str, Any]:
         """Get or create the active raw CDP entry for one CDP session."""
         key = self._request_key(request_id, session_id)
@@ -233,13 +328,18 @@ class _NetworkTraceRecorder:
             # A few clients deliver an early event without its session ID.
             # Adopt that unscoped entry once the session becomes known.
             unscoped_key = self._request_key(request_id, None)
-            entry = self._requests.pop(unscoped_key, None)
+            conflicting_sessions = {
+                candidate_key[0]
+                for candidate_key in self._requests
+                if candidate_key[1] == request_id and candidate_key[0] not in {None, session_id}
+            }
+            entry = None if conflicting_sessions else self._requests.pop(unscoped_key, None)
             if entry is not None:
                 entry["session_id"] = session_id
                 self._requests[key] = entry
-                pending = self._pending_redirect_extras.pop(unscoped_key, None)
-                if pending:
-                    self._pending_redirect_extras[key] = pending
+                state = self._extra_info_states.pop(unscoped_key, None)
+                if state:
+                    self._extra_info_states.setdefault(key, state)
         if entry is None and session_id is None:
             # If an event omits the session ID, reuse a uniquely matching
             # active request; never merge two sessions with the same ID.
@@ -256,57 +356,6 @@ class _NetworkTraceRecorder:
         if session_id is not None:
             entry["session_id"] = session_id
         return entry
-
-    def _pending_extra(
-        self,
-        request_id: str,
-        session_id: str | None,
-        kind: str,
-        *,
-        status_code: Any = None,
-    ) -> dict[str, Any] | None:
-        """Return the closed redirect hop that can accept one late ExtraInfo."""
-        key = self._request_key(request_id, session_id)
-        pending = self._pending_redirect_extras.get(key)
-        if not pending and session_id is not None:
-            unscoped_key = self._request_key(request_id, None)
-            pending = self._pending_redirect_extras.pop(unscoped_key, None)
-            if pending:
-                self._pending_redirect_extras[key] = pending
-        pending = pending or []
-        if kind == "response" and status_code is not None:
-            for item in pending:
-                if item.get("response_pending") and item.get("response_status") == status_code:
-                    return item
-            # A known redirect status that differs from this event identifies
-            # the active hop. Keep the missing redirect ExtraInfo missing
-            # instead of attaching the active response to the closed hop.
-            if any(
-                item.get("response_pending") and item.get("response_status") is not None
-                for item in pending
-            ):
-                return None
-        for item in pending:
-            if item.get(f"{kind}_pending"):
-                return item
-        return None
-
-    def _finish_pending_extra(
-        self,
-        request_id: str,
-        session_id: str | None,
-        item: dict[str, Any],
-        kind: str,
-    ) -> None:
-        item[f"{kind}_pending"] = False
-        if item.get("request_pending") or item.get("response_pending"):
-            return
-        key = self._request_key(request_id, session_id)
-        pending = self._pending_redirect_extras.get(key, [])
-        with suppress(ValueError):
-            pending.remove(item)
-        if not pending:
-            self._pending_redirect_extras.pop(key, None)
 
     @staticmethod
     def _bind_redirect_response(entry: dict[str, Any], response: dict[str, Any]) -> None:
@@ -345,6 +394,8 @@ class _NetworkTraceRecorder:
             return
 
         entry = self._entry(request_id, session_id)
+        key = self._request_key(request_id, session_id)
+        self._ensure_extra_info_hop(request_id, session_id, entry)
 
         # Preserve redirect hops. CDP fires one requestWillBeSent per hop with
         # the same requestId; the new event carries ``redirectResponse`` (the
@@ -362,19 +413,14 @@ class _NetworkTraceRecorder:
             completed_hop = deepcopy(entry)
             self._bind_redirect_response(completed_hop, redirect_response)
             self._completed_request_hops.append(completed_hop)
-            if event.get("redirectHasExtraInfo"):
-                pending_item = {
-                    "entry": completed_hop,
-                    "request_pending": not entry.get("_request_extra_seen", False),
-                    "response_pending": not entry.get("_response_extra_seen", False),
-                    "response_status": completed_hop.get("response_status"),
-                }
-                if pending_item["request_pending"] or pending_item["response_pending"]:
-                    key = self._request_key(request_id, session_id)
-                    self._pending_redirect_extras.setdefault(key, []).append(pending_item)
+            state = self._extra_info_states[key]
+            old_hop = next(hop for hop in reversed(state["hops"]) if hop["entry"] is entry)
+            old_hop["entry"] = completed_hop
+            self._set_extra_info_flag(old_hop, event, "redirectHasExtraInfo")
             entry = self._new_entry(request_id, session_id)
             entry["redirect_chain"] = redirect_chain
-            self._requests[self._request_key(request_id, session_id)] = entry
+            self._requests[key] = entry
+            self._ensure_extra_info_hop(request_id, session_id, entry)
 
         entry.update(
             {
@@ -399,20 +445,9 @@ class _NetworkTraceRecorder:
         if not request_id:
             return
 
-        pending_item = self._pending_extra(request_id, session_id, "request")
-        if pending_item is not None:
-            entry = pending_item["entry"]
-            self._finish_pending_extra(request_id, session_id, pending_item, "request")
-        else:
-            entry = self._entry(request_id, session_id)
-        entry["_request_extra_seen"] = True
-        # Extra-info headers are the *actual* wire headers (after cookie
-        # injection, etc.) so they take precedence over the request headers.
-        extra_headers = self._headers(event.get("headers"))
-        if extra_headers:
-            entry.setdefault("request_headers_extra", {}).update(extra_headers)
-        # Cookies associated with this request (sent by browser).
-        entry["associated_cookies"] = event.get("associatedCookies", [])
+        entry = self._entry(request_id, session_id)
+        state = self._ensure_extra_info_state_for_event(request_id, session_id, entry)
+        state["request_events"].append(event)
 
     def _on_response_received(self, event: dict[str, Any], session_id: str | None = None) -> None:
         if not self._recording:
@@ -424,6 +459,8 @@ class _NetworkTraceRecorder:
             return
 
         entry = self._entry(request_id, session_id)
+        hop = self._ensure_extra_info_hop(request_id, session_id, entry)
+        self._set_extra_info_flag(hop, event, "hasExtraInfo")
         entry["response_status"] = response.get("status")
         entry["response_status_text"] = response.get("statusText")
         entry["response_mime_type"] = response.get("mimeType")
@@ -440,29 +477,9 @@ class _NetworkTraceRecorder:
         if not request_id:
             return
 
-        status_code = event.get("statusCode")
-        pending_item = self._pending_extra(
-            request_id,
-            session_id,
-            "response",
-            status_code=status_code,
-        )
-        if pending_item is not None:
-            entry = pending_item["entry"]
-            self._finish_pending_extra(request_id, session_id, pending_item, "response")
-        else:
-            entry = self._entry(request_id, session_id)
-        entry["_response_extra_seen"] = True
-        if entry.get("response_status") is None and status_code is not None:
-            entry["response_status"] = status_code
-        # Wire-level response headers (may differ from response_headers above
-        # due to CORS filtering, etc.).
-        extra_resp_headers = self._headers(event.get("headers"))
-        if extra_resp_headers:
-            entry.setdefault("response_headers_extra", {}).update(extra_resp_headers)
-        # Response cookies the browser blocked or exempted.
-        entry["blocked_cookies"] = event.get("blockedCookies", [])
-        entry["exempted_cookies"] = event.get("exemptedCookies", [])
+        entry = self._entry(request_id, session_id)
+        state = self._ensure_extra_info_state_for_event(request_id, session_id, entry)
+        state["response_events"].append(event)
 
     def _on_loading_finished(self, event: dict[str, Any], session_id: str | None = None) -> None:
         if not self._recording:
@@ -596,6 +613,7 @@ class _NetworkTraceRecorder:
 
     def _finalize_trace(self) -> list[dict[str, Any]]:
         """Return flat, evaluator-ready entries sorted by CDP timestamp."""
+        self._resolve_extra_info()
         raw_entries = [*self._completed_request_hops, *self._requests.values()]
         raw_entries.sort(
             key=lambda e: (
