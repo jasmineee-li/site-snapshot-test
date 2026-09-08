@@ -26,7 +26,10 @@ _ACTIVE_DAEMONS: list[RestoreDaemon] = []
 
 
 @pytest.fixture(autouse=True)
-def _close_test_daemons():
+def _close_test_daemons(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(
+        "scripts.benchmark_restoration.daemon._OWNER_LOCK_ROOT", tmp_path / "owner-locks"
+    )
     yield
     while _ACTIVE_DAEMONS:
         _ACTIVE_DAEMONS.pop().close()
@@ -373,7 +376,7 @@ def test_timeout_quarantines_scope_and_never_retries_mutation(tmp_path: Path) ->
 
 
 def test_socket_permissions_are_narrow(tmp_path: Path) -> None:
-    socket_parent = Path("/private/tmp") / f"warp-r-{os.getpid()}-{uuid.uuid4().hex[:8]}"
+    socket_parent = Path("/tmp") / f"warp-r-{os.getpid()}-{uuid.uuid4().hex[:8]}"
     _require_unix_socket(socket_parent / "probe.sock")
     daemon = _daemon(tmp_path, FakeDocker(_service()), socket_path=socket_parent / "s")
     sock = daemon.prepare_socket()
@@ -388,7 +391,7 @@ def test_socket_permissions_are_narrow(tmp_path: Path) -> None:
 
 
 def test_client_round_trip_uses_the_daemon_socket_protocol(tmp_path: Path) -> None:
-    socket_parent = Path("/private/tmp") / f"warp-r-{os.getpid()}-{uuid.uuid4().hex[:8]}"
+    socket_parent = Path("/tmp") / f"warp-r-{os.getpid()}-{uuid.uuid4().hex[:8]}"
     _require_unix_socket(socket_parent / "probe.sock")
     docker = FakeDocker(_service())
     daemon = _daemon(tmp_path, docker, socket_path=socket_parent / "s")
