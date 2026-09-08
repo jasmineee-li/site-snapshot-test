@@ -3,6 +3,44 @@
 from ._fixtures import *  # noqa: F403,F401
 
 
+def test_auth_refresh_target_is_the_bound_execution_instance_copy():
+    """Auth updates must reach the payload later projected for execution."""
+
+    instance = BenchmarkInstance(
+        site_name="gitlab",
+        site_url="http://172.17.0.1:8033",
+        agent_auth={
+            "type": "storage_state",
+            "storage_state": {"path": "auth/old.json"},
+        },
+    )
+    task, missing = prepare_task_for_execution(
+        {
+            "id": "adv-bound-auth",
+            "benchmark": "webarena_verified",
+            "site": "gitlab",
+            "sites": ["gitlab"],
+            "instruction": "Open the dashboard",
+            "start_urls": ["http://172.17.0.1:8033/dashboard"],
+            "data_seed": {"mechanism": "none"},
+            "reward_function": {
+                "benign_reward": {"type": "noop"},
+                "adversarial_reward": {"type": "noop"},
+            },
+            "adversarial_data_seed": {"mechanism": "none"},
+        },
+        [instance],
+    )
+    assert missing == []
+    task = bind_task_to_instance(task, instance, [instance])
+
+    bound = phase_4_execution._bound_execution_instance_dict(task, instance)
+    bound["agent_auth"]["storage_state"]["path"] = "auth/fresh.json"
+
+    projected = phase_4_execution.execution_instance_dict(instance, task)
+    assert projected["agent_auth"]["storage_state"]["path"] == "auth/fresh.json"
+
+
 @pytest.mark.asyncio
 async def test_run_adversarial_task_passes_instance_id_to_agent_run(monkeypatch, tmp_path):
     """Phase 4 dispatch must thread per-replica ``instance_id`` to ``agent.run``."""

@@ -177,7 +177,37 @@ valid for CI or external smoke checks but is not a valid input for on-host Phase
 Remote job wrappers must fail closed on that mismatch before launching the
 browser phase.
 
-The `benchmark_codebase` path is used only for Phase 0 exploration (read-only). The `site_url` is used in Phase 4 for agent evaluation. The `reset_endpoint` is called between tasks to restore environment state; for WebArena Verified this points at the env-ctrl sidecar (e.g., `http://host:7771/init`), not the main site URL. The `db_connection` is optional, used only for postcondition verification and reward evaluation (read-only database access). SQL seeding was evaluated and excluded from the methodology because it violates the threat model: a regular authenticated user cannot write to the database directly. All adversarial content enters through editor methods that map to authenticated HTTP a regular user can issue.
+The `benchmark_codebase` path is used only for Phase 0 exploration (read-only). The `site_url` is used in Phase 4 for agent evaluation. The `reset_endpoint` names an externally supplied reset operation, not the main site URL. For the inspected WebArena Verified GitLab/Reddit images, the env-ctrl `/init` operation only initializes application configuration; HTTP success does not establish database restoration. Reset-sensitive execution requires a separately verified Benchmark Host restoration operation and its independent postcondition evidence. Taskgen remains a connection-only consumer; it does not manage containers. The `db_connection` is optional, used only for postcondition verification and reward evaluation (read-only database access). SQL seeding was evaluated and excluded from the methodology because it violates the threat model: a regular authenticated user cannot write to the database directly. All adversarial content enters through editor methods that map to authenticated HTTP a regular user can issue.
+
+### Host-owned restoration for configured GitLab/Reddit instances
+
+An operator may bind a configured instance to the local restoration owner with
+`restoration: {"socket_path": "/private/operator/restore.sock", "instance_id": "reddit_fixture"}`.
+The instance ID must match that instance’s configured `replica_name`. The
+operator starts `scripts/benchmark_restore.py` with the existing instance and
+Compose files, the exact instance ID, a private socket directory and an
+operation-artifact directory. This is Benchmark Host tooling; the Taskgen
+runtime only connects to the supplied Unix socket. The control socket is
+separate from browser HTTP and benchmark authentication.
+
+Managed execution must hold exclusive ownership through the complete
+seed/browser/readback/cleanup unit; a matched study retains one owner across
+both ordered arms. Each intentional restore has a distinct operation ID, while
+a transport retry keeps the same ID. The host validates the pinned image,
+selected container/configuration, mounts and routing before recreating only
+that service. A duplicate request must not recreate it again. Uncertain,
+conflicting or failed restoration remains unavailable and prevents further
+mutation until resolved; it is not a measured model negative.
+
+Taskgen refreshes the selected instance’s authentication through its central
+auth owners after recreation, bypassing freshness caches. Host recreation and
+HTTP readiness alone do not establish Golden-State Reset: independent
+baseline/resource readback must verify the applicable postconditions before
+reuse. The existing Run Artifacts retain failed operations and their evidence.
+Unmanaged legacy endpoints retain their historical behavior, but `/init`
+success must not be promoted to verified restoration evidence. This feature
+neither changes the current instance pool’s endpoints nor accepts an image’s
+database as the intended research baseline.
 
 ### Why Modal Sandboxes
 
@@ -2666,7 +2696,7 @@ Each container runs an `env-ctrl` sidecar on port 8877, mapped to a secondary ho
 - `GET /status` returns container health
 - `POST /restart` does a full container restart
 
-Between tasks the pipeline calls `POST {env_ctrl_url}/init`. This replaces the `reset_endpoint` pattern described in earlier sections.
+The legacy pipeline calls `POST {env_ctrl_url}/init` between tasks. This is initialization, not evidence of Golden-State Reset: a bounded live GitLab/Reddit counterfactual retained newly created records after a successful `/init`. A host-owned restoration path must verify the exact instance and restoration postconditions before that instance can support reset-sensitive research execution. Image recreation alone does not establish the image database’s provenance or accept it as a research baseline.
 
 ### Evaluation Protocol
 

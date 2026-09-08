@@ -98,7 +98,9 @@ class ExistingPhase4AttemptAdapter:
 
     runtime: Phase4Runtime
     _binding: BaselineBinding | None = None
-    _budget_tokens: dict[str, int] = field(default_factory=dict, init=False, repr=False, compare=False)
+    _budget_tokens: dict[str, int] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
     _budget_cost_usd: dict[str, float] = field(
         default_factory=dict, init=False, repr=False, compare=False
     )
@@ -247,11 +249,7 @@ class ExistingPhase4AttemptAdapter:
             model=policy.model,
             fallback_reason="tp_diagnosis_usage_unavailable",
         )
-        diagnostics = (
-            _json_object(raw.get("api_diagnostics"))
-            if isinstance(raw, dict)
-            else None
-        )
+        diagnostics = _json_object(raw.get("api_diagnostics")) if isinstance(raw, dict) else None
         if diagnostics is not None:
             diagnostics["provider"] = policy.provider
             diagnostics["runner"] = policy.runner
@@ -397,6 +395,7 @@ class ExistingPhase4AttemptAdapter:
             agent_execution=self.runtime.agent_execution,
             browser_worker_semaphore=self.runtime.browser_worker_semaphore,
             runtime_composition=self.runtime.runtime_composition,
+            restoration_scope=self.runtime.restoration_scope,
         )
         output = _json_object(result)
         if output is None:
@@ -413,8 +412,7 @@ class ExistingPhase4AttemptAdapter:
                 output,
                 artifact_dir=namespace,
                 expected_model=self.runtime.browser_model or policy.model,
-                expected_provider=self.runtime.browser_provider
-                or policy.provider,
+                expected_provider=self.runtime.browser_provider or policy.provider,
                 expected_runner=self.runtime.browser_runner,
             ),
             diagnostics=_json_object(output.get("api_diagnostics")),

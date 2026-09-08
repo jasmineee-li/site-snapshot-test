@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from warp_taskgen.host_restoration import HostRestorationError
 from warp_taskgen.phase_4 import matched_rewrite_run as matched_run
 from warp_taskgen.phase_4.matched_rewrite_accounting import (
     MatchedCallPolicy,
@@ -140,6 +141,51 @@ class NeverCalledProvider:
         raise AssertionError("provider must not be called")
 
 
+class FakeManagedScope:
+    def __init__(self, *, final_restore_error: str | None = None) -> None:
+        self.restore_calls = 0
+        self.release_calls = 0
+        self.final_restore_error = final_restore_error
+
+    def operation_id(self) -> str:
+        return f"operation-{self.restore_calls + 1}"
+
+    async def restore(self, operation_id: str) -> dict[str, object]:
+        self.restore_calls += 1
+        if self.restore_calls == 2 and self.final_restore_error is not None:
+            raise HostRestorationError(self.final_restore_error)
+        return {"operation_id": operation_id}
+
+    async def release(self, *, operation_id: str | None = None) -> dict[str, object]:
+        self.release_calls += 1
+        return {"status": "released", "operation_id": operation_id}
+
+
+def _managed_runtime(tmp_path: Path) -> Phase4Runtime:
+    instance = SimpleNamespace(
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        restoration={"socket_path": str(tmp_path / "owner.sock"), "instance_id": "gitlab-r1"},
+    )
+    return Phase4Runtime(
+        primary_instance=instance,
+        all_instances=(instance,),
+        agent_factory=lambda: object(),
+        task_dir_root=tmp_path / "browser-artifacts",
+        sandbox_model="claude-sonnet-4-6",
+        agent_execution={
+            "agent_model": "claude-sonnet-4-6",
+            "agent_provider": "openrouter",
+            "agent_runner": "browser_use",
+            "agent_service_tier": "default",
+        },
+        browser_model="claude-sonnet-4-6",
+        browser_provider="openrouter",
+        browser_runner="browser_use",
+        host_provider="openrouter",
+    )
+
+
 def test_retained_run_materializes_exact_baseline_and_persists_one_result(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -245,6 +291,205 @@ def test_preflighted_runtime_is_adapted_at_the_feature_boundary(
 
     assert observed["runtime"] is runtime
     assert isinstance(observed["provider"], FakeAdapter)
+
+
+def test_managed_final_restore_failure_preserves_completed_study_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source"
+    _write_source(source)
+    request = matched_run.MatchedRewriteRunRequest(
+        source_run_dir=source,
+        task_id="adv-1",
+        study_run_id="study-run-1",
+        output_dir=tmp_path / "study",
+        config=_config(),
+    )
+    runtime = _managed_runtime(tmp_path)
+    scope = FakeManagedScope(final_restore_error="final_restore_failed")
+    study_result = {
+        "status": "completed",
+        "primary": {
+            "pairs": [
+                {
+                    "arms": {
+                        "tp_guided": {"status": "evaluated", "result": {"arm": "tp"}},
+                        "ordinary": {"status": "evaluated", "result": {"arm": "ordinary"}},
+                    }
+                }
+            ]
+        },
+        "secondary": {"arms": {"tp_guided": {"selected_iteration": 1}}},
+        "checkpoint": {"checkpoint": "completed"},
+    }
+
+    async def fake_study(baseline, *, attempt_provider, config, checkpoint=None):
+        return study_result
+
+    async def fake_capture(instance, *, task):
+        return object()
+
+    async def fake_verify(baseline, instance, *, task):
+        return {"status": "verified"}
+
+    async def fake_refresh(*args, **kwargs):
+        return None
+
+    async def fake_acquire(*args, **kwargs):
+        return scope
+
+    monkeypatch.setattr(matched_run, "acquire_restoration_scope", fake_acquire)
+    monkeypatch.setattr(matched_run, "_provider_for_runtime", lambda runtime: object())
+    monkeypatch.setattr(matched_run, "run_matched_rewrite_study", fake_study)
+    monkeypatch.setattr(matched_run, "capture_restoration_baseline_async", fake_capture)
+    monkeypatch.setattr(
+        "warp_taskgen.storage_state_preflight.refresh_instance_auth", fake_refresh
+    )
+
+    with pytest.raises(HostRestorationError, match="final_restore_failed"):
+        asyncio.run(matched_run.run_retained_matched_rewrite(request, runtime=runtime))
+
+    saved = json.loads(request.result_path.read_text())
+    assert saved["status"] == "error"
+    assert saved["restoration_status"] == "unknown"
+    assert saved["restoration_failure"] == "final_restore_failed"
+    assert "final_restore_failed" in saved["error"]
+    assert saved["primary"] == study_result["primary"]
+    assert saved["secondary"] == study_result["secondary"]
+    assert saved["checkpoint"] == study_result["checkpoint"]
+    assert scope.restore_calls == 2
+    assert scope.release_calls == 1
+
+
+def test_managed_acquire_failure_writes_cause_bearing_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source"
+    _write_source(source)
+    request = matched_run.MatchedRewriteRunRequest(
+        source_run_dir=source,
+        task_id="adv-1",
+        study_run_id="study-run-1",
+        output_dir=tmp_path / "study",
+        config=_config(),
+    )
+    runtime = _managed_runtime(tmp_path)
+
+    async def fail_acquire(*args, **kwargs):
+        raise HostRestorationError("acquire_failed")
+
+    monkeypatch.setattr(matched_run, "acquire_restoration_scope", fail_acquire)
+    monkeypatch.setattr(
+        matched_run,
+        "_provider_for_runtime",
+        lambda runtime: pytest.fail("provider must not be constructed after acquire failure"),
+    )
+
+    with pytest.raises(HostRestorationError, match="acquire_failed"):
+        asyncio.run(matched_run.run_retained_matched_rewrite(request, runtime=runtime))
+
+    saved = json.loads(request.result_path.read_text())
+    assert saved["status"] == "error"
+    assert saved["restoration_status"] == "unknown"
+    assert saved["restoration_failure"] == "acquire_failed"
+    assert "acquire_failed" in saved["error"]
+
+
+def test_managed_pre_readback_failure_writes_cause_bearing_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source"
+    _write_source(source)
+    request = matched_run.MatchedRewriteRunRequest(
+        source_run_dir=source,
+        task_id="adv-1",
+        study_run_id="study-run-1",
+        output_dir=tmp_path / "study",
+        config=_config(),
+    )
+    runtime = _managed_runtime(tmp_path)
+    scope = FakeManagedScope()
+
+    async def fake_capture(instance, *, task):
+        raise HostRestorationError("pre_readback_failed")
+
+    async def fake_refresh(*args, **kwargs):
+        return None
+
+    async def fake_acquire(*args, **kwargs):
+        return scope
+
+    monkeypatch.setattr(matched_run, "acquire_restoration_scope", fake_acquire)
+    monkeypatch.setattr(matched_run, "capture_restoration_baseline_async", fake_capture)
+    monkeypatch.setattr(
+        matched_run,
+        "_provider_for_runtime",
+        lambda runtime: pytest.fail("provider must not be constructed after pre-readback failure"),
+    )
+    monkeypatch.setattr(
+        "warp_taskgen.storage_state_preflight.refresh_instance_auth", fake_refresh
+    )
+
+    with pytest.raises(HostRestorationError, match="pre_readback_failed"):
+        asyncio.run(matched_run.run_retained_matched_rewrite(request, runtime=runtime))
+
+    saved = json.loads(request.result_path.read_text())
+    assert saved["status"] == "error"
+    assert saved["restoration_status"] == "unknown"
+    assert saved["restoration_failure"] == "pre_readback_failed"
+    assert "pre_readback_failed" in saved["error"]
+    assert scope.restore_calls == 1
+    assert scope.release_calls == 1
+
+
+def test_managed_provider_adapter_failure_restores_and_persists_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source"
+    _write_source(source)
+    request = matched_run.MatchedRewriteRunRequest(
+        source_run_dir=source,
+        task_id="adv-1",
+        study_run_id="study-run-1",
+        output_dir=tmp_path / "study",
+        config=_config(),
+    )
+    runtime = _managed_runtime(tmp_path)
+    scope = FakeManagedScope()
+
+    async def fake_acquire(*args, **kwargs):
+        return scope
+
+    async def fake_capture(instance, *, task):
+        return object()
+
+    async def fake_verify(baseline, instance, *, task):
+        return {"status": "verified"}
+
+    async def fake_refresh(*args, **kwargs):
+        return None
+
+    def fail_provider(runtime):
+        raise HostRestorationError("provider_adapter_failed")
+
+    monkeypatch.setattr(matched_run, "acquire_restoration_scope", fake_acquire)
+    monkeypatch.setattr(matched_run, "capture_restoration_baseline_async", fake_capture)
+    monkeypatch.setattr(matched_run, "verify_restoration_baseline_async", fake_verify)
+    monkeypatch.setattr(matched_run, "_provider_for_runtime", fail_provider)
+    monkeypatch.setattr(
+        "warp_taskgen.storage_state_preflight.refresh_instance_auth", fake_refresh
+    )
+
+    with pytest.raises(HostRestorationError, match="provider_adapter_failed"):
+        asyncio.run(matched_run.run_retained_matched_rewrite(request, runtime=runtime))
+
+    saved = json.loads(request.result_path.read_text())
+    assert saved["status"] == "error"
+    assert saved["restoration_status"] == "unknown"
+    assert saved["restoration_failure"] == "provider_adapter_failed"
+    assert "provider_adapter_failed" in saved["error"]
+    assert scope.restore_calls == 2
+    assert scope.release_calls == 1
 
 
 def test_runtime_identity_mismatch_fails_before_adapter_or_provider_call(

@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
 from warp_taskgen.atomic_io import write_json_atomic
+from warp_taskgen.host_restoration import (
+    HostRestorationScope,
+    acquire_restoration_scope,
+    restoration_scope_id,
+)
 from warp_taskgen.phase_4.matched_rewrite_contracts import (
     AdmittedBaseline,
     AttemptProvider,
@@ -36,6 +42,11 @@ from warp_taskgen.phase_4.matched_rewrite_study import (
 )
 from warp_taskgen.phase_4.payload_witnesses import payload_witnesses_for_task
 from warp_taskgen.phase_4.prompt_contracts import rewrite_constraints
+from warp_taskgen.restoration_readback import (
+    RestorationReadback,
+    capture_restoration_baseline_async,
+    verify_restoration_baseline_async,
+)
 from warp_taskgen.run_definition import define_run
 from warp_taskgen.run_definition_contracts import RunDefinition
 from warp_taskgen.run_transition import resolve_run_request
@@ -382,56 +393,198 @@ async def run_retained_matched_rewrite(
     if request.config.arm_order is None:
         raise ValueError("new matched rewrite runs require explicit arm_order and assignment_seed")
     ineligibility = matched_rewrite_ineligibility(baseline)
+    owned_restoration_scope: HostRestorationScope | None = None
+    readback_baseline: RestorationReadback | None = None
+    readback_evidence: dict[str, Any] | None = None
+    primary_failure: BaseException | None = None
+    result: dict[str, object] | None = None
+    runtime_for_provider: Phase4Runtime | None = None
     if attempt_provider is None:
         if runtime is None and ineligibility is None:
             raise ValueError("a new matched rewrite run requires a preflighted runtime")
         if runtime is not None and ineligibility is None:
             _validate_runtime_identity(runtime, baseline, request.config)
-            attempt_provider = _provider_for_runtime(runtime)
-    # Persist the assignment before any provider dispatch. Interrupted studies
-    # retain this incomplete artifact and fail closed on reopen; only completed
-    # checkpoints are reusable. There is no inferred mid-arm resume schedule.
-    if ineligibility is None:
-        scheduled_arms = {
-            arm: {
-                "arm": arm,
-                "pair_index": 0,
-                "schedule": request.config.schedule,
-                "status": "scheduled",
+            runtime_for_provider = runtime
+            if runtime.restoration_scope is None:
+                primary_instance = runtime.primary_instance
+                scope_id = restoration_scope_id()
+                pre_operation: str | None = None
+                try:
+                    owned_restoration_scope = await acquire_restoration_scope(
+                        primary_instance,
+                        scope_id=scope_id,
+                    )
+                    if owned_restoration_scope is not None:
+                        pre_operation = owned_restoration_scope.operation_id()
+                        await owned_restoration_scope.restore(pre_operation)
+                        from warp_taskgen.storage_state_preflight import refresh_instance_auth
+
+                        await refresh_instance_auth(
+                            runtime.primary_instance,
+                            benchmark_root=runtime.benchmark_root,
+                            benchmark_name=getattr(
+                                runtime.primary_instance, "benchmark_name", None
+                            ),
+                        )
+                        readback_baseline = await capture_restoration_baseline_async(
+                            runtime.primary_instance,
+                            task=baseline.task,
+                        )
+                except Exception as exc:
+                    if owned_restoration_scope is not None and pre_operation is not None:
+                        try:
+                            await owned_restoration_scope.release(operation_id=pre_operation)
+                        except Exception:
+                            pass
+                    _write_matched_restoration_failure(request, baseline, exc)
+                    raise
+                if owned_restoration_scope is not None:
+                    runtime_for_provider = dataclasses.replace(
+                        runtime,
+                        restoration_scope=owned_restoration_scope,
+                    )
+    try:
+        if attempt_provider is None and runtime_for_provider is not None:
+            attempt_provider = _provider_for_runtime(runtime_for_provider)
+        # Persist the assignment before any provider dispatch. Interrupted
+        # studies retain this incomplete artifact and fail closed on reopen;
+        # only completed checkpoints are reusable. There is no inferred
+        # mid-arm resume schedule.
+        if ineligibility is None:
+            scheduled_arms = {
+                arm: {
+                    "arm": arm,
+                    "pair_index": 0,
+                    "schedule": request.config.schedule,
+                    "status": "scheduled",
+                }
+                for arm in request.config.arm_order
             }
-            for arm in request.config.arm_order
-        }
-        write_json_atomic(
-            request.result_path,
-            {
-                **_result_identity(baseline, request.config),
-                "status": "scheduled",
-                "primary": {
-                    "endpoint": "primary_fixed_index_scheduled_attempt",
-                    "pairs": [
-                        {
-                            "pair_index": 0,
-                            "schedule": request.config.schedule,
-                            "arm_order": list(request.config.arm_order),
-                            "arms": scheduled_arms,
-                        }
-                    ],
-                    "denominators": {"scheduled_pairs": 1, "scheduled_arms": 2},
+            write_json_atomic(
+                request.result_path,
+                {
+                    **_result_identity(baseline, request.config),
+                    "status": "scheduled",
+                    "primary": {
+                        "endpoint": "primary_fixed_index_scheduled_attempt",
+                        "pairs": [
+                            {
+                                "pair_index": 0,
+                                "schedule": request.config.schedule,
+                                "arm_order": list(request.config.arm_order),
+                                "arms": scheduled_arms,
+                            }
+                        ],
+                        "denominators": {"scheduled_pairs": 1, "scheduled_arms": 2},
+                    },
                 },
-            },
-            failpoint_base="phase_4.matched_rewrite.assignment",
+                failpoint_base="phase_4.matched_rewrite.assignment",
+            )
+        result = await run_matched_rewrite_study(
+            baseline,
+            attempt_provider=attempt_provider,
+            config=request.config,
         )
-    result = await run_matched_rewrite_study(
-        baseline,
-        attempt_provider=attempt_provider,
-        config=request.config,
-    )
+    except Exception as exc:
+        primary_failure = exc
+        if owned_restoration_scope is not None:
+            try:
+                _write_matched_restoration_failure(request, baseline, exc, result=result)
+            except Exception:
+                # Preserve the primary provider/assignment/study exception if
+                # the diagnostic writer itself cannot persist an artifact.
+                pass
+        raise
+    finally:
+        if owned_restoration_scope is not None:
+            final_operation = owned_restoration_scope.operation_id()
+            final_failure: BaseException | None = None
+            try:
+                await owned_restoration_scope.restore(final_operation)
+                from warp_taskgen.storage_state_preflight import refresh_instance_auth
+
+                await refresh_instance_auth(
+                    runtime.primary_instance if runtime is not None else baseline.task,
+                    benchmark_root=runtime.benchmark_root if runtime is not None else None,
+                    benchmark_name=getattr(
+                        runtime.primary_instance, "benchmark_name", None
+                    )
+                    if runtime is not None
+                    else None,
+                )
+                if readback_baseline is None:
+                    raise RuntimeError("managed matched rewrite did not capture a fixed baseline")
+                readback_evidence = await verify_restoration_baseline_async(
+                    readback_baseline,
+                    runtime.primary_instance,
+                    task=baseline.task,
+                )
+                if result is not None:
+                    result["restoration_readback"] = readback_evidence
+            except Exception as exc:
+                final_failure = exc
+                _write_matched_restoration_failure(request, baseline, exc, result=result)
+            try:
+                await owned_restoration_scope.release(operation_id=final_operation)
+            except Exception as exc:
+                if final_failure is None:
+                    final_failure = exc
+                    _write_matched_restoration_failure(request, baseline, exc, result=result)
+            if final_failure is not None and primary_failure is None:
+                raise final_failure
+    if readback_evidence is not None and result is not None:
+        result["restoration_readback"] = readback_evidence
+    if result is None:
+        raise RuntimeError("matched rewrite study did not return a result")
     write_json_atomic(
         request.result_path,
         result,
         failpoint_base="phase_4.matched_rewrite.result",
     )
     return result
+
+
+def _write_matched_restoration_failure(
+    request: MatchedRewriteRunRequest,
+    baseline: AdmittedBaseline,
+    error: BaseException,
+    *,
+    result: dict[str, object] | None = None,
+) -> None:
+    reason = (
+        getattr(error, "reason_code", None)
+        or getattr(error, "reason", None)
+        or type(error).__name__
+    )
+    existing: dict[str, object] = {}
+    try:
+        raw = json.loads(request.result_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raw = None
+    if isinstance(raw, dict):
+        existing.update(raw)
+    payload: dict[str, object] = {
+        **_result_identity(baseline, request.config),
+        **existing,
+    }
+    if result is not None:
+        payload.update(result)
+    payload.update(
+        {
+            "status": "error",
+            "restoration_status": "unknown",
+            "restoration_failure": str(reason),
+            "error": (
+                "host restoration did not reach a terminal verified state: "
+                f"{reason}"
+            ),
+        }
+    )
+    write_json_atomic(
+        request.result_path,
+        payload,
+        failpoint_base="phase_4.matched_rewrite.restoration_failure",
+    )
 
 
 def _provider_for_runtime(runtime: Phase4Runtime) -> AttemptProvider:

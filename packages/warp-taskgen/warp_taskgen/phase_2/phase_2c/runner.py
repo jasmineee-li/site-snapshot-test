@@ -29,6 +29,7 @@ from warp_taskgen.benchmark_capabilities import (
     infer_benchmark_name,
     normalize_benchmark_name,
 )
+from warp_taskgen.host_restoration import restoration_enabled
 from warp_taskgen.instance_selection import (
     _ordered_instance_dicts,
     replica_key,
@@ -517,6 +518,7 @@ async def verify_feasibility(
             stats.in_flight_peak = new_in_flight
         worker_started_mono = time.monotonic()
         worker_ok = False
+        checkpoint_reusable = True
         local_cleanup_warnings: list[str] = []
         checkpoint_work_unit = {
             "seed_applied": False,
@@ -598,6 +600,7 @@ async def verify_feasibility(
                         # state.
                         raise
                     except Exception as exc:
+                        checkpoint_reusable = not restoration_enabled(instance)
                         task_id = str(task.get("id", "unknown"))
                         logger.exception("phase 2c verification crashed for task %s", task_id)
                         result = _infeasible_task(
@@ -610,6 +613,13 @@ async def verify_feasibility(
                             attempts=[],
                             timestamp=now_iso,
                         )
+                        if not checkpoint_reusable:
+                            result["restoration_status"] = "unknown"
+                            result["restoration_failure"] = str(
+                                getattr(exc, "reason_code", None)
+                                or getattr(exc, "reason", None)
+                                or type(exc).__name__
+                            )
                 finally:
                     if browser is not None:
                         try:
@@ -622,7 +632,7 @@ async def verify_feasibility(
                         except Exception:
                             logger.exception("phase 2c: failed to stop per-task playwright handle")
             cleanup_warnings.extend(local_cleanup_warnings)
-            if task_checkpoint is not None:
+            if task_checkpoint is not None and checkpoint_reusable:
                 checkpoint_work_unit["cleanup_completed"] = True
                 _checkpoints.write_checkpoint(
                     checkpoint_dir or Path("."),
