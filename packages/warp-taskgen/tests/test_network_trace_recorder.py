@@ -64,6 +64,148 @@ def test_flatten_entry_non_document_loads(tmp_path):
     assert trace[0]["resource_type"] == "XHR"
 
 
+def test_request_ids_are_scoped_to_cdp_sessions(tmp_path):
+    rec = _recorder(tmp_path)
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "same",
+            "timestamp": 1.0,
+            "type": "Document",
+            "request": {"url": "http://site.test/session-a", "method": "GET"},
+        },
+        "session-a",
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "same",
+            "timestamp": 2.0,
+            "type": "Document",
+            "request": {"url": "http://site.test/session-b", "method": "GET"},
+        },
+        "session-b",
+    )
+
+    trace = rec._finalize_trace()
+
+    assert [(entry["session_id"], entry["url"]) for entry in trace] == [
+        ("session-a", "http://site.test/session-a"),
+        ("session-b", "http://site.test/session-b"),
+    ]
+
+
+def test_late_redirect_extra_info_stays_on_previous_hop(tmp_path):
+    rec = _recorder(tmp_path)
+    session_id = "page-session-1"
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "submit-1",
+            "timestamp": 1.0,
+            "type": "Document",
+            "request": {
+                "url": "http://reddit.test/submit/news",
+                "method": "POST",
+                "postData": "submission%5Bbody%5D=created+post",
+            },
+        },
+        session_id,
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "submit-1",
+            "timestamp": 1.1,
+            "type": "Document",
+            "redirectHasExtraInfo": True,
+            "redirectResponse": {
+                "status": 302,
+                "headers": {"Location": "/f/news/6/slug"},
+            },
+            "request": {
+                "url": "http://reddit.test/f/news/6/slug",
+                "method": "GET",
+            },
+        },
+        session_id,
+    )
+    # Chrome may deliver both extra-info events after the redirect request.
+    rec._on_request_will_be_sent_extra_info(
+        {
+            "requestId": "submit-1",
+            "headers": {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Cookie": "session=secret",
+            },
+            "associatedCookies": [],
+        },
+        session_id,
+    )
+    rec._on_response_received_extra_info(
+        {
+            "requestId": "submit-1",
+            "statusCode": 302,
+            "headers": {
+                "Location": "/f/news/6/slug",
+                "Set-Cookie": "session=secret",
+            },
+            "blockedCookies": [],
+            "exemptedCookies": [],
+        },
+        session_id,
+    )
+
+    trace = rec._finalize_trace()
+
+    assert [entry["method"] for entry in trace] == ["POST", "GET"]
+    assert trace[0]["headers"]["Content-Type"] == "application/x-www-form-urlencoded"
+    assert trace[0]["response_headers"]["Set-Cookie"] == "session=secret"
+    assert "Content-Type" not in trace[1]["headers"]
+    assert "Set-Cookie" not in trace[1]["response_headers"]
+
+
+def test_missing_redirect_response_extra_info_does_not_contaminate_next_hop(tmp_path):
+    rec = _recorder(tmp_path)
+    session_id = "page-session-1"
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "submit-1",
+            "timestamp": 1.0,
+            "type": "Document",
+            "request": {"url": "http://reddit.test/submit/news", "method": "POST"},
+        },
+        session_id,
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "submit-1",
+            "timestamp": 1.1,
+            "type": "Document",
+            "redirectHasExtraInfo": True,
+            "redirectResponse": {
+                "status": 302,
+                "headers": {"Location": "/f/news/6/slug"},
+            },
+            "request": {"url": "http://reddit.test/f/news/6/slug", "method": "GET"},
+        },
+        session_id,
+    )
+    # The redirect's response ExtraInfo is absent. A later 200 response must
+    # belong to the active GET even though the old hop still has a pending flag.
+    rec._on_response_received_extra_info(
+        {
+            "requestId": "submit-1",
+            "statusCode": 200,
+            "headers": {"Content-Type": "text/html"},
+            "blockedCookies": [],
+            "exemptedCookies": [],
+        },
+        session_id,
+    )
+
+    trace = rec._finalize_trace()
+
+    assert trace[0]["response_headers"] == {"Location": "/f/news/6/slug"}
+    assert trace[1]["response_headers"]["Content-Type"] == "text/html"
+
+
 def test_redirect_chain_preserves_hops(tmp_path):
     rec = _recorder(tmp_path)
     # First request: /short
