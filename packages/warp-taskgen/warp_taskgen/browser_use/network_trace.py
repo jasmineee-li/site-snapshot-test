@@ -7,6 +7,7 @@ import logging
 import sys
 import time
 from contextlib import suppress
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse, urlsplit, urlunsplit
@@ -94,8 +95,12 @@ class _NetworkTraceRecorder:
         self._sensitive_header_names = {
             str(name).lower() for name in (sensitive_header_names or set()) if str(name).strip()
         }
-        # Raw CDP entries keyed by requestId.
+        # Raw CDP entries for the currently active hop, keyed by requestId.
         self._requests: dict[str, dict[str, Any]] = {}
+        # Completed redirect hops are retained separately because Chrome reuses
+        # one requestId for every hop in a redirect chain.
+        self._completed_request_hops: list[dict[str, Any]] = []
+        self._request_sequence = 0
         # Top-frame navigation events for C1b URL matching + HAR pages[].
         self._nav_events: list[dict[str, Any]] = []
         self._nav_seq: int = 0
@@ -200,20 +205,42 @@ class _NetworkTraceRecorder:
             except Exception as e:
                 logger.debug("Network trace enable failed for target %s: %s", target_id, e)
 
+    def _new_entry(self, request_id: str, session_id: str | None = None) -> dict[str, Any]:
+        """Create a raw CDP entry with a stable event-order sequence."""
+        self._request_sequence += 1
+        return {
+            "request_id": request_id,
+            "session_id": session_id,
+            "url": "",
+            "method": "GET",
+            "_sequence": self._request_sequence,
+        }
+
     def _entry(self, request_id: str, session_id: str | None = None) -> dict[str, Any]:
-        """Get or create a raw CDP entry for *request_id*."""
-        entry = self._requests.setdefault(
-            request_id,
-            {
-                "request_id": request_id,
-                "session_id": session_id,
-                "url": "",
-                "method": "GET",
-            },
-        )
+        """Get or create the active raw CDP entry for *request_id*."""
+        entry = self._requests.get(request_id)
+        if entry is None:
+            entry = self._new_entry(request_id, session_id)
+            self._requests[request_id] = entry
         if session_id is not None:
             entry["session_id"] = session_id
         return entry
+
+    @staticmethod
+    def _bind_redirect_response(entry: dict[str, Any], response: dict[str, Any]) -> None:
+        """Bind the response carried by a redirect event to its request hop."""
+        if "status" in response:
+            entry["response_status"] = response.get("status")
+        if "statusText" in response:
+            entry["response_status_text"] = response.get("statusText")
+        if "mimeType" in response:
+            entry["response_mime_type"] = response.get("mimeType")
+        if "headers" in response:
+            headers = dict(entry.get("response_headers") or {})
+            headers.update(_NetworkTraceRecorder._headers(response.get("headers")))
+            entry["response_headers"] = headers
+        if "fromDiskCache" in response:
+            entry["response_from_cache"] = response.get("fromDiskCache")
 
     @staticmethod
     def _headers(headers: Any) -> dict[str, str]:
@@ -239,16 +266,23 @@ class _NetworkTraceRecorder:
 
         # Preserve redirect hops. CDP fires one requestWillBeSent per hop with
         # the same requestId; the new event carries ``redirectResponse`` (the
-        # prior hop's response). Record the URL we had + that response's status
-        # before overwriting.
+        # prior hop's response). Close the previous request before starting a
+        # fresh active entry so its method/body and response remain bound.
         redirect_response = event.get("redirectResponse")
         if redirect_response and entry.get("url"):
-            entry.setdefault("redirect_chain", []).append(
+            redirect_chain = list(entry.get("redirect_chain") or [])
+            redirect_chain.append(
                 {
                     "url": entry["url"],
                     "status": redirect_response.get("status"),
                 }
             )
+            completed_hop = deepcopy(entry)
+            self._bind_redirect_response(completed_hop, redirect_response)
+            self._completed_request_hops.append(completed_hop)
+            entry = self._new_entry(request_id, session_id)
+            entry["redirect_chain"] = redirect_chain
+            self._requests[request_id] = entry
 
         entry.update(
             {
@@ -439,6 +473,10 @@ class _NetworkTraceRecorder:
             "is_document_load": resource_type == "Document",
             "resource_type": resource_type,
         }
+        if raw.get("request_id") is not None:
+            flat["request_id"] = raw["request_id"]
+        if raw.get("session_id") is not None:
+            flat["session_id"] = raw["session_id"]
         redirect_chain = raw.get("redirect_chain")
         if redirect_chain:
             flat["redirect_chain"] = list(redirect_chain)
@@ -446,8 +484,14 @@ class _NetworkTraceRecorder:
 
     def _finalize_trace(self) -> list[dict[str, Any]]:
         """Return flat, evaluator-ready entries sorted by CDP timestamp."""
-        raw_entries = list(self._requests.values())
-        raw_entries.sort(key=lambda e: (e.get("timestamp") is None, e.get("timestamp", 0)))
+        raw_entries = [*self._completed_request_hops, *self._requests.values()]
+        raw_entries.sort(
+            key=lambda e: (
+                e.get("timestamp") is None,
+                e.get("timestamp", 0),
+                e.get("_sequence", 0),
+            )
+        )
         flat_entries = [self._flatten_entry(e) for e in raw_entries]
 
         # Assign HAR ``pageref`` to each entry based on the most recent

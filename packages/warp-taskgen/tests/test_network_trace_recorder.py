@@ -83,7 +83,11 @@ def test_redirect_chain_preserves_hops(tmp_path):
             "timestamp": 1.05,
             "wallTime": 1700000000.05,
             "type": "Document",
-            "redirectResponse": {"status": 302, "url": "http://site.test/short"},
+            "redirectResponse": {
+                "status": 302,
+                "url": "http://site.test/short",
+                "headers": {"Location": "http://site.test/medium"},
+            },
             "request": {"url": "http://site.test/medium", "method": "GET"},
         }
     )
@@ -94,7 +98,11 @@ def test_redirect_chain_preserves_hops(tmp_path):
             "timestamp": 1.10,
             "wallTime": 1700000000.10,
             "type": "Document",
-            "redirectResponse": {"status": 301, "url": "http://site.test/medium"},
+            "redirectResponse": {
+                "status": 301,
+                "url": "http://site.test/medium",
+                "headers": {"Location": "http://site.test/owner/repo/-/issues/42"},
+            },
             "request": {
                 "url": "http://site.test/owner/repo/-/issues/42",
                 "method": "GET",
@@ -102,12 +110,152 @@ def test_redirect_chain_preserves_hops(tmp_path):
         }
     )
     trace = rec._finalize_trace()
-    assert len(trace) == 1
-    entry = trace[0]
-    assert entry["url"] == "http://site.test/owner/repo/-/issues/42"
-    assert entry["redirect_chain"] == [
+    assert len(trace) == 3
+    assert [entry["url"] for entry in trace] == [
+        "http://site.test/short",
+        "http://site.test/medium",
+        "http://site.test/owner/repo/-/issues/42",
+    ]
+    assert [entry["response_status"] for entry in trace] == [302, 301, None]
+    assert [entry["response_headers"]["Location"] for entry in trace[:2]] == [
+        "http://site.test/medium",
+        "http://site.test/owner/repo/-/issues/42",
+    ]
+    assert trace[-1]["redirect_chain"] == [
         {"url": "http://site.test/short", "status": 302},
         {"url": "http://site.test/medium", "status": 301},
+    ]
+
+
+def test_redirect_hops_preserve_request_body_and_bound_response_identity(tmp_path):
+    rec = _recorder(tmp_path)
+    body = "submission%5Bbody%5D=created+post"
+    session_id = "page-session-1"
+
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "submit-1",
+            "timestamp": 1.0,
+            "wallTime": 1700000000.0,
+            "type": "Document",
+            "request": {
+                "url": "http://reddit.test/submit/news",
+                "method": "POST",
+                "headers": {
+                    "Authorization": "Bearer secret",
+                    "Cookie": "session=secret",
+                },
+                "postData": body,
+            },
+        },
+        session_id,
+    )
+    rec._on_response_received(
+        {
+            "requestId": "submit-1",
+            "response": {
+                "status": 302,
+                "statusText": "Found",
+                "headers": {
+                    "Location": "/f/news/6/slug",
+                    "Set-Cookie": "session=secret",
+                },
+            },
+        },
+        session_id,
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "submit-1",
+            "timestamp": 1.1,
+            "wallTime": 1700000000.1,
+            "type": "Document",
+            "redirectResponse": {
+                "status": 302,
+                "headers": {"Location": "/f/news/6/slug"},
+            },
+            "request": {
+                "url": "http://reddit.test/f/news/6/slug",
+                "method": "GET",
+                "headers": {"Referer": "http://reddit.test/submit/news"},
+            },
+        },
+        session_id,
+    )
+    rec._on_response_received(
+        {
+            "requestId": "submit-1",
+            "response": {
+                "status": 303,
+                "statusText": "See Other",
+                "headers": {"Location": "/f/news/6/slug?canonical=1"},
+            },
+        },
+        session_id,
+    )
+    rec._on_request_will_be_sent(
+        {
+            "requestId": "submit-1",
+            "timestamp": 1.2,
+            "wallTime": 1700000000.2,
+            "type": "Document",
+            "redirectResponse": {
+                "status": 303,
+                "headers": {"Location": "/f/news/6/slug?canonical=1"},
+            },
+            "request": {
+                "url": "http://reddit.test/f/news/6/slug?canonical=1",
+                "method": "GET",
+                "headers": {"Referer": "http://reddit.test/f/news/6/slug"},
+            },
+        },
+        session_id,
+    )
+    rec._on_response_received(
+        {
+            "requestId": "submit-1",
+            "response": {
+                "status": 200,
+                "headers": {"Content-Type": "text/html"},
+            },
+        },
+        session_id,
+    )
+
+    trace = rec._finalize_trace()
+
+    assert [entry["method"] for entry in trace] == ["POST", "GET", "GET"]
+    assert [entry["url"] for entry in trace] == [
+        "http://reddit.test/submit/news",
+        "http://reddit.test/f/news/6/slug",
+        "http://reddit.test/f/news/6/slug?canonical=1",
+    ]
+    assert trace[0]["post_data"] == body
+    assert trace[0]["response_status"] == 302
+    assert trace[0]["response_headers"]["Location"] == "/f/news/6/slug"
+    assert all(entry["request_id"] == "submit-1" for entry in trace)
+    assert all(entry["session_id"] == session_id for entry in trace)
+    assert trace[-1]["redirect_chain"] == [
+        {"url": "http://reddit.test/submit/news", "status": 302},
+        {"url": "http://reddit.test/f/news/6/slug", "status": 303},
+    ]
+
+    persisted_post = rec._redact_trace_entry(trace[0], redact_payloads=False)
+    assert persisted_post["headers"]["Authorization"] == "<redacted>"
+    assert persisted_post["headers"]["Cookie"] == "<redacted>"
+    assert persisted_post["response_headers"]["Set-Cookie"] == "<redacted>"
+    assert persisted_post["post_data"] == body
+
+    persisted_trace = [rec._redact_trace_entry(entry, redact_payloads=False) for entry in trace]
+    rec._write_trace(persisted_trace)
+    persisted = json.loads((tmp_path / "network_trace.json").read_text())
+    assert [entry["method"] for entry in persisted] == ["POST", "GET", "GET"]
+    assert persisted[0]["response_headers"]["Set-Cookie"] == "<redacted>"
+    har = json.loads((tmp_path / "network.har").read_text())
+    assert [entry["request"]["method"] for entry in har["log"]["entries"]] == [
+        "POST",
+        "GET",
+        "GET",
     ]
 
 
